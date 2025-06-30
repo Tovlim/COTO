@@ -248,13 +248,13 @@ function getOrCreateCluster(center, count, coords) {
   if (existing) {
     existing.count += count;
     const num = existing.element.querySelector('#PlaceNum, div');
-    if (num) num.textContent = existing.count;
+    if (num) num.textContent = `${existing.count} Places`;
     return existing;
   }
   
   const wrap = $id('PlaceNumWrap')?.cloneNode(true) || (() => {
     const div = document.createElement('div');
-    div.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;';
+    div.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;';
     const num = document.createElement('div');
     num.id = 'PlaceNum';
     div.appendChild(num);
@@ -262,7 +262,7 @@ function getOrCreateCluster(center, count, coords) {
   })();
   
   const num = wrap.querySelector('#PlaceNum, div');
-  if (num) num.textContent = count;
+  if (num) num.textContent = `${count} Places`;
   
   wrap.classList.add('cluster-marker');
   const marker = new mapboxgl.Marker({element: wrap, anchor: 'center'}).setLngLat(coords).addTo(map);
@@ -345,7 +345,7 @@ function checkOverlap() {
       Object.assign(existingCluster, {count: newCluster.count, coordinates: newCluster.coordinates, point: newCluster.center});
       
       const num = existingCluster.element.querySelector('#PlaceNum, div');
-      if (num) num.textContent = newCluster.count;
+      if (num) num.textContent = `${newCluster.count} Places`;
       existingCluster.marker.setLngLat(newCluster.coordinates);
       setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
     } else {
