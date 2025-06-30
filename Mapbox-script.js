@@ -252,49 +252,101 @@ function getOrCreateCluster(center, count, coords) {
     return existing;
   }
   
-  // Robust cloning of #PlaceNumWrap with proper deep copy
+  // Robust cloning of #PlaceNumWrap with complete structure preservation
   const originalWrap = $id('PlaceNumWrap');
   let wrap;
   
   if (originalWrap) {
-    // Deep clone with all attributes, styles, and child elements
+    console.log('📦 Original #PlaceNumWrap found, analyzing structure...');
+    console.log('📦 Original innerHTML:', originalWrap.innerHTML);
+    console.log('📦 Original children:', Array.from(originalWrap.children).map(child => `${child.tagName}${child.id ? '#' + child.id : ''}${child.className ? '.' + child.className.replace(/\s+/g, '.') : ''}`));
+    
+    // Deep clone with ALL content
     wrap = originalWrap.cloneNode(true);
     
-    // Remove ID to avoid duplicates
+    // Remove ID to avoid duplicates but preserve all other attributes
     wrap.removeAttribute('id');
     
-    // Ensure all styles are copied (sometimes cloneNode misses computed styles)
-    const originalStyles = window.getComputedStyle(originalWrap);
-    const importantStyles = [
-      'background', 'background-color', 'color', 'border-radius', 'width', 'height', 
-      'display', 'align-items', 'justify-content', 'font-size', 'font-weight',
-      'text-align', 'line-height', 'padding', 'margin', 'border', 'box-shadow'
-    ];
-    
-    importantStyles.forEach(prop => {
-      const value = originalStyles.getPropertyValue(prop);
-      if (value && value !== 'auto' && value !== 'normal') {
-        wrap.style.setProperty(prop, value);
+    // Copy all attributes except ID
+    Array.from(originalWrap.attributes).forEach(attr => {
+      if (attr.name !== 'id') {
+        wrap.setAttribute(attr.name, attr.value);
       }
     });
     
-    // Copy all classes
-    wrap.className = originalWrap.className;
+    // Recursively copy computed styles for the wrapper and all children
+    const copyComputedStyles = (source, target) => {
+      const sourceStyles = window.getComputedStyle(source);
+      const importantStyles = [
+        'background', 'background-color', 'background-image', 'color', 'border-radius', 
+        'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+        'display', 'position', 'align-items', 'justify-content', 'flex-direction',
+        'font-size', 'font-weight', 'font-family', 'text-align', 'line-height',
+        'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+        'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+        'border', 'border-width', 'border-style', 'border-color', 'box-shadow',
+        'opacity', 'z-index', 'transform', 'transition'
+      ];
+      
+      importantStyles.forEach(prop => {
+        const value = sourceStyles.getPropertyValue(prop);
+        if (value && value !== 'auto' && value !== 'normal' && value !== 'none' && value !== '0px') {
+          target.style.setProperty(prop, value);
+        }
+      });
+      
+      // Copy styles for all children recursively
+      for (let i = 0; i < source.children.length && i < target.children.length; i++) {
+        copyComputedStyles(source.children[i], target.children[i]);
+      }
+    };
     
-    console.log('📦 Cloned #PlaceNumWrap successfully with all styles and elements');
+    copyComputedStyles(originalWrap, wrap);
+    
+    // Verify that #place-name was copied
+    const originalPlaceName = originalWrap.querySelector('#place-name');
+    const clonedPlaceName = wrap.querySelector('#place-name');
+    
+    if (originalPlaceName && clonedPlaceName) {
+      console.log('✅ #place-name successfully cloned');
+      console.log('📦 Original #place-name:', originalPlaceName.outerHTML);
+      console.log('📦 Cloned #place-name:', clonedPlaceName.outerHTML);
+    } else if (originalPlaceName && !clonedPlaceName) {
+      console.warn('⚠️ #place-name was in original but not in clone!');
+    } else {
+      console.log('ℹ️ No #place-name found in original #PlaceNumWrap');
+    }
+    
+    console.log('📦 Final cloned structure:', wrap.innerHTML);
+    console.log('📦 Cloned children:', Array.from(wrap.children).map(child => `${child.tagName}${child.id ? '#' + child.id : ''}${child.className ? '.' + child.className.replace(/\s+/g, '.') : ''}`));
+    
   } else {
     // Fallback if #PlaceNumWrap doesn't exist
     wrap = document.createElement('div');
     wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;';
+    
+    // Create both #PlaceNum and #place-name for fallback
     const num = document.createElement('div');
     num.id = 'PlaceNum';
+    num.textContent = count;
+    
+    const placeName = document.createElement('div');
+    placeName.id = 'place-name';
+    placeName.style.cssText = 'position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 10px;';
+    placeName.textContent = 'Cluster';
+    
     wrap.appendChild(num);
-    console.log('🔧 Created fallback cluster element (no #PlaceNumWrap found)');
+    wrap.appendChild(placeName);
+    
+    console.log('🔧 Created fallback cluster element with #place-name (no #PlaceNumWrap found)');
   }
   
   // Find and update the number element
-  const num = wrap.querySelector('#PlaceNum') || wrap.querySelector('div') || wrap;
-  if (num) num.textContent = count;
+  const num = wrap.querySelector('#PlaceNum') || wrap.querySelector('div');
+  if (num) {
+    num.textContent = count;
+    console.log(`📊 Updated cluster count to: ${count}`);
+  }
   
   wrap.classList.add('cluster-marker');
   const marker = new mapboxgl.Marker({element: wrap, anchor: 'center'}).setLngLat(coords).addTo(map);
