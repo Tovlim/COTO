@@ -247,22 +247,50 @@ function getOrCreateCluster(center, count, coords) {
   
   if (existing) {
     existing.count += count;
-    const num = existing.element.querySelector('#PlaceNum, div');
-    if (num) num.textContent = `${existing.count} Places`;
+    // Find the number element more comprehensively
+    const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num, [class*="num"]') || 
+                existing.element.querySelector('div, span');
+    if (num) num.textContent = existing.count;
     return existing;
   }
   
-  const wrap = $id('PlaceNumWrap')?.cloneNode(true) || (() => {
-    const div = document.createElement('div');
-    div.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;';
-    const num = document.createElement('div');
-    num.id = 'PlaceNum';
-    div.appendChild(num);
-    return div;
-  })();
+  let wrap = null;
+  const originalWrap = $id('PlaceNumWrap');
   
-  const num = wrap.querySelector('#PlaceNum, div');
-  if (num) num.textContent = `${count} Places`;
+  if (originalWrap) {
+    // Clone with all children and attributes
+    wrap = originalWrap.cloneNode(true);
+    
+    // Remove ID to avoid conflicts
+    wrap.removeAttribute('id');
+    
+    // Find and update the number element - be more thorough
+    const num = wrap.querySelector('#PlaceNum') || 
+                wrap.querySelector('[id*="PlaceNum"]') || 
+                wrap.querySelector('.place-num') || 
+                wrap.querySelector('[class*="num"]') || 
+                wrap.querySelector('div') || 
+                wrap.querySelector('span') || 
+                wrap;
+    
+    if (num) {
+      // Remove ID from cloned number element to avoid duplicates
+      if (num.id) num.removeAttribute('id');
+      num.textContent = count;
+    }
+    
+    console.log(`🔄 Cloned PlaceNumWrap with ${wrap.children.length} children for count: ${count}`);
+  } else {
+    // Fallback if PlaceNumWrap doesn't exist
+    wrap = document.createElement('div');
+    wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold;';
+    
+    const num = document.createElement('div');
+    num.textContent = count;
+    wrap.appendChild(num);
+    
+    console.log(`🔄 Created fallback cluster marker for count: ${count}`);
+  }
   
   wrap.classList.add('cluster-marker');
   const marker = new mapboxgl.Marker({element: wrap, anchor: 'center'}).setLngLat(coords).addTo(map);
@@ -345,7 +373,7 @@ function checkOverlap() {
       Object.assign(existingCluster, {count: newCluster.count, coordinates: newCluster.coordinates, point: newCluster.center});
       
       const num = existingCluster.element.querySelector('#PlaceNum, div');
-      if (num) num.textContent = `${newCluster.count} Places`;
+      if (num) num.textContent = newCluster.count;
       existingCluster.marker.setLngLat(newCluster.coordinates);
       setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
     } else {
