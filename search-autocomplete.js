@@ -1,8 +1,55 @@
-const i=document.getElementById("refresh-on-enter"),s=document.getElementById("search-terms"),w=document.getElementById("searchTermsWrapper"),c=document.getElementById("searchclear");
-s.innerHTML=[...new Set([...document.getElementsByClassName('autofill-title')].map(e=>e.innerHTML))].sort().map(t=>`<li><a href="#" class="list-term">${t}</a></li>`).join('');
-i.setAttribute("onkeyup","typeSearch()");w.style.display="none";
-function typeSearch(){const f=i.value.toUpperCase();w.style.display=f?'block':'none';[...s.getElementsByTagName("li")].forEach(l=>l.style.display=(l.textContent||l.innerText).toUpperCase().includes(f)?"":"none")}
-const triggerEvents=()=>['input','change','keyup'].forEach(e=>i.dispatchEvent(new Event(e,{bubbles:true})));
-document.addEventListener('click',e=>{e.target.matches('.list-term')?(e.preventDefault(),i.value=e.target.innerHTML,w.style.display='none',triggerEvents()):e.target.id!=='refresh-on-enter'&&!w.contains(e.target)&&(w.style.display='none')});
-i.addEventListener('click',()=>{i.value.trim()&&(w.style.display='block',typeSearch())});
-c?.addEventListener('click',()=>{w.style.display='none';i.value&&(i.value='',triggerEvents())});
+const inputField = document.getElementById("refresh-on-enter");
+const searchList = document.getElementById("search-terms");
+const searchTermsWrapper = document.getElementById("searchTermsWrapper");
+const searchClearButton = document.getElementById("searchclear");
+
+// Collect unique terms and populate dropdown
+const terms = [...new Set([...document.getElementsByClassName('autofill-title')].map(el => el.innerHTML))];
+searchList.innerHTML = terms.sort().map(term => `<li><a href="#" class="list-term">${term}</a></li>`).join('');
+
+inputField.setAttribute("onkeyup", "typeSearch()");
+searchTermsWrapper.style.display = "none";
+
+// Filter search results
+function typeSearch() {
+    const filter = inputField.value.toUpperCase();
+    searchTermsWrapper.style.display = filter ? 'block' : 'none';
+    
+    [...searchList.getElementsByTagName("li")].forEach(li => {
+        li.style.display = (li.textContent || li.innerText).toUpperCase().includes(filter) ? "" : "none";
+    });
+}
+
+// Trigger Finsweet events
+const triggerEvents = () => {
+    ['input', 'change', 'keyup'].forEach(eventType => {
+        inputField.dispatchEvent(new Event(eventType, { bubbles: true }));
+    });
+};
+
+// Event listeners
+document.addEventListener('click', e => {
+    if (e.target.matches('.list-term')) {
+        e.preventDefault();
+        inputField.value = e.target.innerHTML;
+        searchTermsWrapper.style.display = 'none';
+        triggerEvents();
+    } else if (e.target.id !== 'refresh-on-enter' && !searchTermsWrapper.contains(e.target)) {
+        searchTermsWrapper.style.display = 'none';
+    }
+});
+
+inputField.addEventListener('click', () => {
+    if (inputField.value.trim()) {
+        searchTermsWrapper.style.display = 'block';
+        typeSearch();
+    }
+});
+
+searchClearButton?.addEventListener('click', () => {
+    searchTermsWrapper.style.display = 'none';
+    if (inputField.value) {
+        inputField.value = '';
+        triggerEvents();
+    }
+});
