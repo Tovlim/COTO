@@ -239,7 +239,7 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   setTimeout(() => window.isMarkerClick = false, 1000);
 }
 
-// Simplified clustering logic
+// Simplified clustering logic with robust #PlaceNumWrap cloning
 function getOrCreateCluster(center, count, coords) {
   const existing = clusterMarkers.find(c => 
     Math.sqrt((c.point.x - center.x) ** 2 + (c.point.y - center.y) ** 2) < OVERLAP_THRESHOLD / 2
@@ -247,21 +247,53 @@ function getOrCreateCluster(center, count, coords) {
   
   if (existing) {
     existing.count += count;
-    const num = existing.element.querySelector('#PlaceNum, div');
+    const num = existing.element.querySelector('#PlaceNum') || existing.element.querySelector('div');
     if (num) num.textContent = existing.count;
     return existing;
   }
   
-  const wrap = $id('PlaceNumWrap')?.cloneNode(true) || (() => {
-    const div = document.createElement('div');
-    div.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;';
+  // Robust cloning of #PlaceNumWrap with proper deep copy
+  const originalWrap = $id('PlaceNumWrap');
+  let wrap;
+  
+  if (originalWrap) {
+    // Deep clone with all attributes, styles, and child elements
+    wrap = originalWrap.cloneNode(true);
+    
+    // Remove ID to avoid duplicates
+    wrap.removeAttribute('id');
+    
+    // Ensure all styles are copied (sometimes cloneNode misses computed styles)
+    const originalStyles = window.getComputedStyle(originalWrap);
+    const importantStyles = [
+      'background', 'background-color', 'color', 'border-radius', 'width', 'height', 
+      'display', 'align-items', 'justify-content', 'font-size', 'font-weight',
+      'text-align', 'line-height', 'padding', 'margin', 'border', 'box-shadow'
+    ];
+    
+    importantStyles.forEach(prop => {
+      const value = originalStyles.getPropertyValue(prop);
+      if (value && value !== 'auto' && value !== 'normal') {
+        wrap.style.setProperty(prop, value);
+      }
+    });
+    
+    // Copy all classes
+    wrap.className = originalWrap.className;
+    
+    console.log('📦 Cloned #PlaceNumWrap successfully with all styles and elements');
+  } else {
+    // Fallback if #PlaceNumWrap doesn't exist
+    wrap = document.createElement('div');
+    wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;';
     const num = document.createElement('div');
     num.id = 'PlaceNum';
-    div.appendChild(num);
-    return div;
-  })();
+    wrap.appendChild(num);
+    console.log('🔧 Created fallback cluster element (no #PlaceNumWrap found)');
+  }
   
-  const num = wrap.querySelector('#PlaceNum, div');
+  // Find and update the number element
+  const num = wrap.querySelector('#PlaceNum') || wrap.querySelector('div') || wrap;
   if (num) num.textContent = count;
   
   wrap.classList.add('cluster-marker');
