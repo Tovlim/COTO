@@ -6,6 +6,9 @@ if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.c
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+// Namespace for mapbox to avoid conflicts
+window.MapboxController = window.MapboxController || {};
+
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmbus40jb016n01s5dui12tre",
@@ -20,7 +23,25 @@ map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccura
 let locationData = {type: "FeatureCollection", features: []};
 let allMarkers = [], clusterMarkers = [], districtMarkers = [], overlapTimer, filterTimer;
 let isInitialLoad = true, mapInitialized = false, forceFilteredReframe = false, isRefreshButtonAction = false;
-window.isLinkClick = false;
+
+// Namespace markers to prevent conflicts
+window.MapboxController.isLinkClick = false;
+window.MapboxController.isMarkerClick = false;
+window.MapboxController.isHiddenSearchActive = false;
+
+// Legacy support for existing code
+Object.defineProperty(window, 'isLinkClick', {
+  get: () => window.MapboxController.isLinkClick,
+  set: (value) => window.MapboxController.isLinkClick = value
+});
+Object.defineProperty(window, 'isMarkerClick', {
+  get: () => window.MapboxController.isMarkerClick,
+  set: (value) => window.MapboxController.isMarkerClick = value
+});
+Object.defineProperty(window, 'isHiddenSearchActive', {
+  get: () => window.MapboxController.isHiddenSearchActive,
+  set: (value) => window.MapboxController.isHiddenSearchActive = value
+});
 const OVERLAP_THRESHOLD = 60, TRANSITION = "200ms";
 
 // Utilities
@@ -206,7 +227,7 @@ function setupMarkerClicks() {
 
 // Consolidated search trigger handler
 function handleSearchTrigger(locality, targetField = 'hiddensearch') {
-  window.isMarkerClick = true;
+  window.MapboxController.isMarkerClick = true;
   console.log(`🎯 handleSearchTrigger: "${locality}", field: "${targetField}"`);
   
   const oppositeField = targetField === 'hiddensearch' ? 'hiddendistrict' : 'hiddensearch';
@@ -236,7 +257,7 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   
   toggleShowWhenFilteredElements(true);
   toggleSidebar('Left', true);
-  setTimeout(() => window.isMarkerClick = false, 1000);
+  setTimeout(() => window.MapboxController.isMarkerClick = false, 1000);
 }
 
 // Simplified clustering logic
@@ -501,7 +522,15 @@ function applyFilterToMarkers() {
 }
 
 const handleFilterUpdate = debounce(() => {
-  if (window.isLinkClick || window.isMarkerClick || window.isHiddenSearchActive) return;
+  if (window.MapboxController.isLinkClick || window.MapboxController.isMarkerClick || window.MapboxController.isHiddenSearchActive) return;
+  
+  // Additional check: don't refresh if autocomplete is active
+  const searchWrapper = $id('searchTermsWrapper');
+  if (searchWrapper && searchWrapper.style.display === 'block') {
+    console.log('🚫 Skipping map refresh - autocomplete is active');
+    return;
+  }
+  
   isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => isRefreshButtonAction = false, 1000);
@@ -722,24 +751,71 @@ function setupEvents() {
   if (hiddenSearch) {
     ['input', 'change', 'keyup'].forEach(event => {
       hiddenSearch.addEventListener(event, () => {
-        window.isHiddenSearchActive = true;
+        window.MapboxController.isHiddenSearchActive = true;
         // Only toggle sidebar and filtered elements, no map refresh
         if (hiddenSearch.value.trim()) {
           toggleShowWhenFilteredElements(true);
           toggleSidebar('Left', true);
         }
-        setTimeout(() => window.isHiddenSearchActive = false, 500);
+        setTimeout(() => window.MapboxController.isHiddenSearchActive = false, 500);
       });
     });
   }
   
-  // Consolidated apply-map-filter attribute (excludes districtselect and select-field-5 which have specific logic)
-  $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button').forEach(element => {
+  // Handle #refresh-on-enter with autocomplete conflict prevention
+  const refreshOnEnter = $id('refresh-on-enter');
+  if (refreshOnEnter) {
+    // Flag to track autocomplete usage
+    let isAutocompleteActive = false;
+    
+    // Monitor for autocomplete wrapper visibility to detect autocomplete usage
+    const searchWrapper = $id('searchTermsWrapper');
+    if (searchWrapper) {
+      const observer = new MutationObserver(() => {
+        isAutocompleteActive = searchWrapper.style.display === 'block';
+      });
+      observer.observe(searchWrapper, { attributes: true, attributeFilter: ['style'] });
+    }
+    
+    refreshOnEnter.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !isAutocompleteActive) {
+        console.log('🔄 refresh-on-enter Enter key pressed (not autocomplete)');
+        setTimeout(() => {
+          forceFilteredReframe = true;
+          isRefreshButtonAction = true;
+          applyFilterToMarkers();
+          setTimeout(() => {
+            forceFilteredReframe = false;
+            isRefreshButtonAction = false;
+          }, 1000);
+        }, 100);
+      }
+    });
+    
+    // Only handle click events for map refresh, ignore programmatic input/change events
+    refreshOnEnter.addEventListener('click', (e) => {
+      if (e.isTrusted && !isAutocompleteActive) { // Only real user clicks
+        console.log('🔄 refresh-on-enter clicked (user interaction)');
+        setTimeout(() => {
+          forceFilteredReframe = true;
+          isRefreshButtonAction = true;
+          applyFilterToMarkers();
+          setTimeout(() => {
+            forceFilteredReframe = false;
+            isRefreshButtonAction = false;
+          }, 1000);
+        }, 100);
+      }
+    });
+  }
+  
+  // Consolidated apply-map-filter attribute (excludes refresh-on-enter which has special handling above)
+  $('[apply-map-filter="true"], #refreshDiv, .filterrefresh, #filter-button').forEach(element => {
     const newElement = element.cloneNode(true);
     if (element.parentNode) element.parentNode.replaceChild(newElement, element);
     
     const events = [];
-    if (newElement.id === 'refresh-on-enter' || newElement.getAttribute('apply-map-filter') === 'true') {
+    if (newElement.getAttribute('apply-map-filter') === 'true') {
       events.push('click', 'keypress', 'input');
     } else {
       events.push('click');
@@ -748,7 +824,7 @@ function setupEvents() {
     events.forEach(eventType => {
       newElement.addEventListener(eventType, (e) => {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
-        if (window.isMarkerClick) return;
+        if (window.MapboxController.isMarkerClick) return;
         
         e.preventDefault();
         console.log(`🔄 apply-map-filter triggered: ${newElement.id || newElement.className || 'unnamed element'}`);
@@ -817,8 +893,8 @@ function setupEvents() {
   $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
     link.onclick = () => {
       if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
-        window.isLinkClick = true;
-        setTimeout(() => window.isLinkClick = false, 500);
+        window.MapboxController.isLinkClick = true;
+        setTimeout(() => window.MapboxController.isLinkClick = false, 500);
       }
     };
   });
@@ -838,7 +914,7 @@ function setupDropdownListeners() {
     // Add our functionality WITHOUT removing existing event listeners
     element.addEventListener('click', (e) => {
       // Don't prevent default - let the original dropdown functionality work
-      if (window.isMarkerClick) return;
+      if (window.MapboxController.isMarkerClick) return;
       
       console.log('🔄 districtselect clicked (additional handler):', element.textContent.trim());
       
@@ -865,7 +941,7 @@ function setupDropdownListeners() {
     
     // Add our functionality without removing existing listeners
     selectField5.addEventListener('change', (e) => {
-      if (window.isMarkerClick) return;
+      if (window.MapboxController.isMarkerClick) return;
       
       console.log('🔄 select-field-5 changed (additional handler):', e.target.value);
       
