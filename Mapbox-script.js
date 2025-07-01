@@ -701,8 +701,17 @@ function setupSidebars() {
 function setupEvents() {
   const eventHandlers = [
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => setTimeout(() => toggleSidebar('Left', true), 100)},
+    {selector: '#refresh-on-enter', events: ['click', 'keypress', 'input'], handler: (e) => {
+      if (e.type === 'keypress' && e.key !== 'Enter') return;
+      setTimeout(() => handleFilterUpdate(), e.type === 'input' ? 300 : 100);
+    }},
     {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
-    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)}
+    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
+    {selector: '#hiddensearch', events: ['input', 'change', 'keyup'], handler: (e) => {
+      window.isHiddenSearchActive = true;
+      if (e.target.value.trim()) setTimeout(handleFilterUpdate, 300);
+      setTimeout(() => window.isHiddenSearchActive = false, 500);
+    }}
   ];
   
   eventHandlers.forEach(({selector, events, handler}) => {
@@ -717,61 +726,24 @@ function setupEvents() {
     });
   });
   
-  // Setup #hiddensearch for search functionality without map refresh
-  const hiddenSearch = $id('hiddensearch');
-  if (hiddenSearch) {
-    ['input', 'change', 'keyup'].forEach(event => {
-      hiddenSearch.addEventListener(event, () => {
-        window.isHiddenSearchActive = true;
-        // Only toggle sidebar and filtered elements, no map refresh
-        if (hiddenSearch.value.trim()) {
-          toggleShowWhenFilteredElements(true);
-          toggleSidebar('Left', true);
-        }
-        setTimeout(() => window.isHiddenSearchActive = false, 500);
-      });
-    });
-  }
-  
-  // Consolidated apply-map-filter attribute (excludes districtselect and select-field-5 which have specific logic)
-  $('[apply-map-filter="true"], #refreshDiv, .filterrefresh, #filter-button').forEach(element => {
-    const newElement = element.cloneNode(true);
-    if (element.parentNode) element.parentNode.replaceChild(newElement, element);
-    
-    const events = [];
-    if (newElement.getAttribute('apply-map-filter') === 'true') {
-      events.push('click', 'keypress', 'input');
-    } else {
-      events.push('click');
-    }
-    
-    events.forEach(eventType => {
-      newElement.addEventListener(eventType, (e) => {
-        if (eventType === 'keypress' && e.key !== 'Enter') return;
-        if (window.isMarkerClick) return;
-        
-        e.preventDefault();
-        console.log(`🔄 apply-map-filter triggered: ${newElement.id || newElement.className || 'unnamed element'}`);
-        
-        forceFilteredReframe = true;
-        isRefreshButtonAction = true;
-        
-        const delay = eventType === 'input' ? 300 : 100;
-        
-        setTimeout(() => {
-          applyFilterToMarkers();
-          setTimeout(() => {
-            forceFilteredReframe = false;
-            isRefreshButtonAction = false;
-          }, 1000);
-        }, delay);
-      });
-    });
-  });
-  
   // Global event listeners
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
     document.addEventListener(event, handleFilterUpdate);
+  });
+  
+  // Setup refresh buttons
+  [$id('refreshDiv'), $id('filter-button'), ...$('.filterrefresh')].forEach(button => {
+    if (button) {
+      const newButton = button.cloneNode(true);
+      button.parentNode.replaceChild(newButton, button);
+      newButton.addEventListener('click', e => {
+        e.preventDefault();
+        forceFilteredReframe = true;
+        isRefreshButtonAction = true;
+        applyFilterToMarkers();
+        setTimeout(() => {forceFilteredReframe = false; isRefreshButtonAction = false;}, 1000);
+      });
+    }
   });
   
   // Firefox form handling
