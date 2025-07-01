@@ -733,53 +733,7 @@ function setupEvents() {
     });
   }
   
-  // Setup #refresh-on-enter for autocomplete compatibility (non-interfering)
-  const refreshOnEnter = $id('refresh-on-enter');
-  if (refreshOnEnter) {
-    // Only respond to programmatic events (from autocomplete), not direct user interaction
-    let isAutocompleteTriggered = false;
-    
-    refreshOnEnter.addEventListener('input', (e) => {
-      // Small delay to let autocomplete UI handle the event first
-      setTimeout(() => {
-        if (refreshOnEnter.value.trim() && !isAutocompleteTriggered) {
-          console.log('🔍 refresh-on-enter input detected, triggering map filter');
-          isAutocompleteTriggered = true;
-          forceFilteredReframe = true;
-          isRefreshButtonAction = true;
-          
-          setTimeout(() => {
-            applyFilterToMarkers();
-            setTimeout(() => {
-              forceFilteredReframe = false;
-              isRefreshButtonAction = false;
-              isAutocompleteTriggered = false;
-            }, 1000);
-          }, 100);
-        }
-      }, 50);
-    });
-    
-    // Handle Enter key specifically for map filtering
-    refreshOnEnter.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && refreshOnEnter.value.trim()) {
-        // Small delay to let autocomplete handle Enter first
-        setTimeout(() => {
-          console.log('🔍 refresh-on-enter Enter key, triggering map filter');
-          forceFilteredReframe = true;
-          isRefreshButtonAction = true;
-          
-          applyFilterToMarkers();
-          setTimeout(() => {
-            forceFilteredReframe = false;
-            isRefreshButtonAction = false;
-          }, 1000);
-        }, 100);
-      }
-    });
-  }
-  
-  // Consolidated apply-map-filter attribute (excludes refresh-on-enter for autocomplete compatibility)
+  // Consolidated apply-map-filter attribute (excludes districtselect and select-field-5 which have specific logic)
   $('[apply-map-filter="true"], #refreshDiv, .filterrefresh, #filter-button').forEach(element => {
     const newElement = element.cloneNode(true);
     if (element.parentNode) element.parentNode.replaceChild(newElement, element);
