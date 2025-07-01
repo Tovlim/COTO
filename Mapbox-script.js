@@ -71,8 +71,6 @@ const handleZoomBasedVisibility = debounce(() => {
   const currentZoom = map.getZoom();
   const shouldShowDistrictNames = currentZoom > 6;
   
-  console.log('🔍 handleZoomBasedVisibility:', {currentZoom: currentZoom.toFixed(2), shouldShowDistrictNames});
-  
   if (!districtMarkers.length) return;
   
   districtMarkers.forEach(districtMarker => {
@@ -195,7 +193,6 @@ function setupMarkerClicks() {
       
       const locality = link.getAttribute('districtname');
       if (locality) {
-        console.log('🗺️ Map marker clicked');
         handleSearchTrigger(locality, 'hiddensearch');
       }
     };
@@ -278,8 +275,6 @@ function getOrCreateCluster(center, count, coords) {
       if (num.id) num.removeAttribute('id');
       num.textContent = count;
     }
-    
-    console.log(`🔄 Cloned PlaceNumWrap with ${wrap.children.length} children for count: ${count}`);
   } else {
     // Fallback if PlaceNumWrap doesn't exist
     wrap = document.createElement('div');
@@ -288,8 +283,6 @@ function getOrCreateCluster(center, count, coords) {
     const num = document.createElement('div');
     num.textContent = count;
     wrap.appendChild(num);
-    
-    console.log(`🔄 Created fallback cluster marker for count: ${count}`);
   }
   
   wrap.classList.add('cluster-marker');
@@ -567,8 +560,6 @@ function setupSidebars() {
     if (!sidebar || !tab || !close) return false;
     if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
     
-    console.log(`🔧 Setting up ${side} sidebar elements`);
-    
     // Style sidebar
     sidebar.style.cssText += `transition: margin-${side.toLowerCase()} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
     tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -634,7 +625,6 @@ function setupSidebars() {
       tab.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`🔄 ${side} sidebar tab clicked`);
         toggle(!sidebar.classList.contains('is-show'));
       });
       tab.dataset.setupComplete = 'true';
@@ -645,7 +635,6 @@ function setupSidebars() {
       close.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
-        console.log(`❌ ${side} sidebar close clicked`);
         toggle(false);
       });
       close.dataset.setupComplete = 'true';
@@ -657,13 +646,10 @@ function setupSidebars() {
   
   // Smart retry function that waits for all elements
   const attemptSetup = (attempt = 1, maxAttempts = 5) => {
-    console.log(`🔄 Sidebar setup attempt ${attempt}/${maxAttempts}`);
-    
     const leftReady = setupSidebarElement('Left');
     const rightReady = setupSidebarElement('Right');
     
     if (leftReady && rightReady) {
-      console.log('✅ All sidebar elements successfully set up');
       setupInitialMargins();
       setTimeout(setupControls, 100);
       return;
@@ -672,10 +658,8 @@ function setupSidebars() {
     // If not all ready and we haven't hit max attempts, try again
     if (attempt < maxAttempts) {
       const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
-      console.log(`⏳ Retrying sidebar setup in ${delay}ms...`);
       setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
-      console.warn('⚠️ Some sidebar elements could not be set up after maximum attempts');
       setupInitialMargins(); // Still try to set up margins
       setTimeout(setupControls, 100);
     }
@@ -751,7 +735,6 @@ function setupEvents() {
         if (window.isMarkerClick) return;
         
         e.preventDefault();
-        console.log(`🔄 apply-map-filter triggered: ${newElement.id || newElement.className || 'unnamed element'}`);
         
         forceFilteredReframe = true;
         isRefreshButtonAction = true;
@@ -829,18 +812,12 @@ function setupDropdownListeners() {
   if (window.dropdownListenersSetup) return;
   window.dropdownListenersSetup = true;
   
-  console.log('🔧 Setting up dropdown listeners...');
-  
   // Handle districtselect elements while preserving existing functionality
   $('[districtselect]').forEach(element => {
-    console.log(`📍 Found districtselect element:`, element);
-    
     // Add our functionality WITHOUT removing existing event listeners
     element.addEventListener('click', (e) => {
       // Don't prevent default - let the original dropdown functionality work
       if (window.isMarkerClick) return;
-      
-      console.log('🔄 districtselect clicked (additional handler):', element.textContent.trim());
       
       // Add a small delay to let the original functionality complete first
       setTimeout(() => {
@@ -861,13 +838,9 @@ function setupDropdownListeners() {
   // Handle select-field-5 while preserving existing functionality
   const selectField5 = $id('select-field-5');
   if (selectField5) {
-    console.log(`📍 Found select-field-5:`, selectField5);
-    
     // Add our functionality without removing existing listeners
     selectField5.addEventListener('change', (e) => {
       if (window.isMarkerClick) return;
-      
-      console.log('🔄 select-field-5 changed (additional handler):', e.target.value);
       
       // Small delay to let original functionality complete
       setTimeout(() => {
@@ -884,8 +857,6 @@ function setupDropdownListeners() {
       }, 50);
     });
   }
-  
-  console.log(`✅ Dropdown listeners setup complete. Found ${$('[districtselect]').length} districtselect elements`);
 }
 
 // Simplified boundary loading
@@ -1004,7 +975,9 @@ function loadBoundaries() {
           map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
         });
       })
-      .catch(error => console.error(`Error loading ${boundary.name}:`, error));
+      .catch(error => {
+        // Silent error handling for boundary loading
+      });
   };
   
   (map.loaded() ? boundaries : (() => {map.on('load', () => boundaries.forEach(addBoundaryToMap)); return [];})()).forEach(addBoundaryToMap);
@@ -1066,7 +1039,7 @@ map.on("load", () => {
     init();
     loadBoundaries();
   } catch (error) {
-    console.error('Error in init:', error);
+    // Silent error handling
   }
 });
 
@@ -1076,7 +1049,7 @@ window.addEventListener('load', () => {
   setupSidebars();
   setTimeout(() => {
     if (!allMarkers.length && map.loaded()) {
-      try { init(); } catch (error) { console.error('Error in window load init:', error); }
+      try { init(); } catch (error) { /* Silent error handling */ }
     }
   }, 200);
   
