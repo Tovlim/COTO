@@ -3,11 +3,14 @@ const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
 if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
 
+// Detect mobile for better map experience
+const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmbus40jb016n01s5dui12tre",
   center: [35.22, 31.85],
-  zoom: 8.33,
+  zoom: isMobile ? 7.5 : 8.33, // Less zoomed in on mobile
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
 });
 
@@ -244,22 +247,50 @@ function getOrCreateCluster(center, count, coords) {
   
   if (existing) {
     existing.count += count;
-    const num = existing.element.querySelector('#PlaceNum, div');
+    // Find the number element more comprehensively
+    const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num, [class*="num"]') || 
+                existing.element.querySelector('div, span');
     if (num) num.textContent = existing.count;
     return existing;
   }
   
-  const wrap = $id('PlaceNumWrap')?.cloneNode(true) || (() => {
-    const div = document.createElement('div');
-    div.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;';
-    const num = document.createElement('div');
-    num.id = 'PlaceNum';
-    div.appendChild(num);
-    return div;
-  })();
+  let wrap = null;
+  const originalWrap = $id('PlaceNumWrap');
   
-  const num = wrap.querySelector('#PlaceNum, div');
-  if (num) num.textContent = count;
+  if (originalWrap) {
+    // Clone with all children and attributes
+    wrap = originalWrap.cloneNode(true);
+    
+    // Remove ID to avoid conflicts
+    wrap.removeAttribute('id');
+    
+    // Find and update the number element - be more thorough
+    const num = wrap.querySelector('#PlaceNum') || 
+                wrap.querySelector('[id*="PlaceNum"]') || 
+                wrap.querySelector('.place-num') || 
+                wrap.querySelector('[class*="num"]') || 
+                wrap.querySelector('div') || 
+                wrap.querySelector('span') || 
+                wrap;
+    
+    if (num) {
+      // Remove ID from cloned number element to avoid duplicates
+      if (num.id) num.removeAttribute('id');
+      num.textContent = count;
+    }
+    
+    console.log(`🔄 Cloned PlaceNumWrap with ${wrap.children.length} children for count: ${count}`);
+  } else {
+    // Fallback if PlaceNumWrap doesn't exist
+    wrap = document.createElement('div');
+    wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold;';
+    
+    const num = document.createElement('div');
+    num.textContent = count;
+    wrap.appendChild(num);
+    
+    console.log(`🔄 Created fallback cluster marker for count: ${count}`);
+  }
   
   wrap.classList.add('cluster-marker');
   const marker = new mapboxgl.Marker({element: wrap, anchor: 'center'}).setLngLat(coords).addTo(map);
@@ -269,14 +300,14 @@ function getOrCreateCluster(center, count, coords) {
   return cluster;
 }
 
-// Optimized overlap checking
+// Optimized overlap checking with mobile-friendly marker visibility
 function checkOverlap() {
   if (isRefreshButtonAction && map.isMoving()) return;
   
   const currentZoom = map.getZoom();
-  const shouldShowMarkers = currentZoom >= 9;
+  const shouldShowMarkers = currentZoom >= (isMobile ? 8 : 9); // Zoom 8 threshold on mobile
   
-  console.log(`🔄 checkOverlap: zoom ${currentZoom.toFixed(2)}, show: ${shouldShowMarkers}`);
+  console.log(`🔄 checkOverlap: zoom ${currentZoom.toFixed(2)}, show: ${shouldShowMarkers}, mobile: ${isMobile}`);
   
   if (!shouldShowMarkers) {
     [...allMarkers, ...clusterMarkers].forEach(info => {
@@ -368,7 +399,7 @@ function checkOverlap() {
   
   // Set marker visibility
   positions.forEach(info => {
-    if (isInitialLoad && map.getZoom() < 9) return;
+    if (isInitialLoad && map.getZoom() < (isMobile ? 8 : 9)) return;
     
     const element = info.element;
     if (!info.visible || info.clustered) {
@@ -523,96 +554,132 @@ function setupControls() {
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
 }
 
-// Sidebar setup with proper initialization and retries
+// Smart sidebar setup with conditional initialization
 function setupSidebars() {
   let zIndex = 1000;
   
-  const setup = () => {
-    ['Right', 'Left'].forEach(side => {
-      const sidebar = $id(`${side}Sidebar`);
-      const tab = $id(`${side}SideTab`);
-      const close = $id(`${side}SidebarClose`);
+  const setupSidebarElement = (side) => {
+    const sidebar = $id(`${side}Sidebar`);
+    const tab = $id(`${side}SideTab`);
+    const close = $id(`${side}SidebarClose`);
+    
+    // Check if all elements exist and aren't already set up
+    if (!sidebar || !tab || !close) return false;
+    if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
+    
+    console.log(`🔧 Setting up ${side} sidebar elements`);
+    
+    // Style sidebar
+    sidebar.style.cssText += `transition: margin-${side.toLowerCase()} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
+    tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    
+    const bringToFront = () => {
+      const newZ = ++zIndex;
+      sidebar.style.zIndex = newZ;
       
-      if (!sidebar || !tab || !close) return;
+      if (window.innerWidth <= 478) {
+        tab.style.zIndex = newZ + 10;
+        if (tab.parentElement) tab.parentElement.style.zIndex = newZ + 10;
+      }
       
-      sidebar.style.cssText += `transition: margin-${side.toLowerCase()} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
-      tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+      const oppositeSide = side === 'Left' ? 'Right' : 'Left';
+      const oppositeSidebar = $id(`${oppositeSide}Sidebar`);
+      const oppositeTab = $id(`${oppositeSide}SideTab`);
       
-      const newTab = tab.cloneNode(true);
-      const newClose = close.cloneNode(true);
-      tab.parentNode.replaceChild(newTab, tab);
-      close.parentNode.replaceChild(newClose, close);
-      
-      const bringToFront = () => {
-        const newZ = ++zIndex;
-        sidebar.style.zIndex = newZ;
-        const currentTab = $id(`${side}SideTab`);
-        if (currentTab && window.innerWidth <= 478) {
-          currentTab.style.zIndex = newZ + 10;
-          if (currentTab.parentElement) currentTab.parentElement.style.zIndex = newZ + 10;
-        }
-        
-        const oppositeSide = side === 'Left' ? 'Right' : 'Left';
-        const oppositeSidebar = $id(`${oppositeSide}Sidebar`);
-        const oppositeTab = $id(`${oppositeSide}SideTab`);
-        
-        if (oppositeSidebar) oppositeSidebar.style.zIndex = newZ - 1;
-        if (oppositeTab && window.innerWidth <= 478) {
-          oppositeTab.style.zIndex = newZ + 5;
-          if (oppositeTab.parentElement) oppositeTab.parentElement.style.zIndex = newZ + 5;
-        }
-      };
+      if (oppositeSidebar) oppositeSidebar.style.zIndex = newZ - 1;
+      if (oppositeTab && window.innerWidth <= 478) {
+        oppositeTab.style.zIndex = newZ + 5;
+        if (oppositeTab.parentElement) oppositeTab.parentElement.style.zIndex = newZ + 5;
+      }
+    };
 
-      const toggle = show => {
-        if (show) bringToFront();
-        sidebar.classList.toggle('is-show', show);
-        
-        const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
-        if (arrowIcon) arrowIcon.style.transform = show ? 'rotateY(180deg)' : 'rotateY(0deg)';
-        
-        if (window.innerWidth > 478) {
-          const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-          sidebar.style[`margin${side}`] = show ? '0' : `-${currentWidth + 1}px`;
-        } else {
-          sidebar.style[`margin${side}`] = show ? '0' : '';
-          if (show) {
-            const oppositeSide = side === 'Left' ? 'Right' : 'Left';
-            const oppositeSidebar = $id(`${oppositeSide}Sidebar`);
-            if (oppositeSidebar) {
-              oppositeSidebar.classList.remove('is-show');
-              const oppositeArrowIcon = $1(`[arrow-icon="${oppositeSide.toLowerCase()}"]`);
-              if (oppositeArrowIcon) oppositeArrowIcon.style.transform = 'rotateY(0deg)';
-              oppositeSidebar.style[`margin${oppositeSide}`] = '';
-              oppositeSidebar.style.pointerEvents = '';
-            }
+    const toggle = show => {
+      if (show) bringToFront();
+      sidebar.classList.toggle('is-show', show);
+      
+      const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
+      if (arrowIcon) arrowIcon.style.transform = show ? 'rotateY(180deg)' : 'rotateY(0deg)';
+      
+      if (window.innerWidth > 478) {
+        const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
+        sidebar.style[`margin${side}`] = show ? '0' : `-${currentWidth + 1}px`;
+      } else {
+        sidebar.style[`margin${side}`] = show ? '0' : '';
+        if (show) {
+          const oppositeSide = side === 'Left' ? 'Right' : 'Left';
+          const oppositeSidebar = $id(`${oppositeSide}Sidebar`);
+          if (oppositeSidebar) {
+            oppositeSidebar.classList.remove('is-show');
+            const oppositeArrowIcon = $1(`[arrow-icon="${oppositeSide.toLowerCase()}"]`);
+            if (oppositeArrowIcon) oppositeArrowIcon.style.transform = 'rotateY(0deg)';
+            oppositeSidebar.style[`margin${oppositeSide}`] = '';
+            oppositeSidebar.style.pointerEvents = '';
           }
         }
-        
-        sidebar.style.pointerEvents = show ? 'auto' : '';
-      };
+      }
       
+      sidebar.style.pointerEvents = show ? 'auto' : '';
+    };
+    
+    // Add click listener to sidebar for z-index management
+    if (!sidebar.dataset.clickSetup) {
       sidebar.addEventListener('click', () => {
         if (sidebar.classList.contains('is-show')) bringToFront();
       });
-      
-      newTab.onclick = e => {
+      sidebar.dataset.clickSetup = 'true';
+    }
+    
+    // Setup tab button if not already done
+    if (tab.dataset.setupComplete !== 'true') {
+      tab.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
+        console.log(`🔄 ${side} sidebar tab clicked`);
         toggle(!sidebar.classList.contains('is-show'));
-      };
-      
-      newClose.onclick = e => {
+      });
+      tab.dataset.setupComplete = 'true';
+    }
+    
+    // Setup close button if not already done
+    if (close.dataset.setupComplete !== 'true') {
+      close.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
+        console.log(`❌ ${side} sidebar close clicked`);
         toggle(false);
-      };
-      
-      zIndex++;
-    });
+      });
+      close.dataset.setupComplete = 'true';
+    }
+    
+    zIndex++;
+    return true;
   };
   
-  setup();
-  [200, 500, 1000, 2000].forEach(delay => setTimeout(setup, delay));
+  // Smart retry function that waits for all elements
+  const attemptSetup = (attempt = 1, maxAttempts = 5) => {
+    console.log(`🔄 Sidebar setup attempt ${attempt}/${maxAttempts}`);
+    
+    const leftReady = setupSidebarElement('Left');
+    const rightReady = setupSidebarElement('Right');
+    
+    if (leftReady && rightReady) {
+      console.log('✅ All sidebar elements successfully set up');
+      setupInitialMargins();
+      setTimeout(setupControls, 100);
+      return;
+    }
+    
+    // If not all ready and we haven't hit max attempts, try again
+    if (attempt < maxAttempts) {
+      const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
+      console.log(`⏳ Retrying sidebar setup in ${delay}ms...`);
+      setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
+    } else {
+      console.warn('⚠️ Some sidebar elements could not be set up after maximum attempts');
+      setupInitialMargins(); // Still try to set up margins
+      setTimeout(setupControls, 100);
+    }
+  };
   
   const setupInitialMargins = () => {
     if (window.innerWidth <= 478) return;
@@ -626,27 +693,16 @@ function setupSidebars() {
     });
   };
   
-  setupInitialMargins();
-  [100, 300, 500].forEach(delay => setTimeout(setupInitialMargins, delay));
-  
-  setTimeout(setupControls, 200);
+  // Start the smart setup process
+  attemptSetup();
 }
 
 // Consolidated event setup
 function setupEvents() {
   const eventHandlers = [
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => setTimeout(() => toggleSidebar('Left', true), 100)},
-    {selector: '#refresh-on-enter', events: ['click', 'keypress', 'input'], handler: (e) => {
-      if (e.type === 'keypress' && e.key !== 'Enter') return;
-      setTimeout(() => handleFilterUpdate(), e.type === 'input' ? 300 : 100);
-    }},
     {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
-    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
-    {selector: '#hiddensearch', events: ['input', 'change', 'keyup'], handler: (e) => {
-      window.isHiddenSearchActive = true;
-      if (e.target.value.trim()) setTimeout(handleFilterUpdate, 300);
-      setTimeout(() => window.isHiddenSearchActive = false, 500);
-    }}
+    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)}
   ];
   
   eventHandlers.forEach(({selector, events, handler}) => {
@@ -661,25 +717,90 @@ function setupEvents() {
     });
   });
   
+  // Setup #hiddensearch for search functionality without map refresh
+  const hiddenSearch = $id('hiddensearch');
+  if (hiddenSearch) {
+    ['input', 'change', 'keyup'].forEach(event => {
+      hiddenSearch.addEventListener(event, () => {
+        window.isHiddenSearchActive = true;
+        // Only toggle sidebar and filtered elements, no map refresh
+        if (hiddenSearch.value.trim()) {
+          toggleShowWhenFilteredElements(true);
+          toggleSidebar('Left', true);
+        }
+        setTimeout(() => window.isHiddenSearchActive = false, 500);
+      });
+    });
+  }
+  
+  // Consolidated apply-map-filter attribute (excludes districtselect and select-field-5 which have specific logic)
+  $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button').forEach(element => {
+    const newElement = element.cloneNode(true);
+    if (element.parentNode) element.parentNode.replaceChild(newElement, element);
+    
+    const events = [];
+    if (newElement.id === 'refresh-on-enter' || newElement.getAttribute('apply-map-filter') === 'true') {
+      events.push('click', 'keypress', 'input');
+    } else {
+      events.push('click');
+    }
+    
+    events.forEach(eventType => {
+      newElement.addEventListener(eventType, (e) => {
+        if (eventType === 'keypress' && e.key !== 'Enter') return;
+        if (window.isMarkerClick) return;
+        
+        e.preventDefault();
+        console.log(`🔄 apply-map-filter triggered: ${newElement.id || newElement.className || 'unnamed element'}`);
+        
+        forceFilteredReframe = true;
+        isRefreshButtonAction = true;
+        
+        const delay = eventType === 'input' ? 300 : 100;
+        
+        setTimeout(() => {
+          applyFilterToMarkers();
+          setTimeout(() => {
+            forceFilteredReframe = false;
+            isRefreshButtonAction = false;
+          }, 1000);
+        }, delay);
+      });
+    });
+  });
+  
   // Global event listeners
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
     document.addEventListener(event, handleFilterUpdate);
   });
   
-  // Setup refresh buttons
-  [$id('refreshDiv'), $id('filter-button'), ...$('.filterrefresh')].forEach(button => {
-    if (button) {
-      const newButton = button.cloneNode(true);
-      button.parentNode.replaceChild(newButton, button);
-      newButton.addEventListener('click', e => {
-        e.preventDefault();
-        forceFilteredReframe = true;
-        isRefreshButtonAction = true;
-        applyFilterToMarkers();
-        setTimeout(() => {forceFilteredReframe = false; isRefreshButtonAction = false;}, 1000);
-      });
-    }
-  });
+  // Firefox form handling
+  if (navigator.userAgent.toLowerCase().includes('firefox')) {
+    $('form').forEach(form => {
+      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
+      const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
+      
+      if (hasFilterElements || isNearMap) {
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          forceFilteredReframe = true;
+          isRefreshButtonAction = true;
+          
+          setTimeout(() => {
+            applyFilterToMarkers();
+            setTimeout(() => {
+              forceFilteredReframe = false;
+              isRefreshButtonAction = false;
+            }, 1000);
+          }, 100);
+          
+          return false;
+        }, true);
+      }
+    });
+  }
   
   // Cluster click handler
   document.onclick = e => {
@@ -701,6 +822,70 @@ function setupEvents() {
       }
     };
   });
+}
+
+// Specific dropdown listeners for districtselect and select-field-5
+function setupDropdownListeners() {
+  if (window.dropdownListenersSetup) return;
+  window.dropdownListenersSetup = true;
+  
+  console.log('🔧 Setting up dropdown listeners...');
+  
+  // Handle districtselect elements while preserving existing functionality
+  $('[districtselect]').forEach(element => {
+    console.log(`📍 Found districtselect element:`, element);
+    
+    // Add our functionality WITHOUT removing existing event listeners
+    element.addEventListener('click', (e) => {
+      // Don't prevent default - let the original dropdown functionality work
+      if (window.isMarkerClick) return;
+      
+      console.log('🔄 districtselect clicked (additional handler):', element.textContent.trim());
+      
+      // Add a small delay to let the original functionality complete first
+      setTimeout(() => {
+        forceFilteredReframe = true;
+        isRefreshButtonAction = true;
+        
+        setTimeout(() => {
+          applyFilterToMarkers();
+          setTimeout(() => {
+            forceFilteredReframe = false;
+            isRefreshButtonAction = false;
+          }, 1000);
+        }, 100); // Small delay to let original dropdown logic complete
+      }, 50);
+    });
+  });
+  
+  // Handle select-field-5 while preserving existing functionality
+  const selectField5 = $id('select-field-5');
+  if (selectField5) {
+    console.log(`📍 Found select-field-5:`, selectField5);
+    
+    // Add our functionality without removing existing listeners
+    selectField5.addEventListener('change', (e) => {
+      if (window.isMarkerClick) return;
+      
+      console.log('🔄 select-field-5 changed (additional handler):', e.target.value);
+      
+      // Small delay to let original functionality complete
+      setTimeout(() => {
+        forceFilteredReframe = true;
+        isRefreshButtonAction = true;
+        
+        setTimeout(() => {
+          applyFilterToMarkers();
+          setTimeout(() => {
+            forceFilteredReframe = false;
+            isRefreshButtonAction = false;
+          }, 1000);
+        }, 100);
+      }, 50);
+    });
+  }
+  
+  console.log(`✅ Dropdown listeners setup complete. Found ${$('[districtselect]').length} districtselect elements`);
 }
 
 // Simplified boundary loading
@@ -856,6 +1041,8 @@ function init() {
   map.on('zoomend', handleMapEvents);
   
   [300, 1000, 3000].forEach(delay => setTimeout(setupMarkerClicks, delay));
+  setTimeout(setupDropdownListeners, 1000);
+  setTimeout(setupDropdownListeners, 3000);
   
   mapInitialized = true;
   setTimeout(() => {
