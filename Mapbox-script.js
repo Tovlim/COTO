@@ -6,8 +6,8 @@ if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.c
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmbus40jb016n01s5dui12tre",
-  center: [35.22, 31.85], // Start directly at West Bank
-  zoom: isMobile() ? 7.5 : 8.33, // Less zoom on mobile
+  center: [35, 31.4],
+  zoom: 7,
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
 });
 
@@ -59,113 +59,55 @@ const toggleShowWhenFilteredElements = show => {
   });
 };
 
-// Add debounce for zoom-based visibility
-let zoomVisibilityTimeout;
-
 // Handle district names and marker visibility based on zoom
 function handleZoomBasedVisibility() {
-  clearTimeout(zoomVisibilityTimeout);
+  const currentZoom = map.getZoom();
+  const shouldShowDistrictNames = currentZoom > 6;
+  const shouldShowMarkers = currentZoom >= 9;
   
-  zoomVisibilityTimeout = setTimeout(() => {
-    const currentZoom = map.getZoom();
-    const shouldShowDistrictNames = currentZoom > 6;
-    
-    const stackLines = new Error().stack.split('\n').slice(1, 5).map(line => line.trim());
-    console.log('🔍 handleZoomBasedVisibility called:', {
-      currentZoom: currentZoom.toFixed(2),
-      shouldShowDistrictNames,
-      districtMarkersCount: districtMarkers.length,
-      stackTrace: stackLines
+  // District names visibility
+  districtMarkers.forEach(districtMarker => {
+    const element = districtMarker.element;
+    const opacity = shouldShowDistrictNames ? '1' : '0';
+    Object.assign(element.style, {
+      transition: 'opacity 300ms ease',
+      opacity,
+      visibility: shouldShowDistrictNames ? 'visible' : 'hidden',
+      display: shouldShowDistrictNames ? 'block' : 'none',
+      pointerEvents: shouldShowDistrictNames ? 'auto' : 'none'
     });
-    
-    if (districtMarkers.length === 0) {
-      console.log('⚠️ No district markers found - they may not be loaded yet');
-      return;
-    }
-    
-    // District names visibility with proper fade transitions
-    districtMarkers.forEach((districtMarker, index) => {
-      const element = districtMarker.element;
-      
-      console.log(`📍 District ${districtMarker.name} (${index}):`, {
-        shouldShow: shouldShowDistrictNames,
-        currentOpacity: element.style.opacity,
-        currentDisplay: element.style.display,
-        currentVisibility: element.style.visibility
-      });
-      
-      if (shouldShowDistrictNames) {
-        console.log(`✅ Fading IN district: ${districtMarker.name}`);
-        
-        if (element.dataset.fadeOutId) {
-          console.log(`🧹 Clearing fadeOutId for ${districtMarker.name}: ${element.dataset.fadeOutId}`);
-          delete element.dataset.fadeOutId;
+  });
+  
+  // Markers visibility
+  if (!shouldShowMarkers) {
+    [...allMarkers, ...clusterMarkers].forEach(info => {
+      const element = info.marker ? info.marker.getElement() : info.element;
+      element.style.transition = 'opacity 300ms ease';
+      element.style.opacity = '0';
+      element.style.pointerEvents = 'none';
+      setTimeout(() => {
+        if (element.style.opacity === '0') {
+          element.style.visibility = 'hidden';
+          element.style.display = 'none';
         }
-        
-        const isCurrentlyHidden = element.style.display === 'none' || 
-                                  element.style.visibility === 'hidden' || 
-                                  element.style.opacity === '0' || 
-                                  !element.style.opacity;
-        
-        if (isCurrentlyHidden) {
-          console.log(`🎭 Starting fade IN transition for: ${districtMarker.name} (was hidden)`);
-          
-          element.style.display = 'block';
-          element.style.visibility = 'visible';
-          element.style.transition = 'opacity 300ms ease';
-          element.style.opacity = '0';
-          element.style.pointerEvents = 'none';
-          
-          element.offsetHeight;
-          
-          element.style.opacity = '1';
-          element.style.pointerEvents = 'auto';
-          
-          setTimeout(() => {
-            console.log(`🔍 ${districtMarker.name} state after fade-in attempt:`, {
-              opacity: element.style.opacity,
-              display: element.style.display,
-              visibility: element.style.visibility
-            });
-          }, 350);
-          
-        } else {
-          console.log(`⭐ ${districtMarker.name} already visible, just ensuring full visibility.`);
-          element.style.display = 'block';
-          element.style.visibility = 'visible';
-          element.style.opacity = '1';
-          element.style.pointerEvents = 'auto';
-        }
-      } else {
-        console.log(`❌ Fading OUT district: ${districtMarker.name} (zoom ${currentZoom.toFixed(2)} <= 6)`);
-        element.style.transition = 'opacity 300ms ease';
-        element.style.opacity = '0';
-        element.style.pointerEvents = 'none';
-        
-        const fadeOutId = Date.now() + Math.random();
-        element.dataset.fadeOutId = fadeOutId;
-        
-        console.log(`⏰ Setting timeout for ${districtMarker.name} with fadeOutId: ${fadeOutId}`);
-        
-        setTimeout(() => {
-          console.log(`🕒 Timeout fired for ${districtMarker.name}, fadeOutId: ${fadeOutId}, current fadeOutId: ${element.dataset.fadeOutId}, current opacity: ${element.style.opacity}`);
-          
-          if (element.dataset.fadeOutId === fadeOutId.toString() && element.style.opacity === '0') {
-            console.log(`🚫 Actually hiding ${districtMarker.name}`);
-            element.style.visibility = 'hidden';
-            element.style.display = 'none';
-            delete element.dataset.fadeOutId;
-          } else {
-            console.log(`⚠️ Not hiding ${districtMarker.name} - fadeOutId mismatch or opacity changed:`, {
-              expectedFadeOutId: fadeOutId,
-              currentFadeOutId: element.dataset.fadeOutId,
-              currentOpacity: element.style.opacity
-            });
-          }
-        }, 300);
-      }
+      }, 300);
     });
-  }, 50);
+    return false;
+  }
+  
+  // Show markers with fade transition
+  allMarkers.forEach(info => {
+    const element = info.marker.getElement();
+    Object.assign(element.style, {
+      display: 'block',
+      visibility: 'visible',
+      pointerEvents: 'auto',
+      transition: 'opacity 300ms ease',
+      opacity: '1'
+    });
+  });
+  
+  return true;
 }
 
 // Get location data from DOM
@@ -224,34 +166,13 @@ function addCustomMarkers() {
       el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITION} ease;`;
     }
     
-    // Start markers hidden on initial load
-    const currentZoom = map.getZoom();
-    // Mobile-friendly initial visibility check
-    const shouldInitiallyShow = isMobile() ? currentZoom >= 7.5 : currentZoom >= 9;
-    
-    if (!shouldInitiallyShow || isInitialLoad) {
-      el.style.opacity = '0';
-      el.style.visibility = 'hidden';
-      el.style.display = 'none';
-      el.style.pointerEvents = 'none';
-      console.log(`🚀 Creating marker for ${name} - initially hidden (zoom: ${currentZoom.toFixed(2)}, isInitialLoad: ${isInitialLoad}, mobile: ${isMobile()})`);
-    } else {
-      el.style.opacity = '1';
-      el.style.visibility = 'visible';
-      el.style.display = 'block';
-      el.style.pointerEvents = 'auto';
-      console.log(`🚀 Creating marker for ${name} - initially visible (zoom: ${currentZoom.toFixed(2)}, mobile: ${isMobile()})`);
-    }
-    
-    el.style.transition = `opacity ${TRANSITION} ease`;
-    
     Object.assign(el.dataset, {name, markerslug: slug, markerindex: index});
     const marker = new mapboxgl.Marker({element: el, anchor: 'bottom'}).setLngLat(coordinates).addTo(map);
     allMarkers.push({marker, name, slug, index, coordinates});
   });
   
   setupMarkerClicks();
-  setTimeout(() => checkOverlap(), 100);
+  checkOverlap();
 }
 
 // Setup marker click handlers
@@ -271,8 +192,7 @@ function setupMarkerClicks() {
       const locality = link.getAttribute('districtname');
       if (!locality) return;
       
-      console.log('🗺️ Map marker clicked, using #hiddensearch');
-      handleSearchTrigger(locality, 'hiddensearch');
+      handleSearchTrigger(locality);
     };
     
     info.marker._element = newEl;
@@ -280,29 +200,11 @@ function setupMarkerClicks() {
 }
 
 // Handle search trigger (reusable function)
-function handleSearchTrigger(locality, targetField = 'hiddensearch') {
+function handleSearchTrigger(locality) {
   window.isMarkerClick = true;
   
-  console.log(`🎯 handleSearchTrigger called with locality: "${locality}", targetField: "${targetField}"`);
-  
-  // Determine the opposite field to clear
-  const oppositeField = targetField === 'hiddensearch' ? 'hiddendistrict' : 'hiddensearch';
-  
-  // Clear the opposite field first
-  const oppositeSearch = $id(oppositeField);
-  if (oppositeSearch && oppositeSearch.value) {
-    console.log(`🧹 Clearing ${oppositeField} (previous value: "${oppositeSearch.value}")`);
-    oppositeSearch.value = '';
-    triggerEvent(oppositeSearch, ['input', 'change', 'keyup']);
-    
-    const oppositeForm = oppositeSearch.closest('form');
-    if (oppositeForm) oppositeForm.dispatchEvent(new Event('input', {bubbles: true}));
-  }
-  
-  // Set the target field
-  const search = $id(targetField);
+  const search = $id('hiddensearch') || $id('hiddendistrict');
   if (search) {
-    console.log(`🔍 Setting ${targetField} to: "${locality}"`);
     search.value = locality;
     triggerEvent(search, ['input', 'change', 'keyup']);
     
@@ -315,8 +217,6 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
         document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: locality}}))
       );
     }, 100);
-  } else {
-    console.warn(`⚠️ Target field #${targetField} not found`);
   }
   
   toggleShowWhenFilteredElements(true);
@@ -362,45 +262,8 @@ function getOrCreateCluster(center, count, coords) {
 function checkOverlap() {
   if (isRefreshButtonAction && map.isMoving()) return;
   
-  console.log('🔄 checkOverlap called:', {
-    currentZoom: map.getZoom().toFixed(2),
-    allMarkersCount: allMarkers.length,
-    existingClustersCount: clusterMarkers.length,
-    isInitialLoad,
-    isMobile: isMobile()
-  });
-  
-  // Handle zoom-based visibility first
-  const currentZoom = map.getZoom();
-  // Mobile-friendly marker visibility - show markers earlier on mobile
-  const shouldShowMarkers = isMobile() ? currentZoom >= 7.5 : currentZoom >= 9;
-  
-  console.log(`🔍 Zoom check: ${currentZoom.toFixed(2)} >= ${isMobile() ? '7.5' : '9'}? ${shouldShowMarkers} (mobile: ${isMobile()})`);
-  
-  if (!shouldShowMarkers) {
-    console.log('❌ Zoom too low for markers, hiding all markers and exiting clustering');
-    [...allMarkers, ...clusterMarkers].forEach(info => {
-      const element = info.marker ? info.marker.getElement() : info.element;
-      element.style.transition = 'opacity 300ms ease';
-      element.style.opacity = '0';
-      element.style.pointerEvents = 'none';
-      
-      setTimeout(() => {
-        if (element.style.opacity === '0') {
-          element.style.visibility = 'hidden';
-          element.style.display = 'none';
-        }
-      }, 300);
-    });
-    return;
-  }
-  
-  if (allMarkers.length <= 1) {
-    console.log('⚠️ Not enough markers for clustering (need >1)');
-    return;
-  }
-  
-  console.log('🎯 Starting clustering logic...');
+  if (!handleZoomBasedVisibility()) return;
+  if (allMarkers.length <= 1) return;
   
   const positions = allMarkers.map(info => ({
     ...info,
@@ -410,12 +273,6 @@ function checkOverlap() {
     clustered: false,
     clusterId: null
   }));
-  
-  console.log('📊 Marker positions calculated:', positions.map(p => ({
-    name: p.name,
-    point: `${p.point.x.toFixed(1)}, ${p.point.y.toFixed(1)}`,
-    filteredOut: p.element.classList.contains('filtered-out')
-  })));
   
   const newClusters = [];
   for (let i = 0; i < positions.length; i++) {
@@ -430,7 +287,6 @@ function checkOverlap() {
       if (dist < OVERLAP_THRESHOLD) {
         cluster.markerIndices.push(j);
         positions[j].clusterId = cluster.id;
-        console.log(`🔗 Grouping ${positions[i].name} with ${positions[j].name} (distance: ${dist.toFixed(1)}px)`);
       }
     }
     
@@ -447,12 +303,9 @@ function checkOverlap() {
       cluster.coordinates = map.unproject(cluster.center);
       cluster.count = cluster.markerIndices.length;
       
-      console.log(`✨ Created cluster with ${cluster.count} markers at ${cluster.center.x.toFixed(1)}, ${cluster.center.y.toFixed(1)}`);
       newClusters.push(cluster);
     }
   }
-  
-  console.log(`🎊 Clustering results: ${newClusters.length} clusters found`);
   
   const updatedClusterIds = new Set();
   
@@ -463,7 +316,6 @@ function checkOverlap() {
     });
     
     if (existingCluster) {
-      console.log(`♻️ Updating existing cluster for ${newCluster.count} markers`);
       updatedClusterIds.add(existingCluster.id);
       existingCluster.count = newCluster.count;
       existingCluster.coordinates = newCluster.coordinates;
@@ -475,7 +327,6 @@ function checkOverlap() {
       existingCluster.marker.setLngLat(newCluster.coordinates);
       existingCluster.element.style.cssText += 'transition: opacity 300ms ease; opacity: 1; pointer-events: auto;';
     } else {
-      console.log(`🆕 Creating new cluster for ${newCluster.count} markers`);
       const clusterMarker = getOrCreateCluster(newCluster.center, newCluster.count, newCluster.coordinates);
       if (clusterMarker) {
         clusterMarker.id = `new-cluster-${Date.now()}-${Math.random()}`;
@@ -495,44 +346,13 @@ function checkOverlap() {
     return true;
   });
   
-  console.log('👁️ Setting individual marker visibility...');
-  positions.forEach((info, idx) => {
-    // Mobile-friendly skip check
-    const mobileMinZoom = isMobile() ? 7.5 : 9;
-    if (isInitialLoad && map.getZoom() < mobileMinZoom) {
-      console.log(`⏸️ Skipping marker visibility for ${info.name} during initial load (zoom too low for ${isMobile() ? 'mobile' : 'desktop'})`);
-      return;
-    }
-    
-    const element = info.element;
-    
-    if (!info.visible || info.clustered) {
-      element.style.transition = 'opacity 300ms ease';
-      element.style.opacity = '0';
-      element.style.pointerEvents = 'none';
-      element.classList.add('marker-faded');
-    } else {
-      element.style.display = 'block';
-      element.style.visibility = 'visible';
-      element.style.transition = 'opacity 300ms ease';
-      
-      if (element.style.opacity === '0' || !element.style.opacity) {
-        element.style.opacity = '0';
-        element.style.pointerEvents = 'none';
-        element.offsetHeight;
-        element.style.opacity = '1';
-        element.style.pointerEvents = 'auto';
-      } else {
-        element.style.opacity = '1';
-        element.style.pointerEvents = 'auto';
-      }
-      element.classList.remove('marker-faded');
-    }
-    
-    console.log(`👁️ Marker ${info.name}: visible=${info.visible}, clustered=${info.clustered}, final opacity=${element.style.opacity}`);
+  positions.forEach(info => {
+    const style = (!info.visible || info.clustered) ? 
+      'transition: opacity 300ms ease; opacity: 0; pointer-events: none;' : 
+      'transition: opacity 300ms ease; opacity: 1; pointer-events: auto;';
+    info.element.style.cssText += style;
+    info.element.classList.toggle('marker-faded', !info.visible || info.clustered);
   });
-  
-  console.log('✅ checkOverlap completed');
 }
 
 // Check if filtering is active
@@ -617,10 +437,9 @@ function applyFilterToMarkers() {
     }).filter(coord => coord);
   }
   
-  const animationDuration = isInitialLoad ? 600 : 1000; // Consistent with district boundary transitions
+  const animationDuration = isInitialLoad ? 600 : 800;
   
   if (visibleCoordinates.length > 0) {
-    console.log(`🗺️ Reframing to ${visibleCoordinates.length} filtered markers`);
     const currentZoom = map.getZoom();
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
@@ -639,24 +458,15 @@ function applyFilterToMarkers() {
     map.fitBounds(bounds, {
       padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15},
       maxZoom: 13,
-      duration: animationDuration,
-      essential: true
+      duration: animationDuration
     });
   } else {
-    console.log('🗺️ No filtered markers found, reframing to West Bank');
     const hasFiltering = checkMapMarkersFiltering();
     if (!isInitialLoad || !hasFiltering) {
       clusterMarkers.forEach(c => c.marker.remove());
       clusterMarkers = [];
       allMarkers.forEach(info => info.marker.getElement().classList.remove('marker-faded'));
-      
-      // Reframe to West Bank with smooth transition
-      map.flyTo({
-        center: [35.22, 31.85], 
-        zoom: isMobile() ? 7.5 : 8.33, // Mobile-friendly zoom
-        duration: animationDuration,
-        essential: true
-      });
+      map.flyTo({center: [34.8, 31.2], zoom: 6.2, duration: animationDuration});
     }
   }
   
@@ -699,6 +509,7 @@ function setupControls() {
     }
   });
   
+  // Setup other controls
   $('[open-right-sidebar="true"]').forEach(element => {
     const newElement = element.cloneNode(true);
     element.parentNode.replaceChild(newElement, element);
@@ -961,7 +772,6 @@ function setupEvents() {
     ['click', 'keypress', 'input'].forEach(eventType => {
       refreshOnEnter.addEventListener(eventType, (e) => {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
-        console.log(`🔄 refresh-on-enter ${eventType} triggered`);
         setTimeout(() => handleFilterUpdate(), eventType === 'input' ? 300 : 100);
       });
     });
@@ -996,7 +806,6 @@ function setupEvents() {
       
       newButton.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log(`🔄 ${button.id || 'filter button'} clicked`);
         forceFilteredReframe = true;
         isRefreshButtonAction = true;
         applyFilterToMarkers();
@@ -1008,6 +817,7 @@ function setupEvents() {
     }
   });
   
+  // Firefox form handling
   if (navigator.userAgent.toLowerCase().includes('firefox')) {
     $('form').forEach(form => {
       const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
@@ -1040,6 +850,7 @@ function setupEvents() {
     selectField5.addEventListener('change', () => setTimeout(() => handleFilterUpdate(), 100));
   }
   
+  // Cluster click handler
   document.onclick = e => {
     let target = e.target;
     while (target && !target.classList?.contains('cluster-marker')) target = target.parentElement;
@@ -1050,6 +861,7 @@ function setupEvents() {
     }
   };
   
+  // Link click handler
   $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
     link.onclick = () => {
       if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
@@ -1069,7 +881,6 @@ function setupDropdownListeners() {
     element.addEventListener('click', (e) => {
       if (window.isMarkerClick) return;
       
-      console.log('🔄 districtselect clicked');
       forceFilteredReframe = true;
       isRefreshButtonAction = true;
       
@@ -1088,7 +899,6 @@ function setupDropdownListeners() {
     selectField5.addEventListener('change', (e) => {
       if (window.isMarkerClick) return;
       
-      console.log('🔄 select-field-5 changed');
       forceFilteredReframe = true;
       isRefreshButtonAction = true;
       
@@ -1151,11 +961,16 @@ function performInitialAnimation() {
   const hasFiltering = checkMapMarkersFiltering();
   
   if (!hasFiltering) {
-    // No initial animation needed - already starting at West Bank
-    console.log('🎬 No filtering detected, staying at West Bank position');
-    setTimeout(() => checkOverlap(), 300);
+    setTimeout(() => {
+      map.flyTo({
+        center: [35.22, 31.85],
+        zoom: 8.33,
+        duration: 1200
+      });
+    }, 500);
+    
+    setTimeout(() => checkOverlap(), 1750);
   } else {
-    console.log('🎬 Filtering detected, applying filter reframing');
     setTimeout(() => checkOverlap(), 300);
   }
   
@@ -1244,50 +1059,24 @@ function loadBoundaries() {
           
           const marker = new mapboxgl.Marker({element: districtNameWrap, anchor: 'center'}).setLngLat(centroid).addTo(map);
           
+          // Add click handler for district name
           districtNameWrap.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
             
-            console.log(`🎯 District name clicked: ${boundary.name}`);
-            
-            // First trigger the search functionality
             const districtNameTextElement = districtNameWrap.querySelector('.text-block-82:not(.number)');
-            if (districtNameTextElement) {
-              const districtName = districtNameTextElement.textContent.trim();
-              if (districtName) {
-                console.log('🏛️ District name clicked, using #hiddendistrict');
-                handleSearchTrigger(districtName, 'hiddendistrict');
-              }
-            }
+            if (!districtNameTextElement) return;
             
-            // Then reframe to the district boundaries with smooth transition
-            const bounds = new mapboxgl.LngLatBounds();
+            const districtName = districtNameTextElement.textContent.trim();
+            if (!districtName) return;
             
-            const addCoordsToBounds = (coords) => {
-              if (Array.isArray(coords) && coords.length > 0) {
-                if (typeof coords[0] === 'number') {
-                  bounds.extend(coords);
-                } else {
-                  coords.forEach(coord => addCoordsToBounds(coord));
-                }
-              }
-            };
-            
-            geojsonData.features.forEach(feature => {
-              addCoordsToBounds(feature.geometry.coordinates);
-            });
-            
-            console.log(`🗺️ Reframing to ${boundary.name} boundaries`);
-            map.fitBounds(bounds, {
-              padding: 50, 
-              duration: 1000, // Same duration as boundary click
-              essential: true
-            });
+            handleSearchTrigger(districtName);
           });
           
           districtMarkers.push({marker, element: districtNameWrap, name: boundary.name});
         }
         
+        // Boundary click and hover handlers
         map.on('click', boundary.fillId, (e) => {
           const bounds = new mapboxgl.LngLatBounds();
           
@@ -1339,21 +1128,10 @@ function init() {
   addCustomMarkers();
   setupEvents();
   
-  map.on('moveend', () => {
-    clearTimeout(overlapTimer);
-    overlapTimer = setTimeout(() => {
-      console.log('🎯 moveend event fired, calling handleZoomBasedVisibility and checkOverlap');
-      handleZoomBasedVisibility();
-      checkOverlap();
-    }, 10);
-  });
+  map.on('moveend', () => clearTimeout(overlapTimer) || (overlapTimer = setTimeout(checkOverlap, 10)));
   map.on('zoomend', () => {
     clearTimeout(overlapTimer);
-    overlapTimer = setTimeout(() => {
-      console.log('🎯 zoomend event fired, calling handleZoomBasedVisibility and checkOverlap');
-      handleZoomBasedVisibility();
-      checkOverlap();
-    }, 10);
+    overlapTimer = setTimeout(() => checkOverlap(), 10);
   });
   
   setTimeout(checkOverlap, 300);
