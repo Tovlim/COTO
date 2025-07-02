@@ -500,7 +500,42 @@ const handleFilterUpdate = debounce(() => {
   setTimeout(() => isRefreshButtonAction = false, 1000);
 }, 300);
 
-// Simplified controls setup
+// Custom tab switcher for elements without sidebar functionality
+function setupTabSwitcher() {
+  // Find all elements with open-tab attribute
+  const tabTriggers = $('[open-tab]');
+  
+  tabTriggers.forEach(trigger => {
+    // Skip if already has event listener
+    if (trigger.dataset.tabSwitcherSetup === 'true') return;
+    
+    trigger.addEventListener('click', function(e) {
+      // Only prevent default if element doesn't have sidebar functionality
+      if (!this.hasAttribute('open-right-sidebar')) {
+        e.preventDefault();
+      }
+      
+      // Get the group name from the clicked element
+      const groupName = this.getAttribute('open-tab');
+      
+      // If element has sidebar attribute, let the sidebar script handle the tab switching
+      if (this.hasAttribute('open-right-sidebar')) {
+        return; // Sidebar script handles this
+      }
+      
+      // Find the corresponding tab with opened-tab attribute
+      const targetTab = document.querySelector(`[opened-tab="${groupName}"]`);
+      
+      if (targetTab) {
+        // Trigger click on the target tab to activate Webflow's built-in functionality
+        targetTab.click();
+      }
+    });
+    
+    // Mark as set up
+    trigger.dataset.tabSwitcherSetup = 'true';
+  });
+}
 function setupControls() {
   const controlMap = {
     'AllEvents': () => $id('ClearAll')?.click(),
@@ -1027,6 +1062,9 @@ function init() {
   setTimeout(setupDropdownListeners, 1000);
   setTimeout(setupDropdownListeners, 3000);
   
+  // Setup tab switcher with retries for dynamic content
+  [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
+  
   mapInitialized = true;
   setTimeout(() => {
     if (isInitialLoad) {
@@ -1053,10 +1091,14 @@ map.on("load", () => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', setupSidebars);
+document.addEventListener('DOMContentLoaded', () => {
+  setupSidebars();
+  setupTabSwitcher();
+});
 
 window.addEventListener('load', () => {
   setupSidebars();
+  setupTabSwitcher();
   setTimeout(() => {
     if (!allMarkers.length && map.loaded()) {
       try { init(); } catch (error) { /* Silent error handling */ }
