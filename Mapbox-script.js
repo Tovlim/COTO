@@ -527,7 +527,17 @@ function setupControls() {
       
       const handler = () => {
         const sidebar = $id(`${sidebarSide}Sidebar`);
-        if (sidebar) toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
+        if (!sidebar) return;
+        
+        // Check for open-only attribute
+        const openRightSidebar = newElement.getAttribute('open-right-sidebar');
+        if (openRightSidebar === 'open-only') {
+          // Always open, never close
+          toggleSidebar(sidebarSide, true);
+        } else {
+          // Normal toggle behavior
+          toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
+        }
         
         const groupName = newElement.getAttribute('open-tab');
         if (groupName) {
@@ -543,7 +553,7 @@ function setupControls() {
     });
   };
   
-  setupSidebarControls('[open-right-sidebar="true"]', 'Right');
+  setupSidebarControls('[open-right-sidebar="true"], [open-right-sidebar="open-only"]', 'Right');
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
 }
 
