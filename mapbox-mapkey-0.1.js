@@ -927,35 +927,41 @@ function setupAreaKeyControls() {
       map.setLayoutProperty(control.layerId, 'visibility', visibility);
     });
     
-    // Hover handler to bring to top and increase opacity
-    checkbox.addEventListener('mouseenter', () => {
-      if (!map.getLayer(control.layerId)) return;
-      
-      // Move layer to top of GEOJSON layers (but below district boundaries)
-      // Find the last area layer to position after
-      const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
-      const lastAreaLayer = areaLayers.reverse().find(layerId => 
-        layerId !== control.layerId && map.getLayer(layerId)
-      );
-      
-      if (lastAreaLayer) {
-        map.moveLayer(control.layerId, lastAreaLayer);
-      }
-      
-      // Increase opacity to 60%
-      map.setPaintProperty(control.layerId, 'fill-opacity', 0.6);
-    });
+    // Find the checkbox visual div for hover events
+    const checkboxLabel = checkbox.closest('label');
+    const checkboxDiv = checkboxLabel?.querySelector('.w-checkbox-input.w-checkbox-input--inputType-custom.toggleable-map-key');
     
-    // Mouse leave handler to restore normal state
-    checkbox.addEventListener('mouseleave', () => {
-      if (!map.getLayer(control.layerId)) return;
+    if (checkboxDiv) {
+      // Hover handler to bring to top and increase opacity
+      checkboxDiv.addEventListener('mouseenter', () => {
+        if (!map.getLayer(control.layerId)) return;
+        
+        // Move layer to top of GEOJSON layers (but below district boundaries)
+        // Find the last area layer to position after
+        const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+        const lastAreaLayer = areaLayers.reverse().find(layerId => 
+          layerId !== control.layerId && map.getLayer(layerId)
+        );
+        
+        if (lastAreaLayer) {
+          map.moveLayer(control.layerId, lastAreaLayer);
+        }
+        
+        // Increase opacity to 60%
+        map.setPaintProperty(control.layerId, 'fill-opacity', 0.6);
+      });
       
-      // Restore normal opacity (30%)
-      map.setPaintProperty(control.layerId, 'fill-opacity', 0.3);
-      
-      // Note: Layer stacking will be maintained until another hover occurs
-      // This is intentional to avoid constant reordering
-    });
+      // Mouse leave handler to restore normal state
+      checkboxDiv.addEventListener('mouseleave', () => {
+        if (!map.getLayer(control.layerId)) return;
+        
+        // Restore normal opacity (30%)
+        map.setPaintProperty(control.layerId, 'fill-opacity', 0.3);
+        
+        // Note: Layer stacking will be maintained until another hover occurs
+        // This is intentional to avoid constant reordering
+      });
+    }
   });
 }
 // Load district tags from collection list and create markers
