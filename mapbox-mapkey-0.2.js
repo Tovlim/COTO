@@ -936,15 +936,26 @@ function setupAreaKeyControls() {
       checkboxDiv.addEventListener('mouseenter', () => {
         if (!map.getLayer(control.layerId)) return;
         
-        // Move layer to top of GEOJSON layers (but below district boundaries)
-        // Find the last area layer to position after
-        const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
-        const lastAreaLayer = areaLayers.reverse().find(layerId => 
-          layerId !== control.layerId && map.getLayer(layerId)
-        );
+        // Move layer above district boundaries but below markers
+        // Find the last district boundary border layer to position after
+        const districtNames = ['jerusalem', 'hebron', 'tulkarm', 'tubas', 'salfit', 'ramallah', 'nablus', 'jericho', 'jenin', 'bethlehem', 'qalqilya'];
+        const lastBoundaryLayer = districtNames.reverse().find(name => {
+          const borderLayerId = `${name}-border`;
+          return map.getLayer(borderLayerId);
+        });
         
-        if (lastAreaLayer) {
-          map.moveLayer(control.layerId, lastAreaLayer);
+        if (lastBoundaryLayer) {
+          // Position after the last district boundary border layer
+          map.moveLayer(control.layerId, `${lastBoundaryLayer}-border`);
+        } else {
+          // Fallback: position after other area layers if no boundaries exist
+          const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+          const lastAreaLayer = areaLayers.reverse().find(layerId => 
+            layerId !== control.layerId && map.getLayer(layerId)
+          );
+          if (lastAreaLayer) {
+            map.moveLayer(control.layerId, lastAreaLayer);
+          }
         }
         
         // Increase opacity to 60%
