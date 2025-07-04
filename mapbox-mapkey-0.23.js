@@ -907,9 +907,9 @@ function setupDropdownListeners() {
 // Setup area key controls for toggling and hover effects
 function setupAreaKeyControls() {
   const areaControls = [
-    {keyId: 'area-a-key', layerId: 'area-a-layer', sourceId: 'area-a-source', color: '#98b074'},
-    {keyId: 'area-b-key', layerId: 'area-b-layer', sourceId: 'area-b-source', color: '#a84b4b'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', sourceId: 'area-c-source', color: '#e99797'}
+    {keyId: 'area-a-key', layerId: 'area-a-layer', sourceId: 'area-a-source', color: '#388e3c'},
+    {keyId: 'area-b-key', layerId: 'area-b-layer', sourceId: 'area-b-source', color: '#FFA000'},
+    {keyId: 'area-c-key', layerId: 'area-c-layer', sourceId: 'area-c-source', color: '#ce0000'}
   ];
   
   areaControls.forEach(control => {
@@ -932,24 +932,15 @@ function setupAreaKeyControls() {
     const checkboxDiv = checkboxLabel?.querySelector('.w-checkbox-input.w-checkbox-input--inputType-custom.toggleable-map-key');
     
     if (checkboxDiv) {
-      // Hover handler to bring to top and increase opacity
+      // Hover handler to bring to very top and increase opacity
       checkboxDiv.addEventListener('mouseenter', () => {
         if (!map.getLayer(control.layerId)) return;
         
-        // Move layer above all existing layers first
+        // Move layer to the very top of ALL layers (above everything including markers)
         map.moveLayer(control.layerId);
         
-        // Then move district markers back to the top if they exist
-        // This ensures the hovered area is above boundaries but below markers
-        districtMarkers.forEach(districtMarker => {
-          if (districtMarker.marker && districtMarker.marker.getElement()) {
-            // District markers are HTML elements, they automatically stay on top of map layers
-            // No need to reposition them
-          }
-        });
-        
-        // Increase opacity to 80%
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+        // Increase opacity to 100%
+        map.setPaintProperty(control.layerId, 'fill-opacity', 1.0);
       });
       
       // Mouse leave handler to restore normal state
@@ -1075,7 +1066,7 @@ function loadAreaOverlays() {
       url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson',
       sourceId: 'area-a-source',
       layerId: 'area-a-layer',
-      color: '#98b074',
+      color: '#388e3c',
       opacity: 0.3
     },
     {
@@ -1083,7 +1074,7 @@ function loadAreaOverlays() {
       url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson',
       sourceId: 'area-b-source',
       layerId: 'area-b-layer',
-      color: '#a84b4b',
+      color: '#FFA000',
       opacity: 0.3
     },
     {
@@ -1091,7 +1082,7 @@ function loadAreaOverlays() {
       url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', 
       sourceId: 'area-c-source',
       layerId: 'area-c-layer',
-      color: '#e99797',
+      color: '#ce0000',
       opacity: 0.3
     }
   ];
