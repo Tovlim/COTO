@@ -906,15 +906,18 @@ function setupDropdownListeners() {
 
 // Load district tags from collection list and create markers
 function loadDistrictTags() {
-  const dataPlacesList = $id('data-places-list');
-  if (!dataPlacesList) return;
+  const districtTagCollection = $id('district-tag-collection');
+  if (!districtTagCollection) return;
   
-  const districtTags = dataPlacesList.querySelectorAll('[district-tag-name]');
+  const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
   
-  districtTags.forEach(tagElement => {
-    const name = tagElement.getAttribute('district-tag-name');
-    const lat = parseFloat(tagElement.getAttribute('district-tag-lattitude'));
-    const lng = parseFloat(tagElement.getAttribute('district-tag-longitude'));
+  districtTagItems.forEach(tagItem => {
+    // Skip hidden items (those without coordinates)
+    if (getComputedStyle(tagItem).display === 'none') return;
+    
+    const name = tagItem.getAttribute('district-tag-name');
+    const lat = parseFloat(tagItem.getAttribute('district-tag-lattitude'));
+    const lng = parseFloat(tagItem.getAttribute('district-tag-longitude'));
     
     // Skip if missing name or invalid coordinates
     if (!name || isNaN(lat) || isNaN(lng)) return;
