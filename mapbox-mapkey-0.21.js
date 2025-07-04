@@ -958,8 +958,8 @@ function setupAreaKeyControls() {
           }
         }
         
-        // Increase opacity to 60%
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.6);
+        // Increase opacity to 80%
+        map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
       });
       
       // Mouse leave handler to restore normal state
