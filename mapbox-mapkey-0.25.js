@@ -916,14 +916,15 @@ function setupAreaKeyControls() {
     const checkbox = $id(control.keyId);
     if (!checkbox) return;
     
-    // Set checkbox as checked by default (areas visible by default)
-    checkbox.checked = true;
+    // Set checkbox as unchecked by default (areas visible by default)
+    checkbox.checked = false;
     
-    // Click handler for toggling visibility
+    // Click handler for toggling visibility (reversed logic)
     checkbox.addEventListener('change', () => {
       if (!map.getLayer(control.layerId)) return;
       
-      const visibility = checkbox.checked ? 'visible' : 'none';
+      // When checked = hide, when unchecked = show
+      const visibility = checkbox.checked ? 'none' : 'visible';
       map.setLayoutProperty(control.layerId, 'visibility', visibility);
     });
     
