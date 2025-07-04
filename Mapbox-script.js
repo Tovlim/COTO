@@ -904,6 +904,105 @@ function setupDropdownListeners() {
   }
 }
 
+// Load district tags from collection list and create markers
+function loadDistrictTags() {
+  const dataPlacesList = $id('data-places-list');
+  if (!dataPlacesList) return;
+  
+  const districtTags = dataPlacesList.querySelectorAll('[district-tag-name]');
+  
+  districtTags.forEach(tagElement => {
+    const name = tagElement.getAttribute('district-tag-name');
+    const lat = parseFloat(tagElement.getAttribute('district-tag-lattitude'));
+    const lng = parseFloat(tagElement.getAttribute('district-tag-longitude'));
+    
+    // Skip if missing name or invalid coordinates
+    if (!name || isNaN(lat) || isNaN(lng)) return;
+    
+    const originalWrap = $id('district-name-wrap');
+    if (!originalWrap) return;
+    
+    // Clone the district name wrap
+    const districtWrap = originalWrap.cloneNode(true);
+    districtWrap.removeAttribute('id');
+    districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
+    districtWrap.style.zIndex = '1000';
+    
+    // Set the district name
+    const nameElement = districtWrap.querySelector('#district-name');
+    if (nameElement) {
+      nameElement.textContent = name;
+      nameElement.removeAttribute('id');
+    }
+    
+    // Create marker at specified coordinates
+    const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'})
+      .setLngLat([lng, lat])
+      .addTo(map);
+    
+    // Add click handler for both map and reports filtering
+    districtWrap.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      window.isMarkerClick = true;
+      
+      // Set both fields for complete filtering
+      const hiddenDistrict = $id('hiddendistrict');
+      const refreshOnEnter = $id('refresh-on-enter');
+      
+      // Clear opposite fields first
+      const hiddenSearch = $id('hiddensearch');
+      if (hiddenSearch?.value) {
+        hiddenSearch.value = '';
+        triggerEvent(hiddenSearch, ['input', 'change', 'keyup']);
+        hiddenSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Set hiddendistrict for reports filtering
+      if (hiddenDistrict) {
+        hiddenDistrict.value = name;
+        triggerEvent(hiddenDistrict, ['input', 'change', 'keyup']);
+        hiddenDistrict.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Set refresh-on-enter for map filtering  
+      if (refreshOnEnter) {
+        refreshOnEnter.value = name;
+        triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
+        refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Trigger CMS filter reload
+      setTimeout(() => {
+        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
+        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
+        );
+      }, 100);
+      
+      // Show filtered elements and sidebar
+      toggleShowWhenFilteredElements(true);
+      toggleSidebar('Left', true);
+      
+      // Trigger map reframing
+      setTimeout(() => {
+        forceFilteredReframe = true;
+        isRefreshButtonAction = true;
+        applyFilterToMarkers();
+        setTimeout(() => {
+          forceFilteredReframe = false;
+          isRefreshButtonAction = false;
+        }, 1000);
+      }, 200);
+      
+      setTimeout(() => window.isMarkerClick = false, 1000);
+    });
+    
+    // Add to district markers array for zoom-based visibility
+    districtMarkers.push({marker, element: districtWrap, name});
+  });
+}
 // Simplified boundary loading
 function loadBoundaries() {
   const boundaries = [
@@ -1086,6 +1185,8 @@ map.on("load", () => {
   try {
     init();
     loadBoundaries();
+    // Load district tags after boundaries
+    setTimeout(loadDistrictTags, 500);
   } catch (error) {
     // Silent error handling
   }
@@ -1104,6 +1205,9 @@ window.addEventListener('load', () => {
       try { init(); } catch (error) { /* Silent error handling */ }
     }
   }, 200);
+  
+  // Load district tags with retries for CMS content
+  [1000, 2000, 3000].forEach(delay => setTimeout(loadDistrictTags, delay));
   
   // Auto-trigger reframing
   const checkAndReframe = () => {
