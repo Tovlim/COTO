@@ -1006,6 +1006,78 @@ function loadDistrictTags() {
     districtMarkers.push({marker, element: districtWrap, name});
   });
 }
+// Load area overlays (A, B, C areas)
+function loadAreaOverlays() {
+  const areas = [
+    {
+      name: 'Area A',
+      url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson',
+      sourceId: 'area-a-source',
+      layerId: 'area-a-layer',
+      color: '#98b074',
+      opacity: 0.3
+    },
+    {
+      name: 'Area B', 
+      url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson',
+      sourceId: 'area-b-source',
+      layerId: 'area-b-layer',
+      color: '#a84b4b',
+      opacity: 0.3
+    },
+    {
+      name: 'Area C',
+      url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', 
+      sourceId: 'area-c-source',
+      layerId: 'area-c-layer',
+      color: '#e99797',
+      opacity: 0.3
+    }
+  ];
+  
+  const addAreaToMap = area => {
+    fetch(area.url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return response.json();
+      })
+      .then(geojsonData => {
+        // Remove existing layer and source if they exist
+        if (map.getLayer(area.layerId)) {
+          map.removeLayer(area.layerId);
+        }
+        if (map.getSource(area.sourceId)) {
+          map.removeSource(area.sourceId);
+        }
+        
+        // Add source
+        map.addSource(area.sourceId, {
+          type: 'geojson',
+          data: geojsonData
+        });
+        
+        // Add fill layer
+        map.addLayer({
+          id: area.layerId,
+          type: 'fill',
+          source: area.sourceId,
+          paint: {
+            'fill-color': area.color,
+            'fill-opacity': area.opacity
+          }
+        });
+      })
+      .catch(error => {
+        // Silent error handling for area loading
+      });
+  };
+  
+  if (map.loaded()) {
+    areas.forEach(area => addAreaToMap(area));
+  } else {
+    map.on('load', () => areas.forEach(area => addAreaToMap(area)));
+  }
+}
 // Simplified boundary loading
 function loadBoundaries() {
   const boundaries = [
@@ -1187,6 +1259,7 @@ setTimeout(() => {
 map.on("load", () => {
   try {
     init();
+    loadAreaOverlays();
     loadBoundaries();
     // Load district tags after boundaries
     setTimeout(loadDistrictTags, 500);
