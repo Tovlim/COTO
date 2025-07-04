@@ -50,7 +50,12 @@ class ElementCache {
       this.selectorCache.set(cacheKey, element);
       return element;
     } catch(e) {
-      return null;
+      // Sidebar tab and close buttons
+    if (element.id && (element.id.includes('SideTab') || element.id.includes('SidebarClose'))) {
+      return this.sidebarTabCloseHandler;
+    }
+    
+    return null;
     }
   }
   
@@ -271,7 +276,6 @@ class EventDelegator {
   constructor() {
     this.handlers = new Map();
     this.initialized = false;
-    this.debug = true; // Set to false to disable debugging
   }
   
   init() {
@@ -279,229 +283,242 @@ class EventDelegator {
     
     // Single global click handler
     document.addEventListener('click', (e) => {
-      if (this.debug) console.log('🖱️ Global click detected on:', e.target, 'Classes:', e.target.className, 'ID:', e.target.id);
-      
       let target = e.target;
-      let depth = 0;
-      while (target && target !== document && depth < 10) {
+      while (target && target !== document) {
         const delegatedHandler = this.findHandler(target);
         if (delegatedHandler) {
-          if (this.debug) console.log('✅ Handler found for element:', target, 'Handler:', delegatedHandler.name);
           e.preventDefault();
           e.stopPropagation();
           delegatedHandler.call(target, e);
           break;
         }
         target = target.parentElement;
-        depth++;
-      }
-      
-      if (!target || target === document) {
-        if (this.debug) console.log('❌ No handler found for click on:', e.target);
       }
     }, true);
     
     // Global change handler
     document.addEventListener('change', (e) => {
-      if (this.debug) console.log('🔄 Global change detected on:', e.target, 'Classes:', e.target.className, 'ID:', e.target.id);
-      
       const target = e.target;
       const changeHandler = this.findChangeHandler(target);
       if (changeHandler) {
-        if (this.debug) console.log('✅ Change handler found for element:', target);
         changeHandler.call(target, e);
-      } else {
-        if (this.debug) console.log('❌ No change handler found for:', e.target);
       }
     }, true);
     
     this.initialized = true;
-    console.log('🚀 Event delegation system initialized');
   }
   
   findHandler(element) {
-    if (this.debug) {
-      console.log('🔍 Checking element for handlers:', {
-        tagName: element.tagName,
-        id: element.id,
-        className: element.className,
-        attributes: Array.from(element.attributes || []).map(attr => `${attr.name}="${attr.value}"`),
-        classList: Array.from(element.classList || [])
-      });
-    }
-    
-    // Check for custom marker
+    // Check for various handler attributes
     if (element.classList?.contains('custom-marker') || element.closest('.custom-marker')) {
-      if (this.debug) console.log('📍 Found custom marker handler');
       return this.markerClickHandler;
     }
-    
-    // Check for cluster marker
     if (element.classList?.contains('cluster-marker')) {
-      if (this.debug) console.log('📍 Found cluster marker handler');
       return this.clusterClickHandler;
     }
     
-    // Check for district markers (district name wraps)
+    // District markers (both from boundaries and district tags)
     if (element.closest('.district-tag-') || element.closest('[class*="district-"]') || 
-        (element.querySelector && element.querySelector('#district-name')) ||
-        element.id === 'district-name' || element.textContent?.trim() && 
-        ['Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'].includes(element.textContent.trim())) {
-      if (this.debug) console.log('🏛️ Found district marker handler');
-      return this.districtClickHandler;
+        element.querySelector('.text-block-82:not(.number)') || element.closest('[district-tag-name]')) {
+      return this.districtMarkerHandler;
     }
     
-    // Check for filter buttons
-    if (element.id === 'AllEvents' || element.getAttribute('apply-map-filter') === 'true' || 
-        element.classList.contains('filterrefresh') || element.id === 'refreshDiv' ||
-        element.id === 'refresh-on-enter' || element.id === 'filter-button') {
-      if (this.debug) console.log('🔧 Found filter button handler');
+    // All Events button
+    if (element.id === 'AllEvents') {
+      return this.allEventsHandler;
+    }
+    
+    // Filter buttons
+    if (element.getAttribute('apply-map-filter') === 'true' || element.classList.contains('filterrefresh') ||
+        element.id === 'refreshDiv' || element.id === 'refresh-on-enter' || element.id === 'filter-button') {
       return this.filterButtonHandler;
     }
     
-    // Check for sidebar controls - expanded to cover all cases
+    // Sidebar controls - comprehensive check
     if (element.hasAttribute('open-right-sidebar') || 
         element.hasAttribute('open-left-sidebar') ||
         element.classList.contains('OpenLeftSidebar') ||
         element.hasAttribute('OpenLeftSidebar') ||
         element.hasAttribute('openleftsidebar') ||
-        element.id === 'ToggleLeft' ||
-        element.id === 'LeftSideTab' ||
-        element.id === 'RightSideTab' ||
-        element.id === 'LeftSidebarClose' ||
-        element.id === 'RightSidebarClose') {
-      if (this.debug) console.log('📱 Found sidebar handler for:', element.id || element.className);
+        element.id === 'ToggleLeft') {
       return this.sidebarHandler;
     }
     
-    // Check for district select
+    // District select
     if (element.hasAttribute('districtselect')) {
-      if (this.debug) console.log('📍 Found district select handler');
       return this.districtSelectHandler;
     }
     
-    // Check for tab switcher
+    // Tab controls
     if (element.hasAttribute('open-tab') && !element.hasAttribute('open-right-sidebar')) {
-      if (this.debug) console.log('📑 Found tab switcher handler');
-      return this.tabSwitcherHandler;
+      return this.tabSwitchHandler;
     }
     
-    if (this.debug) console.log('❌ No handler found for element');
     return null;
   }
   
   findChangeHandler(element) {
-    if (this.debug) {
-      console.log('🔍 Checking element for change handlers:', {
-        tagName: element.tagName,
-        id: element.id,
-        className: element.className,
-        type: element.type,
-        attributes: Array.from(element.attributes || []).map(attr => `${attr.name}="${attr.value}"`)
-      });
-    }
-    
     if (element.hasAttribute('data-auto-sidebar')) {
-      if (this.debug) console.log('📱 Found auto-sidebar change handler');
       return () => setTimeout(() => toggleSidebar('Left', true), 100);
     }
     if (element.hasAttribute('fs-cmsfilter-element') || element.closest('[fs-cmsfilter-element]')) {
-      if (this.debug) console.log('🔧 Found CMS filter change handler');
       return () => setTimeout(handleFilterUpdate, 100);
     }
     if (element.id === 'select-field-5') {
-      if (this.debug) console.log('📍 Found select-field-5 change handler');
       return this.selectField5Handler;
     }
-    if (element.classList.contains('OpenLeftSidebar') || element.hasAttribute('OpenLeftSidebar') || element.hasAttribute('openleftsidebar')) {
-      if (this.debug) console.log('📱 Found left sidebar change handler');
-      return () => {
-        const sidebar = cache.getId('LeftSidebar');
-        if (sidebar) toggleSidebar('Left', !sidebar.classList.contains('is-show'));
-      };
+    
+    // Left sidebar controls that use change events
+    if (element.classList.contains('OpenLeftSidebar') || 
+        element.hasAttribute('OpenLeftSidebar') || 
+        element.hasAttribute('openleftsidebar')) {
+      return this.leftSidebarChangeHandler;
     }
     
-    if (this.debug) console.log('❌ No change handler found for element');
     return null;
   }
   
   markerClickHandler(e) {
-    console.log('🎯 Marker click handler triggered');
     const markerEl = this.closest('.custom-marker') || this;
     const link = markerEl.querySelector('[districtname]');
-    if (!link) {
-      console.log('❌ No link with districtname found in marker');
-      return;
-    }
+    if (!link) return;
     
     const locality = link.getAttribute('districtname');
-    console.log('🏘️ Marker locality found:', locality);
     if (locality) handleSearchTrigger(locality, 'hiddensearch');
   }
   
-  clusterClickHandler(e) {
-    console.log('📍 Cluster click handler triggered');
-    const cluster = clusterMarkers.find(c => c.element === this);
-    if (cluster) {
-      console.log('🗺️ Flying to cluster coordinates:', cluster.coordinates);
-      map.flyTo({center: cluster.coordinates, zoom: map.getZoom() + 2.5, duration: 800});
-    } else {
-      console.log('❌ No cluster found for element');
-    }
-  }
-  
-  districtClickHandler(e) {
-    console.log('🏛️ District click handler triggered on:', this);
+  districtMarkerHandler(e) {
+    window.isMarkerClick = true;
     
-    // Find the district name from various possible sources
+    // For district tags from loadDistrictTags
+    const districtTagElement = this.closest('[district-tag-name]') || this.closest('.district-tag-') || this;
     let districtName = null;
+    let isDistrictBoundary = false;
     
-    // Try to find district name element
-    const nameEl = this.querySelector('#district-name') || 
-                   this.querySelector('.text-block-82:not(.number)') ||
-                   this.querySelector('[district-tag-name]') ||
-                   this;
-    
-    if (nameEl) {
-      // Try different ways to get the name
-      districtName = nameEl.getAttribute('district-tag-name') || 
-                    nameEl.textContent?.trim() ||
-                    this.getAttribute('district-tag-name');
-    }
-    
-    // Fallback: check if this element itself has a district name
-    if (!districtName && this.textContent) {
-      const text = this.textContent.trim();
-      const knownDistricts = ['Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'];
-      if (knownDistricts.includes(text)) {
-        districtName = text;
+    // Try to get name from district tag attributes
+    if (districtTagElement) {
+      const tagItem = districtTagElement.closest('#district-tag-item');
+      if (tagItem) {
+        districtName = tagItem.getAttribute('district-tag-name');
       }
     }
     
-    console.log('🏛️ District name found:', districtName);
+    // Try to get name from text content (for boundary districts)
+    if (!districtName) {
+      const nameEl = this.querySelector('.text-block-82:not(.number)') || 
+                    this.querySelector('#district-name') ||
+                    this.querySelector('[district-name]');
+      if (nameEl) {
+        districtName = nameEl.textContent.trim();
+        isDistrictBoundary = true;
+      }
+    }
     
     if (districtName) {
-      console.log('🎯 Calling handleSearchTrigger with district:', districtName);
-      handleSearchTrigger(districtName, 'hiddendistrict'); // Use hiddendistrict for district markers
-    } else {
-      console.log('❌ No district name found');
+      // District markers use hiddendistrict field
+      const hiddenDistrict = cache.getId('hiddendistrict');
+      const refreshOnEnter = cache.getId('refresh-on-enter');
+      
+      // Clear opposite fields first
+      const hiddenSearch = cache.getId('hiddensearch');
+      if (hiddenSearch?.value) {
+        hiddenSearch.value = '';
+        triggerEvent(hiddenSearch, ['input', 'change', 'keyup']);
+        hiddenSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Set hiddendistrict for reports filtering
+      if (hiddenDistrict) {
+        hiddenDistrict.value = districtName;
+        triggerEvent(hiddenDistrict, ['input', 'change', 'keyup']);
+        hiddenDistrict.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Set refresh-on-enter for map filtering  
+      if (refreshOnEnter) {
+        refreshOnEnter.value = districtName;
+        triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
+        refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Trigger CMS filter reload
+      setTimeout(() => {
+        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
+        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: districtName}}))
+        );
+      }, 100);
+      
+      // Show filtered elements and sidebar
+      toggleShowWhenFilteredElements(true);
+      toggleSidebar('Left', true);
+      
+      // If this is a boundary district, also fit to boundary
+      if (isDistrictBoundary) {
+        const districtMarker = districtMarkers.find(d => d.name === districtName && d.geojsonData);
+        if (districtMarker && districtMarker.geojsonData) {
+          const bounds = new mapboxgl.LngLatBounds();
+          const addCoords = coords => {
+            if (Array.isArray(coords) && coords.length > 0) {
+              if (typeof coords[0] === 'number') bounds.extend(coords);
+              else coords.forEach(addCoords);
+            }
+          };
+          districtMarker.geojsonData.features.forEach(feature => addCoords(feature.geometry.coordinates));
+          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+        }
+      }
+      
+      // Trigger map reframing
+      setTimeout(() => {
+        forceFilteredReframe = true;
+        isRefreshButtonAction = true;
+        applyFilterToMarkers();
+        setTimeout(() => {
+          forceFilteredReframe = false;
+          isRefreshButtonAction = false;
+        }, 1000);
+      }, 200);
+    }
+    
+    setTimeout(() => window.isMarkerClick = false, 1000);
+  }
+  
+  allEventsHandler(e) {
+    // Clear cache for ClearAll button
+    cache.clear();
+    const clearAllBtn = cache.getId('ClearAll');
+    if (clearAllBtn) {
+      clearAllBtn.click();
     }
   }
   
-  filterButtonHandler(e) {
-    console.log('🔧 Filter button handler triggered on:', this.id || this.className);
-    if (window.isMarkerClick) {
-      console.log('⏭️ Skipping filter - marker click in progress');
-      return;
+  tabSwitchHandler(e) {
+    // Get the group name from the clicked element
+    const groupName = this.getAttribute('open-tab');
+    
+    // Find the corresponding tab with opened-tab attribute
+    const targetTab = document.querySelector(`[opened-tab="${groupName}"]`);
+    
+    if (targetTab) {
+      // Trigger click on the target tab to activate Webflow's built-in functionality
+      targetTab.click();
     }
+  }
+  
+  clusterClickHandler(e) {
+    const cluster = clusterMarkers.find(c => c.element === this);
+    if (cluster) map.flyTo({center: cluster.coordinates, zoom: map.getZoom() + 2.5, duration: 800});
+  }
+  
+  filterButtonHandler(e) {
+    if (window.isMarkerClick) return;
     
     if (this.id === 'AllEvents') {
-      console.log('🗑️ Triggering ClearAll');
       cache.getId('ClearAll')?.click();
       return;
     }
     
-    console.log('🔄 Starting filter refresh');
     forceFilteredReframe = true;
     isRefreshButtonAction = true;
     
@@ -515,98 +532,59 @@ class EventDelegator {
   }
   
   sidebarHandler(e) {
-    console.log('📱 Sidebar handler triggered on:', {
-      id: this.id,
-      className: this.className,
-      attributes: Array.from(this.attributes || []).map(attr => `${attr.name}="${attr.value}"`)
-    });
-    
     const openRightSidebar = this.getAttribute('open-right-sidebar');
     const openLeftSidebar = this.hasAttribute('open-left-sidebar') || 
                            this.classList.contains('OpenLeftSidebar') ||
                            this.hasAttribute('OpenLeftSidebar') ||
-                           this.hasAttribute('openleftsidebar');
-    const isToggleLeft = this.id === 'ToggleLeft';
-    const isLeftTab = this.id === 'LeftSideTab';
-    const isRightTab = this.id === 'RightSideTab';
-    const isLeftClose = this.id === 'LeftSidebarClose';
-    const isRightClose = this.id === 'RightSidebarClose';
+                           this.hasAttribute('openleftsidebar') ||
+                           this.id === 'ToggleLeft';
     
-    console.log('📱 Sidebar attributes:', {
-      openRightSidebar,
-      openLeftSidebar,
-      isToggleLeft,
-      isLeftTab,
-      isRightTab,
-      isLeftClose,
-      isRightClose
-    });
-    
-    if (openRightSidebar || isRightTab) {
+    if (openRightSidebar) {
       const sidebar = cache.getId('RightSidebar');
-      if (!sidebar) {
-        console.log('❌ RightSidebar element not found');
-        return;
-      }
+      if (!sidebar) return;
       
       if (openRightSidebar === 'open-only') {
-        console.log('📱 Opening right sidebar (open-only)');
         toggleSidebar('Right', true);
       } else {
-        console.log('📱 Toggling right sidebar');
         toggleSidebar('Right', !sidebar.classList.contains('is-show'));
       }
       
       const groupName = this.getAttribute('open-tab');
       if (groupName) {
-        console.log('📑 Opening tab group:', groupName);
         setTimeout(() => document.querySelector(`[opened-tab="${groupName}"]`)?.click(), 50);
       }
     }
     
-    if (openLeftSidebar || isToggleLeft || isLeftTab) {
+    if (openLeftSidebar) {
       const sidebar = cache.getId('LeftSidebar');
-      if (!sidebar) {
-        console.log('❌ LeftSidebar element not found');
-        return;
-      }
-      console.log('📱 Toggling left sidebar');
-      toggleSidebar('Left', !sidebar.classList.contains('is-show'));
-    }
-    
-    if (isLeftClose) {
-      console.log('📱 Closing left sidebar');
-      toggleSidebar('Left', false);
-    }
-    
-    if (isRightClose) {
-      console.log('📱 Closing right sidebar');
-      toggleSidebar('Right', false);
+      if (sidebar) toggleSidebar('Left', !sidebar.classList.contains('is-show'));
     }
   }
   
-  tabSwitcherHandler(e) {
-    console.log('📑 Tab switcher handler triggered');
-    const groupName = this.getAttribute('open-tab');
-    console.log('📑 Tab group name:', groupName);
-    
-    if (groupName) {
-      const targetTab = document.querySelector(`[opened-tab="${groupName}"]`);
-      if (targetTab) {
-        console.log('📑 Clicking target tab:', targetTab);
-        targetTab.click();
-      } else {
-        console.log('❌ Target tab not found for group:', groupName);
+  leftSidebarChangeHandler(e) {
+    if (this.checked) {
+      const sidebar = cache.getId('LeftSidebar');
+      if (sidebar) toggleSidebar('Left', !sidebar.classList.contains('is-show'));
+    }
+  }
+  
+  sidebarTabCloseHandler(e) {
+    if (this.id.includes('Close')) {
+      // Close button
+      const side = this.id.includes('Left') ? 'Left' : 'Right';
+      toggleSidebar(side, false);
+    } else if (this.id.includes('SideTab')) {
+      // Tab button
+      const side = this.id.includes('Left') ? 'Left' : 'Right';
+      const sidebar = cache.getId(`${side}Sidebar`);
+      if (sidebar) {
+        toggleSidebar(side, !sidebar.classList.contains('is-show'));
       }
     }
   }
   
   districtSelectHandler(e) {
-    console.log('📍 District select handler triggered');
-    if (window.isMarkerClick) {
-      console.log('⏭️ Skipping district select - marker click in progress');
-      return;
-    }
+    if (window.isMarkerClick) return;
     
     setTimeout(() => {
       forceFilteredReframe = true;
@@ -623,11 +601,7 @@ class EventDelegator {
   }
   
   selectField5Handler(e) {
-    console.log('📍 Select field 5 handler triggered');
-    if (window.isMarkerClick) {
-      console.log('⏭️ Skipping select field 5 - marker click in progress');
-      return;
-    }
+    if (window.isMarkerClick) return;
     
     setTimeout(() => {
       forceFilteredReframe = true;
@@ -646,129 +620,38 @@ class EventDelegator {
 
 const eventDelegator = new EventDelegator();
 
-// Debug function to inspect sidebar trigger elements
-function debugSidebarElements() {
-  console.log('🔍 === DEBUGGING SIDEBAR ELEMENTS ===');
-  
-  // Check for all possible sidebar trigger elements
-  const selectors = [
-    '[open-right-sidebar]',
-    '[open-left-sidebar]', 
-    '.OpenLeftSidebar',
-    '[OpenLeftSidebar]',
-    '[openleftsidebar]',
-    '#ToggleLeft',
-    '#LeftSideTab',
-    '#RightSideTab',
-    '#LeftSidebarClose',
-    '#RightSidebarClose',
-    '[open-tab]'
-  ];
-  
-  selectors.forEach(selector => {
-    const elements = document.querySelectorAll(selector);
-    console.log(`📊 Selector "${selector}": found ${elements.length} elements`);
-    elements.forEach((el, index) => {
-      console.log(`  ${index + 1}.`, {
-        tagName: el.tagName,
-        id: el.id,
-        className: el.className,
-        textContent: el.textContent?.trim().substring(0, 50),
-        attributes: Array.from(el.attributes).map(attr => `${attr.name}="${attr.value}"`)
-      });
-    });
-  });
-  
-  // Check for sidebar elements themselves
-  const sidebarElements = ['LeftSidebar', 'RightSidebar', 'LeftSideTab', 'RightSideTab'];
-  sidebarElements.forEach(id => {
-    const element = document.getElementById(id);
-    console.log(`📱 ${id}:`, element ? 'Found' : 'Not found', element);
-  });
-  
-  // Check for district elements
-  console.log('🏛️ === DEBUGGING DISTRICT ELEMENTS ===');
-  console.log(`📊 districtMarkers array length: ${districtMarkers.length}`);
-  districtMarkers.forEach((marker, index) => {
-    console.log(`  ${index + 1}. District marker:`, {
-      name: marker.name,
-      element: marker.element,
-      className: marker.element?.className,
-      attributes: marker.element ? Array.from(marker.element.attributes || []).map(attr => `${attr.name}="${attr.value}"`) : []
-    });
-  });
-  
-  // Check for hidden input fields
-  console.log('📝 === DEBUGGING HIDDEN FIELDS ===');
-  ['hiddensearch', 'hiddendistrict', 'refresh-on-enter'].forEach(id => {
-    const element = document.getElementById(id);
-    console.log(`📝 ${id}:`, element ? {
-      found: true,
-      value: element.value,
-      type: element.type,
-      tagName: element.tagName
-    } : 'Not found');
-  });
-  
-  console.log('🔍 === DEBUG COMPLETE ===');
-}
-
-// Call debug function on initialization
-setTimeout(debugSidebarElements, 2000);
-
 // Toggle sidebar with improved logic
 const toggleSidebar = (side, show = null) => {
-  console.log(`📱 toggleSidebar called: side="${side}", show=${show}`);
-  
   const sidebar = cache.getId(`${side}Sidebar`);
-  if (!sidebar) {
-    console.log(`❌ ${side}Sidebar element not found`);
-    return;
-  }
-  
-  console.log(`✅ Found ${side}Sidebar:`, sidebar);
-  console.log(`📊 Current sidebar state: is-show=${sidebar.classList.contains('is-show')}`);
+  if (!sidebar) return;
   
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
-  console.log(`📊 Will show sidebar: ${isShowing}`);
-  
   sidebar.classList.toggle('is-show', isShowing);
   
   const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
   const marginProp = `margin${side}`;
-  console.log(`📐 Sidebar width: ${currentWidth}, margin property: ${marginProp}`);
   
   if (window.innerWidth > 478) {
-    const marginValue = isShowing ? '0' : `-${currentWidth + 1}px`;
-    sidebar.style[marginProp] = marginValue;
-    console.log(`💻 Desktop: Set ${marginProp} to ${marginValue}`);
+    sidebar.style[marginProp] = isShowing ? '0' : `-${currentWidth + 1}px`;
   } else {
     sidebar.style[marginProp] = isShowing ? '0' : '';
-    console.log(`📱 Mobile: Set ${marginProp} to ${isShowing ? '0' : 'empty'}`);
-    if (isShowing) {
-      const oppositeSide = side === 'Left' ? 'Right' : 'Left';
-      console.log(`🔄 Mobile: Closing opposite sidebar ${oppositeSide}`);
-      toggleSidebar(oppositeSide, false);
-    }
+    if (isShowing) toggleSidebar(side === 'Left' ? 'Right' : 'Left', false);
   }
   
   setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
-  console.log(`👆 Set pointer events to: ${isShowing ? 'auto' : 'none'}`);
-  
   const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
-  if (arrowIcon) {
-    arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
-    console.log(`🔄 Set arrow transform: ${isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)'}`);
-  } else {
-    console.log(`❌ Arrow icon not found for ${side.toLowerCase()}`);
-  }
-  
-  console.log(`✅ toggleSidebar complete for ${side}`);
+  if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
 
-// Toggle filtered elements
+// Toggle filtered elements with cache management and debug logging
 const toggleShowWhenFilteredElements = show => {
-  $('[show-when-filtered="true"]').forEach(element => {
+  // Clear cache to get current elements
+  cache.clearSelector('[show-when-filtered="true"]');
+  const elements = $('[show-when-filtered="true"]');
+  
+  console.log(`🔍 toggleShowWhenFilteredElements: show=${show}, found ${elements.length} elements`);
+  
+  elements.forEach(element => {
     setStyles(element, {
       display: show ? 'block' : 'none',
       visibility: show ? 'visible' : 'hidden',
@@ -905,16 +788,13 @@ function addCustomMarkers() {
 // Consolidated search trigger handler
 function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   window.isMarkerClick = true;
-  console.log(`🎯 handleSearchTrigger called with locality: "${locality}", targetField: "${targetField}"`);
+  console.log(`🎯 handleSearchTrigger: "${locality}", field: "${targetField}"`);
   
   const oppositeField = targetField === 'hiddensearch' ? 'hiddendistrict' : 'hiddensearch';
-  console.log(`🔄 Opposite field: "${oppositeField}"`);
   
   // Clear opposite field
   const oppositeSearch = cache.getId(oppositeField);
-  console.log(`🔍 Found opposite field element:`, oppositeSearch);
   if (oppositeSearch?.value) {
-    console.log(`🗑️ Clearing opposite field value: "${oppositeSearch.value}"`);
     oppositeSearch.value = '';
     triggerEvent(oppositeSearch, ['input', 'change', 'keyup']);
     oppositeSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
@@ -922,36 +802,22 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   
   // Set target field
   const search = cache.getId(targetField);
-  console.log(`🔍 Found target field element:`, search);
   if (search) {
-    console.log(`✏️ Setting target field value to: "${locality}"`);
     search.value = locality;
     triggerEvent(search, ['input', 'change', 'keyup']);
     search.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
     
-    console.log(`✅ Target field value after setting: "${search.value}"`);
-    
     setTimeout(() => {
-      if (window.fsAttributes?.cmsfilter) {
-        console.log(`🔄 Reloading CMS filter`);
-        window.fsAttributes.cmsfilter.reload();
-      }
-      ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => {
-        console.log(`📡 Dispatching event: ${type}`);
-        document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: locality}}));
-      });
+      if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
+      ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+        document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: locality}}))
+      );
     }, 100);
-  } else {
-    console.log(`❌ Target field "${targetField}" not found!`);
   }
   
-  console.log(`📱 Toggling filtered elements and sidebar`);
   toggleShowWhenFilteredElements(true);
   toggleSidebar('Left', true);
-  setTimeout(() => {
-    console.log(`🏁 handleSearchTrigger complete, clearing isMarkerClick flag`);
-    window.isMarkerClick = false;
-  }, 1000);
+  setTimeout(() => window.isMarkerClick = false, 1000);
 }
 
 // Optimized clustering with spatial indexing
@@ -1151,7 +1017,7 @@ function getOrCreateCluster(center, count, coords) {
   return cluster;
 }
 
-// Consolidated filtering checks - cached
+// Consolidated filtering checks - with proper cache management
 const checkFiltering = (instance) => {
   if (window.fsAttributes?.cmsfilter) {
     const filterInstance = window.fsAttributes.cmsfilter.getByInstance(instance);
@@ -1164,6 +1030,8 @@ const checkFiltering = (instance) => {
     }
   }
   
+  // Clear cache and re-query for current state
+  cache.clearSelector(`[fs-list-instance="${instance}"]`);
   const filterList = $(`[fs-list-instance="${instance}"]`)[0];
   if (filterList) {
     const allItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
@@ -1181,6 +1049,7 @@ const checkMapMarkersFiltering = () => {
   
   if (checkFiltering('mapmarkers')) return true;
   
+  // Clear cache for dynamic filtering checks
   cache.clearSelector('.data-places-latitudes-filter');
   cache.clearSelector('.data-places-latitudes, .data-place-latitude');
   const filteredLat = $('.data-places-latitudes-filter');
@@ -1481,6 +1350,9 @@ function loadDistrictTags() {
     districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
     districtWrap.style.zIndex = '1000';
     
+    // Add district-tag-name attribute for event delegation
+    districtWrap.setAttribute('district-tag-name', name);
+    
     const nameElement = districtWrap.querySelector('#district-name');
     if (nameElement) {
       nameElement.textContent = name;
@@ -1491,7 +1363,7 @@ function loadDistrictTags() {
       .setLngLat([lng, lat])
       .addTo(map);
     
-    // Event delegation will handle district tag clicks
+    // Event delegation will handle district tag clicks automatically
     districtMarkers.push({marker, element: districtWrap, name});
   });
 }
@@ -1584,8 +1456,8 @@ function loadBoundaries() {
           
           const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat(centroid).addTo(map);
           
-          // Event delegation will handle district clicks
-          districtMarkers.push({marker, element: districtWrap, name: boundary.name});
+          // Event delegation will handle district clicks automatically
+          districtMarkers.push({marker, element: districtWrap, name: boundary.name, geojsonData});
         }
         
         // Boundary interaction handlers
@@ -1627,15 +1499,23 @@ function loadBoundaries() {
   }
 }
 
-// Optimized tag monitoring
+// Optimized tag monitoring with proper cache management and debug logging
 const monitorTags = () => {
-  const checkTags = () => toggleShowWhenFilteredElements(cache.getId('hiddentagparent') !== null);
+  const checkTags = () => {
+    // Clear cache to get current state
+    cache.clear();
+    const hasHiddenTagParent = cache.getId('hiddentagparent') !== null;
+    console.log(`🏷️ monitorTags: hiddentagparent exists=${hasHiddenTagParent}`);
+    toggleShowWhenFilteredElements(hasHiddenTagParent);
+  };
   checkTags();
   
   const tagParent = cache.getId('tagparent');
   if (tagParent) {
+    console.log('🏷️ Setting up MutationObserver for tagparent');
     new MutationObserver(() => setTimeout(checkTags, 50)).observe(tagParent, {childList: true, subtree: true});
   } else {
+    console.log('🏷️ No tagparent found, using interval monitoring');
     setInterval(checkTags, 1000);
   }
 };
