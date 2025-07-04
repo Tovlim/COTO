@@ -36,7 +36,7 @@
         }, 200); // 200ms debounce
       });
       
-      // Initialize - show all checkboxes for this group
+      // Initialize - show all checkboxes for this group (if any exist)
       filterCheckboxGroup(groupName, '');
     });
     
@@ -82,8 +82,13 @@
     // Clear the input value
     searchInput.value = '';
     
-    // Trigger the filter to show all checkboxes
-    filterCheckboxGroup(groupName, '');
+    // Check if there are checkboxes for this group
+    const checkboxElements = document.querySelectorAll('[checkbox-filter="' + groupName + '"]');
+    
+    // Only trigger checkbox filtering if checkboxes exist for this group
+    if (checkboxElements.length > 0) {
+      filterCheckboxGroup(groupName, '');
+    }
     
     // Optional: Focus back on the search input for better UX
     searchInput.focus();
@@ -94,7 +99,7 @@
     const checkboxElements = document.querySelectorAll('[checkbox-filter="' + groupName + '"]');
     
     if (checkboxElements.length === 0) {
-      console.warn('No checkboxes found for group:', groupName);
+      // Don't warn if no checkboxes - this is now an acceptable use case
       return;
     }
     
@@ -178,7 +183,5 @@
     element.style.display = '';
     element.removeAttribute('data-filtered');
   }
-  
-
   
 })();
