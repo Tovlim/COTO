@@ -1064,65 +1064,21 @@ function loadDistrictTags() {
       setTimeout(() => window.isMarkerClick = false, 1000);
     });
     
-    // Add hover effects for district tag name wrap
-    districtWrap.addEventListener('mouseenter', () => {
-      applyDistrictHover(name);
+    // Add hover effect for district tags (they don't have boundaries, so just trigger Webflow effect)
+    districtWrap.addEventListener('mouseenter', e => {
+      // For district tags without boundaries, we just let the Webflow hover effect work
+      // No need to trigger boundary effects since these districts don't have boundaries
     });
     
-    districtWrap.addEventListener('mouseleave', () => {
-      removeDistrictHover(name);
+    districtWrap.addEventListener('mouseleave', e => {
+      // For district tags without boundaries, we just let the Webflow hover effect work  
+      // No need to reset boundary effects since these districts don't have boundaries
     });
     
     // Add to district markers array for zoom-based visibility
     districtMarkers.push({marker, element: districtWrap, name});
   });
 }
-// Helper functions for district hover effects
-const applyDistrictHover = (districtName) => {
-  // Find and highlight corresponding boundary
-  const fillId = `${districtName.toLowerCase()}-fill`;
-  const borderId = `${districtName.toLowerCase()}-border`;
-  
-  if (map.getLayer(fillId)) {
-    map.setPaintProperty(fillId, 'fill-color', '#e93119');
-    map.setPaintProperty(fillId, 'fill-opacity', 0.4);
-  }
-  if (map.getLayer(borderId)) {
-    map.setPaintProperty(borderId, 'line-color', '#e93119');
-    map.setPaintProperty(borderId, 'line-width', 3);
-  }
-  
-  // Find and highlight corresponding district name wrap
-  const districtMarker = districtMarkers.find(dm => dm.name === districtName);
-  if (districtMarker && districtMarker.element) {
-    districtMarker.element.style.transform = 'scale(1.1)';
-    districtMarker.element.style.filter = 'drop-shadow(0 0 8px rgba(233, 49, 25, 0.8))';
-    districtMarker.element.style.transition = 'all 0.2s ease';
-  }
-};
-
-const removeDistrictHover = (districtName) => {
-  // Restore boundary colors
-  const fillId = `${districtName.toLowerCase()}-fill`;
-  const borderId = `${districtName.toLowerCase()}-border`;
-  
-  if (map.getLayer(fillId)) {
-    map.setPaintProperty(fillId, 'fill-color', '#1a1b1e');
-    map.setPaintProperty(fillId, 'fill-opacity', 0.25);
-  }
-  if (map.getLayer(borderId)) {
-    map.setPaintProperty(borderId, 'line-color', '#1a1b1e');
-    map.setPaintProperty(borderId, 'line-width', 2);
-  }
-  
-  // Restore district name wrap
-  const districtMarker = districtMarkers.find(dm => dm.name === districtName);
-  if (districtMarker && districtMarker.element) {
-    districtMarker.element.style.transform = '';
-    districtMarker.element.style.filter = '';
-    districtMarker.element.style.transition = '';
-  }
-};
 // Load area overlays (A, B, C areas)
 function loadAreaOverlays() {
   const areas = [
@@ -1279,13 +1235,19 @@ function loadBoundaries() {
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
           });
           
-          // Add hover effects for district name wrap
-          districtWrap.addEventListener('mouseenter', () => {
-            applyDistrictHover(boundary.name);
+          // Add bidirectional hover effect for district-name-wrap
+          districtWrap.addEventListener('mouseenter', e => {
+            // Trigger boundary hover effect
+            map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
+            map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
+            if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
+            if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
           });
           
-          districtWrap.addEventListener('mouseleave', () => {
-            removeDistrictHover(boundary.name);
+          districtWrap.addEventListener('mouseleave', e => {
+            // Reset boundary hover effect
+            map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
+            map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
           });
           
           districtMarkers.push({marker, element: districtWrap, name: boundary.name});
@@ -1306,18 +1268,36 @@ function loadBoundaries() {
           map.fitBounds(bounds, {padding: 50, duration: 1000});
         });
         
-        map.on('mouseenter', boundary.fillId, () => {
+        map.on('mouseenter', boundary.fillId, (e) => {
           map.getCanvas().style.cursor = 'pointer';
           map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
           map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
           if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
           if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
+          
+          // Trigger hover on corresponding district-name-wrap
+          const correspondingDistrictMarker = districtMarkers.find(marker => 
+            marker.name.toLowerCase() === boundary.name.toLowerCase()
+          );
+          if (correspondingDistrictMarker && correspondingDistrictMarker.element) {
+            // Dispatch mouseenter event to trigger Webflow hover effect
+            correspondingDistrictMarker.element.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
+          }
         });
         
-        map.on('mouseleave', boundary.fillId, () => {
+        map.on('mouseleave', boundary.fillId, (e) => {
           map.getCanvas().style.cursor = '';
           map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
           map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
+          
+          // Trigger mouse leave on corresponding district-name-wrap
+          const correspondingDistrictMarker = districtMarkers.find(marker => 
+            marker.name.toLowerCase() === boundary.name.toLowerCase()
+          );
+          if (correspondingDistrictMarker && correspondingDistrictMarker.element) {
+            // Dispatch mouseleave event to end Webflow hover effect
+            correspondingDistrictMarker.element.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true}));
+          }
         });
       })
       .catch(error => {
