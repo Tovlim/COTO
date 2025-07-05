@@ -432,12 +432,12 @@ function checkOverlap() {
   });
 }
 
-// Check if filtering is active (DOM-based detection)
+// Check if filtering is active (DOM-based detection with v2 selectors)
 const checkFilterInstanceFiltering = () => {
   const filterList = $('[fs-list-instance="Filter"]')[0];
   if (filterList) {
-    const allItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
-    const visibleItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
+    const allItems = filterList.querySelectorAll('[fs-list-element="item"]');
+    const visibleItems = filterList.querySelectorAll('[fs-list-element="item"]:not([style*="display: none"])');
     if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
   }
   
@@ -467,8 +467,8 @@ const checkMapMarkersFiltering = () => {
   
   const mapMarkersList = $('[fs-list-instance="mapmarkers"]')[0];
   if (mapMarkersList) {
-    const allItems = mapMarkersList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
-    const visibleItems = mapMarkersList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
+    const allItems = mapMarkersList.querySelectorAll('[fs-list-element="item"]');
+    const visibleItems = mapMarkersList.querySelectorAll('[fs-list-element="item"]:not([style*="display: none"])');
     if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
   }
   
@@ -828,7 +828,7 @@ function setupEvents() {
   // Firefox form handling
   if (navigator.userAgent.toLowerCase().includes('firefox')) {
     $('form').forEach(form => {
-      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
+      const hasFilterElements = form.querySelector('[fs-list-element]') !== null;
       const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
       
       if (hasFilterElements || isNearMap) {
@@ -865,9 +865,9 @@ function setupEvents() {
   };
   
   // Link click tracking
-  $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
+  $('a:not(.filterrefresh):not([fs-list-element])').forEach(link => {
     link.onclick = () => {
-      if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
+      if (!link.closest('[fs-list-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
         window.isLinkClick = true;
         setTimeout(() => window.isLinkClick = false, 500);
       }
