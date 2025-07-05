@@ -1275,13 +1275,13 @@ function loadBoundaries() {
           if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
           if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
           
-          // Trigger hover on corresponding district-name-wrap
+          // Directly apply hover effect to corresponding district-name-wrap
           const correspondingDistrictMarker = districtMarkers.find(marker => 
             marker.name.toLowerCase() === boundary.name.toLowerCase()
           );
           if (correspondingDistrictMarker && correspondingDistrictMarker.element) {
-            // Dispatch mouseenter event to trigger Webflow hover effect
-            correspondingDistrictMarker.element.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
+            // Direct style change - much faster than dispatching events
+            correspondingDistrictMarker.element.style.backgroundColor = '#fc4e37';
           }
         });
         
@@ -1290,13 +1290,13 @@ function loadBoundaries() {
           map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
           map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
           
-          // Trigger mouse leave on corresponding district-name-wrap
+          // Reset hover effect on corresponding district-name-wrap
           const correspondingDistrictMarker = districtMarkers.find(marker => 
             marker.name.toLowerCase() === boundary.name.toLowerCase()
           );
           if (correspondingDistrictMarker && correspondingDistrictMarker.element) {
-            // Dispatch mouseleave event to end Webflow hover effect
-            correspondingDistrictMarker.element.dispatchEvent(new MouseEvent('mouseleave', {bubbles: true}));
+            // Reset background color to original
+            correspondingDistrictMarker.element.style.backgroundColor = '';
           }
         });
       })
