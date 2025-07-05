@@ -1,24 +1,4 @@
-// Initialize Finsweet Attributes v2 API
-let listFilterAPI = null;
-
-// Ensure Finsweet Attributes v2 is loaded
-window.FinsweetAttributes ||= [];
-window.FinsweetAttributes.push([
-  'list',
-  (result) => {
-    listFilterAPI = result;
-  }
-]);
-
-// Helper function to trigger v2 list refresh
-const triggerListRefresh = () => {
-  if (listFilterAPI) {
-    // v2 API handles refreshing automatically when inputs change
-    // Manual refresh typically not needed, but we'll trigger change events
-    return true;
-  }
-  return false;
-};
+// Initialize Mapbox
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
 if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
@@ -432,47 +412,39 @@ function checkOverlap() {
   });
 }
 
-// Check if filtering is active (DOM-based detection with v2 selectors)
-const checkFilterInstanceFiltering = () => {
-  const filterList = $('[fs-list-instance="Filter"]')[0];
-  if (filterList) {
-    const allItems = filterList.querySelectorAll('[fs-list-element="item"]');
-    const visibleItems = filterList.querySelectorAll('[fs-list-element="item"]:not([style*="display: none"])');
-    if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
+// Consolidated filtering checks
+const checkFiltering = (instance) => {
+  if (window.fsAttributes?.cmsfilter) {
+    const filterInstance = window.fsAttributes.cmsfilter.getByInstance(instance);
+    if (filterInstance) {
+      const activeFilters = filterInstance.filtersData;
+      if (activeFilters && Object.keys(activeFilters).length > 0) return true;
+      
+      const renderedItems = filterInstance.listInstance.items.filter(item => !item.element.style.display || item.element.style.display !== 'none');
+      if (renderedItems.length > 0 && renderedItems.length < filterInstance.listInstance.items.length) return true;
+    }
   }
   
-  const filterContainer = $('[fs-list-instance="Filter"]')[0];
-  if (filterContainer) {
-    const inputs = filterContainer.querySelectorAll('input, select');
-    const activeInputs = Array.from(inputs).filter(input => {
-      if (input.type === 'checkbox' || input.type === 'radio') return input.checked;
-      return input.value && input.value.trim() !== '';
-    });
-    if (activeInputs.length > 0) return true;
+  const filterList = $(`[fs-list-instance="${instance}"]`)[0];
+  if (filterList) {
+    const allItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
+    const visibleItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
+    if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
   }
   
   return false;
 };
 
+const checkFilterInstanceFiltering = () => checkFiltering('Filter');
 const checkMapMarkersFiltering = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  const hasMapMarkersURLFilter = Array.from(urlParams.keys()).some(key => 
-    key.startsWith('mapmarkers_') || key.includes('mapmarkers') || key === 'district' || key === 'locality'
-  );
-  if (hasMapMarkersURLFilter) return true;
+  if (Array.from(urlParams.keys()).some(key => key.startsWith('mapmarkers_') || key.includes('mapmarkers') || key === 'district' || key === 'locality')) return true;
+  
+  if (checkFiltering('mapmarkers')) return true;
   
   const filteredLat = $('.data-places-latitudes-filter');
   const allLat = $('.data-places-latitudes, .data-place-latitude');
-  if (filteredLat.length > 0 && filteredLat.length < allLat.length) return true;
-  
-  const mapMarkersList = $('[fs-list-instance="mapmarkers"]')[0];
-  if (mapMarkersList) {
-    const allItems = mapMarkersList.querySelectorAll('[fs-list-element="item"]');
-    const visibleItems = mapMarkersList.querySelectorAll('[fs-list-element="item"]:not([style*="display: none"])');
-    if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
-  }
-  
-  return false;
+  return filteredLat.length > 0 && filteredLat.length < allLat.length;
 };
 
 // Apply filter with improved reframing
@@ -825,10 +797,15 @@ function setupEvents() {
     });
   });
   
+  // Global event listeners
+  ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
+    document.addEventListener(event, handleFilterUpdate);
+  });
+  
   // Firefox form handling
   if (navigator.userAgent.toLowerCase().includes('firefox')) {
     $('form').forEach(form => {
-      const hasFilterElements = form.querySelector('[fs-list-element]') !== null;
+      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
       const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
       
       if (hasFilterElements || isNearMap) {
@@ -865,9 +842,9 @@ function setupEvents() {
   };
   
   // Link click tracking
-  $('a:not(.filterrefresh):not([fs-list-element])').forEach(link => {
+  $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
     link.onclick = () => {
-      if (!link.closest('[fs-list-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
+      if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
         window.isLinkClick = true;
         setTimeout(() => window.isLinkClick = false, 500);
       }
@@ -1063,6 +1040,14 @@ function loadDistrictTags() {
         triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
         refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
+      
+      // Trigger CMS filter reload
+      setTimeout(() => {
+        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
+        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
+        );
+      }, 100);
       
       // Show filtered elements and sidebar
       toggleShowWhenFilteredElements(true);
