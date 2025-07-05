@@ -81,14 +81,14 @@ const handleZoomBasedVisibility = debounce(() => {
       
       const isHidden = element.style.display === 'none' || element.style.opacity === '0' || !element.style.opacity;
       if (isHidden) {
-        setStyles(element, {display: 'block', visibility: 'visible', transition: 'opacity 300ms ease', opacity: '0', pointerEvents: 'none'});
+        setStyles(element, {display: 'block', visibility: 'visible', transition: 'opacity 300ms ease, background-color 0.3s ease', opacity: '0', pointerEvents: 'none'});
         element.offsetHeight;
         setStyles(element, {opacity: '1', pointerEvents: 'auto'});
       } else {
-        setStyles(element, {display: 'block', visibility: 'visible', opacity: '1', pointerEvents: 'auto'});
+        setStyles(element, {display: 'block', visibility: 'visible', opacity: '1', pointerEvents: 'auto', transition: 'opacity 300ms ease, background-color 0.3s ease'});
       }
     } else {
-      setStyles(element, {transition: 'opacity 300ms ease', opacity: '0', pointerEvents: 'none'});
+      setStyles(element, {transition: 'opacity 300ms ease, background-color 0.3s ease', opacity: '0', pointerEvents: 'none'});
       const fadeOutId = Date.now() + Math.random();
       element.dataset.fadeOutId = fadeOutId;
       
@@ -993,8 +993,8 @@ function loadDistrictTags() {
     districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
     districtWrap.style.zIndex = '1000';
     
-    // Add smooth transition for background color changes
-    districtWrap.style.transition = 'background-color 0.3s ease';
+    // Add smooth transitions for both opacity and background color changes
+    districtWrap.style.transition = 'opacity 300ms ease, background-color 0.3s ease';
     
     // Set the district name
     const nameElement = districtWrap.querySelector('#district-name');
@@ -1208,8 +1208,8 @@ function loadBoundaries() {
           districtWrap.className += ` district-${boundary.name.toLowerCase()}`;
           districtWrap.style.zIndex = '1000';
           
-          // Add smooth transition for background color changes
-          districtWrap.style.transition = 'background-color 0.3s ease';
+          // Add smooth transitions for both opacity and background color changes
+          districtWrap.style.transition = 'opacity 300ms ease, background-color 0.3s ease';
           
           const nameElement = districtWrap.querySelector('#district-name');
           if (nameElement) {
