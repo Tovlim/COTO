@@ -1,4 +1,24 @@
-// Initialize Mapbox
+// Initialize Finsweet Attributes v2 API
+let listFilterAPI = null;
+
+// Ensure Finsweet Attributes v2 is loaded
+window.FinsweetAttributes ||= [];
+window.FinsweetAttributes.push([
+  'list',
+  (result) => {
+    listFilterAPI = result;
+  }
+]);
+
+// Helper function to trigger v2 list refresh
+const triggerListRefresh = () => {
+  if (listFilterAPI) {
+    // v2 API handles refreshing automatically when inputs change
+    // Manual refresh typically not needed, but we'll trigger change events
+    return true;
+  }
+  return false;
+};
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
 if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
@@ -412,24 +432,28 @@ function checkOverlap() {
   });
 }
 
-// Consolidated filtering checks
+// Consolidated filtering checks using v2 API
 const checkFiltering = (instance) => {
-  if (window.fsAttributes?.cmsfilter) {
-    const filterInstance = window.fsAttributes.cmsfilter.getByInstance(instance);
-    if (filterInstance) {
-      const activeFilters = filterInstance.filtersData;
-      if (activeFilters && Object.keys(activeFilters).length > 0) return true;
-      
-      const renderedItems = filterInstance.listInstance.items.filter(item => !item.element.style.display || item.element.style.display !== 'none');
-      if (renderedItems.length > 0 && renderedItems.length < filterInstance.listInstance.items.length) return true;
-    }
-  }
-  
+  // In v2, we check for filtered results by examining the DOM directly
+  // since the new API handles filtering more automatically
   const filterList = $(`[fs-list-instance="${instance}"]`)[0];
   if (filterList) {
-    const allItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
-    const visibleItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
+    const allItems = filterList.querySelectorAll('[fs-list-element="item"]');
+    const visibleItems = Array.from(allItems).filter(item => 
+      !item.style.display || item.style.display !== 'none'
+    );
     if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
+  }
+  
+  // Check for active form inputs
+  const filterContainer = $(`[fs-list-instance="${instance}"]`)[0];
+  if (filterContainer) {
+    const inputs = filterContainer.querySelectorAll('input, select');
+    const activeInputs = Array.from(inputs).filter(input => {
+      if (input.type === 'checkbox' || input.type === 'radio') return input.checked;
+      return input.value && input.value.trim() !== '';
+    });
+    if (activeInputs.length > 0) return true;
   }
   
   return false;
@@ -797,15 +821,15 @@ function setupEvents() {
     });
   });
   
-  // Global event listeners
-  ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
+  // Global event listeners for v2 API
+  ['fs-list-filtered', 'fs-list-updated'].forEach(event => {
     document.addEventListener(event, handleFilterUpdate);
   });
   
-  // Firefox form handling
+  // Firefox form handling for v2 API
   if (navigator.userAgent.toLowerCase().includes('firefox')) {
     $('form').forEach(form => {
-      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
+      const hasFilterElements = form.querySelector('[fs-list-element]') !== null;
       const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
       
       if (hasFilterElements || isNearMap) {
@@ -841,10 +865,10 @@ function setupEvents() {
     }
   };
   
-  // Link click tracking
-  $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
+  // Link click tracking for v2 API
+  $('a:not(.filterrefresh):not([fs-list-element])').forEach(link => {
     link.onclick = () => {
-      if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
+      if (!link.closest('[fs-list-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
         window.isLinkClick = true;
         setTimeout(() => window.isLinkClick = false, 500);
       }
@@ -1041,10 +1065,11 @@ function loadDistrictTags() {
         refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
       
-      // Trigger CMS filter reload
+      // Trigger CMS filter reload using v2 API
       setTimeout(() => {
-        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
-        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+        // In v2, manual reload is usually not needed as it responds to input changes automatically
+        // But we can trigger additional events to ensure compatibility
+        ['fs-list-updated', 'input'].forEach(type => 
           document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
         );
       }, 100);
