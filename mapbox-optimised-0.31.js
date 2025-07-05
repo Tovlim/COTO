@@ -564,6 +564,66 @@ async function loadBoundaries() {
       districtWrap.onmouseenter = () => setHover(true);
       districtWrap.onmouseleave = () => setHover(false);
       
+      // Map boundary click - same as district name but only map filtering (no reports)
+      map.on('click', boundary.fillId, () => {
+        const nameEl = districtWrap.querySelector('.text-block-82:not(.number)');
+        const districtName = nameEl?.textContent.trim();
+        if (districtName) {
+          window.isMarkerClick = true;
+          
+          // Clear hiddendistrict and hiddensearch
+          if (elements.hiddenDistrict?.value) {
+            elements.hiddenDistrict.value = '';
+            triggerEvent(elements.hiddenDistrict, ['input', 'change', 'keyup']);
+          }
+          if (elements.hiddenSearch?.value) {
+            elements.hiddenSearch.value = '';
+            triggerEvent(elements.hiddenSearch, ['input', 'change', 'keyup']);
+          }
+          
+          // Set only refresh-on-enter for map filtering (skip hiddendistrict for reports)
+          if (elements.refreshOnEnter) {
+            elements.refreshOnEnter.value = districtName;
+            triggerEvent(elements.refreshOnEnter, ['input', 'change', 'keyup']);
+            elements.refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+          }
+          
+          setTimeout(() => {
+            if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
+            ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+              document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: districtName}}))
+            );
+          }, 100);
+          
+          toggleShowWhenFilteredElements(true);
+          toggleSidebar('Left', true);
+          
+          // Trigger map reframing
+          setTimeout(() => {
+            forceFilteredReframe = true;
+            isRefreshButtonAction = true;
+            applyFilterToMarkers();
+            setTimeout(() => {
+              forceFilteredReframe = false;
+              isRefreshButtonAction = false;
+            }, 1000);
+          }, 200);
+          
+          setTimeout(() => window.isMarkerClick = false, 1000);
+        }
+        
+        // Also fit bounds to the district
+        const bounds = new mapboxgl.LngLatBounds();
+        const addCoords = coords => {
+          if (Array.isArray(coords) && coords.length > 0) {
+            if (typeof coords[0] === 'number') bounds.extend(coords);
+            else coords.forEach(addCoords);
+          }
+        };
+        geojsonData.features.forEach(feature => addCoords(feature.geometry.coordinates));
+        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+      });
+      
       // Map boundary hover
       map.on('mouseenter', boundary.fillId, () => {
         map.getCanvas().style.cursor = 'pointer';
