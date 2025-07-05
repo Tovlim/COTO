@@ -432,21 +432,16 @@ function checkOverlap() {
   });
 }
 
-// Consolidated filtering checks using v2 API
-const checkFiltering = (instance) => {
-  // In v2, we check for filtered results by examining the DOM directly
-  // since the new API handles filtering more automatically
-  const filterList = $(`[fs-list-instance="${instance}"]`)[0];
+// Check if filtering is active (DOM-based detection)
+const checkFilterInstanceFiltering = () => {
+  const filterList = $('[fs-list-instance="Filter"]')[0];
   if (filterList) {
-    const allItems = filterList.querySelectorAll('[fs-list-element="item"]');
-    const visibleItems = Array.from(allItems).filter(item => 
-      !item.style.display || item.style.display !== 'none'
-    );
+    const allItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
+    const visibleItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
     if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
   }
   
-  // Check for active form inputs
-  const filterContainer = $(`[fs-list-instance="${instance}"]`)[0];
+  const filterContainer = $('[fs-list-instance="Filter"]')[0];
   if (filterContainer) {
     const inputs = filterContainer.querySelectorAll('input, select');
     const activeInputs = Array.from(inputs).filter(input => {
@@ -459,16 +454,25 @@ const checkFiltering = (instance) => {
   return false;
 };
 
-const checkFilterInstanceFiltering = () => checkFiltering('Filter');
 const checkMapMarkersFiltering = () => {
   const urlParams = new URLSearchParams(window.location.search);
-  if (Array.from(urlParams.keys()).some(key => key.startsWith('mapmarkers_') || key.includes('mapmarkers') || key === 'district' || key === 'locality')) return true;
-  
-  if (checkFiltering('mapmarkers')) return true;
+  const hasMapMarkersURLFilter = Array.from(urlParams.keys()).some(key => 
+    key.startsWith('mapmarkers_') || key.includes('mapmarkers') || key === 'district' || key === 'locality'
+  );
+  if (hasMapMarkersURLFilter) return true;
   
   const filteredLat = $('.data-places-latitudes-filter');
   const allLat = $('.data-places-latitudes, .data-place-latitude');
-  return filteredLat.length > 0 && filteredLat.length < allLat.length;
+  if (filteredLat.length > 0 && filteredLat.length < allLat.length) return true;
+  
+  const mapMarkersList = $('[fs-list-instance="mapmarkers"]')[0];
+  if (mapMarkersList) {
+    const allItems = mapMarkersList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
+    const visibleItems = mapMarkersList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
+    if (allItems.length > 0 && visibleItems.length > 0 && visibleItems.length < allItems.length) return true;
+  }
+  
+  return false;
 };
 
 // Apply filter with improved reframing
@@ -821,15 +825,10 @@ function setupEvents() {
     });
   });
   
-  // Global event listeners for v2 API
-  ['fs-list-filtered', 'fs-list-updated'].forEach(event => {
-    document.addEventListener(event, handleFilterUpdate);
-  });
-  
-  // Firefox form handling for v2 API
+  // Firefox form handling
   if (navigator.userAgent.toLowerCase().includes('firefox')) {
     $('form').forEach(form => {
-      const hasFilterElements = form.querySelector('[fs-list-element]') !== null;
+      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
       const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
       
       if (hasFilterElements || isNearMap) {
@@ -865,10 +864,10 @@ function setupEvents() {
     }
   };
   
-  // Link click tracking for v2 API
-  $('a:not(.filterrefresh):not([fs-list-element])').forEach(link => {
+  // Link click tracking
+  $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
     link.onclick = () => {
-      if (!link.closest('[fs-list-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
+      if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
         window.isLinkClick = true;
         setTimeout(() => window.isLinkClick = false, 500);
       }
@@ -1064,15 +1063,6 @@ function loadDistrictTags() {
         triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
         refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
-      
-      // Trigger CMS filter reload using v2 API
-      setTimeout(() => {
-        // In v2, manual reload is usually not needed as it responds to input changes automatically
-        // But we can trigger additional events to ensure compatibility
-        ['fs-list-updated', 'input'].forEach(type => 
-          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
-        );
-      }, 100);
       
       // Show filtered elements and sidebar
       toggleShowWhenFilteredElements(true);
