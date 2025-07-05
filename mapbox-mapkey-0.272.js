@@ -993,6 +993,9 @@ function loadDistrictTags() {
     districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
     districtWrap.style.zIndex = '1000';
     
+    // Add smooth transition for background color changes
+    districtWrap.style.transition = 'background-color 0.3s ease';
+    
     // Set the district name
     const nameElement = districtWrap.querySelector('#district-name');
     if (nameElement) {
@@ -1204,6 +1207,9 @@ function loadBoundaries() {
           districtWrap.removeAttribute('id');
           districtWrap.className += ` district-${boundary.name.toLowerCase()}`;
           districtWrap.style.zIndex = '1000';
+          
+          // Add smooth transition for background color changes
+          districtWrap.style.transition = 'background-color 0.3s ease';
           
           const nameElement = districtWrap.querySelector('#district-name');
           if (nameElement) {
