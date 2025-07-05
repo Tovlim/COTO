@@ -1064,10 +1064,65 @@ function loadDistrictTags() {
       setTimeout(() => window.isMarkerClick = false, 1000);
     });
     
+    // Add hover effects for district tag name wrap
+    districtWrap.addEventListener('mouseenter', () => {
+      applyDistrictHover(name);
+    });
+    
+    districtWrap.addEventListener('mouseleave', () => {
+      removeDistrictHover(name);
+    });
+    
     // Add to district markers array for zoom-based visibility
     districtMarkers.push({marker, element: districtWrap, name});
   });
 }
+// Helper functions for district hover effects
+const applyDistrictHover = (districtName) => {
+  // Find and highlight corresponding boundary
+  const fillId = `${districtName.toLowerCase()}-fill`;
+  const borderId = `${districtName.toLowerCase()}-border`;
+  
+  if (map.getLayer(fillId)) {
+    map.setPaintProperty(fillId, 'fill-color', '#e93119');
+    map.setPaintProperty(fillId, 'fill-opacity', 0.4);
+  }
+  if (map.getLayer(borderId)) {
+    map.setPaintProperty(borderId, 'line-color', '#e93119');
+    map.setPaintProperty(borderId, 'line-width', 3);
+  }
+  
+  // Find and highlight corresponding district name wrap
+  const districtMarker = districtMarkers.find(dm => dm.name === districtName);
+  if (districtMarker && districtMarker.element) {
+    districtMarker.element.style.transform = 'scale(1.1)';
+    districtMarker.element.style.filter = 'drop-shadow(0 0 8px rgba(233, 49, 25, 0.8))';
+    districtMarker.element.style.transition = 'all 0.2s ease';
+  }
+};
+
+const removeDistrictHover = (districtName) => {
+  // Restore boundary colors
+  const fillId = `${districtName.toLowerCase()}-fill`;
+  const borderId = `${districtName.toLowerCase()}-border`;
+  
+  if (map.getLayer(fillId)) {
+    map.setPaintProperty(fillId, 'fill-color', '#1a1b1e');
+    map.setPaintProperty(fillId, 'fill-opacity', 0.25);
+  }
+  if (map.getLayer(borderId)) {
+    map.setPaintProperty(borderId, 'line-color', '#1a1b1e');
+    map.setPaintProperty(borderId, 'line-width', 2);
+  }
+  
+  // Restore district name wrap
+  const districtMarker = districtMarkers.find(dm => dm.name === districtName);
+  if (districtMarker && districtMarker.element) {
+    districtMarker.element.style.transform = '';
+    districtMarker.element.style.filter = '';
+    districtMarker.element.style.transition = '';
+  }
+};
 // Load area overlays (A, B, C areas)
 function loadAreaOverlays() {
   const areas = [
@@ -1222,6 +1277,15 @@ function loadBoundaries() {
             
             geojsonData.features.forEach(feature => addCoords(feature.geometry.coordinates));
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+          });
+          
+          // Add hover effects for district name wrap
+          districtWrap.addEventListener('mouseenter', () => {
+            applyDistrictHover(boundary.name);
+          });
+          
+          districtWrap.addEventListener('mouseleave', () => {
+            removeDistrictHover(boundary.name);
           });
           
           districtMarkers.push({marker, element: districtWrap, name: boundary.name});
