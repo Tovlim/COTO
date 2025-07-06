@@ -759,7 +759,12 @@ function setupSidebars() {
 // Optimized event setup with consolidated handlers
 function setupEvents() {
   const eventHandlers = [
-    {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => setTimeout(() => toggleSidebar('Left', true), 100)},
+    {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      // Only open sidebar on devices wider than 478px
+      if (window.innerWidth > 478) {
+        setTimeout(() => toggleSidebar('Left', true), 100);
+      }
+    }},
     {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
     {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)}
   ];
