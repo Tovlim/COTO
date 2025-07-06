@@ -996,15 +996,28 @@ function setupAreaKeyControls() {
 
 // Optimized boundary loading
 function loadBoundaries() {
-  const districts = ['Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'];
+  const districts = [
+    'Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 
+    'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'
+  ];
   
-  const addBoundaryToMap = name => {
+  // Additional districts with custom URLs and names
+  const customDistricts = [
+    {name: 'East Jerusalem', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s0/east_jerusalem.json'},
+    {name: 'Deir Al-Balah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Deir%20Al-Balah.geojson'},
+    {name: 'Rafah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Rafah.geojson'},
+    {name: 'North Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/North%20Gaza.geojson'},
+    {name: 'Khan Younis', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Khan%20Younis.geojson'},
+    {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
+  ];
+  
+  const addBoundaryToMap = (name, customUrl = null) => {
     const boundary = {
       name,
-      url: `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
-      sourceId: `${name.toLowerCase()}-boundary`,
-      fillId: `${name.toLowerCase()}-fill`,
-      borderId: `${name.toLowerCase()}-border`
+      url: customUrl || `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
+      sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
+      fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
+      borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
     };
     
     fetch(boundary.url)
@@ -1025,7 +1038,7 @@ function loadBoundaries() {
         if (originalWrap) {
           const districtWrap = originalWrap.cloneNode(true);
           districtWrap.removeAttribute('id');
-          districtWrap.className += ` district-${name.toLowerCase()}`;
+          districtWrap.className += ` district-${name.toLowerCase().replace(/\s+/g, '-')}`;
           districtWrap.style.zIndex = '1000';
           districtWrap.style.transition = TRANSITIONS.district;
           
@@ -1120,8 +1133,16 @@ function loadBoundaries() {
       .catch(() => {}); // Silent error handling
   };
   
-  if (map.loaded()) districts.forEach(addBoundaryToMap);
-  else map.on('load', () => districts.forEach(addBoundaryToMap));
+  const loadAllBoundaries = () => {
+    // Load standard districts
+    districts.forEach(name => addBoundaryToMap(name));
+    
+    // Load custom districts with specific URLs
+    customDistricts.forEach(district => addBoundaryToMap(district.name, district.url));
+  };
+  
+  if (map.loaded()) loadAllBoundaries();
+  else map.on('load', loadAllBoundaries);
 }
 
 // Optimized district tags loading
