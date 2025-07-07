@@ -1,35 +1,76 @@
+// Detect mobile for better map experience
+const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 // Initialize Mapbox
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
 if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
 
-// Detect mobile for better map experience
-const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmbus40jb016n01s5dui12tre",
   center: [35.22, 31.85],
-  zoom: isMobile ? 7.5 : 8.33, // Less zoomed in on mobile
+  zoom: isMobile ? 7.5 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
 });
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
 
-// Global state
-let locationData = {type: "FeatureCollection", features: []};
-let allMarkers = [], clusterMarkers = [], districtMarkers = [], overlapTimer, filterTimer;
-let isInitialLoad = true, mapInitialized = false, forceFilteredReframe = false, isRefreshButtonAction = false;
-window.isLinkClick = false;
-const OVERLAP_THRESHOLD = 60, TRANSITION = "200ms";
+// Global state - consolidated
+const state = {
+  locationData: {type: "FeatureCollection", features: []},
+  allMarkers: [],
+  clusterMarkers: [],
+  districtMarkers: [],
+  timers: {overlap: null, filter: null, zoom: null},
+  flags: {
+    isInitialLoad: true,
+    mapInitialized: false,
+    forceFilteredReframe: false,
+    isRefreshButtonAction: false,
+    dropdownListenersSetup: false
+  }
+};
 
-// Utilities
-const $ = sel => { try { return [...document.querySelectorAll(sel)]; } catch(e) { return []; }};
-const $1 = sel => { try { return document.querySelector(sel); } catch(e) { return null; }};
+window.isLinkClick = false;
+const OVERLAP_THRESHOLD = 60;
+const TRANSITIONS = {
+  default: "200ms",
+  district: 'opacity 300ms ease, background-color 0.3s ease'
+};
+
+// Optimized utilities
+const $ = sel => document.querySelectorAll(sel);
+const $1 = sel => document.querySelector(sel);
 const $id = id => document.getElementById(id);
-const triggerEvent = (el, events) => events.forEach(e => el.dispatchEvent(new Event(e, {bubbles: true})));
-const setStyles = (el, styles) => Object.assign(el.style, styles);
-const debounce = (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };
+
+const utils = {
+  triggerEvent: (el, events) => events.forEach(e => el.dispatchEvent(new Event(e, {bubbles: true}))),
+  setStyles: (el, styles) => Object.assign(el.style, styles),
+  debounce: (fn, delay) => {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    };
+  },
+  calculateCentroid: coordinates => {
+    let totalLat = 0, totalLng = 0, pointCount = 0;
+    
+    const processCoords = coords => {
+      if (Array.isArray(coords) && coords.length > 0) {
+        if (typeof coords[0] === 'number') {
+          totalLng += coords[0];
+          totalLat += coords[1];
+          pointCount++;
+        } else coords.forEach(processCoords);
+      }
+    };
+    
+    processCoords(coordinates);
+    return pointCount > 0 ? [totalLng / pointCount, totalLat / pointCount] : [0, 0];
+  }
+};
 
 // Toggle sidebar with improved logic
 const toggleSidebar = (side, show = null) => {
@@ -49,7 +90,7 @@ const toggleSidebar = (side, show = null) => {
     if (isShowing) toggleSidebar(side === 'Left' ? 'Right' : 'Left', false);
   }
   
-  setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
+  utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
@@ -57,7 +98,7 @@ const toggleSidebar = (side, show = null) => {
 // Toggle filtered elements
 const toggleShowWhenFilteredElements = show => {
   $('[show-when-filtered="true"]').forEach(element => {
-    setStyles(element, {
+    utils.setStyles(element, {
       display: show ? 'block' : 'none',
       visibility: show ? 'visible' : 'hidden',
       opacity: show ? '1' : '0',
@@ -66,14 +107,14 @@ const toggleShowWhenFilteredElements = show => {
   });
 };
 
-// Handle zoom-based visibility with debouncing
-const handleZoomBasedVisibility = debounce(() => {
+// Handle zoom-based visibility with optimized debouncing
+const handleZoomBasedVisibility = utils.debounce(() => {
   const currentZoom = map.getZoom();
   const shouldShowDistrictNames = currentZoom > 6;
   
-  if (!districtMarkers.length) return;
+  if (!state.districtMarkers.length) return;
   
-  districtMarkers.forEach(districtMarker => {
+  state.districtMarkers.forEach(districtMarker => {
     const element = districtMarker.element;
     
     if (shouldShowDistrictNames) {
@@ -81,20 +122,20 @@ const handleZoomBasedVisibility = debounce(() => {
       
       const isHidden = element.style.display === 'none' || element.style.opacity === '0' || !element.style.opacity;
       if (isHidden) {
-        setStyles(element, {display: 'block', visibility: 'visible', transition: 'opacity 300ms ease, background-color 0.3s ease', opacity: '0', pointerEvents: 'none'});
+        utils.setStyles(element, {display: 'block', visibility: 'visible', transition: TRANSITIONS.district, opacity: '0', pointerEvents: 'none'});
         element.offsetHeight;
-        setStyles(element, {opacity: '1', pointerEvents: 'auto'});
+        utils.setStyles(element, {opacity: '1', pointerEvents: 'auto'});
       } else {
-        setStyles(element, {display: 'block', visibility: 'visible', opacity: '1', pointerEvents: 'auto', transition: 'opacity 300ms ease, background-color 0.3s ease'});
+        utils.setStyles(element, {display: 'block', visibility: 'visible', opacity: '1', pointerEvents: 'auto', transition: TRANSITIONS.district});
       }
     } else {
-      setStyles(element, {transition: 'opacity 300ms ease, background-color 0.3s ease', opacity: '0', pointerEvents: 'none'});
+      utils.setStyles(element, {transition: TRANSITIONS.district, opacity: '0', pointerEvents: 'none'});
       const fadeOutId = Date.now() + Math.random();
       element.dataset.fadeOutId = fadeOutId;
       
       setTimeout(() => {
         if (element.dataset.fadeOutId === fadeOutId.toString() && element.style.opacity === '0') {
-          setStyles(element, {visibility: 'hidden', display: 'none'});
+          utils.setStyles(element, {visibility: 'hidden', display: 'none'});
           delete element.dataset.fadeOutId;
         }
       }, 300);
@@ -102,109 +143,9 @@ const handleZoomBasedVisibility = debounce(() => {
   });
 }, 50);
 
-// Get location data from DOM
-function getLocationData() {
-  locationData.features = [];
-  const [names, lats, lngs, slugs] = [
-    $('.data-places-names, .data-place-name'),
-    $('.data-places-latitudes, .data-place-latitude'),
-    $('.data-places-longitudes, .data-place-longitude'),
-    $('.data-places-slugs, .data-place-slug, .data-slug')
-  ];
-  
-  if (!names.length) return;
-  
-  for (let i = 0; i < Math.min(names.length, lats.length, lngs.length); i++) {
-    const [lat, lng] = [parseFloat(lats[i].textContent), parseFloat(lngs[i].textContent)];
-    if (isNaN(lat) || isNaN(lng)) continue;
-    
-    locationData.features.push({
-      type: "Feature",
-      geometry: {type: "Point", coordinates: [lng, lat]},
-      properties: {name: names[i].textContent.trim(), id: `location-${i}`, popupIndex: i, slug: slugs[i]?.textContent.trim() || '', index: i}
-    });
-  }
-}
-
-// Create markers with simplified logic
-function addCustomMarkers() {
-  if (!locationData.features.length) return;
-  
-  const popups = $('.OnMapPlaceLinks, #MapPopUp, [id^="MapPopUp"]');
-  const used = [];
-  
-  [...allMarkers, ...clusterMarkers].forEach(m => m.marker.remove());
-  allMarkers = [];
-  clusterMarkers = [];
-  
-  locationData.features.forEach((feature, i) => {
-    const {coordinates} = feature.geometry;
-    const {name, popupIndex, slug, index} = feature.properties;
-    
-    let popup = popups[popupIndex];
-    if (popup && used.includes(popup)) popup = popups.find(p => !used.includes(p));
-    
-    const el = document.createElement('div');
-    
-    if (popup) {
-      used.push(popup);
-      el.className = 'custom-marker';
-      const clone = popup.cloneNode(true);
-      clone.style.cssText = `display: block; transition: opacity ${TRANSITION} ease;`;
-      el.appendChild(clone);
-    } else {
-      el.className = 'text-marker';
-      el.textContent = name;
-      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITION} ease;`;
-    }
-    
-    const currentZoom = map.getZoom();
-    const shouldShow = currentZoom >= 9 && !isInitialLoad;
-    setStyles(el, {
-      opacity: shouldShow ? '1' : '0',
-      visibility: shouldShow ? 'visible' : 'hidden',
-      display: shouldShow ? 'block' : 'none',
-      pointerEvents: shouldShow ? 'auto' : 'none',
-      transition: `opacity ${TRANSITION} ease`
-    });
-    
-    Object.assign(el.dataset, {name, markerslug: slug, markerindex: index});
-    const marker = new mapboxgl.Marker({element: el, anchor: 'bottom'}).setLngLat(coordinates).addTo(map);
-    allMarkers.push({marker, name, slug, index, coordinates});
-  });
-  
-  setupMarkerClicks();
-  setTimeout(checkOverlap, 100);
-}
-
-// Setup marker clicks with consolidated handler
-function setupMarkerClicks() {
-  allMarkers.forEach(info => {
-    const el = info.marker.getElement();
-    const newEl = el.cloneNode(true);
-    el.parentNode.replaceChild(newEl, el);
-    
-    newEl.onclick = e => {
-      e.stopPropagation();
-      e.preventDefault();
-      
-      const link = newEl.querySelector('[districtname]');
-      if (!link) return;
-      
-      const locality = link.getAttribute('districtname');
-      if (locality) {
-        handleSearchTrigger(locality, 'hiddensearch');
-      }
-    };
-    
-    info.marker._element = newEl;
-  });
-}
-
 // Consolidated search trigger handler
 function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   window.isMarkerClick = true;
-  console.log(`🎯 handleSearchTrigger: "${locality}", field: "${targetField}"`);
   
   const oppositeField = targetField === 'hiddensearch' ? 'hiddendistrict' : 'hiddensearch';
   
@@ -212,7 +153,7 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   const oppositeSearch = $id(oppositeField);
   if (oppositeSearch?.value) {
     oppositeSearch.value = '';
-    triggerEvent(oppositeSearch, ['input', 'change', 'keyup']);
+    utils.triggerEvent(oppositeSearch, ['input', 'change', 'keyup']);
     oppositeSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
   }
   
@@ -220,7 +161,7 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   const search = $id(targetField);
   if (search) {
     search.value = locality;
-    triggerEvent(search, ['input', 'change', 'keyup']);
+    utils.triggerEvent(search, ['input', 'change', 'keyup']);
     search.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
     
     setTimeout(() => {
@@ -236,15 +177,120 @@ function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   setTimeout(() => window.isMarkerClick = false, 1000);
 }
 
-// Simplified clustering logic
+// Optimized location data extraction
+function getLocationData() {
+  state.locationData.features = [];
+  const selectors = [
+    $('.data-places-names, .data-place-name'),
+    $('.data-places-latitudes, .data-place-latitude'),
+    $('.data-places-longitudes, .data-place-longitude'),
+    $('.data-places-slugs, .data-place-slug, .data-slug')
+  ];
+  
+  const [names, lats, lngs, slugs] = selectors;
+  if (!names.length) return;
+  
+  const minLength = Math.min(names.length, lats.length, lngs.length);
+  for (let i = 0; i < minLength; i++) {
+    const [lat, lng] = [parseFloat(lats[i].textContent), parseFloat(lngs[i].textContent)];
+    if (isNaN(lat) || isNaN(lng)) continue;
+    
+    state.locationData.features.push({
+      type: "Feature",
+      geometry: {type: "Point", coordinates: [lng, lat]},
+      properties: {
+        name: names[i].textContent.trim(),
+        id: `location-${i}`,
+        popupIndex: i,
+        slug: slugs[i]?.textContent.trim() || '',
+        index: i
+      }
+    });
+  }
+}
+
+// Optimized marker creation
+function addCustomMarkers() {
+  if (!state.locationData.features.length) return;
+  
+  const popups = $('.OnMapPlaceLinks, #MapPopUp, [id^="MapPopUp"]');
+  const used = [];
+  
+  // Clean up existing markers
+  [...state.allMarkers, ...state.clusterMarkers].forEach(m => m.marker.remove());
+  state.allMarkers = [];
+  state.clusterMarkers = [];
+  
+  state.locationData.features.forEach((feature, i) => {
+    const {coordinates} = feature.geometry;
+    const {name, popupIndex, slug, index} = feature.properties;
+    
+    let popup = popups[popupIndex];
+    if (popup && used.includes(popup)) popup = popups.find(p => !used.includes(p));
+    
+    const el = document.createElement('div');
+    
+    if (popup) {
+      used.push(popup);
+      el.className = 'custom-marker';
+      const clone = popup.cloneNode(true);
+      clone.style.cssText = `display: block; transition: opacity ${TRANSITIONS.default} ease;`;
+      el.appendChild(clone);
+    } else {
+      el.className = 'text-marker';
+      el.textContent = name;
+      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITIONS.default} ease;`;
+    }
+    
+    const currentZoom = map.getZoom();
+    const shouldShow = currentZoom >= (isMobile ? 8 : 9) && !state.flags.isInitialLoad;
+    utils.setStyles(el, {
+      opacity: shouldShow ? '1' : '0',
+      visibility: shouldShow ? 'visible' : 'hidden',
+      display: shouldShow ? 'block' : 'none',
+      pointerEvents: shouldShow ? 'auto' : 'none',
+      transition: `opacity ${TRANSITIONS.default} ease`
+    });
+    
+    Object.assign(el.dataset, {name, markerslug: slug, markerindex: index});
+    const marker = new mapboxgl.Marker({element: el, anchor: 'bottom'}).setLngLat(coordinates).addTo(map);
+    state.allMarkers.push({marker, name, slug, index, coordinates});
+  });
+  
+  setupMarkerClicks();
+  setTimeout(checkOverlap, 100);
+}
+
+// Setup marker clicks with consolidated handler
+function setupMarkerClicks() {
+  state.allMarkers.forEach(info => {
+    const el = info.marker.getElement();
+    const newEl = el.cloneNode(true);
+    el.parentNode.replaceChild(newEl, el);
+    
+    newEl.onclick = e => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      const link = newEl.querySelector('[districtname]');
+      if (!link) return;
+      
+      const locality = link.getAttribute('districtname');
+      if (locality) handleSearchTrigger(locality, 'hiddensearch');
+    };
+    
+    info.marker._element = newEl;
+  });
+}
+
+// Optimized clustering with performance improvements
 function getOrCreateCluster(center, count, coords) {
-  const existing = clusterMarkers.find(c => 
+  const existing = state.clusterMarkers.find(c => 
     Math.sqrt((c.point.x - center.x) ** 2 + (c.point.y - center.y) ** 2) < OVERLAP_THRESHOLD / 2
   );
   
   if (existing) {
     existing.count += count;
-    // Find the number element more comprehensively
     const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num, [class*="num"]') || 
                 existing.element.querySelector('div, span');
     if (num) num.textContent = existing.count;
@@ -255,13 +301,9 @@ function getOrCreateCluster(center, count, coords) {
   const originalWrap = $id('PlaceNumWrap');
   
   if (originalWrap) {
-    // Clone with all children and attributes
     wrap = originalWrap.cloneNode(true);
-    
-    // Remove ID to avoid conflicts
     wrap.removeAttribute('id');
     
-    // Find and update the number element - be more thorough
     const num = wrap.querySelector('#PlaceNum') || 
                 wrap.querySelector('[id*="PlaceNum"]') || 
                 wrap.querySelector('.place-num') || 
@@ -271,12 +313,10 @@ function getOrCreateCluster(center, count, coords) {
                 wrap;
     
     if (num) {
-      // Remove ID from cloned number element to avoid duplicates
       if (num.id) num.removeAttribute('id');
       num.textContent = count;
     }
   } else {
-    // Fallback if PlaceNumWrap doesn't exist
     wrap = document.createElement('div');
     wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold;';
     
@@ -289,31 +329,29 @@ function getOrCreateCluster(center, count, coords) {
   const marker = new mapboxgl.Marker({element: wrap, anchor: 'center'}).setLngLat(coords).addTo(map);
   
   const cluster = {marker, element: wrap, count, point: center, coordinates: coords};
-  clusterMarkers.push(cluster);
+  state.clusterMarkers.push(cluster);
   return cluster;
 }
 
-// Optimized overlap checking with mobile-friendly marker visibility
+// Optimized overlap checking
 function checkOverlap() {
-  if (isRefreshButtonAction && map.isMoving()) return;
+  if (state.flags.isRefreshButtonAction && map.isMoving()) return;
   
   const currentZoom = map.getZoom();
-  const shouldShowMarkers = currentZoom >= (isMobile ? 8 : 9); // Zoom 8 threshold on mobile
-  
-  console.log(`🔄 checkOverlap: zoom ${currentZoom.toFixed(2)}, show: ${shouldShowMarkers}, mobile: ${isMobile}`);
+  const shouldShowMarkers = currentZoom >= (isMobile ? 8 : 9);
   
   if (!shouldShowMarkers) {
-    [...allMarkers, ...clusterMarkers].forEach(info => {
+    [...state.allMarkers, ...state.clusterMarkers].forEach(info => {
       const element = info.marker?.getElement() || info.element;
-      setStyles(element, {transition: 'opacity 300ms ease', opacity: '0', pointerEvents: 'none'});
-      setTimeout(() => element.style.opacity === '0' && setStyles(element, {visibility: 'hidden', display: 'none'}), 300);
+      utils.setStyles(element, {transition: 'opacity 300ms ease', opacity: '0', pointerEvents: 'none'});
+      setTimeout(() => element.style.opacity === '0' && utils.setStyles(element, {visibility: 'hidden', display: 'none'}), 300);
     });
     return;
   }
   
-  if (allMarkers.length <= 1) return;
+  if (state.allMarkers.length <= 1) return;
   
-  const positions = allMarkers.map(info => ({
+  const positions = state.allMarkers.map(info => ({
     ...info,
     point: map.project(info.marker.getLngLat()),
     element: info.marker.getElement(),
@@ -322,18 +360,21 @@ function checkOverlap() {
   }));
   
   const newClusters = [];
+  const processedIndices = new Set();
+  
   for (let i = 0; i < positions.length; i++) {
-    if (positions[i].clustered || positions[i].element.classList.contains('filtered-out')) continue;
+    if (processedIndices.has(i) || positions[i].element.classList.contains('filtered-out')) continue;
     
     const cluster = {markerIndices: [i], center: positions[i].point, coordinates: positions[i].coordinates};
+    processedIndices.add(i);
     
-    for (let j = 0; j < positions.length; j++) {
-      if (i === j || positions[j].clustered || positions[j].element.classList.contains('filtered-out')) continue;
+    for (let j = i + 1; j < positions.length; j++) {
+      if (processedIndices.has(j) || positions[j].element.classList.contains('filtered-out')) continue;
       
       const dist = Math.sqrt((positions[i].point.x - positions[j].point.x) ** 2 + (positions[i].point.y - positions[j].point.y) ** 2);
       if (dist < OVERLAP_THRESHOLD) {
         cluster.markerIndices.push(j);
-        console.log(`🔗 Grouping ${positions[i].name} with ${positions[j].name}`);
+        processedIndices.add(j);
       }
     }
     
@@ -353,10 +394,10 @@ function checkOverlap() {
     }
   }
   
-  // Update or create clusters
+  // Update clusters efficiently
   const updatedClusterIds = new Set();
   newClusters.forEach(newCluster => {
-    const existingCluster = clusterMarkers.find(existing => {
+    const existingCluster = state.clusterMarkers.find(existing => {
       const dist = Math.sqrt((existing.point.x - newCluster.center.x) ** 2 + (existing.point.y - newCluster.center.y) ** 2);
       return dist < OVERLAP_THRESHOLD && !updatedClusterIds.has(existing.id);
     });
@@ -368,44 +409,44 @@ function checkOverlap() {
       const num = existingCluster.element.querySelector('#PlaceNum, div');
       if (num) num.textContent = newCluster.count;
       existingCluster.marker.setLngLat(newCluster.coordinates);
-      setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
+      utils.setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
     } else {
       const clusterMarker = getOrCreateCluster(newCluster.center, newCluster.count, newCluster.coordinates);
       if (clusterMarker) {
-        clusterMarker.id = `new-cluster-${Date.now()}-${Math.random()}`;
+        clusterMarker.id = `cluster-${Date.now()}-${Math.random()}`;
         updatedClusterIds.add(clusterMarker.id);
-        setStyles(clusterMarker.element, {transition: 'opacity 300ms ease', opacity: '0'});
+        utils.setStyles(clusterMarker.element, {transition: 'opacity 300ms ease', opacity: '0'});
         setTimeout(() => clusterMarker.element && (clusterMarker.element.style.opacity = '1'), 50);
       }
     }
   });
   
-  // Remove unused clusters
-  clusterMarkers = clusterMarkers.filter(cluster => {
+  // Clean up unused clusters
+  state.clusterMarkers = state.clusterMarkers.filter(cluster => {
     if (!updatedClusterIds.has(cluster.id)) {
-      setStyles(cluster.element, {transition: 'opacity 300ms ease', opacity: '0'});
+      utils.setStyles(cluster.element, {transition: 'opacity 300ms ease', opacity: '0'});
       setTimeout(() => cluster.marker.remove(), 300);
       return false;
     }
     return true;
   });
   
-  // Set marker visibility
+  // Set marker visibility efficiently
   positions.forEach(info => {
-    if (isInitialLoad && map.getZoom() < (isMobile ? 8 : 9)) return;
+    if (state.flags.isInitialLoad && map.getZoom() < (isMobile ? 8 : 9)) return;
     
     const element = info.element;
     if (!info.visible || info.clustered) {
-      setStyles(element, {transition: 'opacity 300ms ease', opacity: '0', pointerEvents: 'none'});
+      utils.setStyles(element, {transition: 'opacity 300ms ease', opacity: '0', pointerEvents: 'none'});
       element.classList.add('marker-faded');
     } else {
-      setStyles(element, {display: 'block', visibility: 'visible', transition: 'opacity 300ms ease'});
+      utils.setStyles(element, {display: 'block', visibility: 'visible', transition: 'opacity 300ms ease'});
       if (element.style.opacity === '0' || !element.style.opacity) {
         element.style.opacity = '0';
         element.offsetHeight;
-        setStyles(element, {opacity: '1', pointerEvents: 'auto'});
+        utils.setStyles(element, {opacity: '1', pointerEvents: 'auto'});
       } else {
-        setStyles(element, {opacity: '1', pointerEvents: 'auto'});
+        utils.setStyles(element, {opacity: '1', pointerEvents: 'auto'});
       }
       element.classList.remove('marker-faded');
     }
@@ -425,7 +466,7 @@ const checkFiltering = (instance) => {
     }
   }
   
-  const filterList = $(`[fs-list-instance="${instance}"]`)[0];
+  const filterList = $1(`[fs-list-instance="${instance}"]`);
   if (filterList) {
     const allItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]');
     const visibleItems = filterList.querySelectorAll('[fs-cmsfilter-element="list-item"]:not([style*="display: none"])');
@@ -447,9 +488,9 @@ const checkMapMarkersFiltering = () => {
   return filteredLat.length > 0 && filteredLat.length < allLat.length;
 };
 
-// Apply filter with improved reframing
+// Optimized filter application
 function applyFilterToMarkers() {
-  if (isInitialLoad && !checkMapMarkersFiltering()) return;
+  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
   const filteredLat = $('.data-places-latitudes-filter');
   const filteredLon = $('.data-places-longitudes-filter');
@@ -457,85 +498,82 @@ function applyFilterToMarkers() {
   
   let visibleCoordinates = [];
   if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
-    visibleCoordinates = filteredLat.map((el, i) => {
+    visibleCoordinates = Array.from(filteredLat, (el, i) => {
       const lat = parseFloat(el.textContent.trim());
       const lon = parseFloat(filteredLon[i]?.textContent.trim());
       return !isNaN(lat) && !isNaN(lon) ? [lon, lat] : null;
     }).filter(Boolean);
   }
   
-  const animationDuration = isInitialLoad ? 600 : 1000;
+  const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
   
   if (visibleCoordinates.length > 0) {
-    console.log(`🗺️ Reframing to ${visibleCoordinates.length} filtered markers`);
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
     
-    const newZoom = map.cameraForBounds(bounds, {padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15}, maxZoom: 13}).zoom;
+    const newZoom = map.cameraForBounds(bounds, {
+      padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15},
+      maxZoom: 13
+    }).zoom;
     
     if (newZoom > map.getZoom() + 1) {
-      clusterMarkers.forEach(c => c.marker.remove());
-      clusterMarkers = [];
-      allMarkers.forEach(info => info.marker.getElement().classList.remove('marker-faded'));
+      state.clusterMarkers.forEach(c => c.marker.remove());
+      state.clusterMarkers = [];
+      state.allMarkers.forEach(info => info.marker.getElement().classList.remove('marker-faded'));
     }
     
-    map.fitBounds(bounds, {padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15}, maxZoom: 13, duration: animationDuration, essential: true});
+    map.fitBounds(bounds, {
+      padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15},
+      maxZoom: 13,
+      duration: animationDuration,
+      essential: true
+    });
   } else {
-    console.log('🗺️ No filtered markers, reframing to West Bank');
-    if (!isInitialLoad || !checkMapMarkersFiltering()) {
-      clusterMarkers.forEach(c => c.marker.remove());
-      clusterMarkers = [];
-      allMarkers.forEach(info => info.marker.getElement().classList.remove('marker-faded'));
-      map.flyTo({center: [35.22, 31.85], zoom: 8.33, duration: animationDuration, essential: true});
+    if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
+      state.clusterMarkers.forEach(c => c.marker.remove());
+      state.clusterMarkers = [];
+      state.allMarkers.forEach(info => info.marker.getElement().classList.remove('marker-faded'));
+      map.flyTo({center: [35.22, 31.85], zoom: isMobile ? 7.5 : 8.33, duration: animationDuration, essential: true});
     }
   }
   
   setTimeout(checkOverlap, animationDuration + 50);
 }
 
-const handleFilterUpdate = debounce(() => {
+const handleFilterUpdate = utils.debounce(() => {
   if (window.isLinkClick || window.isMarkerClick || window.isHiddenSearchActive) return;
-  isRefreshButtonAction = true;
+  state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
-  setTimeout(() => isRefreshButtonAction = false, 1000);
+  setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
 }, 300);
 
-// Custom tab switcher for elements without sidebar functionality
+// Custom tab switcher
 function setupTabSwitcher() {
-  // Find all elements with open-tab attribute
   const tabTriggers = $('[open-tab]');
   
   tabTriggers.forEach(trigger => {
-    // Skip if already has event listener
     if (trigger.dataset.tabSwitcherSetup === 'true') return;
     
     trigger.addEventListener('click', function(e) {
-      // Only prevent default if element doesn't have sidebar functionality
       if (!this.hasAttribute('open-right-sidebar')) {
         e.preventDefault();
       }
       
-      // Get the group name from the clicked element
       const groupName = this.getAttribute('open-tab');
       
-      // If element has sidebar attribute, let the sidebar script handle the tab switching
       if (this.hasAttribute('open-right-sidebar')) {
-        return; // Sidebar script handles this
+        return;
       }
       
-      // Find the corresponding tab with opened-tab attribute
-      const targetTab = document.querySelector(`[opened-tab="${groupName}"]`);
-      
-      if (targetTab) {
-        // Trigger click on the target tab to activate Webflow's built-in functionality
-        targetTab.click();
-      }
+      const targetTab = $1(`[opened-tab="${groupName}"]`);
+      if (targetTab) targetTab.click();
     });
     
-    // Mark as set up
     trigger.dataset.tabSwitcherSetup = 'true';
   });
 }
+
+// Consolidated controls setup with optimization
 function setupControls() {
   const controlMap = {
     'AllEvents': () => $id('ClearAll')?.click(),
@@ -554,7 +592,7 @@ function setupControls() {
     }
   });
   
-  // Setup sidebar controls with consolidated logic
+  // Optimized sidebar controls
   const setupSidebarControls = (selector, sidebarSide, eventType = 'click') => {
     $(selector).forEach(element => {
       const newElement = element.cloneNode(true);
@@ -564,19 +602,16 @@ function setupControls() {
         const sidebar = $id(`${sidebarSide}Sidebar`);
         if (!sidebar) return;
         
-        // Check for open-only attribute
         const openRightSidebar = newElement.getAttribute('open-right-sidebar');
         if (openRightSidebar === 'open-only') {
-          // Always open, never close
           toggleSidebar(sidebarSide, true);
         } else {
-          // Normal toggle behavior
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
         }
         
         const groupName = newElement.getAttribute('open-tab');
         if (groupName) {
-          setTimeout(() => document.querySelector(`[opened-tab="${groupName}"]`)?.click(), 50);
+          setTimeout(() => $1(`[opened-tab="${groupName}"]`)?.click(), 50);
         }
       };
       
@@ -590,9 +625,12 @@ function setupControls() {
   
   setupSidebarControls('[open-right-sidebar="true"], [open-right-sidebar="open-only"]', 'Right');
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
+  
+  setupTabSwitcher();
+  setupAreaKeyControls();
 }
 
-// Smart sidebar setup with conditional initialization
+// Optimized sidebar setup with performance improvements
 function setupSidebars() {
   let zIndex = 1000;
   
@@ -601,11 +639,9 @@ function setupSidebars() {
     const tab = $id(`${side}SideTab`);
     const close = $id(`${side}SidebarClose`);
     
-    // Check if all elements exist and aren't already set up
     if (!sidebar || !tab || !close) return false;
     if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
     
-    // Style sidebar
     sidebar.style.cssText += `transition: margin-${side.toLowerCase()} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
     tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
     
@@ -657,7 +693,6 @@ function setupSidebars() {
       sidebar.style.pointerEvents = show ? 'auto' : '';
     };
     
-    // Add click listener to sidebar for z-index management
     if (!sidebar.dataset.clickSetup) {
       sidebar.addEventListener('click', () => {
         if (sidebar.classList.contains('is-show')) bringToFront();
@@ -665,7 +700,6 @@ function setupSidebars() {
       sidebar.dataset.clickSetup = 'true';
     }
     
-    // Setup tab button if not already done
     if (tab.dataset.setupComplete !== 'true') {
       tab.addEventListener('click', e => {
         e.preventDefault();
@@ -675,7 +709,6 @@ function setupSidebars() {
       tab.dataset.setupComplete = 'true';
     }
     
-    // Setup close button if not already done
     if (close.dataset.setupComplete !== 'true') {
       close.addEventListener('click', e => {
         e.preventDefault();
@@ -689,7 +722,6 @@ function setupSidebars() {
     return true;
   };
   
-  // Smart retry function that waits for all elements
   const attemptSetup = (attempt = 1, maxAttempts = 5) => {
     const leftReady = setupSidebarElement('Left');
     const rightReady = setupSidebarElement('Right');
@@ -700,12 +732,11 @@ function setupSidebars() {
       return;
     }
     
-    // If not all ready and we haven't hit max attempts, try again
     if (attempt < maxAttempts) {
       const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
       setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
-      setupInitialMargins(); // Still try to set up margins
+      setupInitialMargins();
       setTimeout(setupControls, 100);
     }
   };
@@ -722,14 +753,18 @@ function setupSidebars() {
     });
   };
   
-  // Start the smart setup process
   attemptSetup();
 }
 
-// Consolidated event setup
+// Optimized event setup with consolidated handlers
 function setupEvents() {
   const eventHandlers = [
-    {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => setTimeout(() => toggleSidebar('Left', true), 100)},
+    {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      // Only open sidebar on devices wider than 478px
+      if (window.innerWidth > 478) {
+        setTimeout(() => toggleSidebar('Left', true), 100);
+      }
+    }},
     {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
     {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)}
   ];
@@ -746,13 +781,12 @@ function setupEvents() {
     });
   });
   
-  // Setup #hiddensearch for search functionality without map refresh
+  // Optimized hidden search setup
   const hiddenSearch = $id('hiddensearch');
   if (hiddenSearch) {
     ['input', 'change', 'keyup'].forEach(event => {
       hiddenSearch.addEventListener(event, () => {
         window.isHiddenSearchActive = true;
-        // Only toggle sidebar and filtered elements, no map refresh
         if (hiddenSearch.value.trim()) {
           toggleShowWhenFilteredElements(true);
           toggleSidebar('Left', true);
@@ -762,17 +796,13 @@ function setupEvents() {
     });
   }
   
-  // Consolidated apply-map-filter attribute (excludes districtselect and select-field-5 which have specific logic)
+  // Consolidated apply-map-filter setup
   $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button').forEach(element => {
     const newElement = element.cloneNode(true);
     if (element.parentNode) element.parentNode.replaceChild(newElement, element);
     
-    const events = [];
-    if (newElement.id === 'refresh-on-enter' || newElement.getAttribute('apply-map-filter') === 'true') {
-      events.push('click', 'keypress', 'input');
-    } else {
-      events.push('click');
-    }
+    const events = newElement.id === 'refresh-on-enter' || newElement.getAttribute('apply-map-filter') === 'true' 
+      ? ['click', 'keypress', 'input'] : ['click'];
     
     events.forEach(eventType => {
       newElement.addEventListener(eventType, (e) => {
@@ -781,16 +811,16 @@ function setupEvents() {
         
         e.preventDefault();
         
-        forceFilteredReframe = true;
-        isRefreshButtonAction = true;
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
         
         const delay = eventType === 'input' ? 300 : 100;
         
         setTimeout(() => {
           applyFilterToMarkers();
           setTimeout(() => {
-            forceFilteredReframe = false;
-            isRefreshButtonAction = false;
+            state.flags.forceFilteredReframe = false;
+            state.flags.isRefreshButtonAction = false;
           }, 1000);
         }, delay);
       });
@@ -813,14 +843,14 @@ function setupEvents() {
           e.preventDefault();
           e.stopPropagation();
           
-          forceFilteredReframe = true;
-          isRefreshButtonAction = true;
+          state.flags.forceFilteredReframe = true;
+          state.flags.isRefreshButtonAction = true;
           
           setTimeout(() => {
             applyFilterToMarkers();
             setTimeout(() => {
-              forceFilteredReframe = false;
-              isRefreshButtonAction = false;
+              state.flags.forceFilteredReframe = false;
+              state.flags.isRefreshButtonAction = false;
             }, 1000);
           }, 100);
           
@@ -830,18 +860,17 @@ function setupEvents() {
     });
   }
   
-  // Cluster click handler
+  // Cluster and link click handlers
   document.onclick = e => {
     let target = e.target;
     while (target && !target.classList?.contains('cluster-marker')) target = target.parentElement;
     
     if (target) {
-      const cluster = clusterMarkers.find(c => c.element === target);
+      const cluster = state.clusterMarkers.find(c => c.element === target);
       if (cluster) map.flyTo({center: cluster.coordinates, zoom: map.getZoom() + 2.5, duration: 800});
     }
   };
   
-  // Link click tracking
   $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
     link.onclick = () => {
       if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
@@ -852,51 +881,44 @@ function setupEvents() {
   });
 }
 
-// Specific dropdown listeners for districtselect and select-field-5
+// Optimized dropdown listeners
 function setupDropdownListeners() {
-  if (window.dropdownListenersSetup) return;
-  window.dropdownListenersSetup = true;
+  if (state.flags.dropdownListenersSetup) return;
+  state.flags.dropdownListenersSetup = true;
   
-  // Handle districtselect elements while preserving existing functionality
   $('[districtselect]').forEach(element => {
-    // Add our functionality WITHOUT removing existing event listeners
     element.addEventListener('click', (e) => {
-      // Don't prevent default - let the original dropdown functionality work
       if (window.isMarkerClick) return;
       
-      // Add a small delay to let the original functionality complete first
       setTimeout(() => {
-        forceFilteredReframe = true;
-        isRefreshButtonAction = true;
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
         
         setTimeout(() => {
           applyFilterToMarkers();
           setTimeout(() => {
-            forceFilteredReframe = false;
-            isRefreshButtonAction = false;
+            state.flags.forceFilteredReframe = false;
+            state.flags.isRefreshButtonAction = false;
           }, 1000);
-        }, 100); // Small delay to let original dropdown logic complete
+        }, 100);
       }, 50);
     });
   });
   
-  // Handle select-field-5 while preserving existing functionality
   const selectField5 = $id('select-field-5');
   if (selectField5) {
-    // Add our functionality without removing existing listeners
     selectField5.addEventListener('change', (e) => {
       if (window.isMarkerClick) return;
       
-      // Small delay to let original functionality complete
       setTimeout(() => {
-        forceFilteredReframe = true;
-        isRefreshButtonAction = true;
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
         
         setTimeout(() => {
           applyFilterToMarkers();
           setTimeout(() => {
-            forceFilteredReframe = false;
-            isRefreshButtonAction = false;
+            state.flags.forceFilteredReframe = false;
+            state.flags.isRefreshButtonAction = false;
           }, 1000);
         }, 100);
       }, 50);
@@ -904,291 +926,102 @@ function setupDropdownListeners() {
   }
 }
 
-// Setup area key controls for toggling and hover effects
+// Optimized area overlays
+function loadAreaOverlays() {
+  const areas = [
+    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.3},
+    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.3},
+    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#e99797', opacity: 0.3}
+  ];
+  
+  const addAreaToMap = area => {
+    fetch(area.url)
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(geojsonData => {
+        if (map.getLayer(area.layerId)) map.removeLayer(area.layerId);
+        if (map.getSource(area.sourceId)) map.removeSource(area.sourceId);
+        
+        map.addSource(area.sourceId, {type: 'geojson', data: geojsonData});
+        map.addLayer({
+          id: area.layerId,
+          type: 'fill',
+          source: area.sourceId,
+          paint: {'fill-color': area.color, 'fill-opacity': area.opacity}
+        });
+      })
+      .catch(() => {}); // Silent error handling
+  };
+  
+  if (map.loaded()) areas.forEach(addAreaToMap);
+  else map.on('load', () => areas.forEach(addAreaToMap));
+}
+
+// Optimized area key controls
 function setupAreaKeyControls() {
   const areaControls = [
-    {keyId: 'area-a-key', layerId: 'area-a-layer', sourceId: 'area-a-source', color: '#98b074'},
-    {keyId: 'area-b-key', layerId: 'area-b-layer', sourceId: 'area-b-source', color: '#a84b4b'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', sourceId: 'area-c-source', color: '#e99797'}
+    {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
+    {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
+    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
   ];
   
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) return;
     
-    // Set checkbox as unchecked by default (areas visible by default)
     checkbox.checked = false;
     
-    // Click handler for toggling visibility (reversed logic)
     checkbox.addEventListener('change', () => {
       if (!map.getLayer(control.layerId)) return;
-      
-      // When checked = hide, when unchecked = show
       const visibility = checkbox.checked ? 'none' : 'visible';
       map.setLayoutProperty(control.layerId, 'visibility', visibility);
     });
     
-    // Find the checkbox visual div for hover events
-    const checkboxLabel = checkbox.closest('label');
-    const checkboxDiv = checkboxLabel?.querySelector('.w-checkbox-input.w-checkbox-input--inputType-custom.toggleable-map-key');
+    // Find the wrapper element for hover events
+    const wrapperDiv = $id(control.wrapId);
     
-    if (checkboxDiv) {
-      // Hover handler to bring to top and increase opacity
-      checkboxDiv.addEventListener('mouseenter', () => {
+    if (wrapperDiv) {
+      wrapperDiv.addEventListener('mouseenter', () => {
         if (!map.getLayer(control.layerId)) return;
-        
-        // Move layer above all existing layers first
         map.moveLayer(control.layerId);
-        
-        // Then move district markers back to the top if they exist
-        // This ensures the hovered area is above boundaries but below markers
-        districtMarkers.forEach(districtMarker => {
-          if (districtMarker.marker && districtMarker.marker.getElement()) {
-            // District markers are HTML elements, they automatically stay on top of map layers
-            // No need to reposition them
-          }
-        });
-        
-        // Increase opacity to 80%
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
       });
       
-      // Mouse leave handler to restore normal state
-      checkboxDiv.addEventListener('mouseleave', () => {
+      wrapperDiv.addEventListener('mouseleave', () => {
         if (!map.getLayer(control.layerId)) return;
-        
-        // Restore normal opacity (30%)
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.3);
-        
-        // Note: Layer stacking will be maintained until another hover occurs
-        // This is intentional to avoid constant reordering
       });
     }
   });
 }
-// Load district tags from collection list and create markers
-function loadDistrictTags() {
-  const districtTagCollection = $id('district-tag-collection');
-  if (!districtTagCollection) return;
-  
-  const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
-  
-  districtTagItems.forEach(tagItem => {
-    // Skip hidden items (those without coordinates)
-    if (getComputedStyle(tagItem).display === 'none') return;
-    
-    const name = tagItem.getAttribute('district-tag-name');
-    const lat = parseFloat(tagItem.getAttribute('district-tag-lattitude'));
-    const lng = parseFloat(tagItem.getAttribute('district-tag-longitude'));
-    
-    // Skip if missing name or invalid coordinates
-    if (!name || isNaN(lat) || isNaN(lng)) return;
-    
-    const originalWrap = $id('district-name-wrap');
-    if (!originalWrap) return;
-    
-    // Clone the district name wrap
-    const districtWrap = originalWrap.cloneNode(true);
-    districtWrap.removeAttribute('id');
-    districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
-    districtWrap.style.zIndex = '1000';
-    
-    // Add smooth transitions for both opacity and background color changes
-    districtWrap.style.transition = 'opacity 300ms ease, background-color 0.3s ease';
-    
-    // Set the district name
-    const nameElement = districtWrap.querySelector('#district-name');
-    if (nameElement) {
-      nameElement.textContent = name;
-      nameElement.removeAttribute('id');
-    }
-    
-    // Create marker at specified coordinates
-    const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'})
-      .setLngLat([lng, lat])
-      .addTo(map);
-    
-    // Add click handler for both map and reports filtering
-    districtWrap.addEventListener('click', e => {
-      e.stopPropagation();
-      e.preventDefault();
-      
-      window.isMarkerClick = true;
-      
-      // Set both fields for complete filtering
-      const hiddenDistrict = $id('hiddendistrict');
-      const refreshOnEnter = $id('refresh-on-enter');
-      
-      // Clear opposite fields first
-      const hiddenSearch = $id('hiddensearch');
-      if (hiddenSearch?.value) {
-        hiddenSearch.value = '';
-        triggerEvent(hiddenSearch, ['input', 'change', 'keyup']);
-        hiddenSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-      
-      // Set hiddendistrict for reports filtering
-      if (hiddenDistrict) {
-        hiddenDistrict.value = name;
-        triggerEvent(hiddenDistrict, ['input', 'change', 'keyup']);
-        hiddenDistrict.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-      
-      // Set refresh-on-enter for map filtering  
-      if (refreshOnEnter) {
-        refreshOnEnter.value = name;
-        triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
-        refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-      
-      // Trigger CMS filter reload
-      setTimeout(() => {
-        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
-        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
-          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
-        );
-      }, 100);
-      
-      // Show filtered elements and sidebar
-      toggleShowWhenFilteredElements(true);
-      toggleSidebar('Left', true);
-      
-      // Trigger map reframing
-      setTimeout(() => {
-        forceFilteredReframe = true;
-        isRefreshButtonAction = true;
-        applyFilterToMarkers();
-        setTimeout(() => {
-          forceFilteredReframe = false;
-          isRefreshButtonAction = false;
-        }, 1000);
-      }, 200);
-      
-      setTimeout(() => window.isMarkerClick = false, 1000);
-    });
-    
-    // Add hover effect for district tags (they don't have boundaries, so just trigger Webflow effect)
-    districtWrap.addEventListener('mouseenter', e => {
-      // For district tags without boundaries, we just let the Webflow hover effect work
-      // No need to trigger boundary effects since these districts don't have boundaries
-    });
-    
-    districtWrap.addEventListener('mouseleave', e => {
-      // For district tags without boundaries, we just let the Webflow hover effect work  
-      // No need to reset boundary effects since these districts don't have boundaries
-    });
-    
-    // Add to district markers array for zoom-based visibility
-    districtMarkers.push({marker, element: districtWrap, name});
-  });
-}
-// Load area overlays (A, B, C areas)
-function loadAreaOverlays() {
-  const areas = [
-    {
-      name: 'Area A',
-      url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson',
-      sourceId: 'area-a-source',
-      layerId: 'area-a-layer',
-      color: '#98b074',
-      opacity: 0.3
-    },
-    {
-      name: 'Area B', 
-      url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson',
-      sourceId: 'area-b-source',
-      layerId: 'area-b-layer',
-      color: '#a84b4b',
-      opacity: 0.3
-    },
-    {
-      name: 'Area C',
-      url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', 
-      sourceId: 'area-c-source',
-      layerId: 'area-c-layer',
-      color: '#e99797',
-      opacity: 0.3
-    }
-  ];
-  
-  const addAreaToMap = area => {
-    fetch(area.url)
-      .then(response => {
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return response.json();
-      })
-      .then(geojsonData => {
-        // Remove existing layer and source if they exist
-        if (map.getLayer(area.layerId)) {
-          map.removeLayer(area.layerId);
-        }
-        if (map.getSource(area.sourceId)) {
-          map.removeSource(area.sourceId);
-        }
-        
-        // Add source
-        map.addSource(area.sourceId, {
-          type: 'geojson',
-          data: geojsonData
-        });
-        
-        // Add fill layer
-        map.addLayer({
-          id: area.layerId,
-          type: 'fill',
-          source: area.sourceId,
-          paint: {
-            'fill-color': area.color,
-            'fill-opacity': area.opacity
-          }
-        });
-      })
-      .catch(error => {
-        // Silent error handling for area loading
-      });
-  };
-  
-  if (map.loaded()) {
-    areas.forEach(area => addAreaToMap(area));
-  } else {
-    map.on('load', () => areas.forEach(area => addAreaToMap(area)));
-  }
-}
-// Simplified boundary loading
+
+// Optimized boundary loading
 function loadBoundaries() {
-  const boundaries = [
+  const districts = [
     'Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 
     'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'
-  ].map(name => ({
-    name,
-    url: `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
-    sourceId: `${name.toLowerCase()}-boundary`,
-    fillId: `${name.toLowerCase()}-fill`,
-    borderId: `${name.toLowerCase()}-border`
-  }));
+  ];
   
-  const calculateCentroid = coordinates => {
-    let totalLat = 0, totalLng = 0, pointCount = 0;
-    
-    const processCoords = coords => {
-      if (Array.isArray(coords) && coords.length > 0) {
-        if (typeof coords[0] === 'number') {
-          totalLng += coords[0];
-          totalLat += coords[1];
-          pointCount++;
-        } else {
-          coords.forEach(coord => processCoords(coord));
-        }
-      }
+  // Additional districts with custom URLs and names
+  const customDistricts = [
+    {name: 'East Jerusalem', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s0/east_jerusalem.json'},
+    {name: 'Deir Al-Balah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Deir%20Al-Balah.geojson'},
+    {name: 'Rafah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Rafah.geojson'},
+    {name: 'North Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/North%20Gaza.geojson'},
+    {name: 'Khan Younis', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Khan%20Younis.geojson'},
+    {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
+  ];
+  
+  const addBoundaryToMap = (name, customUrl = null) => {
+    const boundary = {
+      name,
+      url: customUrl || `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
+      sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
+      fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
+      borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
     };
     
-    processCoords(coordinates);
-    return pointCount > 0 ? [totalLng / pointCount, totalLat / pointCount] : [0, 0];
-  };
-  
-  const addBoundaryToMap = boundary => {
     fetch(boundary.url)
-      .then(response => response.json())
+      .then(response => response.ok ? response.json() : Promise.reject())
       .then(geojsonData => {
         if (map.getSource(boundary.sourceId)) {
           [boundary.borderId, boundary.fillId].forEach(id => map.removeLayer(id));
@@ -1199,21 +1032,19 @@ function loadBoundaries() {
         map.addLayer({id: boundary.fillId, type: 'fill', source: boundary.sourceId, paint: {'fill-color': '#1a1b1e', 'fill-opacity': 0.25}});
         map.addLayer({id: boundary.borderId, type: 'line', source: boundary.sourceId, paint: {'line-color': '#1a1b1e', 'line-width': 2, 'line-opacity': 1}});
         
-        const centroid = calculateCentroid(geojsonData.features[0].geometry.coordinates);
+        const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
         const originalWrap = $id('district-name-wrap');
         
         if (originalWrap) {
           const districtWrap = originalWrap.cloneNode(true);
           districtWrap.removeAttribute('id');
-          districtWrap.className += ` district-${boundary.name.toLowerCase()}`;
+          districtWrap.className += ` district-${name.toLowerCase().replace(/\s+/g, '-')}`;
           districtWrap.style.zIndex = '1000';
-          
-          // Add smooth transitions for both opacity and background color changes
-          districtWrap.style.transition = 'opacity 300ms ease, background-color 0.3s ease';
+          districtWrap.style.transition = TRANSITIONS.district;
           
           const nameElement = districtWrap.querySelector('#district-name');
           if (nameElement) {
-            nameElement.textContent = boundary.name;
+            nameElement.textContent = name;
             nameElement.removeAttribute('id');
           }
           
@@ -1224,9 +1055,8 @@ function loadBoundaries() {
             e.preventDefault();
             
             const nameEl = districtWrap.querySelector('.text-block-82:not(.number)');
-            if (nameEl) {
-              const districtName = nameEl.textContent.trim();
-              if (districtName) handleSearchTrigger(districtName, 'hiddendistrict');
+            if (nameEl?.textContent.trim()) {
+              handleSearchTrigger(nameEl.textContent.trim(), 'hiddendistrict');
             }
             
             const bounds = new mapboxgl.LngLatBounds();
@@ -1241,22 +1071,20 @@ function loadBoundaries() {
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
           });
           
-          // Add bidirectional hover effect for district-name-wrap
-          districtWrap.addEventListener('mouseenter', e => {
-            // Trigger boundary hover effect
+          // Bidirectional hover effects
+          districtWrap.addEventListener('mouseenter', () => {
             map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
             map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
             if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
             if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
           });
           
-          districtWrap.addEventListener('mouseleave', e => {
-            // Reset boundary hover effect
+          districtWrap.addEventListener('mouseleave', () => {
             map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
             map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
           });
           
-          districtMarkers.push({marker, element: districtWrap, name: boundary.name});
+          state.districtMarkers.push({marker, element: districtWrap, name});
         }
         
         // Boundary interaction handlers
@@ -1274,47 +1102,141 @@ function loadBoundaries() {
           map.fitBounds(bounds, {padding: 50, duration: 1000});
         });
         
-        map.on('mouseenter', boundary.fillId, (e) => {
+        map.on('mouseenter', boundary.fillId, () => {
           map.getCanvas().style.cursor = 'pointer';
           map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
           map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
           if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
           if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
           
-          // Directly apply hover effect to corresponding district-name-wrap
-          const correspondingDistrictMarker = districtMarkers.find(marker => 
-            marker.name.toLowerCase() === boundary.name.toLowerCase()
+          const correspondingMarker = state.districtMarkers.find(marker => 
+            marker.name.toLowerCase() === name.toLowerCase()
           );
-          if (correspondingDistrictMarker && correspondingDistrictMarker.element) {
-            // Direct style change - much faster than dispatching events
-            correspondingDistrictMarker.element.style.backgroundColor = '#fc4e37';
+          if (correspondingMarker?.element) {
+            correspondingMarker.element.style.backgroundColor = '#fc4e37';
           }
         });
         
-        map.on('mouseleave', boundary.fillId, (e) => {
+        map.on('mouseleave', boundary.fillId, () => {
           map.getCanvas().style.cursor = '';
           map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
           map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
           
-          // Reset hover effect on corresponding district-name-wrap
-          const correspondingDistrictMarker = districtMarkers.find(marker => 
-            marker.name.toLowerCase() === boundary.name.toLowerCase()
+          const correspondingMarker = state.districtMarkers.find(marker => 
+            marker.name.toLowerCase() === name.toLowerCase()
           );
-          if (correspondingDistrictMarker && correspondingDistrictMarker.element) {
-            // Reset background color to original
-            correspondingDistrictMarker.element.style.backgroundColor = '';
+          if (correspondingMarker?.element) {
+            correspondingMarker.element.style.backgroundColor = '';
           }
         });
       })
-      .catch(error => {
-        // Silent error handling for boundary loading
-      });
+      .catch(() => {}); // Silent error handling
   };
   
-  (map.loaded() ? boundaries : (() => {map.on('load', () => boundaries.forEach(addBoundaryToMap)); return [];})()).forEach(addBoundaryToMap);
+  const loadAllBoundaries = () => {
+    // Load standard districts
+    districts.forEach(name => addBoundaryToMap(name));
+    
+    // Load custom districts with specific URLs
+    customDistricts.forEach(district => addBoundaryToMap(district.name, district.url));
+  };
+  
+  if (map.loaded()) loadAllBoundaries();
+  else map.on('load', loadAllBoundaries);
 }
 
-// Tag monitoring with simplified logic
+// Optimized district tags loading
+function loadDistrictTags() {
+  const districtTagCollection = $id('district-tag-collection');
+  if (!districtTagCollection) return;
+  
+  const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
+  
+  districtTagItems.forEach(tagItem => {
+    if (getComputedStyle(tagItem).display === 'none') return;
+    
+    const name = tagItem.getAttribute('district-tag-name');
+    const lat = parseFloat(tagItem.getAttribute('district-tag-lattitude'));
+    const lng = parseFloat(tagItem.getAttribute('district-tag-longitude'));
+    
+    if (!name || isNaN(lat) || isNaN(lng)) return;
+    
+    const originalWrap = $id('district-name-wrap');
+    if (!originalWrap) return;
+    
+    const districtWrap = originalWrap.cloneNode(true);
+    districtWrap.removeAttribute('id');
+    districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
+    districtWrap.style.zIndex = '1000';
+    districtWrap.style.transition = TRANSITIONS.district;
+    
+    const nameElement = districtWrap.querySelector('#district-name');
+    if (nameElement) {
+      nameElement.textContent = name;
+      nameElement.removeAttribute('id');
+    }
+    
+    const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat([lng, lat]).addTo(map);
+    
+    // Consolidated click handler for dual filtering
+    districtWrap.addEventListener('click', e => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      window.isMarkerClick = true;
+      
+      const fields = {
+        hiddendistrict: $id('hiddendistrict'),
+        'refresh-on-enter': $id('refresh-on-enter'),
+        hiddensearch: $id('hiddensearch')
+      };
+      
+      // Clear conflicting field
+      if (fields.hiddensearch?.value) {
+        fields.hiddensearch.value = '';
+        utils.triggerEvent(fields.hiddensearch, ['input', 'change', 'keyup']);
+        fields.hiddensearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Set both filter fields
+      [fields.hiddendistrict, fields['refresh-on-enter']].forEach(field => {
+        if (field) {
+          field.value = name;
+          utils.triggerEvent(field, ['input', 'change', 'keyup']);
+          field.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+      });
+      
+      // Trigger CMS systems
+      setTimeout(() => {
+        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
+        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
+          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
+        );
+      }, 100);
+      
+      toggleShowWhenFilteredElements(true);
+      toggleSidebar('Left', true);
+      
+      // Trigger map reframing
+      setTimeout(() => {
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
+        applyFilterToMarkers();
+        setTimeout(() => {
+          state.flags.forceFilteredReframe = false;
+          state.flags.isRefreshButtonAction = false;
+        }, 1000);
+      }, 200);
+      
+      setTimeout(() => window.isMarkerClick = false, 1000);
+    });
+    
+    state.districtMarkers.push({marker, element: districtWrap, name});
+  });
+}
+
+// Tag monitoring with optimized logic
 const monitorTags = () => {
   const checkTags = () => toggleShowWhenFilteredElements($id('hiddentagparent') !== null);
   checkTags();
@@ -1327,15 +1249,15 @@ const monitorTags = () => {
   }
 };
 
-// Simplified initialization
+// Optimized initialization
 function init() {
   getLocationData();
   addCustomMarkers();
   setupEvents();
   
   const handleMapEvents = () => {
-    clearTimeout(overlapTimer);
-    overlapTimer = setTimeout(() => {
+    clearTimeout(state.timers.overlap);
+    state.timers.overlap = setTimeout(() => {
       handleZoomBasedVisibility();
       checkOverlap();
     }, 10);
@@ -1344,38 +1266,35 @@ function init() {
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
   
+  // Staggered setup with optimized timing
   [300, 1000, 3000].forEach(delay => setTimeout(setupMarkerClicks, delay));
-  setTimeout(setupDropdownListeners, 1000);
-  setTimeout(setupDropdownListeners, 3000);
-  
-  // Setup tab switcher with retries for dynamic content
+  [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
   [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
   
-  mapInitialized = true;
+  state.flags.mapInitialized = true;
   setTimeout(() => {
-    if (isInitialLoad) {
+    if (state.flags.isInitialLoad) {
       const hasFiltering = checkMapMarkersFiltering();
       if (hasFiltering) setTimeout(checkOverlap, 300);
       else setTimeout(checkOverlap, 300);
-      isInitialLoad = false;
+      state.flags.isInitialLoad = false;
     }
   }, 500);
 }
 
-// Event handlers and initialization
+// Control positioning and event setup
 setTimeout(() => {
   const ctrl = $1('.mapboxgl-ctrl-top-right');
-  if (ctrl) setStyles(ctrl, {top: '4rem', right: '0.5rem', zIndex: '10'});
+  if (ctrl) utils.setStyles(ctrl, {top: '4rem', right: '0.5rem', zIndex: '10'});
 }, 500);
 
+// Optimized event handlers
 map.on("load", () => {
   try {
     init();
     loadAreaOverlays();
     loadBoundaries();
-    // Load district tags after boundaries
     setTimeout(loadDistrictTags, 500);
-    // Setup area controls after overlays are loaded
     setTimeout(setupAreaKeyControls, 1000);
   } catch (error) {
     // Silent error handling
@@ -1391,30 +1310,33 @@ window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
   setTimeout(() => {
-    if (!allMarkers.length && map.loaded()) {
+    if (!state.allMarkers.length && map.loaded()) {
       try { init(); } catch (error) { /* Silent error handling */ }
     }
   }, 200);
   
-  // Load district tags with retries for CMS content
+  // Optimized retries with consolidated timing
   [1000, 2000, 3000].forEach(delay => setTimeout(loadDistrictTags, delay));
-  
-  // Setup area key controls with retries for checkbox availability
   [1500, 2500, 3500].forEach(delay => setTimeout(setupAreaKeyControls, delay));
   
-  // Auto-trigger reframing
+  // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
     if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
-      forceFilteredReframe = true;
-      isRefreshButtonAction = true;
+      state.flags.forceFilteredReframe = true;
+      state.flags.isRefreshButtonAction = true;
       applyFilterToMarkers();
-      setTimeout(() => {forceFilteredReframe = false; isRefreshButtonAction = false;}, 1000);
+      setTimeout(() => {
+        state.flags.forceFilteredReframe = false;
+        state.flags.isRefreshButtonAction = false;
+      }, 1000);
       return true;
     }
     return false;
   };
   
-  if (!checkAndReframe()) setTimeout(() => !checkAndReframe() && setTimeout(checkAndReframe, 1000), 500);
+  if (!checkAndReframe()) {
+    setTimeout(() => !checkAndReframe() && setTimeout(checkAndReframe, 1000), 500);
+  }
 });
 
 setTimeout(monitorTags, 1000);
