@@ -85,9 +85,17 @@
     // Check if there are checkboxes for this group
     const checkboxElements = document.querySelectorAll('[checkbox-filter="' + groupName + '"]');
     
-    // Only trigger checkbox filtering if checkboxes exist for this group
+    // If checkboxes exist for this group, use the checkbox filtering
     if (checkboxElements.length > 0) {
       filterCheckboxGroup(groupName, '');
+    } else {
+      // If no checkboxes, trigger Finsweet List Filter to update
+      // by dispatching an input event on the search input
+      const inputEvent = new Event('input', {
+        bubbles: true,
+        cancelable: true
+      });
+      searchInput.dispatchEvent(inputEvent);
     }
     
     // Optional: Focus back on the search input for better UX
