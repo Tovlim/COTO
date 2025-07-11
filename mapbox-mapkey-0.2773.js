@@ -143,6 +143,34 @@ const handleZoomBasedVisibility = utils.debounce(() => {
   });
 }, 50);
 
+// Select district checkbox by name (for map marker clicks only)
+function selectDistrictCheckbox(districtName) {
+  // Find all district checkboxes in the collection list
+  const districtCheckboxes = $('[checkbox-filter="district"] input[type="checkbox"]');
+  
+  // Clear all district checkboxes first (only when triggered by map markers)
+  districtCheckboxes.forEach(checkbox => {
+    if (checkbox.checked) {
+      checkbox.checked = false;
+      checkbox.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+  });
+  
+  // Find and check the matching checkbox by fs-list-value
+  const targetCheckbox = Array.from(districtCheckboxes).find(checkbox => 
+    checkbox.getAttribute('fs-list-value') === districtName
+  );
+  
+  if (targetCheckbox) {
+    targetCheckbox.checked = true;
+    targetCheckbox.dispatchEvent(new Event('change', {bubbles: true}));
+    
+    // Trigger form events for CMS filtering
+    const form = targetCheckbox.closest('form');
+    if (form) form.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+}
+
 // Consolidated search trigger handler
 function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   window.isMarkerClick = true;
@@ -1056,7 +1084,33 @@ function loadBoundaries() {
             
             const nameEl = districtWrap.querySelector('.text-block-82:not(.number)');
             if (nameEl?.textContent.trim()) {
-              handleSearchTrigger(nameEl.textContent.trim(), 'hiddendistrict');
+              const districtName = nameEl.textContent.trim();
+              
+              // Select corresponding checkbox in collection list
+              selectDistrictCheckbox(districtName);
+              
+              // Also trigger map marker filtering
+              const refreshOnEnter = $id('refresh-on-enter');
+              if (refreshOnEnter) {
+                refreshOnEnter.value = districtName;
+                utils.triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
+                refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+              }
+              
+              // Show filtered elements and sidebar
+              toggleShowWhenFilteredElements(true);
+              toggleSidebar('Left', true);
+              
+              // Trigger map reframing
+              setTimeout(() => {
+                state.flags.forceFilteredReframe = true;
+                state.flags.isRefreshButtonAction = true;
+                applyFilterToMarkers();
+                setTimeout(() => {
+                  state.flags.forceFilteredReframe = false;
+                  state.flags.isRefreshButtonAction = false;
+                }, 1000);
+              }, 200);
             }
             
             const bounds = new mapboxgl.LngLatBounds();
@@ -1185,29 +1239,26 @@ function loadDistrictTags() {
       
       window.isMarkerClick = true;
       
-      const fields = {
-        hiddendistrict: $id('hiddendistrict'),
-        'refresh-on-enter': $id('refresh-on-enter'),
-        hiddensearch: $id('hiddensearch')
-      };
+      // Select corresponding checkbox in collection list
+      selectDistrictCheckbox(name);
       
-      // Clear conflicting field
-      if (fields.hiddensearch?.value) {
-        fields.hiddensearch.value = '';
-        utils.triggerEvent(fields.hiddensearch, ['input', 'change', 'keyup']);
-        fields.hiddensearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      // Set refresh-on-enter for map filtering  
+      const refreshOnEnter = $id('refresh-on-enter');
+      if (refreshOnEnter) {
+        refreshOnEnter.value = name;
+        utils.triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
+        refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
       
-      // Set both filter fields
-      [fields.hiddendistrict, fields['refresh-on-enter']].forEach(field => {
-        if (field) {
-          field.value = name;
-          utils.triggerEvent(field, ['input', 'change', 'keyup']);
-          field.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-        }
-      });
+      // Clear conflicting field
+      const hiddenSearch = $id('hiddensearch');
+      if (hiddenSearch?.value) {
+        hiddenSearch.value = '';
+        utils.triggerEvent(hiddenSearch, ['input', 'change', 'keyup']);
+        hiddenSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
+      }
       
-      // Trigger CMS systems
+      // Trigger CMS filter reload
       setTimeout(() => {
         if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
         ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
@@ -1215,6 +1266,7 @@ function loadDistrictTags() {
         );
       }, 100);
       
+      // Show filtered elements and sidebar
       toggleShowWhenFilteredElements(true);
       toggleSidebar('Left', true);
       
