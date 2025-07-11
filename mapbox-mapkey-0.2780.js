@@ -193,6 +193,56 @@ function selectDistrictCheckbox(districtName) {
   }
 }
 
+// Select locality checkbox for filtering (triggered by map markers)
+function selectLocalityCheckbox(localityName) {
+  // Find all locality checkboxes in the collection
+  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
+  
+  // Clear all locality checkboxes first (only when triggered by map markers)
+  localityCheckboxes.forEach(checkbox => {
+    if (checkbox.checked) {
+      checkbox.checked = false;
+      utils.triggerEvent(checkbox, ['change']);
+    }
+  });
+  
+  // Find and check the matching locality checkbox
+  const targetCheckbox = Array.from(localityCheckboxes).find(checkbox => 
+    checkbox.getAttribute('fs-list-value') === localityName
+  );
+  
+  if (targetCheckbox) {
+    targetCheckbox.checked = true;
+    utils.triggerEvent(targetCheckbox, ['change', 'input']);
+    
+    // Trigger form events to ensure Finsweet registers the change
+    const form = targetCheckbox.closest('form');
+    if (form) {
+      form.dispatchEvent(new Event('change', {bubbles: true}));
+      form.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    
+    // Trigger Finsweet filter events
+    setTimeout(() => {
+      if (window.fsAttributes?.cmsfilter) {
+        window.fsAttributes.cmsfilter.reload();
+      }
+      
+      // Dispatch custom filter events
+      ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
+        document.dispatchEvent(new CustomEvent(eventType, {
+          bubbles: true,
+          detail: {
+            field: 'Localities',
+            value: localityName,
+            checked: true
+          }
+        }));
+      });
+    }, 50);
+  }
+}
+
 // Consolidated search trigger handler
 function handleSearchTrigger(locality, targetField = 'hiddensearch') {
   window.isMarkerClick = true;
@@ -326,7 +376,18 @@ function setupMarkerClicks() {
       if (!link) return;
       
       const locality = link.getAttribute('districtname');
-      if (locality) handleSearchTrigger(locality, 'hiddensearch');
+      if (locality) {
+        window.isMarkerClick = true;
+        
+        // Use checkbox selection for localities (map markers)
+        selectLocalityCheckbox(locality);
+        
+        // Show filtered elements and sidebar
+        toggleShowWhenFilteredElements(true);
+        toggleSidebar('Left', true);
+        
+        setTimeout(() => window.isMarkerClick = false, 1000);
+      }
     };
     
     info.marker._element = newEl;
