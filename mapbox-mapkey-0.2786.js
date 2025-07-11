@@ -153,7 +153,14 @@ function selectDistrictCheckbox(districtName) {
   districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change']);
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      
+      // Trigger form events for each cleared checkbox
+      const form = checkbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
     }
   });
   
@@ -161,7 +168,14 @@ function selectDistrictCheckbox(districtName) {
   localityCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change']);
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      
+      // Trigger form events for each cleared checkbox
+      const form = checkbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
     }
   });
   
@@ -180,26 +194,26 @@ function selectDistrictCheckbox(districtName) {
       form.dispatchEvent(new Event('change', {bubbles: true}));
       form.dispatchEvent(new Event('input', {bubbles: true}));
     }
-    
-    // Trigger Finsweet filter events
-    setTimeout(() => {
-      if (window.fsAttributes?.cmsfilter) {
-        window.fsAttributes.cmsfilter.reload();
-      }
-      
-      // Dispatch custom filter events
-      ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
-        document.dispatchEvent(new CustomEvent(eventType, {
-          bubbles: true,
-          detail: {
-            field: 'Districts',
-            value: districtName,
-            checked: true
-          }
-        }));
-      });
-    }, 50);
   }
+  
+  // Comprehensive Finsweet reload after all changes
+  setTimeout(() => {
+    if (window.fsAttributes?.cmsfilter) {
+      window.fsAttributes.cmsfilter.reload();
+    }
+    
+    // Dispatch custom filter events for both clearing and setting
+    ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
+      document.dispatchEvent(new CustomEvent(eventType, {
+        bubbles: true,
+        detail: {
+          field: 'Districts',
+          value: districtName,
+          checked: true
+        }
+      }));
+    });
+  }, 50);
 }
 
 // Select locality checkbox for filtering (triggered by map markers)
@@ -212,7 +226,14 @@ function selectLocalityCheckbox(localityName) {
   districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change']);
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      
+      // Trigger form events for each cleared checkbox
+      const form = checkbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
     }
   });
   
@@ -220,7 +241,14 @@ function selectLocalityCheckbox(localityName) {
   localityCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change']);
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      
+      // Trigger form events for each cleared checkbox
+      const form = checkbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
     }
   });
   
@@ -239,26 +267,26 @@ function selectLocalityCheckbox(localityName) {
       form.dispatchEvent(new Event('change', {bubbles: true}));
       form.dispatchEvent(new Event('input', {bubbles: true}));
     }
-    
-    // Trigger Finsweet filter events
-    setTimeout(() => {
-      if (window.fsAttributes?.cmsfilter) {
-        window.fsAttributes.cmsfilter.reload();
-      }
-      
-      // Dispatch custom filter events
-      ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
-        document.dispatchEvent(new CustomEvent(eventType, {
-          bubbles: true,
-          detail: {
-            field: 'Localities',
-            value: localityName,
-            checked: true
-          }
-        }));
-      });
-    }, 50);
   }
+  
+  // Comprehensive Finsweet reload after all changes
+  setTimeout(() => {
+    if (window.fsAttributes?.cmsfilter) {
+      window.fsAttributes.cmsfilter.reload();
+    }
+    
+    // Dispatch custom filter events for both clearing and setting
+    ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
+      document.dispatchEvent(new CustomEvent(eventType, {
+        bubbles: true,
+        detail: {
+          field: 'Localities',
+          value: localityName,
+          checked: true
+        }
+      }));
+    });
+  }, 50);
 }
 
 // Optimized location data extraction
