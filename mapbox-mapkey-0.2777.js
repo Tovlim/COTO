@@ -143,31 +143,53 @@ const handleZoomBasedVisibility = utils.debounce(() => {
   });
 }, 50);
 
-// Select district checkbox by name (for map marker clicks only)
+// Select district checkbox for filtering (triggered by map markers)
 function selectDistrictCheckbox(districtName) {
-  // Find all district checkboxes in the collection list
-  const districtCheckboxes = $('[checkbox-filter="district"] input[type="checkbox"]');
+  // Find all district checkboxes in the collection
+  const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   
   // Clear all district checkboxes first (only when triggered by map markers)
   districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
-      checkbox.dispatchEvent(new Event('change', {bubbles: true}));
+      utils.triggerEvent(checkbox, ['change']);
     }
   });
   
-  // Find and check the matching checkbox by fs-list-value
+  // Find and check the matching district checkbox
   const targetCheckbox = Array.from(districtCheckboxes).find(checkbox => 
     checkbox.getAttribute('fs-list-value') === districtName
   );
   
   if (targetCheckbox) {
     targetCheckbox.checked = true;
-    targetCheckbox.dispatchEvent(new Event('change', {bubbles: true}));
+    utils.triggerEvent(targetCheckbox, ['change', 'input']);
     
-    // Trigger form events for CMS filtering
+    // Trigger form events to ensure Finsweet registers the change
     const form = targetCheckbox.closest('form');
-    if (form) form.dispatchEvent(new Event('input', {bubbles: true}));
+    if (form) {
+      form.dispatchEvent(new Event('change', {bubbles: true}));
+      form.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    
+    // Trigger Finsweet filter events
+    setTimeout(() => {
+      if (window.fsAttributes?.cmsfilter) {
+        window.fsAttributes.cmsfilter.reload();
+      }
+      
+      // Dispatch custom filter events
+      ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
+        document.dispatchEvent(new CustomEvent(eventType, {
+          bubbles: true,
+          detail: {
+            field: 'Districts',
+            value: districtName,
+            checked: true
+          }
+        }));
+      });
+    }, 50);
   }
 }
 
@@ -1084,34 +1106,13 @@ function loadBoundaries() {
             
             const nameEl = districtWrap.querySelector('.text-block-82:not(.number)');
             if (nameEl?.textContent.trim()) {
-              const districtName = nameEl.textContent.trim();
-              
-              // Select corresponding checkbox in collection list
-              selectDistrictCheckbox(districtName);
-              
-              // Also trigger map marker filtering
-              const refreshOnEnter = $id('refresh-on-enter');
-              if (refreshOnEnter) {
-                refreshOnEnter.value = districtName;
-                utils.triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
-                refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-              }
-              
-              // Show filtered elements and sidebar
-              toggleShowWhenFilteredElements(true);
-              toggleSidebar('Left', true);
-              
-              // Trigger map reframing
-              setTimeout(() => {
-                state.flags.forceFilteredReframe = true;
-                state.flags.isRefreshButtonAction = true;
-                applyFilterToMarkers();
-                setTimeout(() => {
-                  state.flags.forceFilteredReframe = false;
-                  state.flags.isRefreshButtonAction = false;
-                }, 1000);
-              }, 200);
+              // Use checkbox selection for boundary districts
+              selectDistrictCheckbox(nameEl.textContent.trim());
             }
+            
+            // Show filtered elements and sidebar
+            toggleShowWhenFilteredElements(true);
+            toggleSidebar('Left', true);
             
             const bounds = new mapboxgl.LngLatBounds();
             const addCoords = coords => {
@@ -1239,10 +1240,10 @@ function loadDistrictTags() {
       
       window.isMarkerClick = true;
       
-      // Select corresponding checkbox in collection list
+      // Use checkbox selection for reports filtering
       selectDistrictCheckbox(name);
       
-      // Set refresh-on-enter for map filtering  
+      // Keep refresh-on-enter for map markers filtering (district tags without boundaries)
       const refreshOnEnter = $id('refresh-on-enter');
       if (refreshOnEnter) {
         refreshOnEnter.value = name;
@@ -1250,21 +1251,13 @@ function loadDistrictTags() {
         refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
       
-      // Clear conflicting field
+      // Clear conflicting hiddensearch field
       const hiddenSearch = $id('hiddensearch');
       if (hiddenSearch?.value) {
         hiddenSearch.value = '';
         utils.triggerEvent(hiddenSearch, ['input', 'change', 'keyup']);
         hiddenSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
-      
-      // Trigger CMS filter reload
-      setTimeout(() => {
-        if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
-        ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
-          document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: name}}))
-        );
-      }, 100);
       
       // Show filtered elements and sidebar
       toggleShowWhenFilteredElements(true);
