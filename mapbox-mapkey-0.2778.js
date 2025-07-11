@@ -1104,6 +1104,9 @@ function loadBoundaries() {
             e.stopPropagation();
             e.preventDefault();
             
+            // Set marker click flag to prevent filter interference
+            window.isMarkerClick = true;
+            
             const nameEl = districtWrap.querySelector('.text-block-82:not(.number)');
             if (nameEl?.textContent.trim()) {
               // Use checkbox selection for boundary districts
@@ -1124,6 +1127,9 @@ function loadBoundaries() {
             
             geojsonData.features.forEach(feature => addCoords(feature.geometry.coordinates));
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+            
+            // Reset marker click flag after reframing
+            setTimeout(() => window.isMarkerClick = false, 1200);
           });
           
           // Bidirectional hover effects
