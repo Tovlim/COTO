@@ -243,40 +243,6 @@ function selectLocalityCheckbox(localityName) {
   }
 }
 
-// Consolidated search trigger handler
-function handleSearchTrigger(locality, targetField = 'hiddensearch') {
-  window.isMarkerClick = true;
-  
-  const oppositeField = targetField === 'hiddensearch' ? 'hiddendistrict' : 'hiddensearch';
-  
-  // Clear opposite field
-  const oppositeSearch = $id(oppositeField);
-  if (oppositeSearch?.value) {
-    oppositeSearch.value = '';
-    utils.triggerEvent(oppositeSearch, ['input', 'change', 'keyup']);
-    oppositeSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-  }
-  
-  // Set target field
-  const search = $id(targetField);
-  if (search) {
-    search.value = locality;
-    utils.triggerEvent(search, ['input', 'change', 'keyup']);
-    search.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-    
-    setTimeout(() => {
-      if (window.fsAttributes?.cmsfilter) window.fsAttributes.cmsfilter.reload();
-      ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => 
-        document.dispatchEvent(new CustomEvent(type, {bubbles: true, detail: {value: locality}}))
-      );
-    }, 100);
-  }
-  
-  toggleShowWhenFilteredElements(true);
-  toggleSidebar('Left', true);
-  setTimeout(() => window.isMarkerClick = false, 1000);
-}
-
 // Optimized location data extraction
 function getLocationData() {
   state.locationData.features = [];
@@ -652,7 +618,7 @@ function applyFilterToMarkers() {
 }
 
 const handleFilterUpdate = utils.debounce(() => {
-  if (window.isLinkClick || window.isMarkerClick || window.isHiddenSearchActive) return;
+  if (window.isLinkClick || window.isMarkerClick) return;
   state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
@@ -891,21 +857,6 @@ function setupEvents() {
       });
     });
   });
-  
-  // Optimized hidden search setup
-  const hiddenSearch = $id('hiddensearch');
-  if (hiddenSearch) {
-    ['input', 'change', 'keyup'].forEach(event => {
-      hiddenSearch.addEventListener(event, () => {
-        window.isHiddenSearchActive = true;
-        if (hiddenSearch.value.trim()) {
-          toggleShowWhenFilteredElements(true);
-          toggleSidebar('Left', true);
-        }
-        setTimeout(() => window.isHiddenSearchActive = false, 500);
-      });
-    });
-  }
   
   // Consolidated apply-map-filter setup
   $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button').forEach(element => {
@@ -1316,14 +1267,6 @@ function loadDistrictTags() {
         refreshOnEnter.value = name;
         utils.triggerEvent(refreshOnEnter, ['input', 'change', 'keyup']);
         refreshOnEnter.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-      
-      // Clear conflicting hiddensearch field
-      const hiddenSearch = $id('hiddensearch');
-      if (hiddenSearch?.value) {
-        hiddenSearch.value = '';
-        utils.triggerEvent(hiddenSearch, ['input', 'change', 'keyup']);
-        hiddenSearch.closest('form')?.dispatchEvent(new Event('input', {bubbles: true}));
       }
       
       // Show filtered elements and sidebar
