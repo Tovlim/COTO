@@ -145,12 +145,11 @@ const handleZoomBasedVisibility = utils.debounce(() => {
 
 // Select district checkbox for filtering (triggered by map markers)
 function selectDistrictCheckbox(districtName) {
-  // Find all district and locality checkboxes
+  // Find all district checkboxes in the collection
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   
-  // Clear ALL checkboxes first (both district and locality when triggered by map markers)
-  [...districtCheckboxes, ...localityCheckboxes].forEach(checkbox => {
+  // Clear all district checkboxes first (only when triggered by map markers)
+  districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
       utils.triggerEvent(checkbox, ['change']);
@@ -196,12 +195,11 @@ function selectDistrictCheckbox(districtName) {
 
 // Select locality checkbox for filtering (triggered by map markers)
 function selectLocalityCheckbox(localityName) {
-  // Find all district and locality checkboxes
-  const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
+  // Find all locality checkboxes in the collection
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   
-  // Clear ALL checkboxes first (both district and locality when triggered by map markers)
-  [...districtCheckboxes, ...localityCheckboxes].forEach(checkbox => {
+  // Clear all locality checkboxes first (only when triggered by map markers)
+  localityCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
       checkbox.checked = false;
       utils.triggerEvent(checkbox, ['change']);
