@@ -519,6 +519,17 @@ function getOrCreateCluster(center, count, coords) {
       num.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     }
     
+    // Specifically target #marker-places and #PlaceNum within the wrap
+    const markerPlaces = wrap.querySelector('#marker-places');
+    if (markerPlaces) {
+      markerPlaces.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+    }
+    
+    const placeNum = wrap.querySelector('#PlaceNum');
+    if (placeNum) {
+      placeNum.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+    }
+    
     // Apply font to all elements within the wrap
     const allElements = wrap.querySelectorAll('*');
     allElements.forEach(el => {
