@@ -23,6 +23,55 @@ map.addControl(new mapboxgl.NavigationControl({
   visualizePitch: false // Hide pitch visualization
 }), 'top-right');
 
+// Custom Map Reset Control
+class MapResetControl {
+  onAdd(map) {
+    this._map = map;
+    this._container = document.createElement('div');
+    this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+    
+    this._button = document.createElement('button');
+    this._button.className = 'mapboxgl-ctrl-icon';
+    this._button.type = 'button';
+    this._button.title = 'Reset map to default view';
+    this._button.setAttribute('aria-label', 'Reset map to default view');
+    
+    // Add home/reset icon styling
+    this._button.style.cssText = `
+      background-image: url("data:image/svg+xml,%3csvg width='29' height='29' viewBox='0 0 29 29' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m14.5 8.5-6 6h4v6h4v-6h4l-6-6z' fill='%23404040'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 18px 18px;
+    `;
+    
+    this._button.addEventListener('click', () => {
+      // Reset to default position
+      this._map.flyTo({
+        center: [35.22, 31.85],
+        zoom: isMobile ? 7.5 : 8.33,
+        duration: 1000,
+        essential: true
+      });
+      
+      // Clear any active filters and markers if needed
+      state.clusterMarkers.forEach(c => c.marker.remove());
+      state.clusterMarkers = [];
+      state.allMarkers.forEach(info => info.marker.getElement().classList.remove('marker-faded'));
+    });
+    
+    this._container.appendChild(this._button);
+    return this._container;
+  }
+  
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  }
+}
+
+// Add the custom reset control
+map.addControl(new MapResetControl(), 'top-right');
+
 // Global state - consolidated
 const state = {
   locationData: {type: "FeatureCollection", features: []},
