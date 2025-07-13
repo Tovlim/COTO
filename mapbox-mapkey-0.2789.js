@@ -1269,47 +1269,27 @@ function selectDistrictInDropdown(districtName) {
   const selectField = $id('select-field-5');
   if (!selectField) return;
   
-  // Set the select value
+  // Set the select value first
   selectField.value = districtName;
   
-  // Trigger events on the select element
+  // Trigger change event on the select element
   utils.triggerEvent(selectField, ['change', 'input']);
   
-  // Update the custom dropdown display text
-  const dropdownToggle = selectField.closest('[fs-selectcustom-element="dropdown"]');
-  if (dropdownToggle) {
-    const displayText = dropdownToggle.querySelector('.fs-select_text-5');
-    if (displayText) {
-      displayText.textContent = districtName;
+  // Let Finsweet handle the visual updates by triggering their reload
+  setTimeout(() => {
+    if (window.fsAttributes?.selectcustom) {
+      window.fsAttributes.selectcustom.reload();
     }
-    
-    // Update the dropdown links' selected states
-    const dropdownLinks = dropdownToggle.querySelectorAll('.fs-select_link-5');
-    dropdownLinks.forEach(link => {
-      if (link.textContent.trim() === districtName) {
-        link.classList.add('w--current');
-        link.setAttribute('aria-selected', 'true');
-        link.setAttribute('tabindex', '0');
-      } else {
-        link.classList.remove('w--current');
-        link.setAttribute('aria-selected', 'false');
-        link.setAttribute('tabindex', '-1');
-      }
-    });
-  }
+    if (window.fsAttributes?.cmsselect) {
+      window.fsAttributes.cmsselect.reload();
+    }
+  }, 50);
   
   // Trigger form events
   const form = selectField.closest('form');
   if (form) {
     form.dispatchEvent(new Event('change', {bubbles: true}));
     form.dispatchEvent(new Event('input', {bubbles: true}));
-  }
-  
-  // Trigger Finsweet events if available
-  if (window.fsAttributes?.cmsselect) {
-    setTimeout(() => {
-      window.fsAttributes.cmsselect.reload();
-    }, 50);
   }
 }
 
