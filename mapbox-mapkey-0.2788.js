@@ -1275,12 +1275,32 @@ function selectDistrictInDropdown(districtName) {
   // Trigger events on the select element
   utils.triggerEvent(selectField, ['change', 'input']);
   
-  // Update the custom dropdown display text
+  // Update the custom dropdown display text and reset dropdown state
   const dropdownToggle = selectField.closest('[fs-selectcustom-element="dropdown"]');
   if (dropdownToggle) {
     const displayText = dropdownToggle.querySelector('.fs-select_text-5');
     if (displayText) {
       displayText.textContent = districtName;
+    }
+    
+    // Reset dropdown to closed state
+    const toggle = dropdownToggle.querySelector('.fs-select_toggle-5');
+    const list = dropdownToggle.querySelector('.dropdown-list-7');
+    const icon = dropdownToggle.querySelector('.fs-select_icon-5');
+    
+    if (toggle) {
+      toggle.classList.remove('w--open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+    
+    if (list) {
+      list.classList.remove('w--open');
+    }
+    
+    // Reset the icon rotation to normal state (0 degrees)
+    if (icon) {
+      icon.style.transform = 'translate3d(0px, 0px, 0px) scale3d(1, 1, 1) rotateX(0deg) rotateY(0deg) rotateZ(0deg) skew(0deg, 0deg)';
+      icon.style.transformStyle = 'preserve-3d';
     }
     
     // Update the dropdown links' selected states
