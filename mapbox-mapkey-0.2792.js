@@ -36,9 +36,9 @@ class MapResetControl {
     this._button.title = 'Reset map to default view';
     this._button.setAttribute('aria-label', 'Reset map to default view');
     
-    // Add home/reset icon styling
+    // Add reset icon styling
     this._button.style.cssText = `
-      background-image: url("data:image/svg+xml,%3csvg width='29' height='29' viewBox='0 0 29 29' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m14.5 8.5-6 6h4v6h4v-6h4l-6-6z' fill='%23404040'/%3e%3c/svg%3e");
+      background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/6873ad35be7a73913f6fc69a_reset%20icon.svg");
       background-repeat: no-repeat;
       background-position: center;
       background-size: 18px 18px;
