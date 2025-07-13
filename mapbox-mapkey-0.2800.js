@@ -416,7 +416,14 @@ function addCustomMarkers() {
       used.push(popup);
       el.className = 'custom-marker';
       const clone = popup.cloneNode(true);
-      clone.style.cssText = `display: block; transition: opacity ${TRANSITIONS.default} ease;`;
+      clone.style.cssText = `display: block; transition: opacity ${TRANSITIONS.default} ease; font-family: "itc-avant-garde-gothic-pro", sans-serif;`;
+      
+      // Apply font to all text elements within the popup
+      const textElements = clone.querySelectorAll('*');
+      textElements.forEach(textEl => {
+        textEl.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+      });
+      
       el.appendChild(clone);
     } else {
       el.className = 'text-marker';
