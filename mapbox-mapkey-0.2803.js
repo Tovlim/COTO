@@ -104,6 +104,7 @@ const state = {
 
 window.isLinkClick = false;
 const OVERLAP_THRESHOLD = 60;
+const MARKER_FONT = '"itc-avant-garde-gothic-pro", sans-serif';
 const TRANSITIONS = {
   default: "200ms",
   district: 'opacity 300ms ease, background-color 0.3s ease'
@@ -117,6 +118,13 @@ const $id = id => document.getElementById(id);
 const utils = {
   triggerEvent: (el, events) => events.forEach(e => el.dispatchEvent(new Event(e, {bubbles: true}))),
   setStyles: (el, styles) => Object.assign(el.style, styles),
+  applyFont: (element) => {
+    element.style.fontFamily = MARKER_FONT;
+    const children = element.querySelectorAll('*');
+    for (let i = 0; i < children.length; i++) {
+      children[i].style.fontFamily = MARKER_FONT;
+    }
+  },
   debounce: (fn, delay) => {
     let timer;
     return (...args) => {
@@ -416,19 +424,13 @@ function addCustomMarkers() {
       used.push(popup);
       el.className = 'custom-marker';
       const clone = popup.cloneNode(true);
-      clone.style.cssText = `display: block; transition: opacity ${TRANSITIONS.default} ease; font-family: "itc-avant-garde-gothic-pro", sans-serif;`;
-      
-      // Apply font to all text elements within the popup
-      const textElements = clone.querySelectorAll('*');
-      textElements.forEach(textEl => {
-        textEl.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
-      });
-      
+      clone.style.cssText = `display: block; transition: opacity ${TRANSITIONS.default} ease;`;
+      utils.applyFont(clone);
       el.appendChild(clone);
     } else {
       el.className = 'text-marker';
       el.textContent = name;
-      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITIONS.default} ease; font-family: 'itc-avant-garde-gothic-pro', sans-serif;`;
+      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITIONS.default} ease; font-family: ${MARKER_FONT};`;
     }
     
     const currentZoom = map.getZoom();
@@ -503,7 +505,7 @@ function getOrCreateCluster(center, count, coords) {
   if (originalWrap) {
     wrap = originalWrap.cloneNode(true);
     wrap.removeAttribute('id');
-    wrap.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+    utils.applyFont(wrap);
     
     const num = wrap.querySelector('#PlaceNum') || 
                 wrap.querySelector('[id*="PlaceNum"]') || 
@@ -516,28 +518,10 @@ function getOrCreateCluster(center, count, coords) {
     if (num) {
       if (num.id) num.removeAttribute('id');
       num.textContent = count;
-      num.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     }
-    
-    // Specifically target #marker-places and #PlaceNum within the wrap
-    const markerPlaces = wrap.querySelector('#marker-places');
-    if (markerPlaces) {
-      markerPlaces.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
-    }
-    
-    const placeNum = wrap.querySelector('#PlaceNum');
-    if (placeNum) {
-      placeNum.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
-    }
-    
-    // Apply font to all elements within the wrap
-    const allElements = wrap.querySelectorAll('*');
-    allElements.forEach(el => {
-      el.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
-    });
   } else {
     wrap = document.createElement('div');
-    wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; font-family: "itc-avant-garde-gothic-pro", sans-serif;';
+    wrap.style.cssText = `background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; font-family: ${MARKER_FONT};`;
     
     const num = document.createElement('div');
     num.textContent = count;
@@ -1245,13 +1229,12 @@ function loadBoundaries() {
           districtWrap.className += ` district-${name.toLowerCase().replace(/\s+/g, '-')}`;
           districtWrap.style.zIndex = '1000';
           districtWrap.style.transition = TRANSITIONS.district;
-          districtWrap.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+          utils.applyFont(districtWrap);
           
           const nameElement = districtWrap.querySelector('#district-name');
           if (nameElement) {
             nameElement.textContent = name;
             nameElement.removeAttribute('id');
-            nameElement.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
           }
           
           const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat(centroid).addTo(map);
@@ -1415,13 +1398,12 @@ function loadDistrictTags() {
     districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
     districtWrap.style.zIndex = '1000';
     districtWrap.style.transition = TRANSITIONS.district;
-    districtWrap.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+    utils.applyFont(districtWrap);
     
     const nameElement = districtWrap.querySelector('#district-name');
     if (nameElement) {
       nameElement.textContent = name;
       nameElement.removeAttribute('id');
-      nameElement.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     }
     
     const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat([lng, lat]).addTo(map);
