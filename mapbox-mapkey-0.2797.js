@@ -1,6 +1,20 @@
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+// Show loading screen at start
+const loadingScreen = $id('loading-map-screen');
+if (loadingScreen) {
+  loadingScreen.style.display = 'flex';
+}
+
+// Fallback: Hide loading screen after max 10 seconds regardless
+setTimeout(() => {
+  const loadingScreen = $id('loading-map-screen');
+  if (loadingScreen && loadingScreen.style.display !== 'none') {
+    loadingScreen.style.display = 'none';
+  }
+}, 10000);
+
 // Initialize Mapbox
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
@@ -1477,8 +1491,23 @@ map.on("load", () => {
     loadBoundaries();
     setTimeout(loadDistrictTags, 500);
     setTimeout(setupAreaKeyControls, 1000);
+    
+    // Hide loading screen after everything is loaded
+    setTimeout(() => {
+      const loadingScreen = $id('loading-map-screen');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+      }
+    }, 1500); // Give a small delay to ensure all components are ready
+    
   } catch (error) {
-    // Silent error handling
+    // Silent error handling - but still hide loading screen
+    setTimeout(() => {
+      const loadingScreen = $id('loading-map-screen');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+      }
+    }, 2000);
   }
 });
 
