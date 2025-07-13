@@ -2,14 +2,14 @@
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Show loading screen at start
-const loadingScreen = $id('loading-map-screen');
+const loadingScreen = document.getElementById('loading-map-screen');
 if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
 // Fallback: Hide loading screen after max 10 seconds regardless
 setTimeout(() => {
-  const loadingScreen = $id('loading-map-screen');
+  const loadingScreen = document.getElementById('loading-map-screen');
   if (loadingScreen && loadingScreen.style.display !== 'none') {
     loadingScreen.style.display = 'none';
   }
@@ -1494,7 +1494,7 @@ map.on("load", () => {
     
     // Hide loading screen after everything is loaded
     setTimeout(() => {
-      const loadingScreen = $id('loading-map-screen');
+      const loadingScreen = document.getElementById('loading-map-screen');
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
       }
@@ -1503,7 +1503,7 @@ map.on("load", () => {
   } catch (error) {
     // Silent error handling - but still hide loading screen
     setTimeout(() => {
-      const loadingScreen = $id('loading-map-screen');
+      const loadingScreen = document.getElementById('loading-map-screen');
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
       }
