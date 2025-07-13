@@ -421,7 +421,7 @@ function addCustomMarkers() {
     } else {
       el.className = 'text-marker';
       el.textContent = name;
-      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITIONS.default} ease;`;
+      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITIONS.default} ease; font-family: 'itc-avant-garde-gothic-pro', sans-serif;`;
     }
     
     const currentZoom = map.getZoom();
@@ -511,7 +511,7 @@ function getOrCreateCluster(center, count, coords) {
     }
   } else {
     wrap = document.createElement('div');
-    wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold;';
+    wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; font-family: "itc-avant-garde-gothic-pro", sans-serif;';
     
     const num = document.createElement('div');
     num.textContent = count;
@@ -1219,11 +1219,13 @@ function loadBoundaries() {
           districtWrap.className += ` district-${name.toLowerCase().replace(/\s+/g, '-')}`;
           districtWrap.style.zIndex = '1000';
           districtWrap.style.transition = TRANSITIONS.district;
+          districtWrap.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
           
           const nameElement = districtWrap.querySelector('#district-name');
           if (nameElement) {
             nameElement.textContent = name;
             nameElement.removeAttribute('id');
+            nameElement.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
           }
           
           const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat(centroid).addTo(map);
@@ -1387,11 +1389,13 @@ function loadDistrictTags() {
     districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
     districtWrap.style.zIndex = '1000';
     districtWrap.style.transition = TRANSITIONS.district;
+    districtWrap.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     
     const nameElement = districtWrap.querySelector('#district-name');
     if (nameElement) {
       nameElement.textContent = name;
       nameElement.removeAttribute('id');
+      nameElement.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     }
     
     const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat([lng, lat]).addTo(map);
