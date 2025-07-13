@@ -503,6 +503,7 @@ function getOrCreateCluster(center, count, coords) {
   if (originalWrap) {
     wrap = originalWrap.cloneNode(true);
     wrap.removeAttribute('id');
+    wrap.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     
     const num = wrap.querySelector('#PlaceNum') || 
                 wrap.querySelector('[id*="PlaceNum"]') || 
@@ -515,7 +516,14 @@ function getOrCreateCluster(center, count, coords) {
     if (num) {
       if (num.id) num.removeAttribute('id');
       num.textContent = count;
+      num.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
     }
+    
+    // Apply font to all elements within the wrap
+    const allElements = wrap.querySelectorAll('*');
+    allElements.forEach(el => {
+      el.style.fontFamily = '"itc-avant-garde-gothic-pro", sans-serif';
+    });
   } else {
     wrap = document.createElement('div');
     wrap.style.cssText = 'background: rgba(0,0,0,0.7); color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; font-family: "itc-avant-garde-gothic-pro", sans-serif;';
