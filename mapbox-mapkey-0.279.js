@@ -16,6 +16,13 @@ const map = new mapboxgl.Map({
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
 
+// Add zoom controls (zoom in/out buttons)
+map.addControl(new mapboxgl.NavigationControl({
+  showCompass: false,  // Hide compass, only show zoom buttons
+  showZoom: true,      // Show zoom in/out buttons
+  visualizePitch: false // Hide pitch visualization
+}), 'top-right');
+
 // Global state - consolidated
 const state = {
   locationData: {type: "FeatureCollection", features: []},
