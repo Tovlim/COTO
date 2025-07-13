@@ -38,7 +38,7 @@ class MapResetControl {
     
     // Add reset icon styling
     this._button.style.cssText = `
-      background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/6873ad35be7a73913f6fc69a_reset%20icon.svg");
+      background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/6873ad35be7a73913f6fc69a_67fdd311ce3d47f46eff1a184babaf24_reset%20icon.svg");
       background-repeat: no-repeat;
       background-position: center;
       background-size: 18px 18px;
