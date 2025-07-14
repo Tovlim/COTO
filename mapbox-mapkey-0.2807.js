@@ -182,22 +182,9 @@ const toggleShowWhenFilteredElements = show => {
       display: show ? 'block' : 'none',
       visibility: show ? 'visible' : 'hidden',
       opacity: show ? '1' : '0',
-      pointerEvents: show ? 'auto' : 'none',
-      transition: 'none' // Make changes instant
+      pointerEvents: show ? 'auto' : 'none'
     });
   });
-  
-  // Specifically handle #AllEvents for instant visibility
-  const allEventsBtn = $id('AllEvents');
-  if (allEventsBtn) {
-    utils.setStyles(allEventsBtn, {
-      display: show ? 'block' : 'none',
-      visibility: show ? 'visible' : 'hidden',
-      opacity: show ? '1' : '0',
-      pointerEvents: show ? 'auto' : 'none',
-      transition: 'none' // Make changes instant
-    });
-  }
 };
 
 // Handle zoom-based visibility with optimized debouncing
@@ -519,7 +506,15 @@ function getOrCreateCluster(center, count, coords) {
     existing.count += count;
     const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num, [class*="num"]') || 
                 existing.element.querySelector('div, span');
-    if (num) num.textContent = existing.count;
+    if (num) {
+      num.textContent = existing.count;
+      
+      // Update the copy element to mirror the main PlaceNum
+      const numCopy = existing.element.querySelector('[id*="PlaceNum-copy"], .place-num-copy, [class*="num-copy"]');
+      if (numCopy) {
+        numCopy.textContent = existing.count;
+      }
+    }
     return existing;
   }
   
@@ -542,6 +537,13 @@ function getOrCreateCluster(center, count, coords) {
     if (num) {
       if (num.id) num.removeAttribute('id');
       num.textContent = count;
+      
+      // Update the copy element to mirror the main PlaceNum
+      const numCopy = wrap.querySelector('#PlaceNum-copy');
+      if (numCopy) {
+        numCopy.textContent = count;
+        numCopy.removeAttribute('id'); // Remove ID to avoid duplicates
+      }
     }
   } else {
     wrap = document.createElement('div');
@@ -634,7 +636,15 @@ function checkOverlap() {
       Object.assign(existingCluster, {count: newCluster.count, coordinates: newCluster.coordinates, point: newCluster.center});
       
       const num = existingCluster.element.querySelector('#PlaceNum, div');
-      if (num) num.textContent = newCluster.count;
+      if (num) {
+        num.textContent = newCluster.count;
+        
+        // Update the copy element to mirror the main PlaceNum
+        const numCopy = existingCluster.element.querySelector('[id*="PlaceNum-copy"], .place-num-copy, [class*="num-copy"]');
+        if (numCopy) {
+          numCopy.textContent = newCluster.count;
+        }
+      }
       existingCluster.marker.setLngLat(newCluster.coordinates);
       utils.setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
     } else {
