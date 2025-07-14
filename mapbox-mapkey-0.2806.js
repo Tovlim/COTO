@@ -182,9 +182,22 @@ const toggleShowWhenFilteredElements = show => {
       display: show ? 'block' : 'none',
       visibility: show ? 'visible' : 'hidden',
       opacity: show ? '1' : '0',
-      pointerEvents: show ? 'auto' : 'none'
+      pointerEvents: show ? 'auto' : 'none',
+      transition: 'none' // Make changes instant
     });
   });
+  
+  // Specifically handle #AllEvents for instant visibility
+  const allEventsBtn = $id('AllEvents');
+  if (allEventsBtn) {
+    utils.setStyles(allEventsBtn, {
+      display: show ? 'block' : 'none',
+      visibility: show ? 'visible' : 'hidden',
+      opacity: show ? '1' : '0',
+      pointerEvents: show ? 'auto' : 'none',
+      transition: 'none' // Make changes instant
+    });
+  }
 };
 
 // Handle zoom-based visibility with optimized debouncing
