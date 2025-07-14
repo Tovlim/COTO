@@ -125,6 +125,13 @@ const utils = {
     const children = element.querySelectorAll('*');
     for (let i = 0; i < children.length; i++) {
       children[i].style.fontFamily = MARKER_FONT;
+      // Ensure child elements remain visible
+      if (children[i].style.display === 'none' && !children[i].dataset.intentionallyHidden) {
+        children[i].style.display = 'block';
+      }
+      if (children[i].style.visibility === 'hidden' && !children[i].dataset.intentionallyHidden) {
+        children[i].style.visibility = 'visible';
+      }
     }
   },
   debounce: (fn, delay) => {
@@ -504,6 +511,8 @@ function getOrCreateCluster(center, count, coords) {
   
   if (existing) {
     existing.count += count;
+    
+    // Preserve all child elements during updates
     const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num, [class*="num"]') || 
                 existing.element.querySelector('div, span');
     if (num) {
@@ -515,6 +524,14 @@ function getOrCreateCluster(center, count, coords) {
         numCopy.textContent = existing.count;
       }
     }
+    
+    // Ensure all child elements remain visible
+    utils.setStyles(existing.element, {
+      display: 'block', 
+      visibility: 'visible', 
+      opacity: '1'
+    });
+    
     return existing;
   }
   
@@ -645,6 +662,15 @@ function checkOverlap() {
           numCopy.textContent = newCluster.count;
         }
       }
+      
+      // Ensure all child elements remain visible during zoom operations
+      const allChildren = existingCluster.element.querySelectorAll('*');
+      allChildren.forEach(child => {
+        if (child.style.display === 'none' || child.style.visibility === 'hidden') {
+          utils.setStyles(child, {display: 'block', visibility: 'visible'});
+        }
+      });
+      
       existingCluster.marker.setLngLat(newCluster.coordinates);
       utils.setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
     } else {
