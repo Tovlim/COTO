@@ -506,7 +506,7 @@ function getOrCreateCluster(center, count, coords) {
     existing.count += count;
     const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num') || 
                 existing.element.querySelector('.text-block-82.number') ||
-                existing.element.querySelector('div:not(.linkinsidesnum):not(#ClusterCopyWrap)') || 
+                existing.element.querySelector('div:not(.ClusterCopyWrap)') || 
                 existing.element.querySelector('span');
     if (num) {
       num.textContent = existing.count;
@@ -532,7 +532,7 @@ function getOrCreateCluster(center, count, coords) {
                 wrap.querySelector('[id*="PlaceNum"]') || 
                 wrap.querySelector('.place-num') || 
                 wrap.querySelector('.text-block-82.number') ||
-                wrap.querySelector('div:not(.linkinsidesnum):not(#ClusterCopyWrap)') || 
+                wrap.querySelector('div:not(.ClusterCopyWrap)') || 
                 wrap.querySelector('span');
     
     if (num) {
@@ -640,7 +640,7 @@ function checkOverlap() {
                   existingCluster.element.querySelector('[id*="PlaceNum"]') || 
                   existingCluster.element.querySelector('.place-num') ||
                   existingCluster.element.querySelector('.text-block-82.number') ||
-                  existingCluster.element.querySelector('div:not(.linkinsidesnum):not(#ClusterCopyWrap)');
+                  existingCluster.element.querySelector('div:not(.ClusterCopyWrap)');
       if (num) {
         num.textContent = newCluster.count;
         
