@@ -1,4 +1,4 @@
-// Optimized Checkbox Group Filter for Finsweet List Filter 2025
+// Real-time Checkbox Group Filter for Finsweet List Filter 2025
 // Add this script before the closing </body> tag
 
 (function() {
@@ -6,7 +6,6 @@
   
   // Configuration
   const CONFIG = {
-    DEBOUNCE_DELAY: 200,
     SELECTORS: {
       SEARCH_BOX: '[searchbox-filter]',
       CLEAR_BUTTON: '[clear-text-input]',
@@ -17,23 +16,15 @@
     }
   };
   
-  // Cache for DOM elements and debounce timers
+  // Cache for DOM elements
   const cache = {
     searchBoxes: new Map(),
     clearButtons: new Map(),
-    checkboxGroups: new Map(),
-    debounceTimers: new Map()
+    checkboxGroups: new Map()
   };
   
   // Utility functions
   const utils = {
-    debounce(func, delay, key) {
-      return (...args) => {
-        clearTimeout(cache.debounceTimers.get(key));
-        cache.debounceTimers.set(key, setTimeout(() => func.apply(this, args), delay));
-      };
-    },
-    
     normalizeText(text) {
       return text.toLowerCase().trim();
     },
@@ -85,20 +76,14 @@
     Object.entries(groupedCheckboxes).forEach(([groupName, elements]) => {
       cache.checkboxGroups.set(groupName, elements);
     });
-    
-
   }
   
   function bindEventListeners() {
-    // Bind search box events
+    // Bind search box events - now with immediate filtering
     cache.searchBoxes.forEach((searchBox, groupName) => {
-      const debouncedFilter = utils.debounce(
-        (value) => filterCheckboxGroup(groupName, value),
-        CONFIG.DEBOUNCE_DELAY,
-        `search-${groupName}`
-      );
-      
-      searchBox.addEventListener('input', (e) => debouncedFilter(e.target.value));
+      searchBox.addEventListener('input', (e) => {
+        filterCheckboxGroup(groupName, e.target.value);
+      });
     });
     
     // Bind clear button events
