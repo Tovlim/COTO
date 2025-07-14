@@ -504,8 +504,10 @@ function getOrCreateCluster(center, count, coords) {
   
   if (existing) {
     existing.count += count;
-    const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num, [class*="num"]') || 
-                existing.element.querySelector('div, span');
+    const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num') || 
+                existing.element.querySelector('.text-block-82.number') ||
+                existing.element.querySelector('div:not(.linkinsidesnum):not(#ClusterCopyWrap)') || 
+                existing.element.querySelector('span');
     if (num) {
       num.textContent = existing.count;
       
@@ -529,10 +531,9 @@ function getOrCreateCluster(center, count, coords) {
     const num = wrap.querySelector('#PlaceNum') || 
                 wrap.querySelector('[id*="PlaceNum"]') || 
                 wrap.querySelector('.place-num') || 
-                wrap.querySelector('[class*="num"]') || 
-                wrap.querySelector('div') || 
-                wrap.querySelector('span') || 
-                wrap;
+                wrap.querySelector('.text-block-82.number') ||
+                wrap.querySelector('div:not(.linkinsidesnum):not(#ClusterCopyWrap)') || 
+                wrap.querySelector('span');
     
     if (num) {
       if (num.id) num.removeAttribute('id');
@@ -635,7 +636,11 @@ function checkOverlap() {
       updatedClusterIds.add(existingCluster.id);
       Object.assign(existingCluster, {count: newCluster.count, coordinates: newCluster.coordinates, point: newCluster.center});
       
-      const num = existingCluster.element.querySelector('#PlaceNum, div');
+      const num = existingCluster.element.querySelector('#PlaceNum') ||
+                  existingCluster.element.querySelector('[id*="PlaceNum"]') || 
+                  existingCluster.element.querySelector('.place-num') ||
+                  existingCluster.element.querySelector('.text-block-82.number') ||
+                  existingCluster.element.querySelector('div:not(.linkinsidesnum):not(#ClusterCopyWrap)');
       if (num) {
         num.textContent = newCluster.count;
         
