@@ -95,6 +95,7 @@ const state = {
   timers: {overlap: null, filter: null, zoom: null},
   lastClickedMarker: null,
   lastClickTime: 0,
+  lastAnyMarkerClickTime: 0, // Global debounce for any marker clicks
   flags: {
     isInitialLoad: true,
     mapInitialized: false,
@@ -471,14 +472,22 @@ function setupMarkerClicks() {
       const locality = link.getAttribute('districtname');
       if (!locality) return;
       
-      // Prevent rapid double-clicks
       const currentTime = Date.now();
+      
+      // Global debounce - prevent any marker clicks within 800ms
+      if (currentTime - state.lastAnyMarkerClickTime < 800) {
+        return;
+      }
+      
+      // Specific marker debounce - prevent same marker clicks within 1000ms
       const markerKey = `locality-${locality}`;
       if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
         return;
       }
+      
       state.lastClickedMarker = markerKey;
       state.lastClickTime = currentTime;
+      state.lastAnyMarkerClickTime = currentTime;
       
       window.isMarkerClick = true;
       
@@ -1282,14 +1291,22 @@ function loadBoundaries() {
             e.stopPropagation();
             e.preventDefault();
             
-            // Prevent rapid double-clicks
             const currentTime = Date.now();
+            
+            // Global debounce - prevent any marker clicks within 800ms
+            if (currentTime - state.lastAnyMarkerClickTime < 800) {
+              return;
+            }
+            
+            // Specific marker debounce - prevent same marker clicks within 1000ms
             const markerKey = `district-boundary-${name}`;
             if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
               return;
             }
+            
             state.lastClickedMarker = markerKey;
             state.lastClickTime = currentTime;
+            state.lastAnyMarkerClickTime = currentTime;
             
             // Set marker click flag to prevent filter interference
             window.isMarkerClick = true;
@@ -1461,14 +1478,22 @@ function loadDistrictTags() {
       e.stopPropagation();
       e.preventDefault();
       
-      // Prevent rapid double-clicks
       const currentTime = Date.now();
+      
+      // Global debounce - prevent any marker clicks within 800ms
+      if (currentTime - state.lastAnyMarkerClickTime < 800) {
+        return;
+      }
+      
+      // Specific marker debounce - prevent same marker clicks within 1000ms
       const markerKey = `district-tag-${name}`;
       if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
         return;
       }
+      
       state.lastClickedMarker = markerKey;
       state.lastClickTime = currentTime;
+      state.lastAnyMarkerClickTime = currentTime;
       
       window.isMarkerClick = true;
       
