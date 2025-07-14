@@ -93,6 +93,8 @@ const state = {
   clusterMarkers: [],
   districtMarkers: [],
   timers: {overlap: null, filter: null, zoom: null},
+  lastClickedMarker: null,
+  lastClickTime: 0,
   flags: {
     isInitialLoad: true,
     mapInitialized: false,
@@ -467,18 +469,27 @@ function setupMarkerClicks() {
       if (!link) return;
       
       const locality = link.getAttribute('districtname');
-      if (locality) {
-        window.isMarkerClick = true;
-        
-        // Use checkbox selection for localities (map markers)
-        selectLocalityCheckbox(locality);
-        
-        // Show filtered elements and sidebar
-        toggleShowWhenFilteredElements(true);
-        toggleSidebar('Left', true);
-        
-        setTimeout(() => window.isMarkerClick = false, 1000);
+      if (!locality) return;
+      
+      // Prevent rapid double-clicks
+      const currentTime = Date.now();
+      const markerKey = `locality-${locality}`;
+      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+        return;
       }
+      state.lastClickedMarker = markerKey;
+      state.lastClickTime = currentTime;
+      
+      window.isMarkerClick = true;
+      
+      // Use checkbox selection for localities (map markers)
+      selectLocalityCheckbox(locality);
+      
+      // Show filtered elements and sidebar
+      toggleShowWhenFilteredElements(true);
+      toggleSidebar('Left', true);
+      
+      setTimeout(() => window.isMarkerClick = false, 1000);
     };
     
     info.marker._element = newEl;
@@ -1243,6 +1254,15 @@ function loadBoundaries() {
             e.stopPropagation();
             e.preventDefault();
             
+            // Prevent rapid double-clicks
+            const currentTime = Date.now();
+            const markerKey = `district-boundary-${name}`;
+            if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+              return;
+            }
+            state.lastClickedMarker = markerKey;
+            state.lastClickTime = currentTime;
+            
             // Set marker click flag to prevent filter interference
             window.isMarkerClick = true;
             
@@ -1412,6 +1432,15 @@ function loadDistrictTags() {
     districtWrap.addEventListener('click', e => {
       e.stopPropagation();
       e.preventDefault();
+      
+      // Prevent rapid double-clicks
+      const currentTime = Date.now();
+      const markerKey = `district-tag-${name}`;
+      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+        return;
+      }
+      state.lastClickedMarker = markerKey;
+      state.lastClickTime = currentTime;
       
       window.isMarkerClick = true;
       
