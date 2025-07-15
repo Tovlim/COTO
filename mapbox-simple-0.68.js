@@ -471,10 +471,14 @@ function addNativeDistrictMarkers() {
 function setupNativeMarkerClicks() {
   // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
+    console.log('🔵 LOCALITY POINT CLICKED:', e.features[0].properties.name);
+    console.log('🔵 Event details:', e);
+    
     // Stop event from bubbling to boundary layers underneath
     e.preventDefault();
     if (e.originalEvent) {
       e.originalEvent.stopPropagation();
+      console.log('🔵 Event propagation stopped');
     }
     
     const feature = e.features[0];
@@ -484,6 +488,7 @@ function setupNativeMarkerClicks() {
     const currentTime = Date.now();
     const markerKey = `locality-${locality}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      console.log('🔵 Rapid click prevented for:', locality);
       return;
     }
     
@@ -493,8 +498,10 @@ function setupNativeMarkerClicks() {
     state.lastClickTime = currentTime;
     
     window.isMarkerClick = true;
+    console.log('🔵 Set window.isMarkerClick = true');
     
     // Use checkbox selection for localities
+    console.log('🔵 Selecting locality checkbox for:', locality);
     selectLocalityCheckbox(locality);
     
     // Show filtered elements and sidebar
@@ -505,21 +512,27 @@ function setupNativeMarkerClicks() {
     setTimeout(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
+      console.log('🔵 Cleared locality click locks');
     }, 1500);
   });
   
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
+    console.log('🟡 LOCALITY CLUSTER CLICKED');
+    
     // Stop event from bubbling to boundary layers underneath
     e.preventDefault();
     if (e.originalEvent) {
       e.originalEvent.stopPropagation();
+      console.log('🟡 Cluster event propagation stopped');
     }
     
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
     const clusterId = features[0].properties.cluster_id;
+    console.log('🟡 Expanding cluster:', clusterId);
+    
     map.getSource('localities-source').getClusterExpansionZoom(
       clusterId,
       (err, zoom) => {
@@ -555,6 +568,9 @@ function setupNativeMarkerClicks() {
 function setupDistrictMarkerClicks() {
   // Handle district clicks
   map.on('click', 'district-points', (e) => {
+    console.log('🟢 DISTRICT POINT CLICKED:', e.features[0].properties.name);
+    console.log('🟢 District source:', e.features[0].properties.source);
+    
     const feature = e.features[0];
     const districtName = feature.properties.name;
     const districtSource = feature.properties.source; // 'boundary' or 'tag'
@@ -582,7 +598,7 @@ function setupDistrictMarkerClicks() {
     
     if (districtSource === 'boundary') {
       // District WITH boundary - reframe to boundary extents only
-      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
+      console.log(`🟢 District ${districtName} has boundary, reframing to boundary extents`);
       
       // Find and click the corresponding boundary fill layer to trigger reframing
       const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
@@ -600,12 +616,13 @@ function setupDistrictMarkerClicks() {
           };
           
           source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+          console.log('🟢 Fitting bounds for district boundary:', districtName);
           map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
         }
       }
     } else {
       // District WITHOUT boundary - use dropdown and trigger map reframing
-      console.log(`District ${districtName} has no boundary, using dropdown selection`);
+      console.log(`🟢 District ${districtName} has no boundary, using dropdown selection`);
       
       // Select district in dropdown
       selectDistrictInDropdown(districtName);
@@ -626,6 +643,7 @@ function setupDistrictMarkerClicks() {
     setTimeout(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
+      console.log('🟢 Cleared district click locks');
     }, 1500);
   });
   
@@ -676,15 +694,27 @@ const checkMapMarkersFiltering = () => {
 
 // Optimized filter application
 function applyFilterToMarkers() {
-  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
+  console.log('🟣 APPLY FILTER TO MARKERS CALLED');
+  console.log('🟣 state.flags.isInitialLoad:', state.flags.isInitialLoad);
+  console.log('🟣 checkMapMarkersFiltering():', checkMapMarkersFiltering());
+  
+  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) {
+    console.log('🟣 Skipping filter application - initial load with no filtering');
+    return;
+  }
   
   const filteredLat = $('.data-places-latitudes-filter');
   const filteredLon = $('.data-places-longitudes-filter');
   const allLat = $('.data-places-latitudes, .data-place-latitude');
   
+  console.log('🟣 Filtered coordinates count:', filteredLat.length);
+  console.log('🟣 All coordinates count:', allLat.length);
+  
   let visibleCoordinates = [];
   
   if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
+    console.log('🟣 Using filtered coordinates for reframing');
+    
     // Create coordinates from filtered data for reframing ONLY
     for (let i = 0; i < filteredLat.length; i++) {
       const lat = parseFloat(filteredLat[i]?.textContent.trim());
@@ -704,6 +734,8 @@ function applyFilterToMarkers() {
       });
     }
   } else {
+    console.log('🟣 No filtering detected - using all coordinates');
+    
     // No filtering - show all features and use all coordinates
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
@@ -717,6 +749,8 @@ function applyFilterToMarkers() {
   const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
   
   if (visibleCoordinates.length > 0) {
+    console.log('🟣 Fitting bounds to visible coordinates:', visibleCoordinates.length);
+    
     // Only use filtered coordinates for map reframing, but keep all markers visible
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
@@ -728,6 +762,8 @@ function applyFilterToMarkers() {
       essential: true
     });
   } else {
+    console.log('🟣 No visible coordinates - flying to default position');
+    
     if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
       map.flyTo({center: [35.22, 31.85], zoom: isMobile ? 7.5 : 8.33, duration: animationDuration, essential: true});
     }
@@ -735,7 +771,17 @@ function applyFilterToMarkers() {
 }
 
 const handleFilterUpdate = utils.debounce(() => {
-  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
+  console.log('🟠 HANDLE FILTER UPDATE TRIGGERED');
+  console.log('🟠 window.isLinkClick:', window.isLinkClick);
+  console.log('🟠 window.isMarkerClick:', window.isMarkerClick);
+  console.log('🟠 state.markerInteractionLock:', state.markerInteractionLock);
+  
+  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) {
+    console.log('🟠 Filter update skipped due to interaction locks');
+    return;
+  }
+  
+  console.log('🟠 Proceeding with filter update');
   state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
