@@ -100,7 +100,9 @@ const state = {
     mapInitialized: false,
     forceFilteredReframe: false,
     isRefreshButtonAction: false,
-    dropdownListenersSetup: false
+    dropdownListenersSetup: false,
+    districtTagsLoaded: false,
+    areaControlsSetup: false
   }
 };
 
@@ -1072,6 +1074,8 @@ function setupDropdownListeners() {
 
 // Load area overlays with improved error handling
 function loadAreaOverlays() {
+  console.log('loadAreaOverlays() called');
+  
   const areas = [
     {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.5},
     {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.5},
@@ -1079,36 +1083,41 @@ function loadAreaOverlays() {
   ];
   
   const addAreaToMap = area => {
-    console.log(`Loading ${area.name}...`);
+    console.log(`Starting fetch for ${area.name} from ${area.url}`);
     fetch(area.url)
       .then(response => {
+        console.log(`${area.name} fetch response:`, response.status, response.ok);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
       })
       .then(geojsonData => {
-        console.log(`${area.name} data loaded successfully`, geojsonData);
+        console.log(`${area.name} data loaded successfully:`, geojsonData.features ? `${geojsonData.features.length} features` : 'no features');
         
         // Remove existing layers/sources if they exist
         try {
           if (map.getLayer(area.layerId)) {
+            console.log(`Removing existing layer: ${area.layerId}`);
             map.removeLayer(area.layerId);
           }
           if (map.getSource(area.sourceId)) {
+            console.log(`Removing existing source: ${area.sourceId}`);
             map.removeSource(area.sourceId);
           }
         } catch (e) {
           console.log(`Cleanup error for ${area.name}:`, e);
         }
         
-        // Add source and layer
+        // Add source
+        console.log(`Adding source: ${area.sourceId}`);
         map.addSource(area.sourceId, {
           type: 'geojson',
           data: geojsonData
         });
         
-        // Add the layer BEFORE other layers to ensure it's visible
+        // Add the layer
+        console.log(`Adding layer: ${area.layerId}`);
         map.addLayer({
           id: area.layerId,
           type: 'fill',
@@ -1121,33 +1130,36 @@ function loadAreaOverlays() {
             'fill-opacity': area.opacity,
             'fill-outline-color': area.color
           }
-        }, 'locality-clusters'); // Add before locality layers
+        });
         
-        console.log(`${area.name} layer added to map with visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
+        console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
+        console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
       })
       .catch(error => {
         console.error(`Error loading ${area.name}:`, error);
       });
   };
   
-  // Ensure we load after the map is ready
-  if (map.loaded() && map.isStyleLoaded()) {
-    areas.forEach(addAreaToMap);
-  } else {
-    map.on('style.load', () => {
-      console.log('Style loaded, loading areas...');
-      areas.forEach(addAreaToMap);
-    });
-  }
+  areas.forEach(addAreaToMap);
 }
 
 // Area key controls with improved functionality
 function setupAreaKeyControls() {
+  // Prevent multiple executions
+  if (state.flags.areaControlsSetup) {
+    console.log('Area controls already setup, skipping');
+    return;
+  }
+  
+  console.log('setupAreaKeyControls() called');
+  
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
     {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
     {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
   ];
+  
+  let setupCount = 0;
   
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
@@ -1157,6 +1169,12 @@ function setupAreaKeyControls() {
     }
     
     console.log(`Setting up area control: ${control.keyId}`);
+    
+    // Check if layer exists
+    if (!map.getLayer(control.layerId)) {
+      console.log(`Layer ${control.layerId} not found in map yet`);
+      return;
+    }
     
     // Set initial state - unchecked means area is visible
     checkbox.checked = false;
@@ -1199,10 +1217,19 @@ function setupAreaKeyControls() {
         if (!map.getLayer(control.layerId)) return;
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
       });
+      
+      setupCount++;
     } else {
       console.log(`Wrapper ${control.wrapId} not found`);
     }
   });
+  
+  if (setupCount === areaControls.length) {
+    state.flags.areaControlsSetup = true;
+    console.log('Area controls setup completed successfully');
+  } else {
+    console.log(`Area controls setup incomplete: ${setupCount}/${areaControls.length} completed`);
+  }
 }
 
 // Load boundaries with improved error handling and district marker collection
@@ -1411,6 +1438,14 @@ function selectDistrictInDropdown(districtName) {
 
 // Load district tags and add to district features
 function loadDistrictTags() {
+  // Prevent multiple executions
+  if (state.flags.districtTagsLoaded) {
+    console.log('District tags already loaded, skipping');
+    return;
+  }
+  
+  console.log('loadDistrictTags() called');
+  
   const districtTagCollection = $id('district-tag-collection');
   if (!districtTagCollection) {
     console.log('District tag collection not found');
@@ -1420,8 +1455,14 @@ function loadDistrictTags() {
   const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
   console.log(`Found ${districtTagItems.length} district tag items`);
   
-  districtTagItems.forEach(tagItem => {
-    if (getComputedStyle(tagItem).display === 'none') return;
+  // Clear existing tag-based features first
+  state.allDistrictFeatures = state.allDistrictFeatures.filter(f => f.properties.source !== 'tag');
+  
+  districtTagItems.forEach((tagItem, index) => {
+    if (getComputedStyle(tagItem).display === 'none') {
+      console.log(`Skipping hidden district tag item ${index}`);
+      return;
+    }
     
     const name = tagItem.getAttribute('district-tag-name');
     const lat = parseFloat(tagItem.getAttribute('district-tag-lattitude'));
@@ -1447,6 +1488,10 @@ function loadDistrictTags() {
     
     state.allDistrictFeatures.push(districtFeature);
   });
+  
+  // Mark as loaded to prevent duplicates
+  state.flags.districtTagsLoaded = true;
+  console.log(`District tags loaded. Total district features: ${state.allDistrictFeatures.length}`);
   
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
@@ -1510,21 +1555,19 @@ map.on("load", () => {
     console.log('Map loaded, starting initialization...');
     init();
     
-    // Wait for style to be fully loaded before adding GeoJSON layers
-    if (map.isStyleLoaded()) {
-      console.log('Style already loaded, loading GeoJSON layers...');
+    // Add a small delay to ensure map is fully ready, then load GeoJSON layers
+    setTimeout(() => {
+      console.log('Loading area overlays...');
       loadAreaOverlays();
+      console.log('Loading boundaries...');
       loadBoundaries();
-    } else {
-      map.on('style.load', () => {
-        console.log('Style loaded event fired, loading GeoJSON layers...');
-        loadAreaOverlays();
-        loadBoundaries();
-      });
-    }
+    }, 500);
     
     setTimeout(loadDistrictTags, 2000);
-    setTimeout(setupAreaKeyControls, 4000);
+    setTimeout(() => {
+      console.log('Setting up area key controls...');
+      setupAreaKeyControls();
+    }, 6000); // Increased delay to ensure areas are loaded first
     
     // Hide loading screen after everything is loaded
     setTimeout(() => {
@@ -1532,7 +1575,7 @@ map.on("load", () => {
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
       }
-    }, 5000); // Give more time for all components to load
+    }, 8000); // Give more time for all components to load
     
   } catch (error) {
     console.error('Error during map initialization:', error);
@@ -1560,9 +1603,18 @@ window.addEventListener('load', () => {
     }
   }, 200);
   
-  // Optimized retries with consolidated timing
-  [2000, 4000, 6000].forEach(delay => setTimeout(loadDistrictTags, delay));
-  [3000, 5000, 7000].forEach(delay => setTimeout(setupAreaKeyControls, delay));
+  // Only retry if not already loaded
+  if (!state.flags.districtTagsLoaded) {
+    [3000, 5000].forEach(delay => setTimeout(() => {
+      if (!state.flags.districtTagsLoaded) loadDistrictTags();
+    }, delay));
+  }
+  
+  if (!state.flags.areaControlsSetup) {
+    [8000, 10000].forEach(delay => setTimeout(() => {
+      if (!state.flags.areaControlsSetup) setupAreaKeyControls();
+    }, delay));
+  }
   
   // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
