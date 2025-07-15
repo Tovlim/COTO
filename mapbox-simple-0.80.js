@@ -1591,6 +1591,28 @@ map.on("load", () => {
     console.log('Map loaded, starting initialization...');
     init();
     
+    // Add debugging click handler to track unwanted boundary clicks
+    map.on('click', (e) => {
+      const features = map.queryRenderedFeatures(e.point);
+      const boundaryFeatures = features.filter(f => 
+        f.layer.id.includes('-fill') || f.layer.id.includes('-border') || 
+        f.layer.id.includes('boundary') || f.layer.type === 'fill' || f.layer.type === 'line'
+      );
+      
+      if (boundaryFeatures.length > 0) {
+        console.log('🚨 BOUNDARY CLICK DETECTED!');
+        console.log('Clicked layers:', boundaryFeatures.map(f => f.layer.id));
+        console.log('Event details:', e);
+        console.log('All features at click point:', features.map(f => ({id: f.layer.id, type: f.layer.type})));
+        
+        // Try to prevent any boundary click behavior
+        e.preventDefault();
+        e.originalEvent?.preventDefault();
+        e.originalEvent?.stopPropagation();
+        return false;
+      }
+    });
+    
     // Add a small delay to ensure map is fully ready, then load GeoJSON layers
     setTimeout(() => {
       console.log('Loading area overlays...');
