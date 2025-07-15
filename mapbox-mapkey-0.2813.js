@@ -515,13 +515,14 @@ function getOrCreateCluster(center, count, coords) {
     existing.count += count;
     const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num') || 
                 existing.element.querySelector('.text-block-82.number') ||
-                existing.element.querySelector('div:not(.ClusterCopyWrap)') || 
+                existing.element.querySelector('div:not(.clustercopywrap)') || 
                 existing.element.querySelector('span');
     if (num) {
       num.textContent = existing.count;
       
       // Update the copy element to mirror the main PlaceNum
-      const numCopy = existing.element.querySelector('#ClusterCopy');
+      const copyWrapper = existing.element.querySelector('#ClusterCopyWrap, .clustercopywrap');
+      const numCopy = copyWrapper?.querySelector('.text-block-82365-copy:first-child, div:first-child');
       if (numCopy) {
         numCopy.textContent = existing.count;
       }
@@ -541,7 +542,7 @@ function getOrCreateCluster(center, count, coords) {
                 wrap.querySelector('[id*="PlaceNum"]') || 
                 wrap.querySelector('.place-num') || 
                 wrap.querySelector('.text-block-82.number') ||
-                wrap.querySelector('div:not(.ClusterCopyWrap)') || 
+                wrap.querySelector('div:not(.clustercopywrap)') || 
                 wrap.querySelector('span');
     
     if (num) {
@@ -549,11 +550,14 @@ function getOrCreateCluster(center, count, coords) {
       num.textContent = count;
       
       // Update the copy element to mirror the main PlaceNum
-      const numCopy = wrap.querySelector('#ClusterCopy');
+      const copyWrapper = wrap.querySelector('#ClusterCopyWrap, .clustercopywrap');
+      const numCopy = copyWrapper?.querySelector('.text-block-82365-copy:first-child, div:first-child');
       if (numCopy) {
         numCopy.textContent = count;
-        numCopy.removeAttribute('id'); // Remove ID to avoid duplicates
       }
+      
+      // Remove ID to avoid duplicates
+      if (copyWrapper?.id) copyWrapper.removeAttribute('id');
     }
   } else {
     wrap = document.createElement('div');
@@ -649,12 +653,13 @@ function checkOverlap() {
                   existingCluster.element.querySelector('[id*="PlaceNum"]') || 
                   existingCluster.element.querySelector('.place-num') ||
                   existingCluster.element.querySelector('.text-block-82.number') ||
-                  existingCluster.element.querySelector('div:not(.ClusterCopyWrap)');
+                  existingCluster.element.querySelector('div:not(.clustercopywrap)');
       if (num) {
         num.textContent = newCluster.count;
         
         // Update the copy element to mirror the main PlaceNum
-        const numCopy = existingCluster.element.querySelector('#ClusterCopy');
+        const copyWrapper = existingCluster.element.querySelector('#ClusterCopyWrap, .clustercopywrap');
+        const numCopy = copyWrapper?.querySelector('.text-block-82365-copy:first-child, div:first-child');
         if (numCopy) {
           numCopy.textContent = newCluster.count;
         }
