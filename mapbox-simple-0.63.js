@@ -1558,6 +1558,16 @@ function init() {
   [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
   
   state.flags.mapInitialized = true;
+  
+  // Hide loading screen as soon as core map functionality is ready
+  setTimeout(() => {
+    const loadingScreen = document.getElementById('loading-map-screen');
+    if (loadingScreen) {
+      loadingScreen.style.display = 'none';
+      console.log('Loading screen hidden - core map ready');
+    }
+  }, 1000); // Much shorter delay - hide when locality markers are ready
+  
   setTimeout(() => {
     if (state.flags.isInitialLoad) {
       const hasFiltering = checkMapMarkersFiltering();
@@ -1595,21 +1605,14 @@ map.on("load", () => {
       setupAreaKeyControls();
     }, 6000); // Increased delay to ensure areas are loaded first
     
-    // Hide loading screen after everything is loaded
-    setTimeout(() => {
-      const loadingScreen = document.getElementById('loading-map-screen');
-      if (loadingScreen) {
-        loadingScreen.style.display = 'none';
-      }
-    }, 8000); // Give more time for all components to load
-    
   } catch (error) {
     console.error('Error during map initialization:', error);
-    // Still hide loading screen
+    // Still hide loading screen on error
     setTimeout(() => {
       const loadingScreen = document.getElementById('loading-map-screen');
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
+        console.log('Loading screen hidden due to error');
       }
     }, 2000);
   }
