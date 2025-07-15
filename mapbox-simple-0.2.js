@@ -639,46 +639,31 @@ function applyFilterToMarkers() {
   
   const filteredLat = $('.data-places-latitudes-filter');
   const filteredLon = $('.data-places-longitudes-filter');
-  const filteredNames = $('.data-places-names-filter, .data-place-name-filter');
-  const filteredSlugs = $('.data-places-slugs-filter, .data-place-slug-filter, .data-slug-filter');
   const allLat = $('.data-places-latitudes, .data-place-latitude');
   
   let visibleCoordinates = [];
-  let filteredFeatures = [];
   
   if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
-    // Create filtered features from filtered data
+    // Create coordinates from filtered data for reframing ONLY
     for (let i = 0; i < filteredLat.length; i++) {
       const lat = parseFloat(filteredLat[i]?.textContent.trim());
       const lon = parseFloat(filteredLon[i]?.textContent.trim());
-      const name = filteredNames[i]?.textContent.trim() || `Location ${i}`;
-      const slug = filteredSlugs[i]?.textContent.trim() || '';
       
       if (!isNaN(lat) && !isNaN(lon)) {
         visibleCoordinates.push([lon, lat]);
-        filteredFeatures.push({
-          type: "Feature",
-          geometry: {type: "Point", coordinates: [lon, lat]},
-          properties: {
-            name: name,
-            id: `filtered-location-${i}`,
-            slug: slug,
-            index: i,
-            type: 'locality'
-          }
-        });
       }
     }
     
-    // Update the localities source with filtered data
+    // DO NOT update the source data - keep all markers visible
+    // The localities source should always show all features
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: filteredFeatures
+        features: state.allLocalityFeatures // Always show ALL markers
       });
     }
   } else {
-    // No filtering - show all features
+    // No filtering - show all features and use all coordinates
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
@@ -691,6 +676,7 @@ function applyFilterToMarkers() {
   const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
   
   if (visibleCoordinates.length > 0) {
+    // Only use filtered coordinates for map reframing, but keep all markers visible
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
     
