@@ -426,7 +426,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - add to top
+    // District name labels layer - add on top of everything
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -461,35 +461,10 @@ function addNativeDistrictMarkers() {
           6, 1
         ]
       }
-    });
+    }); // Add to top of all layers
   }
   
   setupDistrictMarkerClicks();
-  
-  // Ensure marker layers are on top after adding
-  ensureMarkersOnTop();
-}
-
-// Function to ensure text markers are always on top of GeoJSON layers
-function ensureMarkersOnTop() {
-  // Get all current layer IDs
-  const layers = map.getStyle().layers;
-  const markerLayerIds = ['locality-clusters', 'locality-points', 'district-points'];
-  
-  // Move each marker layer to the top
-  markerLayerIds.forEach(layerId => {
-    if (map.getLayer(layerId)) {
-      try {
-        map.moveLayer(layerId);
-        console.log(`Moved ${layerId} to top`);
-      } catch (e) {
-        console.log(`Could not move ${layerId}:`, e);
-      }
-    }
-  });
-  
-  console.log('Ensured marker layers are on top. Final layer order:', 
-    map.getStyle().layers.map(l => l.id));
 }
 
 // Setup click handlers for native markers
@@ -1127,7 +1102,7 @@ function loadAreaOverlays() {
           data: geojsonData
         });
         
-        // Add the layer at the bottom (no beforeId = adds to top, we'll reorder later)
+        // Add the layer
         console.log(`Adding layer: ${area.layerId}`);
         map.addLayer({
           id: area.layerId,
@@ -1388,8 +1363,7 @@ function loadBoundaries() {
           map.getCanvas().style.cursor = 'pointer';
           map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
           map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
-          if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
-          if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
+          // Removed: map.moveLayer() calls to prevent z-axis movement
         });
         
         map.on('mouseleave', boundary.fillId, () => {
@@ -1411,11 +1385,6 @@ function loadBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All boundary attempts completed, updating district markers');
           addNativeDistrictMarkers();
-          
-          // Ensure markers stay on top even after errors
-          setTimeout(() => {
-            ensureMarkersOnTop();
-          }, 500);
         }
       });
   };
@@ -1523,11 +1492,6 @@ function loadDistrictTags() {
   
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
-  
-  // Ensure markers are on top after adding district tags
-  setTimeout(() => {
-    ensureMarkersOnTop();
-  }, 200);
 }
 
 // Tag monitoring with optimized logic
@@ -1600,12 +1564,6 @@ map.on("load", () => {
     setTimeout(() => {
       console.log('Setting up area key controls...');
       setupAreaKeyControls();
-      
-      // Final layer ordering check
-      setTimeout(() => {
-        ensureMarkersOnTop();
-        console.log('Final layer ordering completed');
-      }, 1000);
     }, 6000); // Increased delay to ensure areas are loaded first
     
     // Hide loading screen after everything is loaded
