@@ -91,7 +91,6 @@ const state = {
   locationData: {type: "FeatureCollection", features: []},
   allLocalityFeatures: [],
   allDistrictFeatures: [],
-  districtMarkers: [],
   timers: {filter: null, zoom: null},
   lastClickedMarker: null,
   lastClickTime: 0,
@@ -179,42 +178,6 @@ const toggleShowWhenFilteredElements = show => {
     });
   });
 };
-
-// Handle zoom-based visibility for district markers only
-const handleZoomBasedVisibility = utils.debounce(() => {
-  const currentZoom = map.getZoom();
-  const shouldShowDistrictNames = currentZoom > 6;
-  
-  if (!state.districtMarkers.length) return;
-  
-  state.districtMarkers.forEach(districtMarker => {
-    const element = districtMarker.element;
-    
-    if (shouldShowDistrictNames) {
-      if (element.dataset.fadeOutId) delete element.dataset.fadeOutId;
-      
-      const isHidden = element.style.display === 'none' || element.style.opacity === '0' || !element.style.opacity;
-      if (isHidden) {
-        utils.setStyles(element, {display: 'block', visibility: 'visible', transition: TRANSITIONS.district, opacity: '0', pointerEvents: 'none'});
-        element.offsetHeight;
-        utils.setStyles(element, {opacity: '1', pointerEvents: 'auto'});
-      } else {
-        utils.setStyles(element, {display: 'block', visibility: 'visible', opacity: '1', pointerEvents: 'auto', transition: TRANSITIONS.district});
-      }
-    } else {
-      utils.setStyles(element, {transition: TRANSITIONS.district, opacity: '0', pointerEvents: 'none'});
-      const fadeOutId = Date.now() + Math.random();
-      element.dataset.fadeOutId = fadeOutId;
-      
-      setTimeout(() => {
-        if (element.dataset.fadeOutId === fadeOutId.toString() && element.style.opacity === '0') {
-          utils.setStyles(element, {visibility: 'hidden', display: 'none'});
-          delete element.dataset.fadeOutId;
-        }
-      }, 300);
-    }
-  });
-}, 50);
 
 // Select district checkbox for filtering (triggered by map markers)
 function selectDistrictCheckbox(districtName) {
@@ -424,7 +387,7 @@ function addNativeMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#1f2937',
+        'text-halo-color': '#2563eb',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -438,6 +401,66 @@ function addNativeMarkers() {
   }
   
   setupNativeMarkerClicks();
+}
+
+// Add native district markers using Symbol layers
+function addNativeDistrictMarkers() {
+  if (!state.allDistrictFeatures.length) return;
+  
+  // Add districts source and layer
+  if (map.getSource('districts-source')) {
+    map.getSource('districts-source').setData({
+      type: "FeatureCollection",
+      features: state.allDistrictFeatures
+    });
+  } else {
+    map.addSource('districts-source', {
+      type: 'geojson',
+      data: {
+        type: "FeatureCollection",
+        features: state.allDistrictFeatures
+      }
+    });
+    
+    // District name labels layer
+    map.addLayer({
+      id: 'district-points',
+      type: 'symbol',
+      source: 'districts-source',
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-font': ['Open Sans Regular'],
+        'text-size': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          6, 12,
+          10, 16,
+          14, 18
+        ],
+        'text-allow-overlap': false,
+        'text-ignore-placement': false,
+        'text-optional': true,
+        'text-padding': 6,
+        'text-offset': [0, 0],
+        'text-anchor': 'center'
+      },
+      paint: {
+        'text-color': '#ffffff',
+        'text-halo-color': '#dc2626',
+        'text-halo-width': 2,
+        'text-opacity': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          5, 0,
+          6, 1
+        ]
+      }
+    });
+  }
+  
+  setupDistrictMarkerClicks();
 }
 
 // Setup click handlers for native markers
@@ -508,6 +531,65 @@ function setupNativeMarkerClicks() {
   });
   
   map.on('mouseleave', 'locality-points', () => {
+    map.getCanvas().style.cursor = '';
+  });
+}
+
+// Setup click handlers for district markers
+function setupDistrictMarkerClicks() {
+  // Handle district clicks
+  map.on('click', 'district-points', (e) => {
+    const feature = e.features[0];
+    const districtName = feature.properties.name;
+    
+    // Prevent rapid clicks
+    const currentTime = Date.now();
+    const markerKey = `district-${districtName}`;
+    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      return;
+    }
+    
+    // Set global lock to prevent filter interference
+    state.markerInteractionLock = true;
+    state.lastClickedMarker = markerKey;
+    state.lastClickTime = currentTime;
+    
+    window.isMarkerClick = true;
+    
+    // Use checkbox selection for districts
+    selectDistrictCheckbox(districtName);
+    
+    // Select district in dropdown
+    selectDistrictInDropdown(districtName);
+    
+    // Show filtered elements and sidebar
+    toggleShowWhenFilteredElements(true);
+    toggleSidebar('Left', true);
+    
+    // Trigger map reframing
+    setTimeout(() => {
+      state.flags.forceFilteredReframe = true;
+      state.flags.isRefreshButtonAction = true;
+      applyFilterToMarkers();
+      setTimeout(() => {
+        state.flags.forceFilteredReframe = false;
+        state.flags.isRefreshButtonAction = false;
+      }, 1000);
+    }, 200);
+    
+    // Clear locks after all processing is complete
+    setTimeout(() => {
+      window.isMarkerClick = false;
+      state.markerInteractionLock = false;
+    }, 1500);
+  });
+  
+  // Change cursor on hover
+  map.on('mouseenter', 'district-points', () => {
+    map.getCanvas().style.cursor = 'pointer';
+  });
+  
+  map.on('mouseleave', 'district-points', () => {
     map.getCanvas().style.cursor = '';
   });
 }
@@ -986,7 +1068,7 @@ function setupDropdownListeners() {
   }
 }
 
-// Optimized area overlays
+// Load area overlays with improved error handling
 function loadAreaOverlays() {
   const areas = [
     {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.3},
@@ -995,28 +1077,56 @@ function loadAreaOverlays() {
   ];
   
   const addAreaToMap = area => {
+    console.log(`Loading ${area.name}...`);
     fetch(area.url)
-      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(geojsonData => {
-        if (map.getLayer(area.layerId)) map.removeLayer(area.layerId);
-        if (map.getSource(area.sourceId)) map.removeSource(area.sourceId);
+        console.log(`${area.name} data loaded successfully`);
         
-        map.addSource(area.sourceId, {type: 'geojson', data: geojsonData});
+        // Remove existing layers/sources if they exist
+        if (map.getLayer(area.layerId)) {
+          map.removeLayer(area.layerId);
+        }
+        if (map.getSource(area.sourceId)) {
+          map.removeSource(area.sourceId);
+        }
+        
+        // Add source and layer
+        map.addSource(area.sourceId, {
+          type: 'geojson',
+          data: geojsonData
+        });
+        
         map.addLayer({
           id: area.layerId,
           type: 'fill',
           source: area.sourceId,
-          paint: {'fill-color': area.color, 'fill-opacity': area.opacity}
+          paint: {
+            'fill-color': area.color,
+            'fill-opacity': area.opacity
+          }
         });
+        
+        console.log(`${area.name} layer added to map`);
       })
-      .catch(() => {}); // Silent error handling
+      .catch(error => {
+        console.error(`Error loading ${area.name}:`, error);
+      });
   };
   
-  if (map.loaded()) areas.forEach(addAreaToMap);
-  else map.on('load', () => areas.forEach(addAreaToMap));
+  if (map.loaded()) {
+    areas.forEach(addAreaToMap);
+  } else {
+    map.on('load', () => areas.forEach(addAreaToMap));
+  }
 }
 
-// Optimized area key controls
+// Area key controls with improved functionality
 function setupAreaKeyControls() {
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
@@ -1026,27 +1136,46 @@ function setupAreaKeyControls() {
   
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    if (!checkbox) return;
+    if (!checkbox) {
+      console.log(`Checkbox ${control.keyId} not found`);
+      return;
+    }
     
+    console.log(`Setting up area control: ${control.keyId}`);
+    
+    // Set initial state
     checkbox.checked = false;
     
-    checkbox.addEventListener('change', () => {
-      if (!map.getLayer(control.layerId)) return;
-      const visibility = checkbox.checked ? 'none' : 'visible';
+    // Remove existing event listeners by cloning
+    const newCheckbox = checkbox.cloneNode(true);
+    checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+    
+    newCheckbox.addEventListener('change', () => {
+      if (!map.getLayer(control.layerId)) {
+        console.log(`Layer ${control.layerId} not found`);
+        return;
+      }
+      
+      const visibility = newCheckbox.checked ? 'none' : 'visible';
       map.setLayoutProperty(control.layerId, 'visibility', visibility);
+      console.log(`${control.layerId} visibility set to: ${visibility}`);
     });
     
     // Find the wrapper element for hover events
     const wrapperDiv = $id(control.wrapId);
     
     if (wrapperDiv) {
-      wrapperDiv.addEventListener('mouseenter', () => {
+      // Remove existing hover listeners by cloning
+      const newWrapper = wrapperDiv.cloneNode(true);
+      wrapperDiv.parentNode.replaceChild(newWrapper, wrapperDiv);
+      
+      newWrapper.addEventListener('mouseenter', () => {
         if (!map.getLayer(control.layerId)) return;
         map.moveLayer(control.layerId);
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
       });
       
-      wrapperDiv.addEventListener('mouseleave', () => {
+      newWrapper.addEventListener('mouseleave', () => {
         if (!map.getLayer(control.layerId)) return;
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.3);
       });
@@ -1054,7 +1183,7 @@ function setupAreaKeyControls() {
   });
 }
 
-// Optimized boundary loading
+// Load boundaries with improved error handling and district marker collection
 function loadBoundaries() {
   const districts = [
     'Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 
@@ -1080,99 +1209,73 @@ function loadBoundaries() {
       borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
     };
     
+    console.log(`Loading boundary: ${name}`);
+    
     fetch(boundary.url)
-      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(geojsonData => {
+        console.log(`${name} boundary data loaded successfully`);
+        
+        // Remove existing layers/sources if they exist
+        if (map.getLayer(boundary.borderId)) {
+          map.removeLayer(boundary.borderId);
+        }
+        if (map.getLayer(boundary.fillId)) {
+          map.removeLayer(boundary.fillId);
+        }
         if (map.getSource(boundary.sourceId)) {
-          [boundary.borderId, boundary.fillId].forEach(id => map.removeLayer(id));
           map.removeSource(boundary.sourceId);
         }
         
-        map.addSource(boundary.sourceId, {type: 'geojson', data: geojsonData});
-        map.addLayer({id: boundary.fillId, type: 'fill', source: boundary.sourceId, paint: {'fill-color': '#1a1b1e', 'fill-opacity': 0.25}});
-        map.addLayer({id: boundary.borderId, type: 'line', source: boundary.sourceId, paint: {'line-color': '#1a1b1e', 'line-width': 2, 'line-opacity': 1}});
+        // Add source and layers
+        map.addSource(boundary.sourceId, {
+          type: 'geojson',
+          data: geojsonData
+        });
         
-        const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
-        const originalWrap = $id('district-name-wrap');
-        
-        if (originalWrap) {
-          const districtWrap = originalWrap.cloneNode(true);
-          districtWrap.removeAttribute('id');
-          districtWrap.className += ` district-${name.toLowerCase().replace(/\s+/g, '-')}`;
-          districtWrap.style.zIndex = '1000';
-          districtWrap.style.transition = TRANSITIONS.district;
-          utils.applyFont(districtWrap);
-          
-          const nameElement = districtWrap.querySelector('#district-name');
-          if (nameElement) {
-            nameElement.textContent = name;
-            nameElement.removeAttribute('id');
+        map.addLayer({
+          id: boundary.fillId,
+          type: 'fill',
+          source: boundary.sourceId,
+          paint: {
+            'fill-color': '#1a1b1e',
+            'fill-opacity': 0.25
           }
-          
-          const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat(centroid).addTo(map);
-          
-          districtWrap.addEventListener('click', e => {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            // Prevent rapid clicks and set global interaction lock
-            const currentTime = Date.now();
-            const markerKey = `district-boundary-${name}`;
-            if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
-              return;
-            }
-            
-            // Set global lock to prevent filter interference
-            state.markerInteractionLock = true;
-            state.lastClickedMarker = markerKey;
-            state.lastClickTime = currentTime;
-            
-            // Set marker click flag to prevent filter interference
-            window.isMarkerClick = true;
-            
-            const nameEl = districtWrap.querySelector('.text-block-82:not(.number)');
-            if (nameEl?.textContent.trim()) {
-              // Use checkbox selection for boundary districts
-              selectDistrictCheckbox(nameEl.textContent.trim());
-            }
-            
-            // Show filtered elements and sidebar
-            toggleShowWhenFilteredElements(true);
-            toggleSidebar('Left', true);
-            
-            const bounds = new mapboxgl.LngLatBounds();
-            const addCoords = coords => {
-              if (Array.isArray(coords) && coords.length > 0) {
-                if (typeof coords[0] === 'number') bounds.extend(coords);
-                else coords.forEach(addCoords);
-              }
-            };
-            
-            geojsonData.features.forEach(feature => addCoords(feature.geometry.coordinates));
-            map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-            
-            // Clear locks after reframing and all events have processed
-            setTimeout(() => {
-              window.isMarkerClick = false;
-              state.markerInteractionLock = false;
-            }, 1500);
-          });
-          
-          // Bidirectional hover effects
-          districtWrap.addEventListener('mouseenter', () => {
-            map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
-            map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
-            if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
-            if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
-          });
-          
-          districtWrap.addEventListener('mouseleave', () => {
-            map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
-            map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
-          });
-          
-          state.districtMarkers.push({marker, element: districtWrap, name});
-        }
+        });
+        
+        map.addLayer({
+          id: boundary.borderId,
+          type: 'line',
+          source: boundary.sourceId,
+          paint: {
+            'line-color': '#1a1b1e',
+            'line-width': 2,
+            'line-opacity': 1
+          }
+        });
+        
+        console.log(`${name} boundary layers added to map`);
+        
+        // Calculate centroid and add to district features
+        const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
+        
+        const districtFeature = {
+          type: "Feature",
+          geometry: {type: "Point", coordinates: centroid},
+          properties: {
+            name: name,
+            id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
+            type: 'district',
+            source: 'boundary'
+          }
+        };
+        
+        state.allDistrictFeatures.push(districtFeature);
         
         // Boundary interaction handlers
         map.on('click', boundary.fillId, () => {
@@ -1195,32 +1298,24 @@ function loadBoundaries() {
           map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
           if (map.getLayer(boundary.fillId)) map.moveLayer(boundary.fillId);
           if (map.getLayer(boundary.borderId)) map.moveLayer(boundary.borderId);
-          
-          const correspondingMarker = state.districtMarkers.find(marker => 
-            marker.name.toLowerCase() === name.toLowerCase()
-          );
-          if (correspondingMarker?.element) {
-            correspondingMarker.element.style.backgroundColor = '#fc4e37';
-          }
         });
         
         map.on('mouseleave', boundary.fillId, () => {
           map.getCanvas().style.cursor = '';
           map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
           map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
-          
-          const correspondingMarker = state.districtMarkers.find(marker => 
-            marker.name.toLowerCase() === name.toLowerCase()
-          );
-          if (correspondingMarker?.element) {
-            correspondingMarker.element.style.backgroundColor = '';
-          }
         });
+        
+        // Update district markers after adding new features
+        addNativeDistrictMarkers();
       })
-      .catch(() => {}); // Silent error handling
+      .catch(error => {
+        console.error(`Error loading ${name} boundary:`, error);
+      });
   };
   
   const loadAllBoundaries = () => {
+    console.log('Starting to load all boundaries');
     // Load standard districts
     districts.forEach(name => addBoundaryToMap(name));
     
@@ -1228,8 +1323,11 @@ function loadBoundaries() {
     customDistricts.forEach(district => addBoundaryToMap(district.name, district.url));
   };
   
-  if (map.loaded()) loadAllBoundaries();
-  else map.on('load', loadAllBoundaries);
+  if (map.loaded()) {
+    loadAllBoundaries();
+  } else {
+    map.on('load', loadAllBoundaries);
+  }
 }
 
 // Function to select district in dropdown
@@ -1252,12 +1350,16 @@ function selectDistrictInDropdown(districtName) {
   }
 }
 
-// Optimized district tags loading
+// Load district tags and add to district features
 function loadDistrictTags() {
   const districtTagCollection = $id('district-tag-collection');
-  if (!districtTagCollection) return;
+  if (!districtTagCollection) {
+    console.log('District tag collection not found');
+    return;
+  }
   
   const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
+  console.log(`Found ${districtTagItems.length} district tag items`);
   
   districtTagItems.forEach(tagItem => {
     if (getComputedStyle(tagItem).display === 'none') return;
@@ -1266,75 +1368,29 @@ function loadDistrictTags() {
     const lat = parseFloat(tagItem.getAttribute('district-tag-lattitude'));
     const lng = parseFloat(tagItem.getAttribute('district-tag-longitude'));
     
-    if (!name || isNaN(lat) || isNaN(lng)) return;
-    
-    const originalWrap = $id('district-name-wrap');
-    if (!originalWrap) return;
-    
-    const districtWrap = originalWrap.cloneNode(true);
-    districtWrap.removeAttribute('id');
-    districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
-    districtWrap.style.zIndex = '1000';
-    districtWrap.style.transition = TRANSITIONS.district;
-    utils.applyFont(districtWrap);
-    
-    const nameElement = districtWrap.querySelector('#district-name');
-    if (nameElement) {
-      nameElement.textContent = name;
-      nameElement.removeAttribute('id');
+    if (!name || isNaN(lat) || isNaN(lng)) {
+      console.log(`Invalid district tag data: ${name}, ${lat}, ${lng}`);
+      return;
     }
     
-    const marker = new mapboxgl.Marker({element: districtWrap, anchor: 'center'}).setLngLat([lng, lat]).addTo(map);
+    console.log(`Adding district tag: ${name} at [${lng}, ${lat}]`);
     
-    // Consolidated click handler for dual filtering
-    districtWrap.addEventListener('click', e => {
-      e.stopPropagation();
-      e.preventDefault();
-      
-      // Prevent rapid clicks and set global interaction lock
-      const currentTime = Date.now();
-      const markerKey = `district-tag-${name}`;
-      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
-        return;
+    const districtFeature = {
+      type: "Feature",
+      geometry: {type: "Point", coordinates: [lng, lat]},
+      properties: {
+        name: name,
+        id: `district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`,
+        type: 'district',
+        source: 'tag'
       }
-      
-      // Set global lock to prevent filter interference
-      state.markerInteractionLock = true;
-      state.lastClickedMarker = markerKey;
-      state.lastClickTime = currentTime;
-      
-      window.isMarkerClick = true;
-      
-      // Use checkbox selection for reports filtering
-      selectDistrictCheckbox(name);
-      
-      // Select district in dropdown (instead of refresh-on-enter)
-      selectDistrictInDropdown(name);
-      
-      // Show filtered elements and sidebar
-      toggleShowWhenFilteredElements(true);
-      toggleSidebar('Left', true);
-      
-      // Trigger map reframing
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        applyFilterToMarkers();
-        setTimeout(() => {
-          state.flags.forceFilteredReframe = false;
-          state.flags.isRefreshButtonAction = false;
-        }, 1000);
-      }, 200);
-      
-      // Clear locks after all processing is complete
-      setTimeout(() => {
-        window.isMarkerClick = false;
-        state.markerInteractionLock = false;
-      }, 1500);
-    });
+    };
     
-    state.districtMarkers.push({marker, element: districtWrap, name});
+    state.allDistrictFeatures.push(districtFeature);
   });
+  
+  // Update district markers after adding tag features
+  addNativeDistrictMarkers();
 }
 
 // Tag monitoring with optimized logic
@@ -1352,6 +1408,7 @@ const monitorTags = () => {
 
 // Optimized initialization
 function init() {
+  console.log('Initializing map...');
   getLocationData();
   addNativeMarkers();
   setupEvents();
@@ -1359,7 +1416,7 @@ function init() {
   const handleMapEvents = () => {
     clearTimeout(state.timers.zoom);
     state.timers.zoom = setTimeout(() => {
-      handleZoomBasedVisibility();
+      // No need for handleZoomBasedVisibility since we're using native markers
     }, 10);
   };
   
@@ -1391,11 +1448,12 @@ setTimeout(() => {
 // Optimized event handlers
 map.on("load", () => {
   try {
+    console.log('Map loaded, starting initialization...');
     init();
     loadAreaOverlays();
     loadBoundaries();
-    setTimeout(loadDistrictTags, 500);
-    setTimeout(setupAreaKeyControls, 1000);
+    setTimeout(loadDistrictTags, 1000);
+    setTimeout(setupAreaKeyControls, 2000);
     
     // Hide loading screen after everything is loaded
     setTimeout(() => {
@@ -1403,10 +1461,11 @@ map.on("load", () => {
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
       }
-    }, 1500); // Give a small delay to ensure all components are ready
+    }, 3000); // Give more time for all components to load
     
   } catch (error) {
-    // Silent error handling - but still hide loading screen
+    console.error('Error during map initialization:', error);
+    // Still hide loading screen
     setTimeout(() => {
       const loadingScreen = document.getElementById('loading-map-screen');
       if (loadingScreen) {
@@ -1426,13 +1485,13 @@ window.addEventListener('load', () => {
   setupTabSwitcher();
   setTimeout(() => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
-      try { init(); } catch (error) { /* Silent error handling */ }
+      try { init(); } catch (error) { console.error('Init error:', error); }
     }
   }, 200);
   
   // Optimized retries with consolidated timing
-  [1000, 2000, 3000].forEach(delay => setTimeout(loadDistrictTags, delay));
-  [1500, 2500, 3500].forEach(delay => setTimeout(setupAreaKeyControls, delay));
+  [2000, 4000, 6000].forEach(delay => setTimeout(loadDistrictTags, delay));
+  [3000, 5000, 7000].forEach(delay => setTimeout(setupAreaKeyControls, delay));
   
   // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
