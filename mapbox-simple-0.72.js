@@ -507,15 +507,11 @@ function setupNativeMarkerClicks() {
     window.isMarkerClick = true;
     console.log('🔵 Set window.isMarkerClick = true');
     
-    // TEMPORARILY SIMPLIFIED - only checkbox selection, no UI changes
-    console.log('🔵 Selecting locality checkbox for:', locality);
-    selectLocalityCheckbox(locality);
+    // TEMPORARILY COMPLETELY REMOVED - to isolate the issue
+    console.log('🔵 Skipping ALL functionality - just basic click handling');
+    // selectLocalityCheckbox(locality);
     
-    // TEMPORARILY COMMENTED OUT - to isolate the issue
-    // toggleShowWhenFilteredElements(true);
-    // toggleSidebar('Left', true);
-    
-    console.log('🔵 Locality click processing completed (simplified)');
+    console.log('🔵 Locality click processing completed (no functionality)');
     
     // Clear locks after all events have processed
     setTimeout(() => {
