@@ -400,9 +400,6 @@ function addNativeMarkers() {
         ]
       }
     }); // Add to top of all layers
-    
-    // Ensure marker layers are always on top
-    moveMarkersToTop();
   }
   
   setupNativeMarkerClicks();
@@ -465,56 +462,17 @@ function addNativeDistrictMarkers() {
         ]
       }
     }); // Add to top of all layers
-    
-    // Ensure marker layers are always on top
-    moveMarkersToTop();
   }
   
   setupDistrictMarkerClicks();
-}
-
-// Function to ensure marker layers are always on top
-function moveMarkersToTop() {
-  console.log('Moving marker layers to top of z-order');
-  
-  // Get all current layer IDs in order
-  const layers = map.getStyle().layers;
-  const layerIds = layers.map(layer => layer.id);
-  
-  // Move locality layers to top if they exist
-  if (layerIds.includes('locality-clusters')) {
-    map.moveLayer('locality-clusters');
-    console.log('Moved locality-clusters to top');
-  }
-  
-  if (layerIds.includes('locality-points')) {
-    map.moveLayer('locality-points');
-    console.log('Moved locality-points to top');
-  }
-  
-  // Move district layers to top if they exist  
-  if (layerIds.includes('district-points')) {
-    map.moveLayer('district-points');
-    console.log('Moved district-points to top');
-  }
-  
-  console.log('Final layer order:', map.getStyle().layers.map(l => l.id));
 }
 
 // Setup click handlers for native markers
 function setupNativeMarkerClicks() {
   // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
-    // PREVENT EVENT BUBBLING to layers below
-    e.preventDefault();
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
-    
     const feature = e.features[0];
     const locality = feature.properties.name;
-    
-    console.log(`Locality marker clicked: ${locality}`);
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -546,12 +504,6 @@ function setupNativeMarkerClicks() {
   
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
-    // PREVENT EVENT BUBBLING to layers below
-    e.preventDefault();
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
-    
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
@@ -591,17 +543,9 @@ function setupNativeMarkerClicks() {
 function setupDistrictMarkerClicks() {
   // Handle district clicks
   map.on('click', 'district-points', (e) => {
-    // PREVENT EVENT BUBBLING to layers below
-    e.preventDefault();
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
-    
     const feature = e.features[0];
     const districtName = feature.properties.name;
     const districtSource = feature.properties.source; // 'boundary' or 'tag'
-    
-    console.log(`District marker clicked: ${districtName} (source: ${districtSource})`);
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -1205,13 +1149,6 @@ function loadAreaOverlays() {
         
         console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
         console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
-        
-        // Ensure markers stay on top after adding areas
-        setTimeout(() => {
-          if (map.getLayer('locality-clusters') || map.getLayer('locality-points') || map.getLayer('district-points')) {
-            moveMarkersToTop();
-          }
-        }, 50);
       })
       .catch(error => {
         console.error(`Error loading ${area.name}:`, error);
@@ -1477,11 +1414,6 @@ function loadBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All boundary attempts completed, updating district markers');
           addNativeDistrictMarkers();
-          
-          // Ensure markers stay on top even after errors
-          setTimeout(() => {
-            moveMarkersToTop();
-          }, 100);
         }
       });
   };
