@@ -108,46 +108,6 @@ const state = {
 window.isLinkClick = false;
 const OVERLAP_THRESHOLD = 60;
 const MARKER_FONT = '"itc-avant-garde-gothic-pro", sans-serif';
-
-// Optimized CSS classes for markers (add these to your stylesheet)
-const MARKER_CSS = `
-.optimized-locality-marker {
-  font-family: ${MARKER_FONT};
-  color: #fff;
-  background: rgba(0,0,0,0.7);
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-weight: normal;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: opacity 200ms ease;
-}
-
-.optimized-cluster-marker {
-  font-family: ${MARKER_FONT};
-  background: rgba(0,0,0,0.7);
-  color: white;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: opacity 300ms ease;
-}
-`;
-
-// Inject CSS if not already present
-if (!document.querySelector('#optimized-marker-styles')) {
-  const style = document.createElement('style');
-  style.id = 'optimized-marker-styles';
-  style.textContent = MARKER_CSS;
-  document.head.appendChild(style);
-}
-
 const TRANSITIONS = {
   default: "200ms",
   district: 'opacity 300ms ease, background-color 0.3s ease'
@@ -161,6 +121,13 @@ const $id = id => document.getElementById(id);
 const utils = {
   triggerEvent: (el, events) => events.forEach(e => el.dispatchEvent(new Event(e, {bubbles: true}))),
   setStyles: (el, styles) => Object.assign(el.style, styles),
+  applyFont: (element) => {
+    element.style.fontFamily = MARKER_FONT;
+    const children = element.querySelectorAll('*');
+    for (let i = 0; i < children.length; i++) {
+      children[i].style.fontFamily = MARKER_FONT;
+    }
+  },
   debounce: (fn, delay) => {
     let timer;
     return (...args) => {
@@ -407,64 +374,56 @@ function getLocationData() {
 function addCustomMarkers() {
   if (!state.locationData.features.length) return;
   
+  const popups = $('.OnMapPlaceLinks, #MapPopUp, [id^="MapPopUp"]');
+  const used = [];
+  
   // Clean up existing markers
   [...state.allMarkers, ...state.clusterMarkers].forEach(m => m.marker.remove());
   state.allMarkers = [];
   state.clusterMarkers = [];
   
-  // Extract essential data from popups for optimization
-  const popups = $('.OnMapPlaceLinks, #MapPopUp, [id^="MapPopUp"]');
-  const popupData = [];
-  
-  popups.forEach(popup => {
-    const districtElement = popup.querySelector('[districtname]');
-    const localityElement = popup.querySelector('[locality]');
-    
-    if (districtElement && localityElement) {
-      popupData.push({
-        districtName: districtElement.getAttribute('districtname'),
-        localityName: localityElement.getAttribute('locality')
-      });
-    }
-  });
-  
   state.locationData.features.forEach((feature, i) => {
     const {coordinates} = feature.geometry;
-    const {name, index} = feature.properties;
+    const {name, popupIndex, slug, index} = feature.properties;
     
-    // Create optimized marker element
+    let popup = popups[popupIndex];
+    if (popup && used.includes(popup)) popup = popups.find(p => !used.includes(p));
+    
     const el = document.createElement('div');
-    el.className = 'optimized-locality-marker';
-    el.textContent = name;
     
-    // Add essential data attributes
-    const popupInfo = popupData[i];
-    if (popupInfo) {
-      el.dataset.districtname = popupInfo.districtName;
-      el.dataset.locality = popupInfo.localityName;
+    if (popup) {
+      used.push(popup);
+      el.className = 'custom-marker';
+      const clone = popup.cloneNode(true);
+      clone.style.cssText = `display: block; transition: opacity ${TRANSITIONS.default} ease;`;
+      utils.applyFont(clone);
+      el.appendChild(clone);
+    } else {
+      el.className = 'text-marker';
+      el.textContent = name;
+      el.style.cssText = `color: #fff; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 4px; font-weight: normal; white-space: nowrap; transition: opacity ${TRANSITIONS.default} ease; font-family: ${MARKER_FONT};`;
     }
     
-    Object.assign(el.dataset, {name, markerindex: index});
-    
-    // Set initial visibility
     const currentZoom = map.getZoom();
     const shouldShow = currentZoom >= (isMobile ? 8 : 9) && !state.flags.isInitialLoad;
     utils.setStyles(el, {
       opacity: shouldShow ? '1' : '0',
       visibility: shouldShow ? 'visible' : 'hidden',
       display: shouldShow ? 'block' : 'none',
-      pointerEvents: shouldShow ? 'auto' : 'none'
+      pointerEvents: shouldShow ? 'auto' : 'none',
+      transition: `opacity ${TRANSITIONS.default} ease`
     });
     
+    Object.assign(el.dataset, {name, markerslug: slug, markerindex: index});
     const marker = new mapboxgl.Marker({element: el, anchor: 'bottom'}).setLngLat(coordinates).addTo(map);
-    state.allMarkers.push({marker, name, index, coordinates});
+    state.allMarkers.push({marker, name, slug, index, coordinates});
   });
   
   setupMarkerClicks();
   setTimeout(checkOverlap, 100);
 }
 
-// Setup marker clicks with optimized handler
+// Setup marker clicks with consolidated handler
 function setupMarkerClicks() {
   state.allMarkers.forEach(info => {
     const el = info.marker.getElement();
@@ -475,8 +434,10 @@ function setupMarkerClicks() {
       e.stopPropagation();
       e.preventDefault();
       
-      // Extract locality from simplified data structure
-      const locality = newEl.dataset.districtname || newEl.dataset.locality;
+      const link = newEl.querySelector('[districtname]');
+      if (!link) return;
+      
+      const locality = link.getAttribute('districtname');
       if (!locality) return;
       
       // Prevent rapid clicks and set global interaction lock
@@ -651,8 +612,20 @@ function checkOverlap() {
       updatedClusterIds.add(existingCluster.id);
       Object.assign(existingCluster, {count: newCluster.count, coordinates: newCluster.coordinates, point: newCluster.center});
       
-      // Update simplified cluster marker
-      existingCluster.element.textContent = newCluster.count;
+      const num = existingCluster.element.querySelector('#PlaceNum') ||
+                  existingCluster.element.querySelector('[id*="PlaceNum"]') || 
+                  existingCluster.element.querySelector('.place-num') ||
+                  existingCluster.element.querySelector('.text-block-82.number') ||
+                  existingCluster.element.querySelector('div:not(.ClusterCopyWrap)');
+      if (num) {
+        num.textContent = newCluster.count;
+        
+        // Update the copy element to mirror the main PlaceNum
+        const numCopy = existingCluster.element.querySelector('#ClusterCopy');
+        if (numCopy) {
+          numCopy.textContent = newCluster.count;
+        }
+      }
       existingCluster.marker.setLngLat(newCluster.coordinates);
       utils.setStyles(existingCluster.element, {transition: 'opacity 300ms ease', opacity: '1', pointerEvents: 'auto'});
     } else {
@@ -1275,7 +1248,7 @@ function loadBoundaries() {
           districtWrap.className += ` district-${name.toLowerCase().replace(/\s+/g, '-')}`;
           districtWrap.style.zIndex = '1000';
           districtWrap.style.transition = TRANSITIONS.district;
-          districtWrap.style.fontFamily = MARKER_FONT; // Apply font once to wrapper
+          utils.applyFont(districtWrap);
           
           const nameElement = districtWrap.querySelector('#district-name');
           if (nameElement) {
@@ -1450,7 +1423,7 @@ function loadDistrictTags() {
     districtWrap.className += ` district-tag-${name.toLowerCase().replace(/\s+/g, '-')}`;
     districtWrap.style.zIndex = '1000';
     districtWrap.style.transition = TRANSITIONS.district;
-    districtWrap.style.fontFamily = MARKER_FONT; // Apply font once to wrapper
+    utils.applyFont(districtWrap);
     
     const nameElement = districtWrap.querySelector('#district-name');
     if (nameElement) {
