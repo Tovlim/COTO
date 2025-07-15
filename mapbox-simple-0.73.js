@@ -148,13 +148,8 @@ const utils = {
 
 // Toggle sidebar with improved logic
 const toggleSidebar = (side, show = null) => {
-  console.log(`🔷 TOGGLE SIDEBAR called: ${side}, show=${show}`);
-  
   const sidebar = $id(`${side}Sidebar`);
-  if (!sidebar) {
-    console.log(`🔷 Sidebar ${side} not found`);
-    return;
-  }
+  if (!sidebar) return;
   
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
   sidebar.classList.toggle('is-show', isShowing);
@@ -172,14 +167,10 @@ const toggleSidebar = (side, show = null) => {
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
-  
-  console.log(`🔷 TOGGLE SIDEBAR completed: ${side} is now ${isShowing ? 'showing' : 'hidden'}`);
 };
 
 // Toggle filtered elements
 const toggleShowWhenFilteredElements = show => {
-  console.log('🔸 TOGGLE SHOW WHEN FILTERED called with:', show);
-  
   $('[show-when-filtered="true"]').forEach(element => {
     utils.setStyles(element, {
       display: show ? 'block' : 'none',
@@ -188,8 +179,6 @@ const toggleShowWhenFilteredElements = show => {
       pointerEvents: show ? 'auto' : 'none'
     });
   });
-  
-  console.log('🔸 TOGGLE SHOW WHEN FILTERED completed');
 };
 
 // Select district checkbox for filtering (triggered by map markers)
@@ -248,52 +237,56 @@ function selectDistrictCheckbox(districtName) {
 
 // Select locality checkbox for filtering (triggered by map markers)
 function selectLocalityCheckbox(localityName) {
-  console.log('🟦 SELECT LOCALITY CHECKBOX called for:', localityName);
-  
   // Find all district and locality checkboxes
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   
-  console.log('🟦 Found district checkboxes:', districtCheckboxes.length);
-  console.log('🟦 Found locality checkboxes:', localityCheckboxes.length);
-  
-  // Clear ALL district checkboxes first - but DON'T trigger form events
+  // Clear ALL district checkboxes first
   districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
-      console.log('🟦 Unchecking district checkbox (no events):', checkbox.getAttribute('fs-list-value'));
       checkbox.checked = false;
-      // Removed: utils.triggerEvent(checkbox, ['change', 'input']);
-      // Removed: form events
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      
+      // Trigger form events for each cleared checkbox
+      const form = checkbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
     }
   });
   
-  // Clear ALL locality checkboxes first - but DON'T trigger form events
+  // Clear ALL locality checkboxes first
   localityCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
-      console.log('🟦 Unchecking locality checkbox (no events):', checkbox.getAttribute('fs-list-value'));
       checkbox.checked = false;
-      // Removed: utils.triggerEvent(checkbox, ['change', 'input']);
-      // Removed: form events
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      
+      // Trigger form events for each cleared checkbox
+      const form = checkbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
     }
   });
   
-  // Find and check the matching locality checkbox - but DON'T trigger form events
+  // Find and check the matching locality checkbox
   const targetCheckbox = Array.from(localityCheckboxes).find(checkbox => 
     checkbox.getAttribute('fs-list-value') === localityName
   );
   
   if (targetCheckbox) {
-    console.log('🟦 Checking locality checkbox (no events) for:', localityName);
     targetCheckbox.checked = true;
-    // Removed: utils.triggerEvent(targetCheckbox, ['change', 'input']);
-    // Removed: form events
+    utils.triggerEvent(targetCheckbox, ['change', 'input']);
     
-    console.log('🟦 Checkbox state updated without triggering filtering events');
-  } else {
-    console.log('🟦 No matching locality checkbox found for:', localityName);
+    // Trigger form events to ensure Finsweet registers the change
+    const form = targetCheckbox.closest('form');
+    if (form) {
+      form.dispatchEvent(new Event('change', {bubbles: true}));
+      form.dispatchEvent(new Event('input', {bubbles: true}));
+    }
   }
-  
-  console.log('🟦 SELECT LOCALITY CHECKBOX completed (no external filtering triggered)');
 }
 
 // Optimized location data extraction
@@ -350,7 +343,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - make sure it's on top
+    // Clustered points layer - add to TOP of all layers (no beforeId)
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -368,9 +361,9 @@ function addNativeMarkers() {
         'text-halo-color': '#2563eb',
         'text-halo-width': 2
       }
-    }); // Add to top of all layers
+    }); // No beforeId - add to very top
     
-    // Individual locality points layer - also on top
+    // Individual locality points layer - also on TOP
     map.addLayer({
       id: 'locality-points',
       type: 'symbol',
@@ -406,7 +399,7 @@ function addNativeMarkers() {
           isMobile ? 8.5 : 9.5, 1
         ]
       }
-    }); // Add to top of all layers
+    }); // No beforeId - add to very top
   }
   
   setupNativeMarkerClicks();
@@ -433,7 +426,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - add on top of everything
+    // District name labels layer - add BEFORE locality layers
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -468,7 +461,7 @@ function addNativeDistrictMarkers() {
           6, 1
         ]
       }
-    }); // Add to top of all layers
+    }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined); // Add before locality layers
   }
   
   setupDistrictMarkerClicks();
@@ -478,15 +471,9 @@ function addNativeDistrictMarkers() {
 function setupNativeMarkerClicks() {
   // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
-    console.log('🔵 LOCALITY POINT CLICKED:', e.features[0].properties.name);
-    console.log('🔵 Event details:', e);
-    
-    // Stop event from bubbling to boundary layers underneath
-    e.preventDefault();
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-      console.log('🔵 Event propagation stopped');
-    }
+    // Block all underlying events
+    e.originalEvent.stopPropagation();
+    e.originalEvent.preventDefault();
     
     const feature = e.features[0];
     const locality = feature.properties.name;
@@ -495,7 +482,6 @@ function setupNativeMarkerClicks() {
     const currentTime = Date.now();
     const markerKey = `locality-${locality}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
-      console.log('🔵 Rapid click prevented for:', locality);
       return;
     }
     
@@ -505,39 +491,31 @@ function setupNativeMarkerClicks() {
     state.lastClickTime = currentTime;
     
     window.isMarkerClick = true;
-    console.log('🔵 Set window.isMarkerClick = true');
     
-    // TEMPORARILY COMPLETELY REMOVED - to isolate the issue
-    console.log('🔵 Skipping ALL functionality - just basic click handling');
-    // selectLocalityCheckbox(locality);
+    // Use checkbox selection for localities
+    selectLocalityCheckbox(locality);
     
-    console.log('🔵 Locality click processing completed (no functionality)');
+    // Show filtered elements and sidebar
+    toggleShowWhenFilteredElements(true);
+    toggleSidebar('Left', true);
     
     // Clear locks after all events have processed
     setTimeout(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
-      console.log('🔵 Cleared locality click locks');
     }, 1500);
   });
   
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
-    console.log('🟡 LOCALITY CLUSTER CLICKED');
-    
-    // Stop event from bubbling to boundary layers underneath
-    e.preventDefault();
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-      console.log('🟡 Cluster event propagation stopped');
-    }
+    // Block all underlying events
+    e.originalEvent.stopPropagation();
+    e.originalEvent.preventDefault();
     
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
     const clusterId = features[0].properties.cluster_id;
-    console.log('🟡 Expanding cluster:', clusterId);
-    
     map.getSource('localities-source').getClusterExpansionZoom(
       clusterId,
       (err, zoom) => {
@@ -551,21 +529,37 @@ function setupNativeMarkerClicks() {
     );
   });
   
-  // Change cursor on hover
-  map.on('mouseenter', 'locality-clusters', () => {
+  // Change cursor on hover and block underlying hover events
+  map.on('mouseenter', 'locality-clusters', (e) => {
     map.getCanvas().style.cursor = 'pointer';
+    // Block underlying hover events
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+    }
   });
   
-  map.on('mouseleave', 'locality-clusters', () => {
+  map.on('mouseleave', 'locality-clusters', (e) => {
     map.getCanvas().style.cursor = '';
+    // Block underlying hover events
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+    }
   });
   
-  map.on('mouseenter', 'locality-points', () => {
+  map.on('mouseenter', 'locality-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
+    // Block underlying hover events
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+    }
   });
   
-  map.on('mouseleave', 'locality-points', () => {
+  map.on('mouseleave', 'locality-points', (e) => {
     map.getCanvas().style.cursor = '';
+    // Block underlying hover events
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+    }
   });
 }
 
@@ -573,8 +567,9 @@ function setupNativeMarkerClicks() {
 function setupDistrictMarkerClicks() {
   // Handle district clicks
   map.on('click', 'district-points', (e) => {
-    console.log('🟢 DISTRICT POINT CLICKED:', e.features[0].properties.name);
-    console.log('🟢 District source:', e.features[0].properties.source);
+    // Block all underlying events
+    e.originalEvent.stopPropagation();
+    e.originalEvent.preventDefault();
     
     const feature = e.features[0];
     const districtName = feature.properties.name;
@@ -603,7 +598,7 @@ function setupDistrictMarkerClicks() {
     
     if (districtSource === 'boundary') {
       // District WITH boundary - reframe to boundary extents only
-      console.log(`🟢 District ${districtName} has boundary, reframing to boundary extents`);
+      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
       
       // Find and click the corresponding boundary fill layer to trigger reframing
       const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
@@ -621,13 +616,12 @@ function setupDistrictMarkerClicks() {
           };
           
           source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-          console.log('🟢 Fitting bounds for district boundary:', districtName);
           map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
         }
       }
     } else {
       // District WITHOUT boundary - use dropdown and trigger map reframing
-      console.log(`🟢 District ${districtName} has no boundary, using dropdown selection`);
+      console.log(`District ${districtName} has no boundary, using dropdown selection`);
       
       // Select district in dropdown
       selectDistrictInDropdown(districtName);
@@ -648,17 +642,24 @@ function setupDistrictMarkerClicks() {
     setTimeout(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
-      console.log('🟢 Cleared district click locks');
     }, 1500);
   });
   
-  // Change cursor on hover
-  map.on('mouseenter', 'district-points', () => {
+  // Change cursor on hover and block underlying hover events
+  map.on('mouseenter', 'district-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
+    // Block underlying hover events
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+    }
   });
   
-  map.on('mouseleave', 'district-points', () => {
+  map.on('mouseleave', 'district-points', (e) => {
     map.getCanvas().style.cursor = '';
+    // Block underlying hover events
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+    }
   });
 }
 
@@ -699,27 +700,15 @@ const checkMapMarkersFiltering = () => {
 
 // Optimized filter application
 function applyFilterToMarkers() {
-  console.log('🟣 APPLY FILTER TO MARKERS CALLED');
-  console.log('🟣 state.flags.isInitialLoad:', state.flags.isInitialLoad);
-  console.log('🟣 checkMapMarkersFiltering():', checkMapMarkersFiltering());
-  
-  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) {
-    console.log('🟣 Skipping filter application - initial load with no filtering');
-    return;
-  }
+  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
   const filteredLat = $('.data-places-latitudes-filter');
   const filteredLon = $('.data-places-longitudes-filter');
   const allLat = $('.data-places-latitudes, .data-place-latitude');
   
-  console.log('🟣 Filtered coordinates count:', filteredLat.length);
-  console.log('🟣 All coordinates count:', allLat.length);
-  
   let visibleCoordinates = [];
   
   if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
-    console.log('🟣 Using filtered coordinates for reframing');
-    
     // Create coordinates from filtered data for reframing ONLY
     for (let i = 0; i < filteredLat.length; i++) {
       const lat = parseFloat(filteredLat[i]?.textContent.trim());
@@ -739,8 +728,6 @@ function applyFilterToMarkers() {
       });
     }
   } else {
-    console.log('🟣 No filtering detected - using all coordinates');
-    
     // No filtering - show all features and use all coordinates
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
@@ -754,8 +741,6 @@ function applyFilterToMarkers() {
   const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
   
   if (visibleCoordinates.length > 0) {
-    console.log('🟣 Fitting bounds to visible coordinates:', visibleCoordinates.length);
-    
     // Only use filtered coordinates for map reframing, but keep all markers visible
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
@@ -767,8 +752,6 @@ function applyFilterToMarkers() {
       essential: true
     });
   } else {
-    console.log('🟣 No visible coordinates - flying to default position');
-    
     if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
       map.flyTo({center: [35.22, 31.85], zoom: isMobile ? 7.5 : 8.33, duration: animationDuration, essential: true});
     }
@@ -776,17 +759,7 @@ function applyFilterToMarkers() {
 }
 
 const handleFilterUpdate = utils.debounce(() => {
-  console.log('🟠 HANDLE FILTER UPDATE TRIGGERED');
-  console.log('🟠 window.isLinkClick:', window.isLinkClick);
-  console.log('🟠 window.isMarkerClick:', window.isMarkerClick);
-  console.log('🟠 state.markerInteractionLock:', state.markerInteractionLock);
-  
-  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) {
-    console.log('🟠 Filter update skipped due to interaction locks');
-    return;
-  }
-  
-  console.log('🟠 Proceeding with filter update');
+  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
   state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
@@ -1060,17 +1033,8 @@ function setupEvents() {
   // Global event listeners
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
     document.addEventListener(event, (e) => {
-      console.log(`🟨 GLOBAL EVENT TRIGGERED: ${event}`);
-      console.log('🟨 window.isMarkerClick:', window.isMarkerClick);
-      console.log('🟨 state.markerInteractionLock:', state.markerInteractionLock);
-      
       // Skip if this is a marker interaction or if it's not related to Map filtering
-      if (window.isMarkerClick || state.markerInteractionLock) {
-        console.log('🟨 Global event skipped due to interaction locks');
-        return;
-      }
-      
-      console.log('🟨 Proceeding with global event handler');
+      if (window.isMarkerClick || state.markerInteractionLock) return;
       handleFilterUpdate();
     });
   });
@@ -1624,20 +1588,6 @@ function init() {
   
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
-  
-  // Add debugging for map movement
-  map.on('movestart', (e) => {
-    console.log('🗺️ MAP MOVE START - something is moving the map');
-    console.log('🗺️ Map center before move:', map.getCenter());
-    console.log('🗺️ Map zoom before move:', map.getZoom());
-  });
-  
-  map.on('moveend', (e) => {
-    console.log('🗺️ MAP MOVE END');
-    console.log('🗺️ Map center after move:', map.getCenter());
-    console.log('🗺️ Map zoom after move:', map.getZoom());
-    console.log('🗺️ Current bounds:', map.getBounds());
-  });
   
   // Staggered setup with optimized timing
   [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
