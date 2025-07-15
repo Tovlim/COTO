@@ -474,14 +474,14 @@ function setupMarkerClicks() {
       
       const currentTime = Date.now();
       
-      // Global debounce - prevent any marker clicks within 800ms
-      if (currentTime - state.lastAnyMarkerClickTime < 800) {
+      // Global debounce - prevent any marker clicks within 1500ms
+      if (currentTime - state.lastAnyMarkerClickTime < 1500) {
         return;
       }
       
-      // Specific marker debounce - prevent same marker clicks within 1000ms
+      // Specific marker debounce - prevent same marker clicks within 2000ms
       const markerKey = `locality-${locality}`;
-      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 2000) {
         return;
       }
       
@@ -498,7 +498,7 @@ function setupMarkerClicks() {
       toggleShowWhenFilteredElements(true);
       toggleSidebar('Left', true);
       
-      setTimeout(() => window.isMarkerClick = false, 1000);
+      setTimeout(() => window.isMarkerClick = false, 2000);
     };
     
     info.marker._element = newEl;
@@ -515,14 +515,13 @@ function getOrCreateCluster(center, count, coords) {
     existing.count += count;
     const num = existing.element.querySelector('#PlaceNum, [id*="PlaceNum"], .place-num') || 
                 existing.element.querySelector('.text-block-82.number') ||
-                existing.element.querySelector('div:not(.clustercopywrap)') || 
+                existing.element.querySelector('div:not(.ClusterCopyWrap)') || 
                 existing.element.querySelector('span');
     if (num) {
       num.textContent = existing.count;
       
       // Update the copy element to mirror the main PlaceNum
-      const copyWrapper = existing.element.querySelector('#ClusterCopyWrap, .clustercopywrap');
-      const numCopy = copyWrapper?.querySelector('.text-block-82365-copy:first-child, div:first-child');
+      const numCopy = existing.element.querySelector('#ClusterCopy');
       if (numCopy) {
         numCopy.textContent = existing.count;
       }
@@ -542,7 +541,7 @@ function getOrCreateCluster(center, count, coords) {
                 wrap.querySelector('[id*="PlaceNum"]') || 
                 wrap.querySelector('.place-num') || 
                 wrap.querySelector('.text-block-82.number') ||
-                wrap.querySelector('div:not(.clustercopywrap)') || 
+                wrap.querySelector('div:not(.ClusterCopyWrap)') || 
                 wrap.querySelector('span');
     
     if (num) {
@@ -550,14 +549,11 @@ function getOrCreateCluster(center, count, coords) {
       num.textContent = count;
       
       // Update the copy element to mirror the main PlaceNum
-      const copyWrapper = wrap.querySelector('#ClusterCopyWrap, .clustercopywrap');
-      const numCopy = copyWrapper?.querySelector('.text-block-82365-copy:first-child, div:first-child');
+      const numCopy = wrap.querySelector('#ClusterCopy');
       if (numCopy) {
         numCopy.textContent = count;
+        numCopy.removeAttribute('id'); // Remove ID to avoid duplicates
       }
-      
-      // Remove ID to avoid duplicates
-      if (copyWrapper?.id) copyWrapper.removeAttribute('id');
     }
   } else {
     wrap = document.createElement('div');
@@ -653,13 +649,12 @@ function checkOverlap() {
                   existingCluster.element.querySelector('[id*="PlaceNum"]') || 
                   existingCluster.element.querySelector('.place-num') ||
                   existingCluster.element.querySelector('.text-block-82.number') ||
-                  existingCluster.element.querySelector('div:not(.clustercopywrap)');
+                  existingCluster.element.querySelector('div:not(.ClusterCopyWrap)');
       if (num) {
         num.textContent = newCluster.count;
         
         // Update the copy element to mirror the main PlaceNum
-        const copyWrapper = existingCluster.element.querySelector('#ClusterCopyWrap, .clustercopywrap');
-        const numCopy = copyWrapper?.querySelector('.text-block-82365-copy:first-child, div:first-child');
+        const numCopy = existingCluster.element.querySelector('#ClusterCopy');
         if (numCopy) {
           numCopy.textContent = newCluster.count;
         }
@@ -1298,14 +1293,14 @@ function loadBoundaries() {
             
             const currentTime = Date.now();
             
-            // Global debounce - prevent any marker clicks within 800ms
-            if (currentTime - state.lastAnyMarkerClickTime < 800) {
+            // Global debounce - prevent any marker clicks within 1500ms
+            if (currentTime - state.lastAnyMarkerClickTime < 1500) {
               return;
             }
             
-            // Specific marker debounce - prevent same marker clicks within 1000ms
+            // Specific marker debounce - prevent same marker clicks within 2000ms
             const markerKey = `district-boundary-${name}`;
-            if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+            if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 2000) {
               return;
             }
             
@@ -1338,7 +1333,7 @@ function loadBoundaries() {
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
             
             // Reset marker click flag after reframing
-            setTimeout(() => window.isMarkerClick = false, 1200);
+            setTimeout(() => window.isMarkerClick = false, 2200);
           });
           
           // Bidirectional hover effects
@@ -1485,14 +1480,14 @@ function loadDistrictTags() {
       
       const currentTime = Date.now();
       
-      // Global debounce - prevent any marker clicks within 800ms
-      if (currentTime - state.lastAnyMarkerClickTime < 800) {
+      // Global debounce - prevent any marker clicks within 1500ms
+      if (currentTime - state.lastAnyMarkerClickTime < 1500) {
         return;
       }
       
-      // Specific marker debounce - prevent same marker clicks within 1000ms
+      // Specific marker debounce - prevent same marker clicks within 2000ms
       const markerKey = `district-tag-${name}`;
-      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 2000) {
         return;
       }
       
@@ -1523,7 +1518,7 @@ function loadDistrictTags() {
         }, 1000);
       }, 200);
       
-      setTimeout(() => window.isMarkerClick = false, 1000);
+      setTimeout(() => window.isMarkerClick = false, 2000);
     });
     
     state.districtMarkers.push({marker, element: districtWrap, name});
