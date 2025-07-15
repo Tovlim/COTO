@@ -462,6 +462,12 @@ function addNativeDistrictMarkers() {
       type: "FeatureCollection",
       features: state.allDistrictFeatures
     });
+    
+    // Update existing layer colors
+    if (map.getLayer('district-points')) {
+      map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
+      console.log('Updated district markers to new color');
+    }
   } else {
     map.addSource('districts-source', {
       type: 'geojson',
@@ -1633,6 +1639,8 @@ function loadSimplifiedBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All simplified boundaries loaded, updating district markers');
           addNativeDistrictMarkers();
+          // Update colors after district markers are added
+          setTimeout(updateMarkerColors, 500);
         }
         
       })
@@ -1642,6 +1650,8 @@ function loadSimplifiedBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All boundary attempts completed, updating district markers');
           addNativeDistrictMarkers();
+          // Update colors after district markers are added
+          setTimeout(updateMarkerColors, 500);
         }
       });
   };
@@ -1730,6 +1740,9 @@ function loadDistrictTags() {
   
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
+  
+  // Update colors after a short delay
+  setTimeout(updateMarkerColors, 500);
 }
 
 // Tag monitoring with optimized logic
@@ -1745,12 +1758,38 @@ const monitorTags = () => {
   }
 };
 
+// Update marker colors for existing layers
+function updateMarkerColors() {
+  console.log('Updating marker colors...');
+  
+  // Update locality colors
+  if (map.getLayer('locality-clusters')) {
+    map.setPaintProperty('locality-clusters', 'text-halo-color', '#739005');
+    console.log('Updated locality cluster colors to green');
+  }
+  if (map.getLayer('locality-points')) {
+    map.setPaintProperty('locality-points', 'text-halo-color', '#739005');
+    console.log('Updated locality point colors to green');
+  }
+  
+  // Update district colors
+  if (map.getLayer('district-points')) {
+    map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
+    console.log('Updated district marker colors to red');
+  }
+}
+
 // Optimized initialization
 function init() {
   console.log('Initializing map...');
   getLocationData();
   addNativeMarkers();
   setupEvents();
+  
+  // Update colors after a short delay to ensure layers exist
+  setTimeout(() => {
+    updateMarkerColors();
+  }, 1500);
   
   const handleMapEvents = () => {
     clearTimeout(state.timers.zoom);
