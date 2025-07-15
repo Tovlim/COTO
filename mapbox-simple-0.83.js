@@ -1413,6 +1413,114 @@ function loadBoundaries() {
   }
 }
 
+// Load simplified district boundaries (visual only, no interactions)
+function loadSimplifiedBoundaries() {
+  console.log('loadSimplifiedBoundaries() called');
+  
+  const districts = [
+    'Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 
+    'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'
+  ];
+  
+  // Additional districts with custom URLs and names
+  const customDistricts = [
+    {name: 'East Jerusalem', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s0/east_jerusalem.json'},
+    {name: 'Deir Al-Balah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Deir%20Al-Balah.geojson'},
+    {name: 'Rafah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Rafah.geojson'},
+    {name: 'North Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/North%20Gaza.geojson'},
+    {name: 'Khan Younis', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Khan%20Younis.geojson'},
+    {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
+  ];
+  
+  console.log(`Starting to load ${districts.length + customDistricts.length} simplified boundaries`);
+  
+  const addSimpleBoundaryToMap = (name, customUrl = null) => {
+    const boundary = {
+      name,
+      url: customUrl || `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
+      sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
+      fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
+      borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
+    };
+    
+    console.log(`Loading simplified boundary: ${name}`);
+    
+    fetch(boundary.url)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(geojsonData => {
+        console.log(`${name} boundary loaded successfully`);
+        
+        // Remove existing layers/sources if they exist
+        try {
+          if (map.getLayer(boundary.borderId)) {
+            map.removeLayer(boundary.borderId);
+          }
+          if (map.getLayer(boundary.fillId)) {
+            map.removeLayer(boundary.fillId);
+          }
+          if (map.getSource(boundary.sourceId)) {
+            map.removeSource(boundary.sourceId);
+          }
+        } catch (e) {
+          console.log(`Cleanup error for ${name}:`, e);
+        }
+        
+        // Add source
+        map.addSource(boundary.sourceId, {
+          type: 'geojson',
+          data: geojsonData
+        });
+        
+        // Add fill layer (visual only) - BELOW marker layers
+        map.addLayer({
+          id: boundary.fillId,
+          type: 'fill',
+          source: boundary.sourceId,
+          layout: {
+            'visibility': 'visible'
+          },
+          paint: {
+            'fill-color': '#1a1b1e',
+            'fill-opacity': 0.15
+          }
+        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+        
+        // Add border layer (visual only) - BELOW marker layers
+        map.addLayer({
+          id: boundary.borderId,
+          type: 'line',
+          source: boundary.sourceId,
+          layout: {
+            'visibility': 'visible'
+          },
+          paint: {
+            'line-color': '#1a1b1e',
+            'line-width': 1,
+            'line-opacity': 0.8
+          }
+        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+        
+        console.log(`${name} simplified boundary added`);
+        
+        // NO district markers created from boundaries
+        // NO interaction handlers added
+        
+      })
+      .catch(error => {
+        console.error(`Error loading ${name} boundary:`, error);
+      });
+  };
+  
+  // Load all boundaries
+  districts.forEach(name => addSimpleBoundaryToMap(name));
+  customDistricts.forEach(district => addSimpleBoundaryToMap(district.name, district.url));
+}
+
 // Function to select district in dropdown
 function selectDistrictInDropdown(districtName) {
   const selectField = $id('select-field-5');
@@ -1562,10 +1670,12 @@ map.on("load", () => {
     console.log('Map loaded, starting initialization...');
     init();
     
-    // Load only area overlays (removed boundary loading)
+    // Load area overlays and simplified boundaries
     setTimeout(() => {
       console.log('Loading area overlays...');
       loadAreaOverlays();
+      console.log('Loading simplified boundaries...');
+      loadSimplifiedBoundaries();
     }, 500);
     
     setTimeout(loadDistrictTags, 2000);
