@@ -148,8 +148,13 @@ const utils = {
 
 // Toggle sidebar with improved logic
 const toggleSidebar = (side, show = null) => {
+  console.log(`🔷 TOGGLE SIDEBAR called: ${side}, show=${show}`);
+  
   const sidebar = $id(`${side}Sidebar`);
-  if (!sidebar) return;
+  if (!sidebar) {
+    console.log(`🔷 Sidebar ${side} not found`);
+    return;
+  }
   
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
   sidebar.classList.toggle('is-show', isShowing);
@@ -167,10 +172,14 @@ const toggleSidebar = (side, show = null) => {
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
+  
+  console.log(`🔷 TOGGLE SIDEBAR completed: ${side} is now ${isShowing ? 'showing' : 'hidden'}`);
 };
 
 // Toggle filtered elements
 const toggleShowWhenFilteredElements = show => {
+  console.log('🔸 TOGGLE SHOW WHEN FILTERED called with:', show);
+  
   $('[show-when-filtered="true"]').forEach(element => {
     utils.setStyles(element, {
       display: show ? 'block' : 'none',
@@ -179,6 +188,8 @@ const toggleShowWhenFilteredElements = show => {
       pointerEvents: show ? 'auto' : 'none'
     });
   });
+  
+  console.log('🔸 TOGGLE SHOW WHEN FILTERED completed');
 };
 
 // Select district checkbox for filtering (triggered by map markers)
@@ -496,13 +507,15 @@ function setupNativeMarkerClicks() {
     window.isMarkerClick = true;
     console.log('🔵 Set window.isMarkerClick = true');
     
-    // Use checkbox selection for localities
+    // TEMPORARILY SIMPLIFIED - only checkbox selection, no UI changes
     console.log('🔵 Selecting locality checkbox for:', locality);
     selectLocalityCheckbox(locality);
     
-    // Show filtered elements and sidebar
-    toggleShowWhenFilteredElements(true);
-    toggleSidebar('Left', true);
+    // TEMPORARILY COMMENTED OUT - to isolate the issue
+    // toggleShowWhenFilteredElements(true);
+    // toggleSidebar('Left', true);
+    
+    console.log('🔵 Locality click processing completed (simplified)');
     
     // Clear locks after all events have processed
     setTimeout(() => {
