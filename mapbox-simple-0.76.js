@@ -475,82 +475,138 @@ function setupNativeMarkerClicks() {
     const features = map.queryRenderedFeatures(e.point);
     if (!features.length) return;
     
-    // Define layer priority (higher number = higher priority)
-    const layerPriority = {
-      'locality-points': 100,
-      'locality-clusters': 99,
-      'district-points': 50,
-      // All boundary/area layers get low priority
-    };
+    // Check if we have any high-priority features (markers)
+    const localityPoint = features.find(f => f.layer.id === 'locality-points');
+    const localityCluster = features.find(f => f.layer.id === 'locality-clusters');
+    const districtPoint = features.find(f => f.layer.id === 'district-points');
     
-    // Find the highest priority feature
-    let topFeature = null;
-    let topPriority = -1;
-    
-    for (const feature of features) {
-      const priority = layerPriority[feature.layer.id] || 0;
-      if (priority > topPriority) {
-        topPriority = priority;
-        topFeature = feature;
+    // Handle in priority order - localities first, then districts, then boundaries
+    if (localityPoint) {
+      console.log('Locality point clicked:', localityPoint.properties.name);
+      handleLocalityClick(localityPoint);
+    } else if (localityCluster) {
+      console.log('Locality cluster clicked');
+      handleClusterClick(e.point);
+    } else if (districtPoint) {
+      console.log('District point clicked:', districtPoint.properties.name);
+      handleDistrictClick(districtPoint);
+    } else {
+      // Only handle boundary clicks if no markers are present
+      const boundaryFill = features.find(f => f.layer.id && f.layer.id.includes('-fill'));
+      if (boundaryFill) {
+        console.log('Boundary clicked:', boundaryFill.layer.id);
+        handleBoundaryClick(boundaryFill);
       }
     }
-    
-    if (!topFeature) return;
-    
-    // Handle based on the top layer
-    if (topFeature.layer.id === 'locality-points') {
-      handleLocalityClick(topFeature);
-    } else if (topFeature.layer.id === 'locality-clusters') {
-      handleClusterClick(e.point);
-    } else if (topFeature.layer.id === 'district-points') {
-      handleDistrictClick(topFeature);
-    }
-    // Ignore all other layers (boundaries, areas) when localities are present
   });
   
-  // Global hover handler that checks layer priority
-  map.on('mouseenter', (e) => {
+  // Global hover handler with debouncing
+  let currentHoverFeature = null;
+  
+  map.on('mousemove', (e) => {
     const features = map.queryRenderedFeatures(e.point);
-    if (!features.length) return;
-    
-    const layerPriority = {
-      'locality-points': 100,
-      'locality-clusters': 99,
-      'district-points': 50,
-    };
-    
-    let topFeature = null;
-    let topPriority = -1;
-    
-    for (const feature of features) {
-      const priority = layerPriority[feature.layer.id] || 0;
-      if (priority > topPriority) {
-        topPriority = priority;
-        topFeature = feature;
+    if (!features.length) {
+      // Clear any hover states
+      if (currentHoverFeature) {
+        clearHoverStates();
+        currentHoverFeature = null;
       }
+      map.getCanvas().style.cursor = '';
+      return;
     }
     
-    // Only change cursor for high-priority layers
-    if (topFeature && topPriority >= 50) {
+    // Check priority features
+    const localityPoint = features.find(f => f.layer.id === 'locality-points');
+    const localityCluster = features.find(f => f.layer.id === 'locality-clusters');
+    const districtPoint = features.find(f => f.layer.id === 'district-points');
+    const boundaryFill = features.find(f => f.layer.id && f.layer.id.includes('-fill'));
+    
+    let newHoverFeature = null;
+    
+    if (localityPoint) {
+      newHoverFeature = localityPoint;
       map.getCanvas().style.cursor = 'pointer';
+    } else if (localityCluster) {
+      newHoverFeature = localityCluster;
+      map.getCanvas().style.cursor = 'pointer';
+    } else if (districtPoint) {
+      newHoverFeature = districtPoint;
+      map.getCanvas().style.cursor = 'pointer';
+    } else if (boundaryFill) {
+      newHoverFeature = boundaryFill;
+      map.getCanvas().style.cursor = 'pointer';
+      // Apply boundary hover effect
+      if (currentHoverFeature !== boundaryFill) {
+        clearHoverStates();
+        const layerId = boundaryFill.layer.id;
+        const borderLayerId = layerId.replace('-fill', '-border');
+        map.setPaintProperty(layerId, 'fill-color', '#e93119');
+        map.setPaintProperty(borderLayerId, 'line-color', '#e93119');
+      }
     } else {
       map.getCanvas().style.cursor = '';
     }
+    
+    // Clear previous hover state if feature changed
+    if (currentHoverFeature && currentHoverFeature !== newHoverFeature) {
+      clearHoverStates();
+    }
+    
+    currentHoverFeature = newHoverFeature;
   });
   
+  // Clear hover states when mouse leaves map
   map.on('mouseleave', () => {
+    clearHoverStates();
+    currentHoverFeature = null;
     map.getCanvas().style.cursor = '';
   });
 }
 
+// Clear all hover states
+function clearHoverStates() {
+  // Reset all boundary colors
+  const layers = map.getStyle().layers;
+  layers.forEach(layer => {
+    if (layer.id.includes('-fill')) {
+      map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
+    }
+    if (layer.id.includes('-border')) {
+      map.setPaintProperty(layer.id, 'line-color', '#1a1b1e');
+    }
+  });
+}
+
+// Handle boundary clicks
+function handleBoundaryClick(feature) {
+  const layerId = feature.layer.id;
+  const sourceId = layerId.replace('-fill', '-boundary');
+  const source = map.getSource(sourceId);
+  
+  if (source && source._data) {
+    const bounds = new mapboxgl.LngLatBounds();
+    const addCoords = coords => {
+      if (Array.isArray(coords) && coords.length > 0) {
+        if (typeof coords[0] === 'number') bounds.extend(coords);
+        else coords.forEach(addCoords);
+      }
+    };
+    
+    source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+    map.fitBounds(bounds, {padding: 50, duration: 1000});
+  }
+}
+
 // Separate handler functions
 function handleLocalityClick(feature) {
+  console.log('handleLocalityClick called for:', feature.properties.name);
   const locality = feature.properties.name;
   
   // Prevent rapid clicks
   const currentTime = Date.now();
   const markerKey = `locality-${locality}`;
   if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+    console.log('Rapid click prevented');
     return;
   }
   
@@ -561,6 +617,7 @@ function handleLocalityClick(feature) {
   
   window.isMarkerClick = true;
   
+  console.log('Calling selectLocalityCheckbox for:', locality);
   // Use checkbox selection for localities
   selectLocalityCheckbox(locality);
   
@@ -572,6 +629,7 @@ function handleLocalityClick(feature) {
   setTimeout(() => {
     window.isMarkerClick = false;
     state.markerInteractionLock = false;
+    console.log('Locality click locks cleared');
   }, 1500);
 }
 
@@ -1199,6 +1257,8 @@ function loadAreaOverlays() {
         
         console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
         console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
+        
+        // NO direct event handlers for areas - all handled by global system
       })
       .catch(error => {
         console.error(`Error loading ${area.name}:`, error);
@@ -1278,7 +1338,7 @@ function setupAreaKeyControls() {
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
           if (!map.getLayer(control.layerId)) return;
-          // Removed: map.moveLayer() to keep z-axis static for all GeoJSON layers
+          // Don't move layer - just change opacity to maintain z-order
           map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
         };
         
