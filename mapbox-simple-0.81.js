@@ -471,6 +471,7 @@ function addNativeDistrictMarkers() {
 function setupNativeMarkerClicks() {
   // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
+    console.log('🏠 LOCALITY MARKER CLICKED');
     const feature = e.features[0];
     const locality = feature.properties.name;
     
@@ -495,6 +496,8 @@ function setupNativeMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
+    console.log(`🔍 Locality ${locality} clicked, no reframing should occur`);
+    
     // Clear locks after all events have processed
     setTimeout(() => {
       window.isMarkerClick = false;
@@ -504,6 +507,7 @@ function setupNativeMarkerClicks() {
   
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
+    console.log('🔢 LOCALITY CLUSTER CLICKED');
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
@@ -513,6 +517,7 @@ function setupNativeMarkerClicks() {
       (err, zoom) => {
         if (err) return;
         
+        console.log(`📈 Cluster expanding to zoom ${zoom} - this is expected reframing`);
         map.easeTo({
           center: features[0].geometry.coordinates,
           zoom: zoom
@@ -543,6 +548,7 @@ function setupNativeMarkerClicks() {
 function setupDistrictMarkerClicks() {
   // Handle district clicks
   map.on('click', 'district-points', (e) => {
+    console.log('🎯 DISTRICT MARKER CLICKED');
     const feature = e.features[0];
     const districtName = feature.properties.name;
     const districtSource = feature.properties.source; // 'boundary' or 'tag'
@@ -570,30 +576,31 @@ function setupDistrictMarkerClicks() {
     
     if (districtSource === 'boundary') {
       // District WITH boundary - reframe to boundary extents only
-      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
+      console.log(`🗺️ District ${districtName} has boundary, would reframe to boundary extents - DISABLED FOR TESTING`);
       
-      // Find and click the corresponding boundary fill layer to trigger reframing
-      const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-      if (map.getLayer(boundaryFillId)) {
-        // Get the boundary source data
-        const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-        const source = map.getSource(boundarySourceId);
-        if (source && source._data) {
-          const bounds = new mapboxgl.LngLatBounds();
-          const addCoords = coords => {
-            if (Array.isArray(coords) && coords.length > 0) {
-              if (typeof coords[0] === 'number') bounds.extend(coords);
-              else coords.forEach(addCoords);
-            }
-          };
-          
-          source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-        }
-      }
+      // TEMPORARILY DISABLED - Let's see if this was causing the unwanted reframing
+      // // Find and click the corresponding boundary fill layer to trigger reframing
+      // const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+      // if (map.getLayer(boundaryFillId)) {
+      //   // Get the boundary source data
+      //   const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+      //   const source = map.getSource(boundarySourceId);
+      //   if (source && source._data) {
+      //     const bounds = new mapboxgl.LngLatBounds();
+      //     const addCoords = coords => {
+      //       if (Array.isArray(coords) && coords.length > 0) {
+      //         if (typeof coords[0] === 'number') bounds.extend(coords);
+      //         else coords.forEach(addCoords);
+      //       }
+      //     };
+      //     
+      //     source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+      //     map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+      //   }
+      // }
     } else {
       // District WITHOUT boundary - use dropdown and trigger map reframing
-      console.log(`District ${districtName} has no boundary, using dropdown selection`);
+      console.log(`📍 District ${districtName} has no boundary, using dropdown selection`);
       
       // Select district in dropdown
       selectDistrictInDropdown(districtName);
@@ -1596,20 +1603,33 @@ map.on("load", () => {
       const features = map.queryRenderedFeatures(e.point);
       const boundaryFeatures = features.filter(f => 
         f.layer.id.includes('-fill') || f.layer.id.includes('-border') || 
-        f.layer.id.includes('boundary') || f.layer.type === 'fill' || f.layer.type === 'line'
+        f.layer.id.includes('area-') || f.layer.type === 'fill' || f.layer.type === 'line'
       );
       
-      if (boundaryFeatures.length > 0) {
-        console.log('🚨 BOUNDARY CLICK DETECTED!');
-        console.log('Clicked layers:', boundaryFeatures.map(f => f.layer.id));
-        console.log('Event details:', e);
-        console.log('All features at click point:', features.map(f => ({id: f.layer.id, type: f.layer.type})));
+      const markerFeatures = features.filter(f => 
+        f.layer.id === 'locality-points' || f.layer.id === 'district-points' || 
+        f.layer.id === 'locality-clusters'
+      );
+      
+      // Only consider it a "boundary click" if there are boundaries but NO markers
+      if (boundaryFeatures.length > 0 && markerFeatures.length === 0) {
+        console.log('🚨 PURE BOUNDARY CLICK DETECTED (no markers)!');
+        console.log('Clicked boundary layers:', boundaryFeatures.map(f => f.layer.id));
         
-        // Try to prevent any boundary click behavior
+        // Aggressively prevent any boundary-only interactions
         e.preventDefault();
         e.originalEvent?.preventDefault();
         e.originalEvent?.stopPropagation();
+        e.originalEvent?.stopImmediatePropagation();
+        
+        // Cancel any ongoing map animations that might be boundary-related
+        map.stop();
+        
         return false;
+      } else if (boundaryFeatures.length > 0 && markerFeatures.length > 0) {
+        console.log('✅ Marker click detected (boundaries also under cursor but ignored)');
+        console.log('Marker layers:', markerFeatures.map(f => f.layer.id));
+        console.log('Underlying boundaries:', boundaryFeatures.map(f => f.layer.id));
       }
     });
     
