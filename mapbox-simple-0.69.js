@@ -237,13 +237,19 @@ function selectDistrictCheckbox(districtName) {
 
 // Select locality checkbox for filtering (triggered by map markers)
 function selectLocalityCheckbox(localityName) {
+  console.log('🟦 SELECT LOCALITY CHECKBOX called for:', localityName);
+  
   // Find all district and locality checkboxes
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   
+  console.log('🟦 Found district checkboxes:', districtCheckboxes.length);
+  console.log('🟦 Found locality checkboxes:', localityCheckboxes.length);
+  
   // Clear ALL district checkboxes first
   districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
+      console.log('🟦 Unchecking district checkbox:', checkbox.getAttribute('fs-list-value'));
       checkbox.checked = false;
       utils.triggerEvent(checkbox, ['change', 'input']);
       
@@ -259,6 +265,7 @@ function selectLocalityCheckbox(localityName) {
   // Clear ALL locality checkboxes first
   localityCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
+      console.log('🟦 Unchecking locality checkbox:', checkbox.getAttribute('fs-list-value'));
       checkbox.checked = false;
       utils.triggerEvent(checkbox, ['change', 'input']);
       
@@ -277,16 +284,22 @@ function selectLocalityCheckbox(localityName) {
   );
   
   if (targetCheckbox) {
+    console.log('🟦 Checking locality checkbox for:', localityName);
     targetCheckbox.checked = true;
     utils.triggerEvent(targetCheckbox, ['change', 'input']);
     
     // Trigger form events to ensure Finsweet registers the change
     const form = targetCheckbox.closest('form');
     if (form) {
+      console.log('🟦 Triggering form events for locality selection');
       form.dispatchEvent(new Event('change', {bubbles: true}));
       form.dispatchEvent(new Event('input', {bubbles: true}));
     }
+  } else {
+    console.log('🟦 No matching locality checkbox found for:', localityName);
   }
+  
+  console.log('🟦 SELECT LOCALITY CHECKBOX completed');
 }
 
 // Optimized location data extraction
@@ -1055,8 +1068,17 @@ function setupEvents() {
   // Global event listeners
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
     document.addEventListener(event, (e) => {
+      console.log(`🟨 GLOBAL EVENT TRIGGERED: ${event}`);
+      console.log('🟨 window.isMarkerClick:', window.isMarkerClick);
+      console.log('🟨 state.markerInteractionLock:', state.markerInteractionLock);
+      
       // Skip if this is a marker interaction or if it's not related to Map filtering
-      if (window.isMarkerClick || state.markerInteractionLock) return;
+      if (window.isMarkerClick || state.markerInteractionLock) {
+        console.log('🟨 Global event skipped due to interaction locks');
+        return;
+      }
+      
+      console.log('🟨 Proceeding with global event handler');
       handleFilterUpdate();
     });
   });
@@ -1610,6 +1632,20 @@ function init() {
   
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
+  
+  // Add debugging for map movement
+  map.on('movestart', (e) => {
+    console.log('🗺️ MAP MOVE START - something is moving the map');
+    console.log('🗺️ Map center before move:', map.getCenter());
+    console.log('🗺️ Map zoom before move:', map.getZoom());
+  });
+  
+  map.on('moveend', (e) => {
+    console.log('🗺️ MAP MOVE END');
+    console.log('🗺️ Map center after move:', map.getCenter());
+    console.log('🗺️ Map zoom after move:', map.getZoom());
+    console.log('🗺️ Current bounds:', map.getBounds());
+  });
   
   // Staggered setup with optimized timing
   [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
