@@ -95,7 +95,6 @@ const state = {
   timers: {overlap: null, filter: null, zoom: null},
   lastClickedMarker: null,
   lastClickTime: 0,
-  lastAnyMarkerClickTime: 0, // Global debounce for any marker clicks
   flags: {
     isInitialLoad: true,
     mapInitialized: false,
@@ -277,13 +276,10 @@ function selectDistrictCheckbox(districtName) {
     }
   }
   
-  // Comprehensive Finsweet reload after all changes
+  // Form events and checkbox changes will automatically trigger Finsweet v2 
+  // No manual reload needed since Reports update automatically
   setTimeout(() => {
-    if (window.fsAttributes?.cmsfilter) {
-      window.fsAttributes.cmsfilter.reload();
-    }
-    
-    // Dispatch custom filter events for both clearing and setting
+    // Dispatch custom filter events for compatibility
     ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
       document.dispatchEvent(new CustomEvent(eventType, {
         bubbles: true,
@@ -350,13 +346,10 @@ function selectLocalityCheckbox(localityName) {
     }
   }
   
-  // Comprehensive Finsweet reload after all changes
+  // Form events and checkbox changes will automatically trigger Finsweet v2
+  // No manual reload needed since Reports update automatically
   setTimeout(() => {
-    if (window.fsAttributes?.cmsfilter) {
-      window.fsAttributes.cmsfilter.reload();
-    }
-    
-    // Dispatch custom filter events for both clearing and setting
+    // Dispatch custom filter events for compatibility
     ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
       document.dispatchEvent(new CustomEvent(eventType, {
         bubbles: true,
@@ -472,22 +465,14 @@ function setupMarkerClicks() {
       const locality = link.getAttribute('districtname');
       if (!locality) return;
       
+      // Prevent rapid double-clicks
       const currentTime = Date.now();
-      
-      // Global debounce - prevent any marker clicks within 1500ms
-      if (currentTime - state.lastAnyMarkerClickTime < 1500) {
-        return;
-      }
-      
-      // Specific marker debounce - prevent same marker clicks within 2000ms
       const markerKey = `locality-${locality}`;
-      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 2000) {
+      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
         return;
       }
-      
       state.lastClickedMarker = markerKey;
       state.lastClickTime = currentTime;
-      state.lastAnyMarkerClickTime = currentTime;
       
       window.isMarkerClick = true;
       
@@ -498,7 +483,7 @@ function setupMarkerClicks() {
       toggleShowWhenFilteredElements(true);
       toggleSidebar('Left', true);
       
-      setTimeout(() => window.isMarkerClick = false, 2000);
+      setTimeout(() => window.isMarkerClick = false, 1000);
     };
     
     info.marker._element = newEl;
@@ -1291,22 +1276,14 @@ function loadBoundaries() {
             e.stopPropagation();
             e.preventDefault();
             
+            // Prevent rapid double-clicks
             const currentTime = Date.now();
-            
-            // Global debounce - prevent any marker clicks within 1500ms
-            if (currentTime - state.lastAnyMarkerClickTime < 1500) {
-              return;
-            }
-            
-            // Specific marker debounce - prevent same marker clicks within 2000ms
             const markerKey = `district-boundary-${name}`;
-            if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 2000) {
+            if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
               return;
             }
-            
             state.lastClickedMarker = markerKey;
             state.lastClickTime = currentTime;
-            state.lastAnyMarkerClickTime = currentTime;
             
             // Set marker click flag to prevent filter interference
             window.isMarkerClick = true;
@@ -1333,7 +1310,7 @@ function loadBoundaries() {
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
             
             // Reset marker click flag after reframing
-            setTimeout(() => window.isMarkerClick = false, 2200);
+            setTimeout(() => window.isMarkerClick = false, 1200);
           });
           
           // Bidirectional hover effects
@@ -1421,17 +1398,8 @@ function selectDistrictInDropdown(districtName) {
   // Trigger change event on the select element
   utils.triggerEvent(selectField, ['change', 'input']);
   
-  // Let Finsweet handle the visual updates by triggering their reload
-  setTimeout(() => {
-    if (window.fsAttributes?.selectcustom) {
-      window.fsAttributes.selectcustom.reload();
-    }
-    if (window.fsAttributes?.cmsselect) {
-      window.fsAttributes.cmsselect.reload();
-    }
-  }, 50);
-  
-  // Trigger form events
+  // Form events will automatically trigger Finsweet v2
+  // No manual reload needed since filtering updates automatically
   const form = selectField.closest('form');
   if (form) {
     form.dispatchEvent(new Event('change', {bubbles: true}));
@@ -1478,22 +1446,14 @@ function loadDistrictTags() {
       e.stopPropagation();
       e.preventDefault();
       
+      // Prevent rapid double-clicks
       const currentTime = Date.now();
-      
-      // Global debounce - prevent any marker clicks within 1500ms
-      if (currentTime - state.lastAnyMarkerClickTime < 1500) {
-        return;
-      }
-      
-      // Specific marker debounce - prevent same marker clicks within 2000ms
       const markerKey = `district-tag-${name}`;
-      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 2000) {
+      if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
         return;
       }
-      
       state.lastClickedMarker = markerKey;
       state.lastClickTime = currentTime;
-      state.lastAnyMarkerClickTime = currentTime;
       
       window.isMarkerClick = true;
       
@@ -1518,7 +1478,7 @@ function loadDistrictTags() {
         }, 1000);
       }, 200);
       
-      setTimeout(() => window.isMarkerClick = false, 2000);
+      setTimeout(() => window.isMarkerClick = false, 1000);
     });
     
     state.districtMarkers.push({marker, element: districtWrap, name});
