@@ -277,21 +277,8 @@ function selectDistrictCheckbox(districtName) {
     }
   }
   
-  // Form events and checkbox changes will automatically trigger Finsweet v2 
-  // No manual reload needed since Reports update automatically
-  setTimeout(() => {
-    // Dispatch custom filter events for compatibility
-    ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
-      document.dispatchEvent(new CustomEvent(eventType, {
-        bubbles: true,
-        detail: {
-          field: 'Districts',
-          value: districtName,
-          checked: true
-        }
-      }));
-    });
-  }, 50);
+  // Form events will automatically trigger Reports filtering (v2)
+  // No custom events needed since District/Locality are only in Reports
 }
 
 // Select locality checkbox for filtering (triggered by map markers)
@@ -347,21 +334,8 @@ function selectLocalityCheckbox(localityName) {
     }
   }
   
-  // Form events and checkbox changes will automatically trigger Finsweet v2
-  // No manual reload needed since Reports update automatically
-  setTimeout(() => {
-    // Dispatch custom filter events for compatibility
-    ['fs-cmsfilter-change', 'fs-cmsfilter-filtered'].forEach(eventType => {
-      document.dispatchEvent(new CustomEvent(eventType, {
-        bubbles: true,
-        detail: {
-          field: 'Localities',
-          value: localityName,
-          checked: true
-        }
-      }));
-    });
-  }, 50);
+  // Form events will automatically trigger Reports filtering (v2)  
+  // No custom events needed since District/Locality are only in Reports
 }
 
 // Optimized location data extraction
@@ -1058,7 +1032,11 @@ function setupEvents() {
   
   // Global event listeners
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
-    document.addEventListener(event, handleFilterUpdate);
+    document.addEventListener(event, (e) => {
+      // Skip if this is a marker interaction or if it's not related to Map filtering
+      if (window.isMarkerClick || state.markerInteractionLock) return;
+      handleFilterUpdate();
+    });
   });
   
   // Firefox form handling
