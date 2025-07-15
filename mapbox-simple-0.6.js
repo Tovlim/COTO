@@ -545,6 +545,7 @@ function setupDistrictMarkerClicks() {
   map.on('click', 'district-points', (e) => {
     const feature = e.features[0];
     const districtName = feature.properties.name;
+    const districtSource = feature.properties.source; // 'boundary' or 'tag'
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -560,26 +561,57 @@ function setupDistrictMarkerClicks() {
     
     window.isMarkerClick = true;
     
-    // Use checkbox selection for districts
-    selectDistrictCheckbox(districtName);
-    
-    // Select district in dropdown
-    selectDistrictInDropdown(districtName);
-    
-    // Show filtered elements and sidebar
-    toggleShowWhenFilteredElements(true);
-    toggleSidebar('Left', true);
-    
-    // Trigger map reframing
-    setTimeout(() => {
-      state.flags.forceFilteredReframe = true;
-      state.flags.isRefreshButtonAction = true;
-      applyFilterToMarkers();
+    if (districtSource === 'boundary') {
+      // District with boundary - reframe to boundary area
+      console.log(`District ${districtName} has boundary - reframing to boundary area`);
+      
+      const boundaryId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+      const boundarySource = map.getSource(`${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`);
+      
+      if (boundarySource && boundarySource._data) {
+        const geojsonData = boundarySource._data;
+        const bounds = new mapboxgl.LngLatBounds();
+        
+        geojsonData.features.forEach(feature => {
+          const addCoords = coords => {
+            if (Array.isArray(coords) && coords.length > 0) {
+              if (typeof coords[0] === 'number') bounds.extend(coords);
+              else coords.forEach(addCoords);
+            }
+          };
+          addCoords(feature.geometry.coordinates);
+        });
+        
+        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+      } else {
+        console.log(`Boundary source not found for ${districtName}`);
+      }
+      
+    } else if (districtSource === 'tag') {
+      // District without boundary - use dropdown selection and filtering
+      console.log(`District ${districtName} is tag-based - using dropdown selection`);
+      
+      // Use checkbox selection for districts
+      selectDistrictCheckbox(districtName);
+      
+      // Select district in dropdown
+      selectDistrictInDropdown(districtName);
+      
+      // Show filtered elements and sidebar
+      toggleShowWhenFilteredElements(true);
+      toggleSidebar('Left', true);
+      
+      // Trigger map reframing
       setTimeout(() => {
-        state.flags.forceFilteredReframe = false;
-        state.flags.isRefreshButtonAction = false;
-      }, 1000);
-    }, 200);
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
+        applyFilterToMarkers();
+        setTimeout(() => {
+          state.flags.forceFilteredReframe = false;
+          state.flags.isRefreshButtonAction = false;
+        }, 1000);
+      }, 200);
+    }
     
     // Clear locks after all processing is complete
     setTimeout(() => {
