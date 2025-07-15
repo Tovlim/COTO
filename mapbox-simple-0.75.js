@@ -469,198 +469,212 @@ function addNativeDistrictMarkers() {
 
 // Setup click handlers for native markers
 function setupNativeMarkerClicks() {
-  // Handle locality clicks
-  map.on('click', 'locality-points', (e) => {
-    // Block all underlying events
-    e.originalEvent.stopPropagation();
-    e.originalEvent.preventDefault();
+  // Global click handler that checks layer priority
+  map.on('click', (e) => {
+    // Query all features at the click point
+    const features = map.queryRenderedFeatures(e.point);
+    if (!features.length) return;
     
-    const feature = e.features[0];
-    const locality = feature.properties.name;
+    // Define layer priority (higher number = higher priority)
+    const layerPriority = {
+      'locality-points': 100,
+      'locality-clusters': 99,
+      'district-points': 50,
+      // All boundary/area layers get low priority
+    };
     
-    // Prevent rapid clicks
-    const currentTime = Date.now();
-    const markerKey = `locality-${locality}`;
-    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
-      return;
-    }
+    // Find the highest priority feature
+    let topFeature = null;
+    let topPriority = -1;
     
-    // Set global lock to prevent filter interference
-    state.markerInteractionLock = true;
-    state.lastClickedMarker = markerKey;
-    state.lastClickTime = currentTime;
-    
-    window.isMarkerClick = true;
-    
-    // Use checkbox selection for localities
-    selectLocalityCheckbox(locality);
-    
-    // Show filtered elements and sidebar
-    toggleShowWhenFilteredElements(true);
-    toggleSidebar('Left', true);
-    
-    // Clear locks after all events have processed
-    setTimeout(() => {
-      window.isMarkerClick = false;
-      state.markerInteractionLock = false;
-    }, 1500);
-  });
-  
-  // Handle cluster clicks
-  map.on('click', 'locality-clusters', (e) => {
-    // Block all underlying events
-    e.originalEvent.stopPropagation();
-    e.originalEvent.preventDefault();
-    
-    const features = map.queryRenderedFeatures(e.point, {
-      layers: ['locality-clusters']
-    });
-    const clusterId = features[0].properties.cluster_id;
-    map.getSource('localities-source').getClusterExpansionZoom(
-      clusterId,
-      (err, zoom) => {
-        if (err) return;
-        
-        map.easeTo({
-          center: features[0].geometry.coordinates,
-          zoom: zoom
-        });
+    for (const feature of features) {
+      const priority = layerPriority[feature.layer.id] || 0;
+      if (priority > topPriority) {
+        topPriority = priority;
+        topFeature = feature;
       }
-    );
+    }
+    
+    if (!topFeature) return;
+    
+    // Handle based on the top layer
+    if (topFeature.layer.id === 'locality-points') {
+      handleLocalityClick(topFeature);
+    } else if (topFeature.layer.id === 'locality-clusters') {
+      handleClusterClick(e.point);
+    } else if (topFeature.layer.id === 'district-points') {
+      handleDistrictClick(topFeature);
+    }
+    // Ignore all other layers (boundaries, areas) when localities are present
   });
   
-  // Change cursor on hover and block underlying hover events
-  map.on('mouseenter', 'locality-clusters', (e) => {
-    map.getCanvas().style.cursor = 'pointer';
-    // Block underlying hover events
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
+  // Global hover handler that checks layer priority
+  map.on('mouseenter', (e) => {
+    const features = map.queryRenderedFeatures(e.point);
+    if (!features.length) return;
+    
+    const layerPriority = {
+      'locality-points': 100,
+      'locality-clusters': 99,
+      'district-points': 50,
+    };
+    
+    let topFeature = null;
+    let topPriority = -1;
+    
+    for (const feature of features) {
+      const priority = layerPriority[feature.layer.id] || 0;
+      if (priority > topPriority) {
+        topPriority = priority;
+        topFeature = feature;
+      }
+    }
+    
+    // Only change cursor for high-priority layers
+    if (topFeature && topPriority >= 50) {
+      map.getCanvas().style.cursor = 'pointer';
+    } else {
+      map.getCanvas().style.cursor = '';
     }
   });
   
-  map.on('mouseleave', 'locality-clusters', (e) => {
+  map.on('mouseleave', () => {
     map.getCanvas().style.cursor = '';
-    // Block underlying hover events
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
+  });
+}
+
+// Separate handler functions
+function handleLocalityClick(feature) {
+  const locality = feature.properties.name;
+  
+  // Prevent rapid clicks
+  const currentTime = Date.now();
+  const markerKey = `locality-${locality}`;
+  if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+    return;
+  }
+  
+  // Set global lock to prevent filter interference
+  state.markerInteractionLock = true;
+  state.lastClickedMarker = markerKey;
+  state.lastClickTime = currentTime;
+  
+  window.isMarkerClick = true;
+  
+  // Use checkbox selection for localities
+  selectLocalityCheckbox(locality);
+  
+  // Show filtered elements and sidebar
+  toggleShowWhenFilteredElements(true);
+  toggleSidebar('Left', true);
+  
+  // Clear locks after all events have processed
+  setTimeout(() => {
+    window.isMarkerClick = false;
+    state.markerInteractionLock = false;
+  }, 1500);
+}
+
+function handleClusterClick(point) {
+  const features = map.queryRenderedFeatures(point, {
+    layers: ['locality-clusters']
   });
   
-  map.on('mouseenter', 'locality-points', (e) => {
-    map.getCanvas().style.cursor = 'pointer';
-    // Block underlying hover events
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
-  });
+  if (!features.length) return;
   
-  map.on('mouseleave', 'locality-points', (e) => {
-    map.getCanvas().style.cursor = '';
-    // Block underlying hover events
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
+  const clusterId = features[0].properties.cluster_id;
+  map.getSource('localities-source').getClusterExpansionZoom(
+    clusterId,
+    (err, zoom) => {
+      if (err) return;
+      
+      map.easeTo({
+        center: features[0].geometry.coordinates,
+        zoom: zoom
+      });
     }
-  });
+  );
+}
+
+function handleDistrictClick(feature) {
+  const districtName = feature.properties.name;
+  const districtSource = feature.properties.source; // 'boundary' or 'tag'
+  
+  // Prevent rapid clicks
+  const currentTime = Date.now();
+  const markerKey = `district-${districtName}`;
+  if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+    return;
+  }
+  
+  // Set global lock to prevent filter interference
+  state.markerInteractionLock = true;
+  state.lastClickedMarker = markerKey;
+  state.lastClickTime = currentTime;
+  
+  window.isMarkerClick = true;
+  
+  // Always use checkbox selection for both types
+  selectDistrictCheckbox(districtName);
+  
+  // Show filtered elements and sidebar
+  toggleShowWhenFilteredElements(true);
+  toggleSidebar('Left', true);
+  
+  if (districtSource === 'boundary') {
+    // District WITH boundary - reframe to boundary extents only
+    console.log(`District ${districtName} has boundary, reframing to boundary extents`);
+    
+    // Find and click the corresponding boundary fill layer to trigger reframing
+    const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+    if (map.getLayer(boundaryFillId)) {
+      // Get the boundary source data
+      const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+      const source = map.getSource(boundarySourceId);
+      if (source && source._data) {
+        const bounds = new mapboxgl.LngLatBounds();
+        const addCoords = coords => {
+          if (Array.isArray(coords) && coords.length > 0) {
+            if (typeof coords[0] === 'number') bounds.extend(coords);
+            else coords.forEach(addCoords);
+          }
+        };
+        
+        source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+      }
+    }
+  } else {
+    // District WITHOUT boundary - use dropdown and trigger map reframing
+    console.log(`District ${districtName} has no boundary, using dropdown selection`);
+    
+    // Select district in dropdown
+    selectDistrictInDropdown(districtName);
+    
+    // Trigger map reframing after dropdown selection
+    setTimeout(() => {
+      state.flags.forceFilteredReframe = true;
+      state.flags.isRefreshButtonAction = true;
+      applyFilterToMarkers();
+      setTimeout(() => {
+        state.flags.forceFilteredReframe = false;
+        state.flags.isRefreshButtonAction = false;
+      }, 1000);
+    }, 200);
+  }
+  
+  // Clear locks after all processing is complete
+  setTimeout(() => {
+    window.isMarkerClick = false;
+    state.markerInteractionLock = false;
+  }, 1500);
 }
 
 // Setup click handlers for district markers
 function setupDistrictMarkerClicks() {
-  // Handle district clicks
-  map.on('click', 'district-points', (e) => {
-    // Block all underlying events
-    e.originalEvent.stopPropagation();
-    e.originalEvent.preventDefault();
-    
-    const feature = e.features[0];
-    const districtName = feature.properties.name;
-    const districtSource = feature.properties.source; // 'boundary' or 'tag'
-    
-    // Prevent rapid clicks
-    const currentTime = Date.now();
-    const markerKey = `district-${districtName}`;
-    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
-      return;
-    }
-    
-    // Set global lock to prevent filter interference
-    state.markerInteractionLock = true;
-    state.lastClickedMarker = markerKey;
-    state.lastClickTime = currentTime;
-    
-    window.isMarkerClick = true;
-    
-    // Always use checkbox selection for both types
-    selectDistrictCheckbox(districtName);
-    
-    // Show filtered elements and sidebar
-    toggleShowWhenFilteredElements(true);
-    toggleSidebar('Left', true);
-    
-    if (districtSource === 'boundary') {
-      // District WITH boundary - reframe to boundary extents only
-      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
-      
-      // Find and click the corresponding boundary fill layer to trigger reframing
-      const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-      if (map.getLayer(boundaryFillId)) {
-        // Get the boundary source data
-        const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-        const source = map.getSource(boundarySourceId);
-        if (source && source._data) {
-          const bounds = new mapboxgl.LngLatBounds();
-          const addCoords = coords => {
-            if (Array.isArray(coords) && coords.length > 0) {
-              if (typeof coords[0] === 'number') bounds.extend(coords);
-              else coords.forEach(addCoords);
-            }
-          };
-          
-          source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-        }
-      }
-    } else {
-      // District WITHOUT boundary - use dropdown and trigger map reframing
-      console.log(`District ${districtName} has no boundary, using dropdown selection`);
-      
-      // Select district in dropdown
-      selectDistrictInDropdown(districtName);
-      
-      // Trigger map reframing after dropdown selection
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        applyFilterToMarkers();
-        setTimeout(() => {
-          state.flags.forceFilteredReframe = false;
-          state.flags.isRefreshButtonAction = false;
-        }, 1000);
-      }, 200);
-    }
-    
-    // Clear locks after all processing is complete
-    setTimeout(() => {
-      window.isMarkerClick = false;
-      state.markerInteractionLock = false;
-    }, 1500);
-  });
-  
-  // Change cursor on hover and block underlying hover events
-  map.on('mouseenter', 'district-points', (e) => {
-    map.getCanvas().style.cursor = 'pointer';
-    // Block underlying hover events
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
-  });
-  
-  map.on('mouseleave', 'district-points', (e) => {
-    map.getCanvas().style.cursor = '';
-    // Block underlying hover events
-    if (e.originalEvent) {
-      e.originalEvent.stopPropagation();
-    }
-  });
+  // District clicks are now handled by the global click handler in setupNativeMarkerClicks()
+  // This prevents conflicts and ensures proper layer priority
+  console.log('District marker clicks handled by global click handler');
 }
 
 // Consolidated filtering checks
