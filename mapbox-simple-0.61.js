@@ -545,7 +545,6 @@ function setupDistrictMarkerClicks() {
   map.on('click', 'district-points', (e) => {
     const feature = e.features[0];
     const districtName = feature.properties.name;
-    const districtSource = feature.properties.source; // 'boundary' or 'tag'
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -561,18 +560,21 @@ function setupDistrictMarkerClicks() {
     
     window.isMarkerClick = true;
     
-    if (districtSource === 'boundary') {
-      // District with boundary - reframe to boundary area
-      console.log(`District ${districtName} has boundary - reframing to boundary area`);
+    // Check if this district has a boundary by looking for its source
+    const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+    const hasBoundary = map.getSource(boundarySourceId);
+    
+    console.log(`District ${districtName} clicked. Has boundary:`, !!hasBoundary);
+    
+    if (hasBoundary) {
+      // DISTRICT WITH BOUNDARY: Reframe to boundary area
+      console.log(`Reframing to boundary for district: ${districtName}`);
       
-      const boundaryId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-      const boundarySource = map.getSource(`${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`);
-      
-      if (boundarySource && boundarySource._data) {
-        const geojsonData = boundarySource._data;
+      // Get the boundary source data
+      const boundarySource = map.getSource(boundarySourceId);
+      if (boundarySource._data && boundarySource._data.features && boundarySource._data.features.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
-        
-        geojsonData.features.forEach(feature => {
+        boundarySource._data.features.forEach(feature => {
           const addCoords = coords => {
             if (Array.isArray(coords) && coords.length > 0) {
               if (typeof coords[0] === 'number') bounds.extend(coords);
@@ -582,14 +584,19 @@ function setupDistrictMarkerClicks() {
           addCoords(feature.geometry.coordinates);
         });
         
-        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-      } else {
-        console.log(`Boundary source not found for ${districtName}`);
+        // Fit to boundary bounds
+        map.fitBounds(bounds, {
+          padding: {top: 50, bottom: 50, left: 50, right: 50},
+          duration: 1000,
+          essential: true
+        });
+        
+        console.log(`Fitted map to boundary for: ${districtName}`);
       }
       
-    } else if (districtSource === 'tag') {
-      // District without boundary - use dropdown selection and filtering
-      console.log(`District ${districtName} is tag-based - using dropdown selection`);
+    } else {
+      // DISTRICT WITHOUT BOUNDARY: Use dropdown selection and filter to map markers
+      console.log(`Using dropdown selection for district: ${districtName}`);
       
       // Use checkbox selection for districts
       selectDistrictCheckbox(districtName);
@@ -601,7 +608,7 @@ function setupDistrictMarkerClicks() {
       toggleShowWhenFilteredElements(true);
       toggleSidebar('Left', true);
       
-      // Trigger map reframing
+      // Trigger map reframing to filtered markers
       setTimeout(() => {
         state.flags.forceFilteredReframe = true;
         state.flags.isRefreshButtonAction = true;
