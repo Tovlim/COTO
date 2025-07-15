@@ -558,18 +558,13 @@ function setupNativeMarkerClicks() {
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
-    const clusterId = features[0].properties.cluster_id;
-    map.getSource('localities-source').getClusterExpansionZoom(
-      clusterId,
-      (err, zoom) => {
-        if (err) return;
-        
-        map.easeTo({
-          center: features[0].geometry.coordinates,
-          zoom: zoom
-        });
-      }
-    );
+    
+    // Use more aggressive zoom like in original script
+    map.flyTo({
+      center: features[0].geometry.coordinates,
+      zoom: map.getZoom() + 2.5, // More dramatic zoom increase
+      duration: 800 // Smooth animation
+    });
   });
   
   // Change cursor on hover
