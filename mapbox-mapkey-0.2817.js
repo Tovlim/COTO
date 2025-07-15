@@ -95,6 +95,7 @@ const state = {
   timers: {overlap: null, filter: null, zoom: null},
   lastClickedMarker: null,
   lastClickTime: 0,
+  markerInteractionLock: false,
   flags: {
     isInitialLoad: true,
     mapInitialized: false,
@@ -465,12 +466,15 @@ function setupMarkerClicks() {
       const locality = link.getAttribute('districtname');
       if (!locality) return;
       
-      // Prevent rapid double-clicks
+      // Prevent rapid clicks and set global interaction lock
       const currentTime = Date.now();
       const markerKey = `locality-${locality}`;
       if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
         return;
       }
+      
+      // Set global lock to prevent filter interference
+      state.markerInteractionLock = true;
       state.lastClickedMarker = markerKey;
       state.lastClickTime = currentTime;
       
@@ -483,7 +487,11 @@ function setupMarkerClicks() {
       toggleShowWhenFilteredElements(true);
       toggleSidebar('Left', true);
       
-      setTimeout(() => window.isMarkerClick = false, 1000);
+      // Clear locks after all events have processed
+      setTimeout(() => {
+        window.isMarkerClick = false;
+        state.markerInteractionLock = false;
+      }, 1500); // Extended timeout to cover all events
     };
     
     info.marker._element = newEl;
@@ -777,7 +785,7 @@ function applyFilterToMarkers() {
 }
 
 const handleFilterUpdate = utils.debounce(() => {
-  if (window.isLinkClick || window.isMarkerClick) return;
+  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
   state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
@@ -1276,12 +1284,15 @@ function loadBoundaries() {
             e.stopPropagation();
             e.preventDefault();
             
-            // Prevent rapid double-clicks
+            // Prevent rapid clicks and set global interaction lock
             const currentTime = Date.now();
             const markerKey = `district-boundary-${name}`;
             if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
               return;
             }
+            
+            // Set global lock to prevent filter interference
+            state.markerInteractionLock = true;
             state.lastClickedMarker = markerKey;
             state.lastClickTime = currentTime;
             
@@ -1309,8 +1320,11 @@ function loadBoundaries() {
             geojsonData.features.forEach(feature => addCoords(feature.geometry.coordinates));
             map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
             
-            // Reset marker click flag after reframing
-            setTimeout(() => window.isMarkerClick = false, 1200);
+            // Clear locks after reframing and all events have processed
+            setTimeout(() => {
+              window.isMarkerClick = false;
+              state.markerInteractionLock = false;
+            }, 1500);
           });
           
           // Bidirectional hover effects
@@ -1446,12 +1460,15 @@ function loadDistrictTags() {
       e.stopPropagation();
       e.preventDefault();
       
-      // Prevent rapid double-clicks
+      // Prevent rapid clicks and set global interaction lock
       const currentTime = Date.now();
       const markerKey = `district-tag-${name}`;
       if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
         return;
       }
+      
+      // Set global lock to prevent filter interference
+      state.markerInteractionLock = true;
       state.lastClickedMarker = markerKey;
       state.lastClickTime = currentTime;
       
@@ -1478,7 +1495,11 @@ function loadDistrictTags() {
         }, 1000);
       }, 200);
       
-      setTimeout(() => window.isMarkerClick = false, 1000);
+      // Clear locks after all processing is complete
+      setTimeout(() => {
+        window.isMarkerClick = false;
+        state.markerInteractionLock = false;
+      }, 1500);
     });
     
     state.districtMarkers.push({marker, element: districtWrap, name});
