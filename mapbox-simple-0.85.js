@@ -1432,7 +1432,9 @@ function loadSimplifiedBoundaries() {
     {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
   ];
   
-  console.log(`Starting to load ${districts.length + customDistricts.length} simplified boundaries`);
+  let loadedCount = 0;
+  const totalCount = districts.length + customDistricts.length;
+  console.log(`Starting to load ${totalCount} simplified boundaries`);
   
   const addSimpleBoundaryToMap = (name, customUrl = null) => {
     const boundary = {
@@ -1499,20 +1501,56 @@ function loadSimplifiedBoundaries() {
             'visibility': 'visible'
           },
           paint: {
-            'line-color': '#1a1b1e',
+            'line-color': '#888888', // Lighter gray
             'line-width': 1,
-            'line-opacity': 0.8
+            'line-opacity': 0.4 // More see-through
           }
         }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
         
         console.log(`${name} simplified boundary added`);
         
-        // NO district markers created from boundaries
-        // NO interaction handlers added
+        // Calculate centroid and add district marker (like the old system)
+        if (geojsonData.features && geojsonData.features.length > 0) {
+          const existingFeature = state.allDistrictFeatures.find(f => f.properties.name === name && f.properties.source === 'boundary');
+          if (!existingFeature) {
+            const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
+            
+            const districtFeature = {
+              type: "Feature",
+              geometry: {type: "Point", coordinates: centroid},
+              properties: {
+                name: name,
+                id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
+                type: 'district',
+                source: 'boundary'
+              }
+            };
+            
+            state.allDistrictFeatures.push(districtFeature);
+            console.log(`Added district marker for ${name} at centroid:`, centroid);
+          } else {
+            console.log(`District marker for ${name} already exists, skipping`);
+          }
+        }
+        
+        // NO interaction handlers added to boundaries (they remain visual only)
+        
+        // Increment loaded count and update district markers when all are loaded
+        loadedCount++;
+        console.log(`Loaded ${loadedCount}/${totalCount} boundaries`);
+        if (loadedCount === totalCount) {
+          console.log('All simplified boundaries loaded, updating district markers');
+          addNativeDistrictMarkers();
+        }
         
       })
       .catch(error => {
         console.error(`Error loading ${name} boundary:`, error);
+        loadedCount++; // Still increment to prevent hanging
+        if (loadedCount === totalCount) {
+          console.log('All boundary attempts completed, updating district markers');
+          addNativeDistrictMarkers();
+        }
       });
   };
   
@@ -1560,8 +1598,8 @@ function loadDistrictTags() {
   const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
   console.log(`Found ${districtTagItems.length} district tag items`);
   
-  // Clear existing district features first
-  state.allDistrictFeatures = [];
+  // Clear existing tag-based features (keep boundary-based features)
+  state.allDistrictFeatures = state.allDistrictFeatures.filter(f => f.properties.source !== 'tag');
   
   districtTagItems.forEach((tagItem, index) => {
     if (getComputedStyle(tagItem).display === 'none') {
