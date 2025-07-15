@@ -71,6 +71,9 @@ class MapResetControl {
       if (this._map.getSource('localities-source')) {
         this._map.getSource('localities-source').setData({type: "FeatureCollection", features: state.allLocalityFeatures});
       }
+      
+      // Remove any boundary highlight
+      removeBoundaryHighlight();
     });
     
     this._container.appendChild(this._button);
@@ -95,6 +98,7 @@ const state = {
   lastClickedMarker: null,
   lastClickTime: 0,
   markerInteractionLock: false,
+  highlightedBoundary: null, // Track currently highlighted boundary
   flags: {
     isInitialLoad: true,
     mapInitialized: false,
@@ -168,6 +172,47 @@ const toggleSidebar = (side, show = null) => {
   const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
+
+// Highlight boundary with subtle red color
+function highlightBoundary(districtName) {
+  // Remove any existing highlight first
+  removeBoundaryHighlight();
+  
+  const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+  const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+  
+  if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
+    // Apply subtle red highlight (using district marker color but more subtle)
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#dc2626'); // Red like district markers
+    map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25); // More visible than default
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#dc2626'); // Red border
+    map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6); // Subtle but visible
+    
+    // Track the highlighted boundary
+    state.highlightedBoundary = districtName;
+    console.log(`Highlighted boundary: ${districtName}`);
+  }
+}
+
+// Remove boundary highlight
+function removeBoundaryHighlight() {
+  if (state.highlightedBoundary) {
+    const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
+    const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
+    
+    if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
+      // Reset to default colors
+      map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
+      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
+      map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
+      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
+      
+      console.log(`Removed highlight from boundary: ${state.highlightedBoundary}`);
+    }
+    
+    state.highlightedBoundary = null;
+  }
+}
 
 // Toggle filtered elements
 const toggleShowWhenFilteredElements = show => {
@@ -488,6 +533,9 @@ function setupNativeMarkerClicks() {
     
     window.isMarkerClick = true;
     
+    // Remove any boundary highlight when clicking localities
+    removeBoundaryHighlight();
+    
     // Use checkbox selection for localities
     selectLocalityCheckbox(locality);
     
@@ -504,6 +552,9 @@ function setupNativeMarkerClicks() {
   
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
+    // Remove any boundary highlight when clicking clusters
+    removeBoundaryHighlight();
+    
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
@@ -569,8 +620,11 @@ function setupDistrictMarkerClicks() {
     toggleSidebar('Left', true);
     
     if (districtSource === 'boundary') {
-      // District WITH boundary - reframe to boundary extents only
-      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
+      // District WITH boundary - reframe to boundary extents and highlight
+      console.log(`District ${districtName} has boundary, reframing to boundary extents and highlighting`);
+      
+      // Highlight the boundary with subtle red
+      highlightBoundary(districtName);
       
       // Get the boundary source data and reframe to its extents
       const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
@@ -588,6 +642,8 @@ function setupDistrictMarkerClicks() {
         map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
       } else {
         console.log(`Boundary source ${boundarySourceId} not found, falling back to dropdown`);
+        // Remove highlight since we're falling back
+        removeBoundaryHighlight();
         // Fallback to dropdown if boundary source not available
         selectDistrictInDropdown(districtName);
         setTimeout(() => {
@@ -601,8 +657,11 @@ function setupDistrictMarkerClicks() {
         }, 200);
       }
     } else {
-      // District WITHOUT boundary (tag-based) - use dropdown and trigger map reframing
+      // District WITHOUT boundary (tag-based) - remove any existing highlight and use dropdown
       console.log(`District ${districtName} has no boundary, using dropdown selection`);
+      
+      // Remove any existing boundary highlight
+      removeBoundaryHighlight();
       
       // Select district in dropdown and trigger map reframing
       selectDistrictInDropdown(districtName);
