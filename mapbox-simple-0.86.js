@@ -545,6 +545,7 @@ function setupDistrictMarkerClicks() {
   map.on('click', 'district-points', (e) => {
     const feature = e.features[0];
     const districtName = feature.properties.name;
+    const districtSource = feature.properties.source; // 'boundary' or 'tag'
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -560,26 +561,63 @@ function setupDistrictMarkerClicks() {
     
     window.isMarkerClick = true;
     
-    // Use checkbox selection for districts
+    // Always use checkbox selection for both types
     selectDistrictCheckbox(districtName);
-    
-    // Select district in dropdown and trigger map reframing
-    selectDistrictInDropdown(districtName);
     
     // Show filtered elements and sidebar
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // Trigger map reframing
-    setTimeout(() => {
-      state.flags.forceFilteredReframe = true;
-      state.flags.isRefreshButtonAction = true;
-      applyFilterToMarkers();
+    if (districtSource === 'boundary') {
+      // District WITH boundary - reframe to boundary extents only
+      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
+      
+      // Get the boundary source data and reframe to its extents
+      const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+      const source = map.getSource(boundarySourceId);
+      if (source && source._data) {
+        const bounds = new mapboxgl.LngLatBounds();
+        const addCoords = coords => {
+          if (Array.isArray(coords) && coords.length > 0) {
+            if (typeof coords[0] === 'number') bounds.extend(coords);
+            else coords.forEach(addCoords);
+          }
+        };
+        
+        source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+      } else {
+        console.log(`Boundary source ${boundarySourceId} not found, falling back to dropdown`);
+        // Fallback to dropdown if boundary source not available
+        selectDistrictInDropdown(districtName);
+        setTimeout(() => {
+          state.flags.forceFilteredReframe = true;
+          state.flags.isRefreshButtonAction = true;
+          applyFilterToMarkers();
+          setTimeout(() => {
+            state.flags.forceFilteredReframe = false;
+            state.flags.isRefreshButtonAction = false;
+          }, 1000);
+        }, 200);
+      }
+    } else {
+      // District WITHOUT boundary (tag-based) - use dropdown and trigger map reframing
+      console.log(`District ${districtName} has no boundary, using dropdown selection`);
+      
+      // Select district in dropdown and trigger map reframing
+      selectDistrictInDropdown(districtName);
+      
+      // Trigger map reframing
       setTimeout(() => {
-        state.flags.forceFilteredReframe = false;
-        state.flags.isRefreshButtonAction = false;
-      }, 1000);
-    }, 200);
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
+        applyFilterToMarkers();
+        setTimeout(() => {
+          state.flags.forceFilteredReframe = false;
+          state.flags.isRefreshButtonAction = false;
+        }, 1000);
+      }, 200);
+    }
     
     // Clear locks after all processing is complete
     setTimeout(() => {
