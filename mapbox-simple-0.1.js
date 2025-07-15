@@ -343,7 +343,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - ensure it's on top
+    // Clustered points layer - make sure it's on top
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -361,7 +361,7 @@ function addNativeMarkers() {
         'text-halo-color': '#2563eb',
         'text-halo-width': 2
       }
-    }); // Add to top by not specifying beforeId
+    }); // Add to top of all layers
     
     // Individual locality points layer - also on top
     map.addLayer({
@@ -386,7 +386,7 @@ function addNativeMarkers() {
         'text-padding': 4,
         'text-offset': [0, 1.5],
         'text-anchor': 'top'
-      ],
+      },
       paint: {
         'text-color': '#ffffff',
         'text-halo-color': '#2563eb',
@@ -399,21 +399,7 @@ function addNativeMarkers() {
           isMobile ? 8.5 : 9.5, 1
         ]
       }
-    }); // Add to top by not specifying beforeId
-    
-    // Move layers to top after adding
-    setTimeout(() => {
-      try {
-        if (map.getLayer('locality-clusters')) {
-          map.moveLayer('locality-clusters');
-        }
-        if (map.getLayer('locality-points')) {
-          map.moveLayer('locality-points');
-        }
-      } catch (e) {
-        console.log('Could not move locality layers to top:', e);
-      }
-    }, 100);
+    }); // Add to top of all layers
   }
   
   setupNativeMarkerClicks();
@@ -440,7 +426,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - ensure it's on top of everything
+    // District name labels layer - add on top of everything
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -475,18 +461,7 @@ function addNativeDistrictMarkers() {
           6, 1
         ]
       }
-    }); // Add to top by not specifying beforeId
-    
-    // Move to top after adding
-    setTimeout(() => {
-      try {
-        if (map.getLayer('district-points')) {
-          map.moveLayer('district-points');
-        }
-      } catch (e) {
-        console.log('Could not move district layer to top:', e);
-      }
-    }, 100);
+    }); // Add to top of all layers
   }
   
   setupDistrictMarkerClicks();
@@ -664,25 +639,52 @@ function applyFilterToMarkers() {
   
   const filteredLat = $('.data-places-latitudes-filter');
   const filteredLon = $('.data-places-longitudes-filter');
+  const filteredNames = $('.data-places-names-filter, .data-place-name-filter');
+  const filteredSlugs = $('.data-places-slugs-filter, .data-place-slug-filter, .data-slug-filter');
   const allLat = $('.data-places-latitudes, .data-place-latitude');
   
   let visibleCoordinates = [];
+  let filteredFeatures = [];
   
   if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
-    // Get filtered coordinates for reframing ONLY - don't update the marker source
+    // Create filtered features from filtered data
     for (let i = 0; i < filteredLat.length; i++) {
       const lat = parseFloat(filteredLat[i]?.textContent.trim());
       const lon = parseFloat(filteredLon[i]?.textContent.trim());
+      const name = filteredNames[i]?.textContent.trim() || `Location ${i}`;
+      const slug = filteredSlugs[i]?.textContent.trim() || '';
       
       if (!isNaN(lat) && !isNaN(lon)) {
         visibleCoordinates.push([lon, lat]);
+        filteredFeatures.push({
+          type: "Feature",
+          geometry: {type: "Point", coordinates: [lon, lat]},
+          properties: {
+            name: name,
+            id: `filtered-location-${i}`,
+            slug: slug,
+            index: i,
+            type: 'locality'
+          }
+        });
       }
     }
     
-    // KEEP all markers visible - don't update the localities source
-    // The markers should remain visible, we just reframe the map
+    // Update the localities source with filtered data
+    if (map.getSource('localities-source')) {
+      map.getSource('localities-source').setData({
+        type: "FeatureCollection",
+        features: filteredFeatures
+      });
+    }
   } else {
-    // No filtering - use all coordinates for reframing
+    // No filtering - show all features
+    if (map.getSource('localities-source')) {
+      map.getSource('localities-source').setData({
+        type: "FeatureCollection",
+        features: state.allLocalityFeatures
+      });
+    }
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
   }
   
@@ -1081,23 +1083,26 @@ function loadAreaOverlays() {
   ];
   
   const addAreaToMap = area => {
-    console.log(`Starting fetch for ${area.name}`);
+    console.log(`Starting fetch for ${area.name} from ${area.url}`);
     fetch(area.url)
       .then(response => {
+        console.log(`${area.name} fetch response:`, response.status, response.ok);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
       })
       .then(geojsonData => {
-        console.log(`${area.name} data loaded successfully`);
+        console.log(`${area.name} data loaded successfully:`, geojsonData.features ? `${geojsonData.features.length} features` : 'no features');
         
         // Remove existing layers/sources if they exist
         try {
           if (map.getLayer(area.layerId)) {
+            console.log(`Removing existing layer: ${area.layerId}`);
             map.removeLayer(area.layerId);
           }
           if (map.getSource(area.sourceId)) {
+            console.log(`Removing existing source: ${area.sourceId}`);
             map.removeSource(area.sourceId);
           }
         } catch (e) {
@@ -1105,12 +1110,14 @@ function loadAreaOverlays() {
         }
         
         // Add source
+        console.log(`Adding source: ${area.sourceId}`);
         map.addSource(area.sourceId, {
           type: 'geojson',
           data: geojsonData
         });
         
-        // Add the layer at the bottom (no beforeId to ensure it's below everything)
+        // Add the layer
+        console.log(`Adding layer: ${area.layerId}`);
         map.addLayer({
           id: area.layerId,
           type: 'fill',
@@ -1125,7 +1132,8 @@ function loadAreaOverlays() {
           }
         });
         
-        console.log(`${area.name} layer added successfully`);
+        console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
+        console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
       })
       .catch(error => {
         console.error(`Error loading ${area.name}:`, error);
@@ -1171,21 +1179,29 @@ function setupAreaKeyControls() {
     // Set initial state - unchecked means area is visible
     checkbox.checked = false;
     
-    // DON'T clone checkbox to preserve external event listeners
-    // Just add our event listener directly
-    checkbox.addEventListener('change', () => {
-      console.log(`Area control ${control.keyId} changed to:`, checkbox.checked);
+    // Add our event listener WITHOUT removing existing ones
+    // Use a unique identifier to prevent duplicate listeners from our script
+    if (!checkbox.dataset.mapboxListenerAdded) {
+      const mapboxChangeHandler = () => {
+        console.log(`Area control ${control.keyId} changed to:`, checkbox.checked);
+        
+        if (!map.getLayer(control.layerId)) {
+          console.log(`Layer ${control.layerId} not found in map`);
+          return;
+        }
+        
+        // Checkbox logic: checked = hidden, unchecked = visible
+        const visibility = checkbox.checked ? 'none' : 'visible';
+        map.setLayoutProperty(control.layerId, 'visibility', visibility);
+        console.log(`${control.layerId} visibility set to: ${visibility}`);
+      };
       
-      if (!map.getLayer(control.layerId)) {
-        console.log(`Layer ${control.layerId} not found in map`);
-        return;
-      }
-      
-      // Checkbox logic: checked = hidden, unchecked = visible
-      const visibility = checkbox.checked ? 'none' : 'visible';
-      map.setLayoutProperty(control.layerId, 'visibility', visibility);
-      console.log(`${control.layerId} visibility set to: ${visibility}`);
-    });
+      checkbox.addEventListener('change', mapboxChangeHandler);
+      checkbox.dataset.mapboxListenerAdded = 'true';
+      console.log(`Added Mapbox change listener to ${control.keyId}`);
+    } else {
+      console.log(`Mapbox listener already exists for ${control.keyId}`);
+    }
     
     // Find the wrapper element for hover effects
     const wrapperDiv = $id(control.wrapId);
@@ -1193,18 +1209,26 @@ function setupAreaKeyControls() {
     if (wrapperDiv) {
       console.log(`Setting up hover effects for: ${control.wrapId}`);
       
-      // DON'T clone wrapper to preserve external event listeners
-      // Just add our event listeners directly
-      wrapperDiv.addEventListener('mouseenter', () => {
-        if (!map.getLayer(control.layerId)) return;
-        map.moveLayer(control.layerId);
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
-      });
-      
-      wrapperDiv.addEventListener('mouseleave', () => {
-        if (!map.getLayer(control.layerId)) return;
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
-      });
+      // Add hover effects WITHOUT removing existing ones
+      if (!wrapperDiv.dataset.mapboxHoverAdded) {
+        const mouseEnterHandler = () => {
+          if (!map.getLayer(control.layerId)) return;
+          map.moveLayer(control.layerId);
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+        };
+        
+        const mouseLeaveHandler = () => {
+          if (!map.getLayer(control.layerId)) return;
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+        };
+        
+        wrapperDiv.addEventListener('mouseenter', mouseEnterHandler);
+        wrapperDiv.addEventListener('mouseleave', mouseLeaveHandler);
+        wrapperDiv.dataset.mapboxHoverAdded = 'true';
+        console.log(`Added Mapbox hover listeners to ${control.wrapId}`);
+      } else {
+        console.log(`Mapbox hover listeners already exist for ${control.wrapId}`);
+      }
       
       setupCount++;
     } else {
@@ -1543,19 +1567,19 @@ map.on("load", () => {
     console.log('Map loaded, starting initialization...');
     init();
     
-    // Load GeoJSON layers with minimal delay
+    // Add a small delay to ensure map is fully ready, then load GeoJSON layers
     setTimeout(() => {
       console.log('Loading area overlays...');
       loadAreaOverlays();
       console.log('Loading boundaries...');
       loadBoundaries();
-    }, 200); // Reduced from 500ms
+    }, 500);
     
-    setTimeout(loadDistrictTags, 1000); // Reduced from 2000ms
+    setTimeout(loadDistrictTags, 2000);
     setTimeout(() => {
       console.log('Setting up area key controls...');
       setupAreaKeyControls();
-    }, 3000); // Reduced from 6000ms
+    }, 6000); // Increased delay to ensure areas are loaded first
     
     // Hide loading screen after everything is loaded
     setTimeout(() => {
@@ -1563,7 +1587,7 @@ map.on("load", () => {
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
       }
-    }, 4000); // Reduced from 8000ms
+    }, 8000); // Give more time for all components to load
     
   } catch (error) {
     console.error('Error during map initialization:', error);
@@ -1591,15 +1615,15 @@ window.addEventListener('load', () => {
     }
   }, 200);
   
-  // Only retry if not already loaded - with reduced timeouts
+  // Only retry if not already loaded
   if (!state.flags.districtTagsLoaded) {
-    [1500, 2500].forEach(delay => setTimeout(() => { // Reduced delays
+    [3000, 5000].forEach(delay => setTimeout(() => {
       if (!state.flags.districtTagsLoaded) loadDistrictTags();
     }, delay));
   }
   
   if (!state.flags.areaControlsSetup) {
-    [4000, 5000].forEach(delay => setTimeout(() => { // Reduced delays
+    [8000, 10000].forEach(delay => setTimeout(() => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
     }, delay));
   }
