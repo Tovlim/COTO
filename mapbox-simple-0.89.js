@@ -680,13 +680,53 @@ function setupDistrictMarkerClicks() {
     }, 1500);
   });
   
-  // Change cursor on hover
-  map.on('mouseenter', 'district-points', () => {
+  // Handle district marker hover for boundary highlighting
+  map.on('mouseenter', 'district-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
+    
+    const feature = e.features[0];
+    const districtName = feature.properties.name;
+    const districtSource = feature.properties.source;
+    
+    // Only highlight boundaries for district markers with boundaries
+    if (districtSource === 'boundary') {
+      // Check if this boundary isn't already highlighted (from a click)
+      if (state.highlightedBoundary !== districtName) {
+        // Temporarily highlight on hover with a lighter effect
+        const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+        const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+        
+        if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
+          // Apply even more subtle hover highlight
+          map.setPaintProperty(boundaryFillId, 'fill-color', '#dc2626');
+          map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15); // Lighter than click highlight
+          map.setPaintProperty(boundaryBorderId, 'line-color', '#dc2626');
+          map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4); // Lighter than click highlight
+        }
+      }
+    }
   });
   
-  map.on('mouseleave', 'district-points', () => {
+  map.on('mouseleave', 'district-points', (e) => {
     map.getCanvas().style.cursor = '';
+    
+    const feature = e.features[0];
+    const districtName = feature.properties.name;
+    const districtSource = feature.properties.source;
+    
+    // Only remove hover highlight for boundaries that aren't clicked/selected
+    if (districtSource === 'boundary' && state.highlightedBoundary !== districtName) {
+      // Reset to default colors only if not permanently highlighted
+      const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+      const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+      
+      if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
+        map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
+        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
+        map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
+        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
+      }
+    }
   });
 }
 
