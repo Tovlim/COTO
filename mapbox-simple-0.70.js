@@ -246,60 +246,43 @@ function selectLocalityCheckbox(localityName) {
   console.log('🟦 Found district checkboxes:', districtCheckboxes.length);
   console.log('🟦 Found locality checkboxes:', localityCheckboxes.length);
   
-  // Clear ALL district checkboxes first
+  // Clear ALL district checkboxes first - but DON'T trigger form events
   districtCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
-      console.log('🟦 Unchecking district checkbox:', checkbox.getAttribute('fs-list-value'));
+      console.log('🟦 Unchecking district checkbox (no events):', checkbox.getAttribute('fs-list-value'));
       checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
-      
-      // Trigger form events for each cleared checkbox
-      const form = checkbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
+      // Removed: utils.triggerEvent(checkbox, ['change', 'input']);
+      // Removed: form events
     }
   });
   
-  // Clear ALL locality checkboxes first
+  // Clear ALL locality checkboxes first - but DON'T trigger form events
   localityCheckboxes.forEach(checkbox => {
     if (checkbox.checked) {
-      console.log('🟦 Unchecking locality checkbox:', checkbox.getAttribute('fs-list-value'));
+      console.log('🟦 Unchecking locality checkbox (no events):', checkbox.getAttribute('fs-list-value'));
       checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
-      
-      // Trigger form events for each cleared checkbox
-      const form = checkbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
+      // Removed: utils.triggerEvent(checkbox, ['change', 'input']);
+      // Removed: form events
     }
   });
   
-  // Find and check the matching locality checkbox
+  // Find and check the matching locality checkbox - but DON'T trigger form events
   const targetCheckbox = Array.from(localityCheckboxes).find(checkbox => 
     checkbox.getAttribute('fs-list-value') === localityName
   );
   
   if (targetCheckbox) {
-    console.log('🟦 Checking locality checkbox for:', localityName);
+    console.log('🟦 Checking locality checkbox (no events) for:', localityName);
     targetCheckbox.checked = true;
-    utils.triggerEvent(targetCheckbox, ['change', 'input']);
+    // Removed: utils.triggerEvent(targetCheckbox, ['change', 'input']);
+    // Removed: form events
     
-    // Trigger form events to ensure Finsweet registers the change
-    const form = targetCheckbox.closest('form');
-    if (form) {
-      console.log('🟦 Triggering form events for locality selection');
-      form.dispatchEvent(new Event('change', {bubbles: true}));
-      form.dispatchEvent(new Event('input', {bubbles: true}));
-    }
+    console.log('🟦 Checkbox state updated without triggering filtering events');
   } else {
     console.log('🟦 No matching locality checkbox found for:', localityName);
   }
   
-  console.log('🟦 SELECT LOCALITY CHECKBOX completed');
+  console.log('🟦 SELECT LOCALITY CHECKBOX completed (no external filtering triggered)');
 }
 
 // Optimized location data extraction
