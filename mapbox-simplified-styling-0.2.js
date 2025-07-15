@@ -341,7 +341,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer
+    // Clustered points layer - make sure it's on top
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -359,9 +359,9 @@ function addNativeMarkers() {
         'text-halo-color': '#2563eb',
         'text-halo-width': 2
       }
-    });
+    }); // Add to top of all layers
     
-    // Individual locality points layer
+    // Individual locality points layer - also on top
     map.addLayer({
       id: 'locality-points',
       type: 'symbol',
@@ -397,7 +397,7 @@ function addNativeMarkers() {
           isMobile ? 8.5 : 9.5, 1
         ]
       }
-    });
+    }); // Add to top of all layers
   }
   
   setupNativeMarkerClicks();
@@ -406,6 +406,8 @@ function addNativeMarkers() {
 // Add native district markers using Symbol layers
 function addNativeDistrictMarkers() {
   if (!state.allDistrictFeatures.length) return;
+  
+  console.log(`Adding ${state.allDistrictFeatures.length} district markers`);
   
   // Add districts source and layer
   if (map.getSource('districts-source')) {
@@ -422,7 +424,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer
+    // District name labels layer - add on top of everything
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -457,7 +459,7 @@ function addNativeDistrictMarkers() {
           6, 1
         ]
       }
-    });
+    }); // Add to top of all layers
   }
   
   setupDistrictMarkerClicks();
@@ -1071,9 +1073,9 @@ function setupDropdownListeners() {
 // Load area overlays with improved error handling
 function loadAreaOverlays() {
   const areas = [
-    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.3},
-    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.3},
-    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#e99797', opacity: 0.3}
+    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.5},
+    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.5},
+    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#e99797', opacity: 0.5}
   ];
   
   const addAreaToMap = area => {
@@ -1086,14 +1088,18 @@ function loadAreaOverlays() {
         return response.json();
       })
       .then(geojsonData => {
-        console.log(`${area.name} data loaded successfully`);
+        console.log(`${area.name} data loaded successfully`, geojsonData);
         
         // Remove existing layers/sources if they exist
-        if (map.getLayer(area.layerId)) {
-          map.removeLayer(area.layerId);
-        }
-        if (map.getSource(area.sourceId)) {
-          map.removeSource(area.sourceId);
+        try {
+          if (map.getLayer(area.layerId)) {
+            map.removeLayer(area.layerId);
+          }
+          if (map.getSource(area.sourceId)) {
+            map.removeSource(area.sourceId);
+          }
+        } catch (e) {
+          console.log(`Cleanup error for ${area.name}:`, e);
         }
         
         // Add source and layer
@@ -1102,27 +1108,36 @@ function loadAreaOverlays() {
           data: geojsonData
         });
         
+        // Add the layer BEFORE other layers to ensure it's visible
         map.addLayer({
           id: area.layerId,
           type: 'fill',
           source: area.sourceId,
+          layout: {
+            'visibility': 'visible'
+          },
           paint: {
             'fill-color': area.color,
-            'fill-opacity': area.opacity
+            'fill-opacity': area.opacity,
+            'fill-outline-color': area.color
           }
-        });
+        }, 'locality-clusters'); // Add before locality layers
         
-        console.log(`${area.name} layer added to map`);
+        console.log(`${area.name} layer added to map with visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
       })
       .catch(error => {
         console.error(`Error loading ${area.name}:`, error);
       });
   };
   
-  if (map.loaded()) {
+  // Ensure we load after the map is ready
+  if (map.loaded() && map.isStyleLoaded()) {
     areas.forEach(addAreaToMap);
   } else {
-    map.on('load', () => areas.forEach(addAreaToMap));
+    map.on('style.load', () => {
+      console.log('Style loaded, loading areas...');
+      areas.forEach(addAreaToMap);
+    });
   }
 }
 
@@ -1143,7 +1158,7 @@ function setupAreaKeyControls() {
     
     console.log(`Setting up area control: ${control.keyId}`);
     
-    // Set initial state
+    // Set initial state - unchecked means area is visible
     checkbox.checked = false;
     
     // Remove existing event listeners by cloning
@@ -1151,20 +1166,25 @@ function setupAreaKeyControls() {
     checkbox.parentNode.replaceChild(newCheckbox, checkbox);
     
     newCheckbox.addEventListener('change', () => {
+      console.log(`Area control ${control.keyId} changed to:`, newCheckbox.checked);
+      
       if (!map.getLayer(control.layerId)) {
-        console.log(`Layer ${control.layerId} not found`);
+        console.log(`Layer ${control.layerId} not found in map`);
         return;
       }
       
+      // Checkbox logic: checked = hidden, unchecked = visible
       const visibility = newCheckbox.checked ? 'none' : 'visible';
       map.setLayoutProperty(control.layerId, 'visibility', visibility);
       console.log(`${control.layerId} visibility set to: ${visibility}`);
     });
     
-    // Find the wrapper element for hover events
+    // Find the wrapper element for hover effects
     const wrapperDiv = $id(control.wrapId);
     
     if (wrapperDiv) {
+      console.log(`Setting up hover effects for: ${control.wrapId}`);
+      
       // Remove existing hover listeners by cloning
       const newWrapper = wrapperDiv.cloneNode(true);
       wrapperDiv.parentNode.replaceChild(newWrapper, wrapperDiv);
@@ -1177,8 +1197,10 @@ function setupAreaKeyControls() {
       
       newWrapper.addEventListener('mouseleave', () => {
         if (!map.getLayer(control.layerId)) return;
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.3);
+        map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
       });
+    } else {
+      console.log(`Wrapper ${control.wrapId} not found`);
     }
   });
 }
@@ -1200,6 +1222,9 @@ function loadBoundaries() {
     {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
   ];
   
+  let loadedCount = 0;
+  const totalCount = districts.length + customDistricts.length;
+  
   const addBoundaryToMap = (name, customUrl = null) => {
     const boundary = {
       name,
@@ -1209,7 +1234,7 @@ function loadBoundaries() {
       borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
     };
     
-    console.log(`Loading boundary: ${name}`);
+    console.log(`Loading boundary: ${name} from ${boundary.url}`);
     
     fetch(boundary.url)
       .then(response => {
@@ -1219,17 +1244,21 @@ function loadBoundaries() {
         return response.json();
       })
       .then(geojsonData => {
-        console.log(`${name} boundary data loaded successfully`);
+        console.log(`${name} boundary data loaded successfully`, geojsonData);
         
         // Remove existing layers/sources if they exist
-        if (map.getLayer(boundary.borderId)) {
-          map.removeLayer(boundary.borderId);
-        }
-        if (map.getLayer(boundary.fillId)) {
-          map.removeLayer(boundary.fillId);
-        }
-        if (map.getSource(boundary.sourceId)) {
-          map.removeSource(boundary.sourceId);
+        try {
+          if (map.getLayer(boundary.borderId)) {
+            map.removeLayer(boundary.borderId);
+          }
+          if (map.getLayer(boundary.fillId)) {
+            map.removeLayer(boundary.fillId);
+          }
+          if (map.getSource(boundary.sourceId)) {
+            map.removeSource(boundary.sourceId);
+          }
+        } catch (e) {
+          console.log(`Cleanup error for ${name}:`, e);
         }
         
         // Add source and layers
@@ -1238,44 +1267,57 @@ function loadBoundaries() {
           data: geojsonData
         });
         
+        // Add fill layer first (lower layer)
         map.addLayer({
           id: boundary.fillId,
           type: 'fill',
           source: boundary.sourceId,
+          layout: {
+            'visibility': 'visible'
+          },
           paint: {
             'fill-color': '#1a1b1e',
-            'fill-opacity': 0.25
+            'fill-opacity': 0.4
           }
-        });
+        }, 'locality-clusters'); // Add before locality layers
         
+        // Add border layer on top of fill
         map.addLayer({
           id: boundary.borderId,
           type: 'line',
           source: boundary.sourceId,
+          layout: {
+            'visibility': 'visible'
+          },
           paint: {
             'line-color': '#1a1b1e',
             'line-width': 2,
             'line-opacity': 1
           }
-        });
+        }, 'locality-clusters'); // Add before locality layers
         
-        console.log(`${name} boundary layers added to map`);
+        console.log(`${name} boundary layers added to map with visibility:`, 
+          map.getLayoutProperty(boundary.fillId, 'visibility'),
+          map.getLayoutProperty(boundary.borderId, 'visibility')
+        );
         
         // Calculate centroid and add to district features
-        const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
-        
-        const districtFeature = {
-          type: "Feature",
-          geometry: {type: "Point", coordinates: centroid},
-          properties: {
-            name: name,
-            id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
-            type: 'district',
-            source: 'boundary'
-          }
-        };
-        
-        state.allDistrictFeatures.push(districtFeature);
+        if (geojsonData.features && geojsonData.features.length > 0) {
+          const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
+          
+          const districtFeature = {
+            type: "Feature",
+            geometry: {type: "Point", coordinates: centroid},
+            properties: {
+              name: name,
+              id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
+              type: 'district',
+              source: 'boundary'
+            }
+          };
+          
+          state.allDistrictFeatures.push(districtFeature);
+        }
         
         // Boundary interaction handlers
         map.on('click', boundary.fillId, () => {
@@ -1306,16 +1348,29 @@ function loadBoundaries() {
           map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
         });
         
-        // Update district markers after adding new features
-        addNativeDistrictMarkers();
+        // Increment loaded count and update district markers when all are loaded
+        loadedCount++;
+        if (loadedCount === totalCount) {
+          console.log('All boundaries loaded, updating district markers');
+          addNativeDistrictMarkers();
+        }
       })
       .catch(error => {
         console.error(`Error loading ${name} boundary:`, error);
+        loadedCount++; // Still increment to prevent hanging
+        if (loadedCount === totalCount) {
+          console.log('All boundary attempts completed, updating district markers');
+          addNativeDistrictMarkers();
+        }
       });
   };
   
   const loadAllBoundaries = () => {
     console.log('Starting to load all boundaries');
+    // Reset district features and loaded count
+    state.allDistrictFeatures = [];
+    loadedCount = 0;
+    
     // Load standard districts
     districts.forEach(name => addBoundaryToMap(name));
     
@@ -1323,10 +1378,14 @@ function loadBoundaries() {
     customDistricts.forEach(district => addBoundaryToMap(district.name, district.url));
   };
   
-  if (map.loaded()) {
+  // Ensure we load after the map style is ready
+  if (map.loaded() && map.isStyleLoaded()) {
     loadAllBoundaries();
   } else {
-    map.on('load', loadAllBoundaries);
+    map.on('style.load', () => {
+      console.log('Style loaded, loading boundaries...');
+      loadAllBoundaries();
+    });
   }
 }
 
@@ -1450,10 +1509,22 @@ map.on("load", () => {
   try {
     console.log('Map loaded, starting initialization...');
     init();
-    loadAreaOverlays();
-    loadBoundaries();
-    setTimeout(loadDistrictTags, 1000);
-    setTimeout(setupAreaKeyControls, 2000);
+    
+    // Wait for style to be fully loaded before adding GeoJSON layers
+    if (map.isStyleLoaded()) {
+      console.log('Style already loaded, loading GeoJSON layers...');
+      loadAreaOverlays();
+      loadBoundaries();
+    } else {
+      map.on('style.load', () => {
+        console.log('Style loaded event fired, loading GeoJSON layers...');
+        loadAreaOverlays();
+        loadBoundaries();
+      });
+    }
+    
+    setTimeout(loadDistrictTags, 2000);
+    setTimeout(setupAreaKeyControls, 4000);
     
     // Hide loading screen after everything is loaded
     setTimeout(() => {
@@ -1461,7 +1532,7 @@ map.on("load", () => {
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
       }
-    }, 3000); // Give more time for all components to load
+    }, 5000); // Give more time for all components to load
     
   } catch (error) {
     console.error('Error during map initialization:', error);
