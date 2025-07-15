@@ -67,7 +67,7 @@ class MapResetControl {
         essential: true
       });
       
-      // Clear any active filters
+      // Reset locality markers to show all
       if (this._map.getSource('localities-source')) {
         this._map.getSource('localities-source').setData({type: "FeatureCollection", features: state.allLocalityFeatures});
       }
@@ -545,6 +545,7 @@ function setupDistrictMarkerClicks() {
   map.on('click', 'district-points', (e) => {
     const feature = e.features[0];
     const districtName = feature.properties.name;
+    const districtSource = feature.properties.source; // 'boundary' or 'tag'
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -560,55 +561,44 @@ function setupDistrictMarkerClicks() {
     
     window.isMarkerClick = true;
     
-    // Check if this district has a boundary by looking for its source
-    const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-    const hasBoundary = map.getSource(boundarySourceId);
+    // Always use checkbox selection for both types
+    selectDistrictCheckbox(districtName);
     
-    console.log(`District ${districtName} clicked. Has boundary:`, !!hasBoundary);
+    // Show filtered elements and sidebar
+    toggleShowWhenFilteredElements(true);
+    toggleSidebar('Left', true);
     
-    if (hasBoundary) {
-      // DISTRICT WITH BOUNDARY: Reframe to boundary area
-      console.log(`Reframing to boundary for district: ${districtName}`);
+    if (districtSource === 'boundary') {
+      // District WITH boundary - reframe to boundary extents only
+      console.log(`District ${districtName} has boundary, reframing to boundary extents`);
       
-      // Get the boundary source data
-      const boundarySource = map.getSource(boundarySourceId);
-      if (boundarySource._data && boundarySource._data.features && boundarySource._data.features.length > 0) {
-        const bounds = new mapboxgl.LngLatBounds();
-        boundarySource._data.features.forEach(feature => {
+      // Find and click the corresponding boundary fill layer to trigger reframing
+      const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+      if (map.getLayer(boundaryFillId)) {
+        // Get the boundary source data
+        const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+        const source = map.getSource(boundarySourceId);
+        if (source && source._data) {
+          const bounds = new mapboxgl.LngLatBounds();
           const addCoords = coords => {
             if (Array.isArray(coords) && coords.length > 0) {
               if (typeof coords[0] === 'number') bounds.extend(coords);
               else coords.forEach(addCoords);
             }
           };
-          addCoords(feature.geometry.coordinates);
-        });
-        
-        // Fit to boundary bounds
-        map.fitBounds(bounds, {
-          padding: {top: 50, bottom: 50, left: 50, right: 50},
-          duration: 1000,
-          essential: true
-        });
-        
-        console.log(`Fitted map to boundary for: ${districtName}`);
+          
+          source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+        }
       }
-      
     } else {
-      // DISTRICT WITHOUT BOUNDARY: Use dropdown selection and filter to map markers
-      console.log(`Using dropdown selection for district: ${districtName}`);
-      
-      // Use checkbox selection for districts
-      selectDistrictCheckbox(districtName);
+      // District WITHOUT boundary - use dropdown and trigger map reframing
+      console.log(`District ${districtName} has no boundary, using dropdown selection`);
       
       // Select district in dropdown
       selectDistrictInDropdown(districtName);
       
-      // Show filtered elements and sidebar
-      toggleShowWhenFilteredElements(true);
-      toggleSidebar('Left', true);
-      
-      // Trigger map reframing to filtered markers
+      // Trigger map reframing after dropdown selection
       setTimeout(() => {
         state.flags.forceFilteredReframe = true;
         state.flags.isRefreshButtonAction = true;
@@ -1141,7 +1131,7 @@ function loadAreaOverlays() {
           data: geojsonData
         });
         
-        // Add the layer
+        // Add the layer BELOW marker layers
         console.log(`Adding layer: ${area.layerId}`);
         map.addLayer({
           id: area.layerId,
@@ -1155,7 +1145,7 @@ function loadAreaOverlays() {
             'fill-opacity': area.opacity,
             'fill-outline-color': area.color
           }
-        });
+        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined); // Add before marker layers
         
         console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
         console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
@@ -1238,7 +1228,7 @@ function setupAreaKeyControls() {
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
           if (!map.getLayer(control.layerId)) return;
-          map.moveLayer(control.layerId);
+          // Removed: map.moveLayer() to keep z-axis static for all GeoJSON layers
           map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
         };
         
