@@ -472,7 +472,7 @@ function setupNativeMarkerClicks() {
   // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
     // Stop event from bubbling to boundary layers underneath
-    e.preventDefault();
+    e.originalEvent.stopPropagation();
     
     const feature = e.features[0];
     const locality = feature.properties.name;
@@ -491,6 +491,8 @@ function setupNativeMarkerClicks() {
     
     window.isMarkerClick = true;
     
+    console.log(`Locality clicked: ${locality}, stopping boundary propagation`);
+    
     // Use checkbox selection for localities
     selectLocalityCheckbox(locality);
     
@@ -508,7 +510,9 @@ function setupNativeMarkerClicks() {
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
     // Stop event from bubbling to boundary layers underneath
-    e.preventDefault();
+    e.originalEvent.stopPropagation();
+    
+    console.log('Locality cluster clicked, stopping boundary propagation');
     
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
