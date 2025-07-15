@@ -471,6 +471,9 @@ function addNativeDistrictMarkers() {
 function setupNativeMarkerClicks() {
   // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
+    // Stop event from bubbling to boundary layers underneath
+    e.preventDefault();
+    
     const feature = e.features[0];
     const locality = feature.properties.name;
     
@@ -504,6 +507,9 @@ function setupNativeMarkerClicks() {
   
   // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
+    // Stop event from bubbling to boundary layers underneath
+    e.preventDefault();
+    
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
