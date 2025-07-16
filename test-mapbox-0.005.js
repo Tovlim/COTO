@@ -145,7 +145,7 @@ const utils = {
   }
 };
 
-// Toggle sidebar with improved logic
+// Toggle sidebar with improved logic for multiple left sidebars
 const toggleSidebar = (side, show = null) => {
   const sidebar = $id(`${side}Sidebar`);
   if (!sidebar) return;
@@ -154,17 +154,37 @@ const toggleSidebar = (side, show = null) => {
   sidebar.classList.toggle('is-show', isShowing);
   
   const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-  const marginProp = `margin${side}`;
+  const marginProp = `margin${side === 'SecondLeft' ? 'Left' : side}`;
   
   if (window.innerWidth > 478) {
     sidebar.style[marginProp] = isShowing ? '0' : `-${currentWidth + 1}px`;
+    
+    // Close other left sidebars when opening a left sidebar
+    if (isShowing && (side === 'Left' || side === 'SecondLeft')) {
+      const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
+      const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
+      if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
+        toggleSidebar(otherLeftSide, false);
+      }
+    }
   } else {
     sidebar.style[marginProp] = isShowing ? '0' : '';
-    if (isShowing) toggleSidebar(side === 'Left' ? 'Right' : 'Left', false);
+    if (isShowing) {
+      // On mobile, close ALL other sidebars
+      const allSides = ['Left', 'SecondLeft', 'Right'];
+      allSides.forEach(otherSide => {
+        if (otherSide !== side) {
+          const otherSidebar = $id(`${otherSide}Sidebar`);
+          if (otherSidebar && otherSidebar.classList.contains('is-show')) {
+            toggleSidebar(otherSide, false);
+          }
+        }
+      });
+    }
   }
   
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
-  const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
+  const arrowIcon = $1(`[arrow-icon="${side === 'SecondLeft' ? 'secondleft' : side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
 
@@ -863,6 +883,10 @@ function setupControls() {
     'ToggleLeft': () => {
       const leftSidebar = $id('LeftSidebar');
       if (leftSidebar) toggleSidebar('Left', !leftSidebar.classList.contains('is-show'));
+    },
+    'ToggleSecondLeft': () => {
+      const secondLeftSidebar = $id('SecondLeftSidebar');
+      if (secondLeftSidebar) toggleSidebar('SecondLeft', !secondLeftSidebar.classList.contains('is-show'));
     }
   };
   
@@ -886,7 +910,11 @@ function setupControls() {
         if (!sidebar) return;
         
         const openRightSidebar = newElement.getAttribute('open-right-sidebar');
+        const openSecondLeftSidebar = newElement.getAttribute('open-second-left-sidebar');
+        
         if (openRightSidebar === 'open-only') {
+          toggleSidebar(sidebarSide, true);
+        } else if (openSecondLeftSidebar === 'open-only') {
           toggleSidebar(sidebarSide, true);
         } else {
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
@@ -907,13 +935,15 @@ function setupControls() {
   };
   
   setupSidebarControls('[open-right-sidebar="true"], [open-right-sidebar="open-only"]', 'Right');
+  setupSidebarControls('[open-second-left-sidebar="true"], [open-second-left-sidebar="open-only"]', 'SecondLeft');
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
+  setupSidebarControls('.OpenSecondLeftSidebar, [OpenSecondLeftSidebar], [opensecondleftsidebar]', 'SecondLeft', 'change');
   
   setupTabSwitcher();
   setupAreaKeyControls();
 }
 
-// Optimized sidebar setup with performance improvements
+// Optimized sidebar setup with performance improvements for three sidebars
 function setupSidebars() {
   let zIndex = 1000;
   
@@ -925,7 +955,8 @@ function setupSidebars() {
     if (!sidebar || !tab || !close) return false;
     if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
     
-    sidebar.style.cssText += `transition: margin-${side.toLowerCase()} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
+    const marginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
+    sidebar.style.cssText += `transition: ${marginProperty} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
     tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
     
     const bringToFront = () => {
@@ -937,39 +968,67 @@ function setupSidebars() {
         if (tab.parentElement) tab.parentElement.style.zIndex = newZ + 10;
       }
       
-      const oppositeSide = side === 'Left' ? 'Right' : 'Left';
-      const oppositeSidebar = $id(`${oppositeSide}Sidebar`);
-      const oppositeTab = $id(`${oppositeSide}SideTab`);
-      
-      if (oppositeSidebar) oppositeSidebar.style.zIndex = newZ - 1;
-      if (oppositeTab && window.innerWidth <= 478) {
-        oppositeTab.style.zIndex = newZ + 5;
-        if (oppositeTab.parentElement) oppositeTab.parentElement.style.zIndex = newZ + 5;
-      }
+      // Lower z-index for other sidebars
+      const allSides = ['Left', 'SecondLeft', 'Right'];
+      allSides.forEach(otherSide => {
+        if (otherSide !== side) {
+          const otherSidebar = $id(`${otherSide}Sidebar`);
+          const otherTab = $id(`${otherSide}SideTab`);
+          
+          if (otherSidebar) otherSidebar.style.zIndex = newZ - 1;
+          if (otherTab && window.innerWidth <= 478) {
+            otherTab.style.zIndex = newZ + 5;
+            if (otherTab.parentElement) otherTab.parentElement.style.zIndex = newZ + 5;
+          }
+        }
+      });
     };
 
     const toggle = show => {
       if (show) bringToFront();
       sidebar.classList.toggle('is-show', show);
       
-      const arrowIcon = $1(`[arrow-icon="${side.toLowerCase()}"]`);
+      const arrowIcon = $1(`[arrow-icon="${side === 'SecondLeft' ? 'secondleft' : side.toLowerCase()}"]`);
       if (arrowIcon) arrowIcon.style.transform = show ? 'rotateY(180deg)' : 'rotateY(0deg)';
       
       if (window.innerWidth > 478) {
         const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-        sidebar.style[`margin${side}`] = show ? '0' : `-${currentWidth + 1}px`;
-      } else {
-        sidebar.style[`margin${side}`] = show ? '0' : '';
-        if (show) {
-          const oppositeSide = side === 'Left' ? 'Right' : 'Left';
-          const oppositeSidebar = $id(`${oppositeSide}Sidebar`);
-          if (oppositeSidebar) {
-            oppositeSidebar.classList.remove('is-show');
-            const oppositeArrowIcon = $1(`[arrow-icon="${oppositeSide.toLowerCase()}"]`);
-            if (oppositeArrowIcon) oppositeArrowIcon.style.transform = 'rotateY(0deg)';
-            oppositeSidebar.style[`margin${oppositeSide}`] = '';
-            oppositeSidebar.style.pointerEvents = '';
+        const marginProp = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
+        sidebar.style[marginProp] = show ? '0' : `-${currentWidth + 1}px`;
+        
+        // Close other left sidebars when opening a left sidebar
+        if (show && (side === 'Left' || side === 'SecondLeft')) {
+          const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
+          const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
+          if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
+            otherLeftSidebar.classList.remove('is-show');
+            const otherArrowIcon = $1(`[arrow-icon="${otherLeftSide === 'SecondLeft' ? 'secondleft' : otherLeftSide.toLowerCase()}"]`);
+            if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
+            const otherMarginProp = otherLeftSide === 'SecondLeft' ? 'marginLeft' : `margin${otherLeftSide}`;
+            const otherWidth = parseInt(getComputedStyle(otherLeftSidebar).width) || 300;
+            otherLeftSidebar.style[otherMarginProp] = `-${otherWidth + 1}px`;
+            otherLeftSidebar.style.pointerEvents = '';
           }
+        }
+      } else {
+        const marginProp = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
+        sidebar.style[marginProp] = show ? '0' : '';
+        if (show) {
+          // On mobile, close ALL other sidebars
+          const allSides = ['Left', 'SecondLeft', 'Right'];
+          allSides.forEach(otherSide => {
+            if (otherSide !== side) {
+              const otherSidebar = $id(`${otherSide}Sidebar`);
+              if (otherSidebar && otherSidebar.classList.contains('is-show')) {
+                otherSidebar.classList.remove('is-show');
+                const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
+                if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
+                const otherMarginProp = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
+                otherSidebar.style[otherMarginProp] = '';
+                otherSidebar.style.pointerEvents = '';
+              }
+            }
+          });
         }
       }
       
@@ -1007,9 +1066,10 @@ function setupSidebars() {
   
   const attemptSetup = (attempt = 1, maxAttempts = 5) => {
     const leftReady = setupSidebarElement('Left');
+    const secondLeftReady = setupSidebarElement('SecondLeft');
     const rightReady = setupSidebarElement('Right');
     
-    if (leftReady && rightReady) {
+    if (leftReady && secondLeftReady && rightReady) {
       setupInitialMargins();
       setTimeout(setupControls, 100);
       return;
@@ -1027,11 +1087,12 @@ function setupSidebars() {
   const setupInitialMargins = () => {
     if (window.innerWidth <= 478) return;
     
-    ['Left', 'Right'].forEach(side => {
+    ['Left', 'SecondLeft', 'Right'].forEach(side => {
       const sidebar = $id(`${side}Sidebar`);
       if (sidebar && !sidebar.classList.contains('is-show')) {
         const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-        sidebar.style[`margin${side}`] = `-${currentWidth + 1}px`;
+        const marginProp = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
+        sidebar.style[marginProp] = `-${currentWidth + 1}px`;
       }
     });
   };
@@ -1046,6 +1107,12 @@ function setupEvents() {
       // Only open sidebar on devices wider than 478px
       if (window.innerWidth > 478) {
         setTimeout(() => toggleSidebar('Left', true), 100);
+      }
+    }},
+    {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      // Only open second left sidebar on devices wider than 478px
+      if (window.innerWidth > 478) {
+        setTimeout(() => toggleSidebar('SecondLeft', true), 100);
       }
     }},
     {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
