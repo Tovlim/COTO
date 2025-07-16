@@ -387,17 +387,18 @@ function selectLocalityCheckbox(localityName) {
   }
 }
 
-// Optimized location data extraction
+// Optimized location data extraction - NOW USES FILTER ELEMENTS ONLY
 function getLocationData() {
   state.locationData.features = [];
   const selectors = [
-    $('.data-places-names, .data-place-name'),
-    $('.data-places-latitudes, .data-place-latitude'),
-    $('.data-places-longitudes, .data-place-longitude'),
-    $('.data-places-slugs, .data-place-slug, .data-slug')
+    $('.data-places-names-filter'),
+    $('.data-places-latitudes-filter'),
+    $('.data-places-longitudes-filter'),
+    $('.data-places-slug-filter'),
+    $('.data-places-district-filter')
   ];
   
-  const [names, lats, lngs, slugs] = selectors;
+  const [names, lats, lngs, slugs, districts] = selectors;
   if (!names.length) return;
   
   const minLength = Math.min(names.length, lats.length, lngs.length);
@@ -413,6 +414,7 @@ function getLocationData() {
         id: `location-${i}`,
         popupIndex: i,
         slug: slugs[i]?.textContent.trim() || '',
+        district: districts[i]?.textContent.trim() || '',
         index: i,
         type: 'locality'
       }
@@ -423,6 +425,7 @@ function getLocationData() {
   
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
+  console.log(`Loaded ${state.allLocalityFeatures.length} localities from filter elements`);
 }
 
 // Add native Mapbox markers using Symbol layers - GREEN FROM START!
@@ -779,26 +782,40 @@ const checkMapMarkersFiltering = () => {
   
   if (checkFiltering('mapmarkers')) return true;
   
+  // Compare filter elements with complete dataset to detect filtering
   const filteredLat = $('.data-places-latitudes-filter');
-  const allLat = $('.data-places-latitudes, .data-place-latitude');
-  return filteredLat.length > 0 && filteredLat.length < allLat.length;
+  const allLat = $('.data-places-latitudes-filter'); // Now same source
+  
+  // Check if some filter elements are hidden (filtered out)
+  const visibleFilteredLat = Array.from(filteredLat).filter(el => 
+    el.style.display !== 'none' && getComputedStyle(el).display !== 'none'
+  );
+  
+  return visibleFilteredLat.length > 0 && visibleFilteredLat.length < allLat.length;
 };
 
-// Optimized filter application
+// Optimized filter application - NOW USES FILTER ELEMENTS ONLY
 function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
-  const filteredLat = $('.data-places-latitudes-filter');
-  const filteredLon = $('.data-places-longitudes-filter');
-  const allLat = $('.data-places-latitudes, .data-place-latitude');
+  const allFilteredLat = $('.data-places-latitudes-filter');
+  const allFilteredLon = $('.data-places-longitudes-filter');
+  
+  // Get only visible (non-filtered) elements
+  const visibleFilteredLat = Array.from(allFilteredLat).filter(el => 
+    el.style.display !== 'none' && getComputedStyle(el).display !== 'none'
+  );
+  const visibleFilteredLon = Array.from(allFilteredLon).filter(el => 
+    el.style.display !== 'none' && getComputedStyle(el).display !== 'none'
+  );
   
   let visibleCoordinates = [];
   
-  if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
-    // Create coordinates from filtered data for reframing ONLY
-    for (let i = 0; i < filteredLat.length; i++) {
-      const lat = parseFloat(filteredLat[i]?.textContent.trim());
-      const lon = parseFloat(filteredLon[i]?.textContent.trim());
+  if (visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length) {
+    // Create coordinates from visible filtered data for reframing ONLY
+    for (let i = 0; i < visibleFilteredLat.length; i++) {
+      const lat = parseFloat(visibleFilteredLat[i]?.textContent.trim());
+      const lon = parseFloat(visibleFilteredLon[i]?.textContent.trim());
       
       if (!isNaN(lat) && !isNaN(lon)) {
         visibleCoordinates.push([lon, lat]);
@@ -842,6 +859,8 @@ function applyFilterToMarkers() {
       map.flyTo({center: [35.22, 31.85], zoom: isMobile ? 7.5 : 8.33, duration: animationDuration, essential: true});
     }
   }
+  
+  console.log(`Applied filter: ${visibleCoordinates.length} visible locations of ${state.allLocalityFeatures.length} total`);
 }
 
 const handleFilterUpdate = utils.debounce(() => {
