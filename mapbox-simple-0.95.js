@@ -182,10 +182,10 @@ function highlightBoundary(districtName) {
   const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
-    // Apply subtle red highlight (using new district marker color)
-    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000'); // New red color
+    // Apply subtle red highlight (using new district marker color but more subtle)
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000'); // Updated to new district color
     map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25); // Keep same opacity
-    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000'); // New red color
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000'); // Updated to new district color
     map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6); // Keep same opacity
     
     // Track the highlighted boundary
@@ -462,6 +462,11 @@ function addNativeDistrictMarkers() {
       type: "FeatureCollection",
       features: state.allDistrictFeatures
     });
+    
+    // Update existing layer colors to correct red
+    if (map.getLayer('district-points')) {
+      map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
+    }
   } else {
     map.addSource('districts-source', {
       type: 'geojson',
@@ -471,7 +476,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - add on top of everything
+    // District name labels layer - add on top of everything with CORRECT RED COLOR
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -496,7 +501,7 @@ function addNativeDistrictMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#f50000', // New red color
+        'text-halo-color': '#f50000', // RED from start - no color flash
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -506,7 +511,7 @@ function addNativeDistrictMarkers() {
           6, 1
         ]
       }
-    }); // Add to top of all layers
+    });
   }
   
   setupDistrictMarkerClicks();
@@ -1633,6 +1638,7 @@ function loadSimplifiedBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All simplified boundaries loaded, updating district markers');
           addNativeDistrictMarkers();
+          // No need for delayed color update since layers start with correct colors
         }
         
       })
@@ -1642,6 +1648,7 @@ function loadSimplifiedBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All boundary attempts completed, updating district markers');
           addNativeDistrictMarkers();
+          // No need for delayed color update since layers start with correct colors
         }
       });
   };
@@ -1730,6 +1737,8 @@ function loadDistrictTags() {
   
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
+  
+  // No need for delayed color update since layers start with correct colors
 }
 
 // Tag monitoring with optimized logic
@@ -1745,12 +1754,35 @@ const monitorTags = () => {
   }
 };
 
+// Update marker colors for existing layers
+function updateMarkerColors() {
+  console.log('Updating marker colors...');
+  
+  // Update locality colors
+  if (map.getLayer('locality-clusters')) {
+    map.setPaintProperty('locality-clusters', 'text-halo-color', '#739005');
+    console.log('Updated locality cluster colors to green');
+  }
+  if (map.getLayer('locality-points')) {
+    map.setPaintProperty('locality-points', 'text-halo-color', '#739005');
+    console.log('Updated locality point colors to green');
+  }
+  
+  // Update district colors
+  if (map.getLayer('district-points')) {
+    map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
+    console.log('Updated district marker colors to red');
+  }
+}
+
 // Optimized initialization
 function init() {
   console.log('Initializing map...');
   getLocationData();
   addNativeMarkers();
   setupEvents();
+  
+  // No need for delayed color updates since layers start with correct colors
   
   const handleMapEvents = () => {
     clearTimeout(state.timers.zoom);
