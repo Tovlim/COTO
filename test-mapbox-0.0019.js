@@ -387,18 +387,73 @@ function selectLocalityCheckbox(localityName) {
   }
 }
 
-// Optimized location data extraction - NOW USES DYNAMIC LIST DETECTION
+// Helper function to automatically discover all cms-filter-list containers
+function getAvailableFilterLists() {
+  const lists = [];
+  let listNumber = 1;
+  
+  // Keep checking for cms-filter-list-{number} until we don't find any more
+  while (true) {
+    const listId = `cms-filter-list-${listNumber}`;
+    const listContainer = $id(listId);
+    
+    if (listContainer) {
+      lists.push(listId);
+      listNumber++;
+    } else {
+      // If we don't find this number, check a few more in case there are gaps
+      let gapCount = 0;
+      let tempNumber = listNumber;
+      
+      // Check up to 5 numbers ahead for gaps (cms-filter-list-4 might exist even if cms-filter-list-3 doesn't)
+      while (gapCount < 5) {
+        tempNumber++;
+        const tempListId = `cms-filter-list-${tempNumber}`;
+        if ($id(tempListId)) {
+          // Found a gap - add all the missing ones and continue
+          for (let i = listNumber; i <= tempNumber; i++) {
+            const gapListId = `cms-filter-list-${i}`;
+            if ($id(gapListId)) {
+              lists.push(gapListId);
+            }
+          }
+          listNumber = tempNumber + 1;
+          gapCount = 0; // Reset gap count
+        } else {
+          gapCount++;
+        }
+      }
+      
+      // If we've checked 5 numbers ahead and found nothing, we're done
+      if (gapCount >= 5) {
+        break;
+      }
+    }
+  }
+  
+  console.log(`Auto-discovered filter lists: ${lists.join(', ')}`);
+  return lists;
+}
+
+// Optimized location data extraction - AUTOMATICALLY DISCOVERS ALL FILTER LISTS
 function getLocationData() {
   state.locationData.features = [];
   
-  // Find all elements with map-cms-filter="list" attribute
-  const listContainers = $('[map-cms-filter="list"]');
+  // Automatically discover all available cms-filter-list containers
+  const lists = getAvailableFilterLists();
   let totalLoaded = 0;
   
-  console.log(`Found ${listContainers.length} collection lists with map-cms-filter="list" attribute`);
+  if (lists.length === 0) {
+    console.log('No cms-filter-list containers found');
+    return;
+  }
   
-  listContainers.forEach((listContainer, listIndex) => {
-    const listId = listContainer.id || `list-${listIndex}`;
+  lists.forEach((listId, listIndex) => {
+    const listContainer = $id(listId);
+    if (!listContainer) {
+      console.log(`List container ${listId} not found`);
+      return;
+    }
     
     const selectors = [
       listContainer.querySelectorAll('.data-places-names-filter'),
@@ -432,7 +487,6 @@ function getLocationData() {
           district: districts[i]?.textContent.trim() || '',
           index: totalLoaded + i, // Global index
           listId: listId, // Track which list this came from
-          listIndex: listIndex, // Track list order
           type: 'locality'
         }
       };
@@ -445,7 +499,7 @@ function getLocationData() {
   
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
-  console.log(`Loaded ${state.allLocalityFeatures.length} total localities from ${listContainers.length} collection lists`);
+  console.log(`Loaded ${state.allLocalityFeatures.length} total localities from ${lists.length} filter lists`);
 }
 
 // Add native Mapbox markers using Symbol layers - GREEN FROM START!
@@ -802,12 +856,15 @@ const checkMapMarkersFiltering = () => {
   
   if (checkFiltering('mapmarkers')) return true;
   
-  // Check filtering across all elements with map-cms-filter="list" attribute
-  const listContainers = $('[map-cms-filter="list"]');
+  // Check filtering across all discovered cms-filter-list containers
+  const lists = getAvailableFilterLists();
   let totalElements = 0;
   let totalVisible = 0;
   
-  listContainers.forEach(listContainer => {
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) return;
+    
     const allFilteredLat = listContainer.querySelectorAll('.data-places-latitudes-filter');
     const visibleFilteredLat = Array.from(allFilteredLat).filter(el => {
       // Check if element itself or any parent is hidden
@@ -826,11 +883,11 @@ const checkMapMarkersFiltering = () => {
     totalVisible += visibleFilteredLat.length;
   });
   
-  console.log(`Filtering check: ${totalVisible} visible of ${totalElements} total (across ${listContainers.length} collection lists)`);
+  console.log(`Filtering check: ${totalVisible} visible of ${totalElements} total (across ${lists.length} lists)`);
   return totalVisible > 0 && totalVisible < totalElements;
 };
 
-// Optimized filter application - HANDLES ALL DYNAMIC FILTER LISTS
+// Optimized filter application - AUTOMATICALLY HANDLES ALL DISCOVERED FILTER LISTS
 function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
@@ -847,14 +904,17 @@ function applyFilterToMarkers() {
     return true;
   };
   
-  // Collect elements from all lists with map-cms-filter="list" attribute
-  const listContainers = $('[map-cms-filter="list"]');
+  // Collect elements from all discovered lists
+  const lists = getAvailableFilterLists();
   let allFilteredLat = [];
   let allFilteredLon = [];
   let visibleFilteredLat = [];
   let visibleFilteredLon = [];
   
-  listContainers.forEach(listContainer => {
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) return;
+    
     const listLat = Array.from(listContainer.querySelectorAll('.data-places-latitudes-filter'));
     const listLon = Array.from(listContainer.querySelectorAll('.data-places-longitudes-filter'));
     
@@ -870,7 +930,7 @@ function applyFilterToMarkers() {
   
   let visibleCoordinates = [];
   
-  console.log(`Filter application: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total locations (${listContainers.length} collection lists)`);
+  console.log(`Filter application: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total locations (${lists.length} lists)`);
   
   if (visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length) {
     // Filtering is active - create coordinates from visible filtered data for reframing ONLY
@@ -895,7 +955,7 @@ function applyFilterToMarkers() {
     }
   } else if (visibleFilteredLat.length === allFilteredLat.length) {
     // No filtering - show all features and use all coordinates
-    console.log(`No filtering detected - using all coordinates from ${listContainers.length} collection lists`);
+    console.log(`No filtering detected - using all coordinates from ${lists.length} lists`);
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
