@@ -187,6 +187,9 @@ const toggleSidebar = (side, show = null) => {
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   const arrowIcon = $1(`[arrow-icon="${side === 'SecondLeft' ? 'secondleft' : side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
+  
+  // Ensure LeftSideTab stays above right sidebar on mobile
+  setTimeout(ensureLeftTabVisibility, 10);
 };
 
 // Highlight boundary with subtle red color and move above area overlays
@@ -944,6 +947,26 @@ function setupControls() {
   setupAreaKeyControls();
 }
 
+// Ensure LeftSideTab is always visible above right sidebar on mobile
+function ensureLeftTabVisibility() {
+  if (window.innerWidth <= 478) {
+    const leftSideTab = $id('LeftSideTab');
+    const rightSidebar = $id('RightSidebar');
+    
+    if (leftSideTab && rightSidebar) {
+      const rightSidebarZ = parseInt(rightSidebar.style.zIndex) || 1000;
+      const newLeftTabZ = rightSidebarZ + 50; // Always 50 higher than right sidebar
+      
+      leftSideTab.style.zIndex = newLeftTabZ;
+      if (leftSideTab.parentElement) {
+        leftSideTab.parentElement.style.zIndex = newLeftTabZ;
+      }
+      
+      console.log(`Mobile: LeftSideTab z-index set to ${newLeftTabZ} (above right sidebar)`);
+    }
+  }
+}
+
 // Optimized sidebar setup with performance improvements for three sidebars
 function setupSidebars() {
   let zIndex = 1000;
@@ -961,24 +984,22 @@ function setupSidebars() {
     sidebar.style.cssText += `transition: ${cssTransitionProperty} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
     tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
     
-    // Ensure tabs are visible on mobile with proper z-index from start
-    if (window.innerWidth <= 478) {
-      tab.style.zIndex = zIndex + 50; // High z-index for mobile visibility
-      if (tab.parentElement) {
-        tab.parentElement.style.zIndex = zIndex + 50;
-      }
-      console.log(`Set mobile z-index for ${side} tab:`, zIndex + 50);
-    }
-    
     const bringToFront = () => {
       const newZ = ++zIndex;
       sidebar.style.zIndex = newZ;
       
       if (window.innerWidth <= 478) {
-        // Ensure current tab gets highest z-index
-        tab.style.zIndex = newZ + 50;
-        if (tab.parentElement) tab.parentElement.style.zIndex = newZ + 50;
-        console.log(`Mobile: Brought ${side} tab to front with z-index:`, newZ + 50);
+        tab.style.zIndex = newZ + 10;
+        if (tab.parentElement) tab.parentElement.style.zIndex = newZ + 10;
+        
+        // Special case: Always keep LeftSideTab above right sidebar on mobile
+        if (side === 'Right') {
+          const leftSideTab = $id('LeftSideTab');
+          if (leftSideTab) {
+            leftSideTab.style.zIndex = newZ + 20; // Higher than right sidebar
+            if (leftSideTab.parentElement) leftSideTab.parentElement.style.zIndex = newZ + 20;
+          }
+        }
       }
       
       // Lower z-index for other sidebars
@@ -990,9 +1011,11 @@ function setupSidebars() {
           
           if (otherSidebar) otherSidebar.style.zIndex = newZ - 1;
           if (otherTab && window.innerWidth <= 478) {
-            // Keep other tabs visible but lower
-            otherTab.style.zIndex = newZ + 45;
-            if (otherTab.parentElement) otherTab.parentElement.style.zIndex = newZ + 45;
+            // Don't lower LeftSideTab z-index when right sidebar opens
+            if (!(side === 'Right' && otherSide === 'Left')) {
+              otherTab.style.zIndex = newZ + 5;
+              if (otherTab.parentElement) otherTab.parentElement.style.zIndex = newZ + 5;
+            }
           }
         }
       });
@@ -1048,6 +1071,9 @@ function setupSidebars() {
       }
       
       sidebar.style.pointerEvents = show ? 'auto' : '';
+      
+      // Ensure LeftSideTab stays above right sidebar on mobile
+      setTimeout(ensureLeftTabVisibility, 10);
     };
     
     if (!sidebar.dataset.clickSetup) {
@@ -1086,9 +1112,9 @@ function setupSidebars() {
     
     if (leftReady && secondLeftReady && rightReady) {
       setupInitialMargins();
-      // Ensure all tabs are visible on mobile after setup
-      ensureMobileTabVisibility();
       setTimeout(setupControls, 100);
+      // Ensure LeftSideTab is above right sidebar on mobile from the start
+      setTimeout(ensureLeftTabVisibility, 200);
       return;
     }
     
@@ -1097,8 +1123,9 @@ function setupSidebars() {
       setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
-      ensureMobileTabVisibility();
       setTimeout(setupControls, 100);
+      // Ensure LeftSideTab is above right sidebar on mobile even if setup incomplete
+      setTimeout(ensureLeftTabVisibility, 200);
     }
   };
   
@@ -1115,24 +1142,16 @@ function setupSidebars() {
     });
   };
   
-  // Ensure all tabs are visible on mobile
-  const ensureMobileTabVisibility = () => {
-    if (window.innerWidth <= 478) {
-      ['Left', 'SecondLeft', 'Right'].forEach((side, index) => {
-        const tab = $id(`${side}SideTab`);
-        if (tab) {
-          const baseZIndex = 1100 + (index * 5);
-          tab.style.zIndex = baseZIndex;
-          if (tab.parentElement) {
-            tab.parentElement.style.zIndex = baseZIndex;
-          }
-          console.log(`Mobile: Set ${side} tab z-index to ${baseZIndex}`);
-        }
-      });
-    }
-  };
-  
   attemptSetup();
+  
+  // Add resize listener to maintain LeftSideTab visibility on mobile
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      ensureLeftTabVisibility();
+    }, 100);
+  });
 }
 
 // Optimized event setup with consolidated handlers
