@@ -1758,7 +1758,7 @@ const monitorTags = () => {
 function updateMarkerColors() {
   console.log('Updating marker colors...');
   
-  // Update locality colors
+  // Update locality colors to GREEN
   if (map.getLayer('locality-clusters')) {
     map.setPaintProperty('locality-clusters', 'text-halo-color', '#739005');
     console.log('Updated locality cluster colors to green');
@@ -1768,7 +1768,7 @@ function updateMarkerColors() {
     console.log('Updated locality point colors to green');
   }
   
-  // Update district colors
+  // Update district colors to RED
   if (map.getLayer('district-points')) {
     map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
     console.log('Updated district marker colors to red');
