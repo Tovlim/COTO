@@ -387,10 +387,8 @@ function selectLocalityCheckbox(localityName) {
   }
 }
 
-// Optimized location data extraction - NOW USES FILTER ELEMENTS ONLY WITH DEBUGGING
+// Optimized location data extraction - NOW USES FILTER ELEMENTS ONLY
 function getLocationData() {
-  console.log('🔍 DEBUG: getLocationData() called');
-  
   state.locationData.features = [];
   const selectors = [
     $('.data-places-names-filter'),
@@ -401,81 +399,33 @@ function getLocationData() {
   ];
   
   const [names, lats, lngs, slugs, districts] = selectors;
-  
-  // DEBUG: Log what elements we found
-  console.log('🔍 DEBUG: Elements found:');
-  console.log('  - Names:', names.length, names.length > 0 ? 'Found' : 'NOT FOUND');
-  console.log('  - Latitudes:', lats.length, lats.length > 0 ? 'Found' : 'NOT FOUND');
-  console.log('  - Longitudes:', lngs.length, lngs.length > 0 ? 'Found' : 'NOT FOUND');
-  console.log('  - Slugs:', slugs.length, slugs.length > 0 ? 'Found' : 'NOT FOUND');
-  console.log('  - Districts:', districts.length, districts.length > 0 ? 'Found' : 'NOT FOUND');
-  
-  if (!names.length) {
-    console.log('❌ DEBUG: No names elements found! Exiting getLocationData()');
-    return;
-  }
-  
-  // DEBUG: Log sample content from first few elements
-  console.log('🔍 DEBUG: Sample content from first 3 elements:');
-  for (let i = 0; i < Math.min(3, names.length); i++) {
-    console.log(`  [${i}] Name: "${names[i]?.textContent?.trim()}"`, names[i]);
-    console.log(`  [${i}] Lat: "${lats[i]?.textContent?.trim()}"`, lats[i]);
-    console.log(`  [${i}] Lng: "${lngs[i]?.textContent?.trim()}"`, lngs[i]);
-    console.log(`  [${i}] Slug: "${slugs[i]?.textContent?.trim()}"`, slugs[i]);
-    console.log(`  [${i}] District: "${districts[i]?.textContent?.trim()}"`, districts[i]);
-  }
+  if (!names.length) return;
   
   const minLength = Math.min(names.length, lats.length, lngs.length);
-  console.log(`🔍 DEBUG: Processing ${minLength} locations (min length of all arrays)`);
-  
   for (let i = 0; i < minLength; i++) {
-    const latText = lats[i]?.textContent?.trim();
-    const lngText = lngs[i]?.textContent?.trim();
-    const [lat, lng] = [parseFloat(latText), parseFloat(lngText)];
-    
-    if (isNaN(lat) || isNaN(lng)) {
-      console.log(`⚠️ DEBUG: Skipping index ${i} - invalid coordinates: lat="${latText}", lng="${lngText}"`);
-      continue;
-    }
-    
-    const nameText = names[i]?.textContent?.trim();
-    const slugText = slugs[i]?.textContent?.trim() || '';
-    const districtText = districts[i]?.textContent?.trim() || '';
+    const [lat, lng] = [parseFloat(lats[i].textContent), parseFloat(lngs[i].textContent)];
+    if (isNaN(lat) || isNaN(lng)) continue;
     
     const feature = {
       type: "Feature",
       geometry: {type: "Point", coordinates: [lng, lat]},
       properties: {
-        name: nameText,
+        name: names[i].textContent.trim(),
         id: `location-${i}`,
         popupIndex: i,
-        slug: slugText,
-        district: districtText,
+        slug: slugs[i]?.textContent.trim() || '',
+        district: districts[i]?.textContent.trim() || '',
         index: i,
         type: 'locality'
       }
     };
     
     state.locationData.features.push(feature);
-    
-    // DEBUG: Log first few processed features
-    if (i < 3) {
-      console.log(`✅ DEBUG: Created feature ${i}:`, {
-        name: nameText,
-        coordinates: [lng, lat],
-        slug: slugText,
-        district: districtText
-      });
-    }
   }
   
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
-  console.log(`✅ DEBUG: Successfully loaded ${state.allLocalityFeatures.length} localities from filter elements`);
-  
-  if (state.allLocalityFeatures.length === 0) {
-    console.log('❌ DEBUG: WARNING - No valid localities were loaded! Check your data.');
-  }
+  console.log(`Loaded ${state.allLocalityFeatures.length} localities from filter elements`);
 }
 
 // Add native Mapbox markers using Symbol layers - GREEN FROM START!
@@ -827,111 +777,62 @@ const checkFiltering = (instance) => {
 
 const checkFilterInstanceFiltering = () => checkFiltering('Filter');
 const checkMapMarkersFiltering = () => {
-  console.log('🔍 DEBUG: checkMapMarkersFiltering() called');
-  
   const urlParams = new URLSearchParams(window.location.search);
-  const hasUrlFilters = Array.from(urlParams.keys()).some(key => key.startsWith('mapmarkers_') || key.includes('mapmarkers') || key === 'district' || key === 'locality');
+  if (Array.from(urlParams.keys()).some(key => key.startsWith('mapmarkers_') || key.includes('mapmarkers') || key === 'district' || key === 'locality')) return true;
   
-  if (hasUrlFilters) {
-    console.log('✅ DEBUG: URL filtering detected:', Array.from(urlParams.keys()));
-    return true;
-  }
+  if (checkFiltering('mapmarkers')) return true;
   
-  if (checkFiltering('mapmarkers')) {
-    console.log('✅ DEBUG: Finsweet filtering detected via checkFiltering("mapmarkers")');
-    return true;
-  }
-  
-  // Compare filter elements with complete dataset to detect filtering
+  // Check if Finsweet is filtering by comparing all vs visible filter elements
   const allFilteredLat = $('.data-places-latitudes-filter');
-  console.log('🔍 DEBUG: Found', allFilteredLat.length, 'total latitude filter elements');
-  
-  // Check if some filter elements are hidden (filtered out)
   const visibleFilteredLat = Array.from(allFilteredLat).filter(el => {
-    const isVisible = el.style.display !== 'none' && getComputedStyle(el).display !== 'none';
-    return isVisible;
+    // Check if element itself or any parent is hidden
+    let current = el;
+    while (current && current !== document.body) {
+      const style = getComputedStyle(current);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+      current = current.parentElement;
+    }
+    return true;
   });
   
-  console.log('🔍 DEBUG: Found', visibleFilteredLat.length, 'visible latitude filter elements');
-  console.log('🔍 DEBUG: Sample visibility check on first 3 elements:');
-  
-  for (let i = 0; i < Math.min(3, allFilteredLat.length); i++) {
-    const el = allFilteredLat[i];
-    const styleDisplay = el.style.display;
-    const computedDisplay = getComputedStyle(el).display;
-    const isVisible = styleDisplay !== 'none' && computedDisplay !== 'none';
-    console.log(`  [${i}] style.display: "${styleDisplay}", computed: "${computedDisplay}", visible: ${isVisible}`);
-  }
-  
-  const isFiltering = visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length;
-  console.log(`🔍 DEBUG: Filtering result: ${isFiltering} (${visibleFilteredLat.length} visible of ${allFilteredLat.length} total)`);
-  
-  return isFiltering;
+  console.log(`Filtering check: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total`);
+  return visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length;
 };
 
-// DEBUG function to check element state
-function debugFilterElements() {
-  console.log('🔍 DEBUG: ===== FILTER ELEMENTS STATUS =====');
-  
-  const filterClasses = [
-    'data-places-names-filter',
-    'data-places-latitudes-filter', 
-    'data-places-longitudes-filter',
-    'data-places-slug-filter',
-    'data-places-district-filter'
-  ];
-  
-  filterClasses.forEach(className => {
-    const elements = $(`.${className}`);
-    console.log(`🔍 DEBUG: .${className}:`, elements.length, 'elements found');
-    
-    if (elements.length > 0) {
-      console.log('  Sample elements:');
-      for (let i = 0; i < Math.min(2, elements.length); i++) {
-        const el = elements[i];
-        console.log(`    [${i}] Content: "${el.textContent?.trim()}"`, el);
-        console.log(`    [${i}] Parent:`, el.parentElement);
-        console.log(`    [${i}] Visible:`, el.style.display !== 'none' && getComputedStyle(el).display !== 'none');
-      }
-    }
-  });
-  
-  // Check if original elements still exist
-  console.log('🔍 DEBUG: ===== CHECKING OLD ELEMENTS =====');
-  const oldClasses = [
-    'data-places-names',
-    'data-places-latitudes', 
-    'data-places-longitudes',
-    'data-places-slugs',
-    'data-places-district'
-  ];
-  
-  oldClasses.forEach(className => {
-    const elements = $(`.${className}`);
-    console.log(`🔍 DEBUG: .${className}:`, elements.length, elements.length > 0 ? 'STILL EXISTS!' : 'correctly deleted');
-  });
-  
-  console.log('🔍 DEBUG: ===== END STATUS =====');
-}
+// Optimized filter application - FIXED: Proper visibility detection
 function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
   const allFilteredLat = $('.data-places-latitudes-filter');
   const allFilteredLon = $('.data-places-longitudes-filter');
   
+  // Helper function to check if element is truly visible (not hidden by Finsweet)
+  const isElementVisible = (el) => {
+    let current = el;
+    while (current && current !== document.body) {
+      const style = getComputedStyle(current);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        return false;
+      }
+      current = current.parentElement;
+    }
+    return true;
+  };
+  
   // Get only visible (non-filtered) elements
-  const visibleFilteredLat = Array.from(allFilteredLat).filter(el => 
-    el.style.display !== 'none' && getComputedStyle(el).display !== 'none'
-  );
-  const visibleFilteredLon = Array.from(allFilteredLon).filter(el => 
-    el.style.display !== 'none' && getComputedStyle(el).display !== 'none'
-  );
+  const visibleFilteredLat = Array.from(allFilteredLat).filter(isElementVisible);
+  const visibleFilteredLon = Array.from(allFilteredLon).filter(isElementVisible);
   
   let visibleCoordinates = [];
   
+  console.log(`Filter application: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total locations`);
+  
   if (visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length) {
-    // Create coordinates from visible filtered data for reframing ONLY
-    for (let i = 0; i < visibleFilteredLat.length; i++) {
+    // Filtering is active - create coordinates from visible filtered data for reframing ONLY
+    const minLength = Math.min(visibleFilteredLat.length, visibleFilteredLon.length);
+    for (let i = 0; i < minLength; i++) {
       const lat = parseFloat(visibleFilteredLat[i]?.textContent.trim());
       const lon = parseFloat(visibleFilteredLon[i]?.textContent.trim());
       
@@ -940,16 +841,18 @@ function applyFilterToMarkers() {
       }
     }
     
+    console.log(`Extracted ${visibleCoordinates.length} coordinates for reframing`);
+    
     // DO NOT update the source data - keep all markers visible
-    // The localities source should always show all features
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
         features: state.allLocalityFeatures // Always show ALL markers
       });
     }
-  } else {
+  } else if (visibleFilteredLat.length === allFilteredLat.length) {
     // No filtering - show all features and use all coordinates
+    console.log('No filtering detected - using all coordinates');
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
@@ -957,15 +860,20 @@ function applyFilterToMarkers() {
       });
     }
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
+  } else {
+    // All filtered out or no data
+    console.log('All locations filtered out or no data');
+    visibleCoordinates = [];
   }
   
   const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
   
   if (visibleCoordinates.length > 0) {
-    // Only use filtered coordinates for map reframing, but keep all markers visible
+    // Use filtered coordinates for map reframing, but keep all markers visible
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
     
+    console.log(`Reframing map to ${visibleCoordinates.length} coordinates`);
     map.fitBounds(bounds, {
       padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15},
       maxZoom: 13,
@@ -973,12 +881,11 @@ function applyFilterToMarkers() {
       essential: true
     });
   } else {
+    console.log('No coordinates to reframe to - using default position');
     if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
       map.flyTo({center: [35.22, 31.85], zoom: isMobile ? 7.5 : 8.33, duration: animationDuration, essential: true});
     }
   }
-  
-  console.log(`Applied filter: ${visibleCoordinates.length} visible locations of ${state.allLocalityFeatures.length} total`);
 }
 
 const handleFilterUpdate = utils.debounce(() => {
@@ -1993,12 +1900,7 @@ const monitorTags = () => {
 
 // Optimized initialization
 function init() {
-  console.log('🔍 DEBUG: ===== STARTING INIT =====');
   console.log('Initializing map...');
-  
-  // Debug the current state of elements
-  debugFilterElements();
-  
   getLocationData();
   addNativeMarkers();
   setupEvents();
@@ -2040,8 +1942,6 @@ function init() {
       state.flags.isInitialLoad = false;
     }
   }, 500);
-  
-  console.log('🔍 DEBUG: ===== INIT COMPLETE =====');
 }
 
 // Control positioning and event setup
