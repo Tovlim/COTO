@@ -12,8 +12,11 @@ class IntegratedAutocomplete {
         this.searchWrapper = document.getElementById(this.elementIds.wrapperId);
         this.clearButton = document.getElementById(this.elementIds.clearId);
         
-        this.sourceClass = options.sourceClass || "autofill-title";
-        this.useMapData = options.useMapData !== false; // Default to true
+        // NEW: Integration with cms-filter-list system
+        this.dataSource = options.dataSource || "cms-filter-lists"; // "cms-filter-lists" or "autofill-title"
+        this.sourceClass = options.sourceClass || "autofill-title"; // Fallback for legacy mode
+        this.dataField = options.dataField || "names"; // "names", "districts", or "both"
+        
         this.terms = [];
         this.isMapboxIntegration = typeof window.isMarkerClick !== 'undefined';
         this.debounceDelay = options.debounceDelay || 150;
@@ -29,6 +32,56 @@ class IntegratedAutocomplete {
         this.populateDropdown();
         this.setupEventListeners();
         this.hideDropdown();
+        
+        // NEW: Log integration status
+        console.log(`Autocomplete initialized with ${this.terms.length} suggestions from ${this.dataSource}`);
+    }
+    
+    // NEW: Auto-discover cms-filter-list containers (same logic as map script)
+    getAvailableFilterLists() {
+        const lists = [];
+        let listNumber = 1;
+        
+        // Keep checking for cms-filter-list-{number} until we don't find any more
+        while (true) {
+            const listId = `cms-filter-list-${listNumber}`;
+            const listContainer = document.getElementById(listId);
+            
+            if (listContainer) {
+                lists.push(listId);
+                listNumber++;
+            } else {
+                // If we don't find this number, check a few more in case there are gaps
+                let gapCount = 0;
+                let tempNumber = listNumber;
+                
+                // Check up to 5 numbers ahead for gaps
+                while (gapCount < 5) {
+                    tempNumber++;
+                    const tempListId = `cms-filter-list-${tempNumber}`;
+                    if (document.getElementById(tempListId)) {
+                        // Found a gap - add all the missing ones and continue
+                        for (let i = listNumber; i <= tempNumber; i++) {
+                            const gapListId = `cms-filter-list-${i}`;
+                            if (document.getElementById(gapListId)) {
+                                lists.push(gapListId);
+                            }
+                        }
+                        listNumber = tempNumber + 1;
+                        gapCount = 0; // Reset gap count
+                    } else {
+                        gapCount++;
+                    }
+                }
+                
+                // If we've checked 5 numbers ahead and found nothing, we're done
+                if (gapCount >= 5) {
+                    break;
+                }
+            }
+        }
+        
+        return lists;
     }
     
     applyFunctionalStyles() {
@@ -58,71 +111,50 @@ class IntegratedAutocomplete {
         document.head.appendChild(hideScrollbarStyle);
     }
     
-    // ENHANCED: Now collects from map data OR fallback to DOM
+    // UPDATED: New method to collect terms from cms-filter-lists
     collectTerms() {
         const termSet = new Set();
         
-        // Primary: Try to get data from map localities and districts
-        if (this.useMapData && this.collectFromMapData(termSet)) {
-            console.log('Autocomplete: Using map data for suggestions');
+        if (this.dataSource === "cms-filter-lists") {
+            // NEW: Collect from cms-filter-list containers
+            const lists = this.getAvailableFilterLists();
+            console.log(`Collecting autocomplete terms from: ${lists.join(', ')}`);
+            
+            lists.forEach(listId => {
+                const listContainer = document.getElementById(listId);
+                if (!listContainer) return;
+                
+                // Collect based on specified data field
+                if (this.dataField === "names" || this.dataField === "both") {
+                    const nameElements = listContainer.querySelectorAll('.data-places-names-filter');
+                    Array.from(nameElements).forEach(el => {
+                        const term = el.textContent.trim();
+                        if (term) termSet.add(term);
+                    });
+                }
+                
+                if (this.dataField === "districts" || this.dataField === "both") {
+                    const districtElements = listContainer.querySelectorAll('.data-places-district-filter');
+                    Array.from(districtElements).forEach(el => {
+                        const term = el.textContent.trim();
+                        if (term) termSet.add(term);
+                    });
+                }
+            });
+            
+            console.log(`Collected ${termSet.size} unique terms from ${lists.length} filter lists`);
         } else {
-            // Fallback: Use original DOM-based collection
-            console.log('Autocomplete: Using DOM elements for suggestions');
-            this.collectFromDOM(termSet);
+            // LEGACY: Collect from class-based elements (original method)
+            const elements = document.getElementsByClassName(this.sourceClass);
+            Array.from(elements).forEach(el => {
+                const term = el.textContent.trim();
+                if (term) termSet.add(term);
+            });
+            
+            console.log(`Collected ${termSet.size} terms from .${this.sourceClass} elements`);
         }
         
         this.terms = Array.from(termSet).sort();
-        console.log(`Autocomplete: Collected ${this.terms.length} total suggestions`);
-    }
-    
-    // NEW: Collect suggestions from map localities and districts
-    collectFromMapData(termSet) {
-        // Check if map state is available
-        if (typeof window.state === 'undefined' || !window.state) {
-            return false;
-        }
-        
-        let localityCount = 0;
-        let districtCount = 0;
-        
-        // Add all locality names
-        if (window.state.allLocalityFeatures && Array.isArray(window.state.allLocalityFeatures)) {
-            window.state.allLocalityFeatures.forEach(feature => {
-                if (feature.properties && feature.properties.name) {
-                    const name = feature.properties.name.trim();
-                    if (name) {
-                        termSet.add(name);
-                        localityCount++;
-                    }
-                }
-            });
-        }
-        
-        // Add all district names
-        if (window.state.allDistrictFeatures && Array.isArray(window.state.allDistrictFeatures)) {
-            window.state.allDistrictFeatures.forEach(feature => {
-                if (feature.properties && feature.properties.name) {
-                    const name = feature.properties.name.trim();
-                    if (name) {
-                        termSet.add(name);
-                        districtCount++;
-                    }
-                }
-            });
-        }
-        
-        console.log(`Autocomplete: Added ${localityCount} localities and ${districtCount} districts from map`);
-        return localityCount > 0 || districtCount > 0;
-    }
-    
-    // ORIGINAL: Fallback DOM collection method
-    collectFromDOM(termSet) {
-        const elements = document.getElementsByClassName(this.sourceClass);
-        
-        Array.from(elements).forEach(el => {
-            const term = el.textContent.trim();
-            if (term) termSet.add(term);
-        });
     }
     
     populateDropdown() {
@@ -317,23 +349,16 @@ class IntegratedAutocomplete {
         }
     }
     
-    // ENHANCED: Better refresh with map data sync
+    // UPDATED: Enhanced refresh method
     refresh() {
-        console.log('Autocomplete: Refreshing suggestions...');
+        console.log('Refreshing autocomplete suggestions...');
         this.collectTerms();
         this.populateDropdown();
-    }
-    
-    // NEW: Force refresh from map data (useful after map loads)
-    refreshFromMapData() {
-        if (this.useMapData) {
-            console.log('Autocomplete: Force refreshing from map data...');
-            this.collectTerms();
-            this.populateDropdown();
-        }
+        console.log(`Autocomplete refreshed with ${this.terms.length} suggestions`);
     }
 }
 
+// UPDATED: Initialization with cms-filter-list integration
 function initAutocomplete() {
     setTimeout(() => {
         window.integratedAutocomplete = new IntegratedAutocomplete({
@@ -341,25 +366,29 @@ function initAutocomplete() {
             listId: "search-terms", 
             wrapperId: "searchTermsWrapper",
             clearId: "searchclear",
-            sourceClass: "autofill-title", // Fallback for DOM collection
-            useMapData: true, // NEW: Enable map data integration
+            dataSource: "cms-filter-lists", // NEW: Use cms-filter-list integration
+            dataField: "names", // NEW: Use locality names for suggestions
+            // sourceClass: "autofill-title", // LEGACY: Only used if dataSource is not "cms-filter-lists"
             debounceDelay: 150
         });
         
-        // Global refresh functions
+        // Global refresh function for external use
         window.refreshAutocomplete = () => {
-            if (window.integratedAutocomplete) window.integratedAutocomplete.refresh();
+            if (window.integratedAutocomplete) {
+                window.integratedAutocomplete.refresh();
+            }
         };
         
-        // NEW: Function to refresh specifically from map data
-        window.refreshAutocompleteFromMap = () => {
-            if (window.integratedAutocomplete) window.integratedAutocomplete.refreshFromMapData();
-        };
-        
-        // NEW: Auto-refresh when map data changes
-        if (typeof window.state !== 'undefined') {
-            console.log('Autocomplete: Map state detected, will use map data for suggestions');
-            setTimeout(() => window.refreshAutocompleteFromMap(), 1000);
+        // NEW: Auto-refresh when map data changes (if map script is present)
+        if (typeof window.fsAttributes !== 'undefined') {
+            document.addEventListener('fs-cmsfilter-filtered', () => {
+                // Small delay to ensure DOM updates are complete
+                setTimeout(() => {
+                    if (window.integratedAutocomplete) {
+                        window.integratedAutocomplete.refresh();
+                    }
+                }, 100);
+            });
         }
     }, 500);
 }
@@ -372,11 +401,4 @@ if (document.readyState === 'loading') {
 
 window.addEventListener('load', () => {
     if (!window.integratedAutocomplete) initAutocomplete();
-    
-    // NEW: Retry map data integration after everything loads
-    setTimeout(() => {
-        if (window.integratedAutocomplete && typeof window.state !== 'undefined') {
-            window.refreshAutocompleteFromMap();
-        }
-    }, 2000);
 });
