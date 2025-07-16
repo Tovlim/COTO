@@ -177,7 +177,7 @@ function highlightBoundary(districtName) {
   const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
-    // Apply subtle red highlight (using district marker color but more subtle)
+    // Apply subtle red highlight
     map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000');
     map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
     map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000');
@@ -367,7 +367,7 @@ function getLocationData() {
   state.allLocalityFeatures = [...state.locationData.features];
 }
 
-// Add native Mapbox markers using Symbol layers - FIXED: No blue flash!
+// Add native Mapbox markers using Symbol layers - GREEN FROM START!
 function addNativeMarkers() {
   if (!state.locationData.features.length) return;
   
@@ -383,7 +383,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - FIXED: Direct green color, no blue!
+    // Clustered points layer - GREEN color directly
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -398,12 +398,12 @@ function addNativeMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': MARKER_COLORS.locality, // Direct green - no blue flash!
+        'text-halo-color': '#739005',
         'text-halo-width': 2
       }
     });
     
-    // Individual locality points layer - FIXED: Direct green color, no blue!
+    // Individual locality points layer - GREEN color directly
     map.addLayer({
       id: 'locality-points',
       type: 'symbol',
@@ -426,10 +426,10 @@ function addNativeMarkers() {
         'text-padding': 4,
         'text-offset': [0, 1.5],
         'text-anchor': 'top'
-      ],
+      },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': MARKER_COLORS.locality, // Direct green - no blue flash!
+        'text-halo-color': '#739005',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -445,7 +445,7 @@ function addNativeMarkers() {
   setupNativeMarkerClicks();
 }
 
-// Add native district markers using Symbol layers - FIXED: Direct red color!
+// Add native district markers using Symbol layers - RED FROM START!
 function addNativeDistrictMarkers() {
   if (!state.allDistrictFeatures.length) return;
   
@@ -466,7 +466,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - FIXED: Direct red color, no updates needed!
+    // District name labels layer - RED color directly
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -488,10 +488,10 @@ function addNativeDistrictMarkers() {
         'text-padding': 6,
         'text-offset': [0, 0],
         'text-anchor': 'center'
-      ],
+      },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': MARKER_COLORS.district, // Direct red - no updates needed!
+        'text-halo-color': '#f50000',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
