@@ -383,7 +383,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - GREEN color directly
+    // Clustered points layer - GREEN color directly (NO beforeId - goes to top)
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -403,7 +403,7 @@ function addNativeMarkers() {
       }
     });
     
-    // Individual locality points layer - GREEN color directly
+    // Individual locality points layer - GREEN color directly (NO beforeId - goes to top)
     map.addLayer({
       id: 'locality-points',
       type: 'symbol',
@@ -443,6 +443,9 @@ function addNativeMarkers() {
   }
   
   setupNativeMarkerClicks();
+  
+  // Ensure markers are always on top
+  ensureMarkersOnTop();
 }
 
 // Add native district markers using Symbol layers - RED FROM START!
@@ -466,7 +469,7 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - RED color directly
+    // District name labels layer - RED color directly (NO beforeId - goes to top)
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -505,6 +508,9 @@ function addNativeDistrictMarkers() {
   }
   
   setupDistrictMarkerClicks();
+  
+  // Ensure markers are always on top
+  ensureMarkersOnTop();
 }
 
 // Setup click handlers for native markers
@@ -1189,8 +1195,9 @@ function loadAreaOverlays() {
           data: geojsonData
         });
         
-        // Add the layer BELOW marker layers
+        // Add the layer BELOW marker layers - use first available marker as beforeId
         console.log(`Adding layer: ${area.layerId}`);
+        const beforeId = getFirstMarkerLayerId();
         map.addLayer({
           id: area.layerId,
           type: 'fill',
@@ -1203,10 +1210,12 @@ function loadAreaOverlays() {
             'fill-opacity': area.opacity,
             'fill-outline-color': area.color
           }
-        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined); // Add before marker layers
+        }, beforeId); // Add before marker layers to keep at bottom
         
         console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
-        console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
+        
+        // Ensure markers stay on top after adding GeoJSON
+        setTimeout(ensureMarkersOnTop, 100);
       })
       .catch(error => {
         console.error(`Error loading ${area.name}:`, error);
@@ -1383,6 +1392,7 @@ function loadSimplifiedBoundaries() {
         });
         
         // Add fill layer (visual only) - BELOW marker layers
+        const beforeId = getFirstMarkerLayerId();
         map.addLayer({
           id: boundary.fillId,
           type: 'fill',
@@ -1394,9 +1404,9 @@ function loadSimplifiedBoundaries() {
             'fill-color': '#1a1b1e',
             'fill-opacity': 0.15
           }
-        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+        }, beforeId); // Add before marker layers to keep at bottom
         
-        // Add border layer (visual only) - BELOW marker layers
+        // Add border layer (visual only) - BELOW marker layers  
         map.addLayer({
           id: boundary.borderId,
           type: 'line',
@@ -1409,9 +1419,12 @@ function loadSimplifiedBoundaries() {
             'line-width': 1,
             'line-opacity': 0.4 // More see-through
           }
-        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+        }, beforeId); // Add before marker layers to keep at bottom
         
         console.log(`${name} simplified boundary added`);
+        
+        // Ensure markers stay on top after adding boundaries
+        setTimeout(ensureMarkersOnTop, 100);
         
         // Calculate centroid and add district marker (like the old system)
         if (geojsonData.features && geojsonData.features.length > 0) {
@@ -1445,6 +1458,8 @@ function loadSimplifiedBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All simplified boundaries loaded, updating district markers');
           addNativeDistrictMarkers();
+          // Ensure final layer order is correct
+          setTimeout(ensureMarkersOnTop, 500);
         }
         
       })
@@ -1454,6 +1469,8 @@ function loadSimplifiedBoundaries() {
         if (loadedCount === totalCount) {
           console.log('All boundary attempts completed, updating district markers');
           addNativeDistrictMarkers();
+          // Ensure final layer order is correct
+          setTimeout(ensureMarkersOnTop, 500);
         }
       });
   };
@@ -1542,6 +1559,42 @@ function loadDistrictTags() {
   
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
+  
+  // Ensure markers stay on top
+  setTimeout(ensureMarkersOnTop, 200);
+}
+
+// Ensure markers are always on top of all other layers
+function ensureMarkersOnTop() {
+  const markerLayers = ['locality-clusters', 'locality-points', 'district-points'];
+  
+  markerLayers.forEach(layerId => {
+    if (map.getLayer(layerId)) {
+      try {
+        // Move to top by removing and re-adding
+        const layer = map.getStyle().layers.find(l => l.id === layerId);
+        if (layer) {
+          map.removeLayer(layerId);
+          map.addLayer(layer);
+        }
+      } catch (e) {
+        console.log(`Could not move layer ${layerId} to top:`, e);
+      }
+    }
+  });
+  
+  console.log('Ensured markers are on top. Current layer order:', map.getStyle().layers.map(l => l.id));
+}
+
+// Get the first marker layer ID for use as beforeId in GeoJSON layers
+function getFirstMarkerLayerId() {
+  const markerLayers = ['locality-clusters', 'locality-points', 'district-points'];
+  for (const layerId of markerLayers) {
+    if (map.getLayer(layerId)) {
+      return layerId;
+    }
+  }
+  return null;
 }
 
 // Tag monitoring with optimized logic
@@ -1563,6 +1616,9 @@ function init() {
   getLocationData();
   addNativeMarkers();
   setupEvents();
+  
+  // Ensure markers are on top after initial setup
+  setTimeout(ensureMarkersOnTop, 200);
   
   const handleMapEvents = () => {
     clearTimeout(state.timers.zoom);
@@ -1625,6 +1681,12 @@ map.on("load", () => {
       console.log('Setting up area key controls...');
       setupAreaKeyControls();
     }, 6000); // Increased delay to ensure areas are loaded first
+    
+    // Final layer order enforcement
+    setTimeout(() => {
+      console.log('Final layer order enforcement...');
+      ensureMarkersOnTop();
+    }, 8000);
     
   } catch (error) {
     console.error('Error during map initialization:', error);
