@@ -111,17 +111,6 @@ const state = {
 };
 
 window.isLinkClick = false;
-const MARKER_FONT = '"itc-avant-garde-gothic-pro", sans-serif';
-const TRANSITIONS = {
-  default: "200ms",
-  district: 'opacity 300ms ease, background-color 0.3s ease'
-};
-
-// Define marker colors as constants to prevent blue flash
-const MARKER_COLORS = {
-  locality: '#739005',
-  district: '#f50000'
-};
 
 // Optimized utilities
 const $ = sel => document.querySelectorAll(sel);
@@ -188,10 +177,10 @@ function highlightBoundary(districtName) {
   const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
-    // Apply subtle red highlight (using new district marker color but more subtle)
-    map.setPaintProperty(boundaryFillId, 'fill-color', MARKER_COLORS.district);
+    // Apply subtle red highlight (using district marker color but more subtle)
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000');
     map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
-    map.setPaintProperty(boundaryBorderId, 'line-color', MARKER_COLORS.district);
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000');
     map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
     // Track the highlighted boundary
@@ -1568,11 +1557,11 @@ const monitorTags = () => {
   }
 };
 
-// Optimized initialization - FIXED: No more blue flash!
+// Optimized initialization
 function init() {
   console.log('Initializing map...');
   getLocationData();
-  addNativeMarkers(); // Now creates markers with correct green color directly!
+  addNativeMarkers();
   setupEvents();
   
   const handleMapEvents = () => {
@@ -1598,7 +1587,7 @@ function init() {
       loadingScreen.style.display = 'none';
       console.log('Loading screen hidden - core map ready');
     }
-  }, 1000); // Much shorter delay - hide when locality markers are ready
+  }, 1000);
   
   setTimeout(() => {
     if (state.flags.isInitialLoad) {
