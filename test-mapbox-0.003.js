@@ -168,7 +168,7 @@ const toggleSidebar = (side, show = null) => {
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
 
-// Highlight boundary with subtle red color
+// Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(districtName) {
   // Remove any existing highlight first
   removeBoundaryHighlight();
@@ -183,13 +183,35 @@ function highlightBoundary(districtName) {
     map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000');
     map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
+    // Move boundary layers ABOVE area overlays for visibility during highlight
+    const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+    const firstMarkerLayer = getFirstMarkerLayerId();
+    
+    try {
+      // Move fill layer above areas but below markers
+      if (firstMarkerLayer) {
+        map.moveLayer(boundaryFillId, firstMarkerLayer);
+        map.moveLayer(boundaryBorderId, firstMarkerLayer);
+      } else {
+        // If no markers yet, just move to top of areas
+        const topAreaLayer = areaLayers.find(layerId => map.getLayer(layerId));
+        if (topAreaLayer) {
+          map.moveLayer(boundaryFillId);
+          map.moveLayer(boundaryBorderId);
+        }
+      }
+      console.log(`Moved ${districtName} boundary above area overlays for highlighting`);
+    } catch (e) {
+      console.log(`Could not move boundary layers for ${districtName}:`, e);
+    }
+    
     // Track the highlighted boundary
     state.highlightedBoundary = districtName;
     console.log(`Highlighted boundary: ${districtName}`);
   }
 }
 
-// Remove boundary highlight
+// Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
   if (state.highlightedBoundary) {
     const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
@@ -201,6 +223,21 @@ function removeBoundaryHighlight() {
       map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
       map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
       map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
+      
+      // Move boundary layers BELOW area overlays (back to normal position)
+      const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+      const firstAreaLayer = areaLayers.find(layerId => map.getLayer(layerId));
+      
+      try {
+        if (firstAreaLayer) {
+          // Move boundary layers below the first area layer
+          map.moveLayer(boundaryFillId, firstAreaLayer);
+          map.moveLayer(boundaryBorderId, firstAreaLayer);
+          console.log(`Moved ${state.highlightedBoundary} boundary back below area overlays`);
+        }
+      } catch (e) {
+        console.log(`Could not move boundary layers back for ${state.highlightedBoundary}:`, e);
+      }
       
       console.log(`Removed highlight from boundary: ${state.highlightedBoundary}`);
     }
@@ -1195,9 +1232,9 @@ function loadAreaOverlays() {
           data: geojsonData
         });
         
-        // Add the layer BELOW marker layers - use first available marker as beforeId
+        // Add the layer ABOVE boundaries but BELOW markers
         console.log(`Adding layer: ${area.layerId}`);
-        const beforeId = getFirstMarkerLayerId();
+        const firstMarkerLayer = getFirstMarkerLayerId();
         map.addLayer({
           id: area.layerId,
           type: 'fill',
@@ -1210,9 +1247,9 @@ function loadAreaOverlays() {
             'fill-opacity': area.opacity,
             'fill-outline-color': area.color
           }
-        }, beforeId); // Add before marker layers to keep at bottom
+        }, firstMarkerLayer); // Add before markers but after boundaries
         
-        console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
+        console.log(`${area.name} layer added successfully above boundaries. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
         
         // Ensure markers stay on top after adding GeoJSON
         setTimeout(ensureMarkersOnTop, 100);
@@ -1391,8 +1428,11 @@ function loadSimplifiedBoundaries() {
           data: geojsonData
         });
         
-        // Add fill layer (visual only) - BELOW marker layers
-        const beforeId = getFirstMarkerLayerId();
+        // Add fill layer (visual only) - BELOW area overlays by default
+        const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+        const firstAreaLayer = areaLayers.find(layerId => map.getLayer(layerId));
+        const beforeId = firstAreaLayer || getFirstMarkerLayerId();
+        
         map.addLayer({
           id: boundary.fillId,
           type: 'fill',
@@ -1404,9 +1444,9 @@ function loadSimplifiedBoundaries() {
             'fill-color': '#1a1b1e',
             'fill-opacity': 0.15
           }
-        }, beforeId); // Add before marker layers to keep at bottom
+        }, beforeId); // Add before area layers (below them) or markers
         
-        // Add border layer (visual only) - BELOW marker layers  
+        // Add border layer (visual only) - BELOW area overlays by default
         map.addLayer({
           id: boundary.borderId,
           type: 'line',
@@ -1419,9 +1459,9 @@ function loadSimplifiedBoundaries() {
             'line-width': 1,
             'line-opacity': 0.4 // More see-through
           }
-        }, beforeId); // Add before marker layers to keep at bottom
+        }, beforeId); // Add before area layers (below them) or markers
         
-        console.log(`${name} simplified boundary added`);
+        console.log(`${name} simplified boundary added below area overlays`);
         
         // Ensure markers stay on top after adding boundaries
         setTimeout(ensureMarkersOnTop, 100);
