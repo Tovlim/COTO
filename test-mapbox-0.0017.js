@@ -387,12 +387,12 @@ function selectLocalityCheckbox(localityName) {
   }
 }
 
-// Optimized location data extraction - NOW USES BOTH FILTER LISTS
+// Optimized location data extraction - NOW USES THREE FILTER LISTS
 function getLocationData() {
   state.locationData.features = [];
   
-  // Query both cms-filter-list-1 and cms-filter-list-2
-  const lists = ['cms-filter-list-1', 'cms-filter-list-2'];
+  // Query all three cms-filter-list containers
+  const lists = ['cms-filter-list-1', 'cms-filter-list-2', 'cms-filter-list-3'];
   let totalLoaded = 0;
   
   lists.forEach((listId, listIndex) => {
@@ -446,7 +446,7 @@ function getLocationData() {
   
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
-  console.log(`Loaded ${state.allLocalityFeatures.length} total localities from both filter lists`);
+  console.log(`Loaded ${state.allLocalityFeatures.length} total localities from all three filter lists`);
 }
 
 // Add native Mapbox markers using Symbol layers - GREEN FROM START!
@@ -803,8 +803,8 @@ const checkMapMarkersFiltering = () => {
   
   if (checkFiltering('mapmarkers')) return true;
   
-  // Check filtering in both cms-filter-list-1 and cms-filter-list-2
-  const lists = ['cms-filter-list-1', 'cms-filter-list-2'];
+  // Check filtering across all three cms-filter-list containers
+  const lists = ['cms-filter-list-1', 'cms-filter-list-2', 'cms-filter-list-3'];
   let totalElements = 0;
   let totalVisible = 0;
   
@@ -830,11 +830,11 @@ const checkMapMarkersFiltering = () => {
     totalVisible += visibleFilteredLat.length;
   });
   
-  console.log(`Filtering check: ${totalVisible} visible of ${totalElements} total (across both lists)`);
+  console.log(`Filtering check: ${totalVisible} visible of ${totalElements} total (across all three lists)`);
   return totalVisible > 0 && totalVisible < totalElements;
 };
 
-// Optimized filter application - HANDLES BOTH FILTER LISTS
+// Optimized filter application - HANDLES ALL THREE FILTER LISTS
 function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
@@ -851,8 +851,8 @@ function applyFilterToMarkers() {
     return true;
   };
   
-  // Collect elements from both lists
-  const lists = ['cms-filter-list-1', 'cms-filter-list-2'];
+  // Collect elements from all three lists
+  const lists = ['cms-filter-list-1', 'cms-filter-list-2', 'cms-filter-list-3'];
   let allFilteredLat = [];
   let allFilteredLon = [];
   let visibleFilteredLat = [];
@@ -877,7 +877,7 @@ function applyFilterToMarkers() {
   
   let visibleCoordinates = [];
   
-  console.log(`Filter application: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total locations (both lists)`);
+  console.log(`Filter application: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total locations (all three lists)`);
   
   if (visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length) {
     // Filtering is active - create coordinates from visible filtered data for reframing ONLY
@@ -897,12 +897,12 @@ function applyFilterToMarkers() {
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: state.allLocalityFeatures // Always show ALL markers from both lists
+        features: state.allLocalityFeatures // Always show ALL markers from all three lists
       });
     }
   } else if (visibleFilteredLat.length === allFilteredLat.length) {
     // No filtering - show all features and use all coordinates
-    console.log('No filtering detected - using all coordinates from both lists');
+    console.log('No filtering detected - using all coordinates from all three lists');
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
