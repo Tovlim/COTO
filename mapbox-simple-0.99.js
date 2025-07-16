@@ -1,13 +1,16 @@
-// Detect mobile for better map experience
+// Optimized Mapbox Script - Conservative approach maintaining original structure
+// Performance improvements: Smart caching, parallel loading, debounced events
+
+// Mobile detection (immediate)
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-// Show loading screen at start
+// Show loading screen immediately
 const loadingScreen = document.getElementById('loading-map-screen');
 if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
-// Fallback: Hide loading screen after max 10 seconds regardless
+// Fallback: Hide loading screen after max 10 seconds
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
   if (loadingScreen && loadingScreen.style.display !== 'none') {
@@ -18,7 +21,9 @@ setTimeout(() => {
 // Initialize Mapbox
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
-if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
+if (['ar', 'he'].includes(lang)) {
+  mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
+}
 
 const map = new mapboxgl.Map({
   container: "map",
@@ -29,13 +34,74 @@ const map = new mapboxgl.Map({
 });
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
+map.addControl(new mapboxgl.NavigationControl({showCompass: false, showZoom: true, visualizePitch: false}), 'top-right');
 
-// Add zoom controls (zoom in/out buttons)
-map.addControl(new mapboxgl.NavigationControl({
-  showCompass: false,  // Hide compass, only show zoom buttons
-  showZoom: true,      // Show zoom in/out buttons
-  visualizePitch: false // Hide pitch visualization
-}), 'top-right');
+// Performance optimization: DOM element caching
+const domCache = {
+  elements: new Map(),
+  get(selector, useCache = true) {
+    if (useCache && this.elements.has(selector)) {
+      const cached = this.elements.get(selector);
+      // Validate cache - check if first element still exists
+      if (cached.length && cached[0]?.isConnected) {
+        return cached;
+      }
+      this.elements.delete(selector);
+    }
+    const elements = Array.from(document.querySelectorAll(selector));
+    if (useCache && elements.length) {
+      this.elements.set(selector, elements);
+    }
+    return elements;
+  },
+  getSingle(selector, useCache = true) {
+    const cacheKey = `single_${selector}`;
+    if (useCache && this.elements.has(cacheKey)) {
+      const cached = this.elements.get(cacheKey);
+      if (cached?.isConnected) return cached;
+      this.elements.delete(cacheKey);
+    }
+    const element = document.querySelector(selector);
+    if (useCache && element) {
+      this.elements.set(cacheKey, element);
+    }
+    return element;
+  },
+  clear() {
+    this.elements.clear();
+  }
+};
+
+// Optimized utility functions
+const $ = (sel) => domCache.get(sel);
+const $1 = (sel) => domCache.getSingle(sel);
+const $id = (id) => domCache.getSingle(`#${id}`);
+
+// Performance optimization: Timer management
+const timerManager = {
+  timers: new Map(),
+  debounce(fn, delay, key = null) {
+    if (key && this.timers.has(key)) {
+      clearTimeout(this.timers.get(key));
+    }
+    const timer = setTimeout(() => {
+      fn();
+      if (key) this.timers.delete(key);
+    }, delay);
+    if (key) this.timers.set(key, timer);
+    return timer;
+  },
+  clear(key) {
+    if (this.timers.has(key)) {
+      clearTimeout(this.timers.get(key));
+      this.timers.delete(key);
+    }
+  },
+  clearAll() {
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+  }
+};
 
 // Custom Map Reset Control
 class MapResetControl {
@@ -50,7 +116,6 @@ class MapResetControl {
     this._button.title = 'Reset map to default view';
     this._button.setAttribute('aria-label', 'Reset map to default view');
     
-    // Add custom reset icon styling
     this._button.style.cssText = `
       background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/6873aecae0c1702f3d417a81_reset%20icon%203.svg");
       background-repeat: no-repeat;
@@ -59,7 +124,6 @@ class MapResetControl {
     `;
     
     this._button.addEventListener('click', () => {
-      // Reset to default position
       this._map.flyTo({
         center: [35.22, 31.85],
         zoom: isMobile ? 7.5 : 8.33,
@@ -67,12 +131,9 @@ class MapResetControl {
         essential: true
       });
       
-      // Reset locality markers to show all
       if (this._map.getSource('localities-source')) {
         this._map.getSource('localities-source').setData({type: "FeatureCollection", features: state.allLocalityFeatures});
       }
-      
-      // Remove any boundary highlight
       removeBoundaryHighlight();
     });
     
@@ -81,12 +142,11 @@ class MapResetControl {
   }
   
   onRemove() {
-    this._container.parentNode.removeChild(this._container);
+    this._container.parentNode?.removeChild(this._container);
     this._map = undefined;
   }
 }
 
-// Add the custom reset control
 map.addControl(new MapResetControl(), 'top-right');
 
 // Global state - consolidated
@@ -94,17 +154,13 @@ const state = {
   locationData: {type: "FeatureCollection", features: []},
   allLocalityFeatures: [],
   allDistrictFeatures: [],
-  timers: {filter: null, zoom: null},
   lastClickedMarker: null,
   lastClickTime: 0,
   markerInteractionLock: false,
-  highlightedBoundary: null, // Track currently highlighted boundary
+  highlightedBoundary: null,
   flags: {
     isInitialLoad: true,
     mapInitialized: false,
-    forceFilteredReframe: false,
-    isRefreshButtonAction: false,
-    dropdownListenersSetup: false,
     districtTagsLoaded: false,
     areaControlsSetup: false
   }
@@ -118,20 +174,10 @@ const TRANSITIONS = {
 };
 
 // Optimized utilities
-const $ = sel => document.querySelectorAll(sel);
-const $1 = sel => document.querySelector(sel);
-const $id = id => document.getElementById(id);
-
 const utils = {
   triggerEvent: (el, events) => events.forEach(e => el.dispatchEvent(new Event(e, {bubbles: true}))),
   setStyles: (el, styles) => Object.assign(el.style, styles),
-  debounce: (fn, delay) => {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), delay);
-    };
-  },
+  debounce: (fn, delay, key) => timerManager.debounce(fn, delay, key),
   calculateCentroid: coordinates => {
     let totalLat = 0, totalLng = 0, pointCount = 0;
     
@@ -175,20 +221,17 @@ const toggleSidebar = (side, show = null) => {
 
 // Highlight boundary with subtle red color
 function highlightBoundary(districtName) {
-  // Remove any existing highlight first
   removeBoundaryHighlight();
   
   const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
-    // Apply subtle red highlight (using new district marker color but more subtle)
-    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000'); // Updated to new district color
-    map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25); // Keep same opacity
-    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000'); // Updated to new district color
-    map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6); // Keep same opacity
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000');
+    map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000');
+    map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
-    // Track the highlighted boundary
     state.highlightedBoundary = districtName;
     console.log(`Highlighted boundary: ${districtName}`);
   }
@@ -201,7 +244,6 @@ function removeBoundaryHighlight() {
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
     
     if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
-      // Reset to default colors
       map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
       map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
       map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
@@ -228,109 +270,49 @@ const toggleShowWhenFilteredElements = show => {
 
 // Select district checkbox for filtering (triggered by map markers)
 function selectDistrictCheckbox(districtName) {
-  // Find all district and locality checkboxes
-  const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  
-  // Clear ALL district checkboxes first
-  districtCheckboxes.forEach(checkbox => {
-    if (checkbox.checked) {
-      checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
-      
-      // Trigger form events for each cleared checkbox
-      const form = checkbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
-  
-  // Clear ALL locality checkboxes first
-  localityCheckboxes.forEach(checkbox => {
-    if (checkbox.checked) {
-      checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
-      
-      // Trigger form events for each cleared checkbox
-      const form = checkbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
-  
-  // Find and check the matching district checkbox
-  const targetCheckbox = Array.from(districtCheckboxes).find(checkbox => 
+  clearAllCheckboxes();
+  const targetCheckbox = $('[checkbox-filter="district"] input[fs-list-value]').find(checkbox => 
     checkbox.getAttribute('fs-list-value') === districtName
   );
   
   if (targetCheckbox) {
     targetCheckbox.checked = true;
     utils.triggerEvent(targetCheckbox, ['change', 'input']);
-    
-    // Trigger form events to ensure Finsweet registers the change
-    const form = targetCheckbox.closest('form');
-    if (form) {
-      form.dispatchEvent(new Event('change', {bubbles: true}));
-      form.dispatchEvent(new Event('input', {bubbles: true}));
-    }
+    triggerFormEvents(targetCheckbox);
   }
 }
 
 // Select locality checkbox for filtering (triggered by map markers)
 function selectLocalityCheckbox(localityName) {
-  // Find all district and locality checkboxes
-  const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  
-  // Clear ALL district checkboxes first
-  districtCheckboxes.forEach(checkbox => {
-    if (checkbox.checked) {
-      checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
-      
-      // Trigger form events for each cleared checkbox
-      const form = checkbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
-  
-  // Clear ALL locality checkboxes first
-  localityCheckboxes.forEach(checkbox => {
-    if (checkbox.checked) {
-      checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
-      
-      // Trigger form events for each cleared checkbox
-      const form = checkbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
-  
-  // Find and check the matching locality checkbox
-  const targetCheckbox = Array.from(localityCheckboxes).find(checkbox => 
+  clearAllCheckboxes();
+  const targetCheckbox = $('[checkbox-filter="locality"] input[fs-list-value]').find(checkbox => 
     checkbox.getAttribute('fs-list-value') === localityName
   );
   
   if (targetCheckbox) {
     targetCheckbox.checked = true;
     utils.triggerEvent(targetCheckbox, ['change', 'input']);
-    
-    // Trigger form events to ensure Finsweet registers the change
-    const form = targetCheckbox.closest('form');
-    if (form) {
-      form.dispatchEvent(new Event('change', {bubbles: true}));
-      form.dispatchEvent(new Event('input', {bubbles: true}));
+    triggerFormEvents(targetCheckbox);
+  }
+}
+
+// Optimized checkbox clearing
+function clearAllCheckboxes() {
+  const allCheckboxes = $('[checkbox-filter] input[fs-list-value]');
+  allCheckboxes.forEach(checkbox => {
+    if (checkbox.checked) {
+      checkbox.checked = false;
+      utils.triggerEvent(checkbox, ['change', 'input']);
+      triggerFormEvents(checkbox);
     }
+  });
+}
+
+function triggerFormEvents(checkbox) {
+  const form = checkbox.closest('form');
+  if (form) {
+    form.dispatchEvent(new Event('change', {bubbles: true}));
+    form.dispatchEvent(new Event('input', {bubbles: true}));
   }
 }
 
@@ -368,7 +350,6 @@ function getLocationData() {
     state.locationData.features.push(feature);
   }
   
-  // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
 }
 
@@ -376,7 +357,6 @@ function getLocationData() {
 function addNativeMarkers() {
   if (!state.locationData.features.length) return;
   
-  // Add localities source and layers
   if (map.getSource('localities-source')) {
     map.getSource('localities-source').setData(state.locationData);
   } else {
@@ -388,7 +368,6 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - make sure it's on top
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -403,12 +382,11 @@ function addNativeMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#2563eb',
+        'text-halo-color': '#739005',
         'text-halo-width': 2
       }
-    }); // Add to top of all layers
+    });
     
-    // Individual locality points layer - also on top
     map.addLayer({
       id: 'locality-points',
       type: 'symbol',
@@ -418,12 +396,8 @@ function addNativeMarkers() {
         'text-field': ['get', 'name'],
         'text-font': ['Open Sans Regular'],
         'text-size': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          8, 10,
-          12, 14,
-          16, 16
+          'interpolate', ['linear'], ['zoom'],
+          8, 10, 12, 14, 16, 16
         ],
         'text-allow-overlap': false,
         'text-ignore-placement': false,
@@ -431,20 +405,18 @@ function addNativeMarkers() {
         'text-padding': 4,
         'text-offset': [0, 1.5],
         'text-anchor': 'top'
-      },
+      ],
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#2563eb',
+        'text-halo-color': '#739005',
         'text-halo-width': 2,
         'text-opacity': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
+          'interpolate', ['linear'], ['zoom'],
           isMobile ? 7.5 : 8.5, 0,
           isMobile ? 8.5 : 9.5, 1
         ]
       }
-    }); // Add to top of all layers
+    });
   }
   
   setupNativeMarkerClicks();
@@ -456,14 +428,12 @@ function addNativeDistrictMarkers() {
   
   console.log(`Adding ${state.allDistrictFeatures.length} district markers`);
   
-  // Add districts source and layer
   if (map.getSource('districts-source')) {
     map.getSource('districts-source').setData({
       type: "FeatureCollection",
       features: state.allDistrictFeatures
     });
     
-    // Update existing layer colors
     if (map.getLayer('district-points')) {
       map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
       console.log('Updated district markers to new color');
@@ -477,7 +447,6 @@ function addNativeDistrictMarkers() {
       }
     });
     
-    // District name labels layer - add on top of everything
     map.addLayer({
       id: 'district-points',
       type: 'symbol',
@@ -486,12 +455,8 @@ function addNativeDistrictMarkers() {
         'text-field': ['get', 'name'],
         'text-font': ['Open Sans Regular'],
         'text-size': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          6, 12,
-          10, 16,
-          14, 18
+          'interpolate', ['linear'], ['zoom'],
+          6, 12, 10, 16, 14, 18
         ],
         'text-allow-overlap': false,
         'text-ignore-placement': false,
@@ -502,17 +467,14 @@ function addNativeDistrictMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#f50000', // Updated district color
+        'text-halo-color': '#f50000',
         'text-halo-width': 2,
         'text-opacity': [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          5, 0,
-          6, 1
+          'interpolate', ['linear'], ['zoom'],
+          5, 0, 6, 1
         ]
       }
-    }); // Add to top of all layers
+    });
   }
   
   setupDistrictMarkerClicks();
@@ -520,114 +482,83 @@ function addNativeDistrictMarkers() {
 
 // Setup click handlers for native markers
 function setupNativeMarkerClicks() {
-  // Handle locality clicks
   map.on('click', 'locality-points', (e) => {
     const feature = e.features[0];
     const locality = feature.properties.name;
     
-    // Prevent rapid clicks
     const currentTime = Date.now();
     const markerKey = `locality-${locality}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
     
-    // Set global lock to prevent filter interference
     state.markerInteractionLock = true;
     state.lastClickedMarker = markerKey;
     state.lastClickTime = currentTime;
-    
     window.isMarkerClick = true;
     
-    // Remove any boundary highlight when clicking localities
     removeBoundaryHighlight();
-    
-    // Use checkbox selection for localities
     selectLocalityCheckbox(locality);
-    
-    // Show filtered elements and sidebar
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // Clear locks after all events have processed
-    setTimeout(() => {
+    timerManager.debounce(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
-    }, 1500);
+    }, 1500, 'marker-interaction');
   });
   
-  // Handle cluster clicks
   map.on('click', 'locality-clusters', (e) => {
-    // Remove any boundary highlight when clicking clusters
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
       layers: ['locality-clusters']
     });
     
-    // Use more aggressive zoom like in original script
     map.flyTo({
       center: features[0].geometry.coordinates,
-      zoom: map.getZoom() + 2.5, // More dramatic zoom increase
-      duration: 800 // Smooth animation
+      zoom: map.getZoom() + 2.5,
+      duration: 800
     });
   });
   
-  // Change cursor on hover
-  map.on('mouseenter', 'locality-clusters', () => {
-    map.getCanvas().style.cursor = 'pointer';
-  });
-  
-  map.on('mouseleave', 'locality-clusters', () => {
-    map.getCanvas().style.cursor = '';
-  });
-  
-  map.on('mouseenter', 'locality-points', () => {
-    map.getCanvas().style.cursor = 'pointer';
-  });
-  
-  map.on('mouseleave', 'locality-points', () => {
-    map.getCanvas().style.cursor = '';
+  ['locality-clusters', 'locality-points'].forEach(layer => {
+    map.on('mouseenter', layer, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', layer, () => {
+      map.getCanvas().style.cursor = '';
+    });
   });
 }
 
 // Setup click handlers for district markers
 function setupDistrictMarkerClicks() {
-  // Handle district clicks
   map.on('click', 'district-points', (e) => {
     const feature = e.features[0];
     const districtName = feature.properties.name;
-    const districtSource = feature.properties.source; // 'boundary' or 'tag'
+    const districtSource = feature.properties.source;
     
-    // Prevent rapid clicks
     const currentTime = Date.now();
     const markerKey = `district-${districtName}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
     
-    // Set global lock to prevent filter interference
     state.markerInteractionLock = true;
     state.lastClickedMarker = markerKey;
     state.lastClickTime = currentTime;
-    
     window.isMarkerClick = true;
     
-    // Always use checkbox selection for both types
     selectDistrictCheckbox(districtName);
-    
-    // Show filtered elements and sidebar
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
     if (districtSource === 'boundary') {
-      // District WITH boundary - reframe to boundary extents and highlight
       console.log(`District ${districtName} has boundary, reframing to boundary extents and highlighting`);
       
-      // Highlight the boundary with subtle red
       highlightBoundary(districtName);
       
-      // Get the boundary source data and reframe to its extents
       const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
       const source = map.getSource(boundarySourceId);
       if (source && source._data) {
@@ -643,50 +574,27 @@ function setupDistrictMarkerClicks() {
         map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
       } else {
         console.log(`Boundary source ${boundarySourceId} not found, falling back to dropdown`);
-        // Remove highlight since we're falling back
         removeBoundaryHighlight();
-        // Fallback to dropdown if boundary source not available
         selectDistrictInDropdown(districtName);
-        setTimeout(() => {
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
+        timerManager.debounce(() => {
           applyFilterToMarkers();
-          setTimeout(() => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, 200);
+        }, 200, 'district-fallback');
       }
     } else {
-      // District WITHOUT boundary (tag-based) - remove any existing highlight and use dropdown
       console.log(`District ${districtName} has no boundary, using dropdown selection`);
-      
-      // Remove any existing boundary highlight
       removeBoundaryHighlight();
-      
-      // Select district in dropdown and trigger map reframing
       selectDistrictInDropdown(districtName);
-      
-      // Trigger map reframing
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
+      timerManager.debounce(() => {
         applyFilterToMarkers();
-        setTimeout(() => {
-          state.flags.forceFilteredReframe = false;
-          state.flags.isRefreshButtonAction = false;
-        }, 1000);
-      }, 200);
+      }, 200, 'district-tag');
     }
     
-    // Clear locks after all processing is complete
-    setTimeout(() => {
+    timerManager.debounce(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
-    }, 1500);
+    }, 1500, 'marker-interaction');
   });
   
-  // Change cursor on hover
   map.on('mouseenter', 'district-points', () => {
     map.getCanvas().style.cursor = 'pointer';
   });
@@ -742,7 +650,6 @@ function applyFilterToMarkers() {
   let visibleCoordinates = [];
   
   if (filteredLat.length && filteredLon.length && filteredLat.length < allLat.length) {
-    // Create coordinates from filtered data for reframing ONLY
     for (let i = 0; i < filteredLat.length; i++) {
       const lat = parseFloat(filteredLat[i]?.textContent.trim());
       const lon = parseFloat(filteredLon[i]?.textContent.trim());
@@ -752,16 +659,13 @@ function applyFilterToMarkers() {
       }
     }
     
-    // DO NOT update the source data - keep all markers visible
-    // The localities source should always show all features
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: state.allLocalityFeatures // Always show ALL markers
+        features: state.allLocalityFeatures
       });
     }
   } else {
-    // No filtering - show all features and use all coordinates
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
@@ -774,7 +678,6 @@ function applyFilterToMarkers() {
   const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
   
   if (visibleCoordinates.length > 0) {
-    // Only use filtered coordinates for map reframing, but keep all markers visible
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
     
@@ -791,12 +694,11 @@ function applyFilterToMarkers() {
   }
 }
 
+// Optimized filter update handler
 const handleFilterUpdate = utils.debounce(() => {
   if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
-  state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
-  setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
-}, 300);
+}, 300, 'filter-update');
 
 // Custom tab switcher
 function setupTabSwitcher() {
@@ -836,41 +738,40 @@ function setupControls() {
   
   Object.entries(controlMap).forEach(([id, action]) => {
     const btn = $id(id);
-    if (btn) {
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
-      newBtn.addEventListener('click', e => {e.preventDefault(); e.stopPropagation(); action();});
+    if (btn && !btn.dataset.optimizedSetup) {
+      btn.addEventListener('click', e => {e.preventDefault(); e.stopPropagation(); action();});
+      btn.dataset.optimizedSetup = 'true';
     }
   });
   
-  // Optimized sidebar controls
   const setupSidebarControls = (selector, sidebarSide, eventType = 'click') => {
     $(selector).forEach(element => {
-      const newElement = element.cloneNode(true);
-      element.parentNode?.replaceChild(newElement, element);
+      if (element.dataset.optimizedSetup === 'true') return;
       
       const handler = () => {
         const sidebar = $id(`${sidebarSide}Sidebar`);
         if (!sidebar) return;
         
-        const openRightSidebar = newElement.getAttribute('open-right-sidebar');
+        const openRightSidebar = element.getAttribute('open-right-sidebar');
         if (openRightSidebar === 'open-only') {
           toggleSidebar(sidebarSide, true);
         } else {
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
         }
         
-        const groupName = newElement.getAttribute('open-tab');
+        const groupName = element.getAttribute('open-tab');
         if (groupName) {
-          setTimeout(() => $1(`[opened-tab="${groupName}"]`)?.click(), 50);
+          timerManager.debounce(() => $1(`[opened-tab="${groupName}"]`)?.click(), 50, 'tab-switch');
         }
       };
       
-      if (eventType === 'change' && (newElement.type === 'radio' || newElement.type === 'checkbox')) {
-        newElement.addEventListener('change', () => newElement.checked && handler());
+      if (eventType === 'change' && (element.type === 'radio' || element.type === 'checkbox')) {
+        element.addEventListener('change', () => element.checked && handler());
       } else {
-        newElement.addEventListener(eventType, e => {e.stopPropagation(); handler();});
+        element.addEventListener(eventType, e => {e.stopPropagation(); handler();});
       }
+      
+      element.dataset.optimizedSetup = 'true';
     });
   };
   
@@ -881,7 +782,7 @@ function setupControls() {
   setupAreaKeyControls();
 }
 
-// Optimized sidebar setup with performance improvements
+// Optimized sidebar setup
 function setupSidebars() {
   let zIndex = 1000;
   
@@ -891,7 +792,7 @@ function setupSidebars() {
     const close = $id(`${side}SidebarClose`);
     
     if (!sidebar || !tab || !close) return false;
-    if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
+    if (sidebar.dataset.optimizedSetup === 'true') return true;
     
     sidebar.style.cssText += `transition: margin-${side.toLowerCase()} 0.25s cubic-bezier(0.4, 0, 0.2, 1); z-index: ${zIndex}; position: relative;`;
     tab.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -944,31 +845,23 @@ function setupSidebars() {
       sidebar.style.pointerEvents = show ? 'auto' : '';
     };
     
-    if (!sidebar.dataset.clickSetup) {
-      sidebar.addEventListener('click', () => {
-        if (sidebar.classList.contains('is-show')) bringToFront();
-      });
-      sidebar.dataset.clickSetup = 'true';
-    }
+    sidebar.addEventListener('click', () => {
+      if (sidebar.classList.contains('is-show')) bringToFront();
+    });
     
-    if (tab.dataset.setupComplete !== 'true') {
-      tab.addEventListener('click', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle(!sidebar.classList.contains('is-show'));
-      });
-      tab.dataset.setupComplete = 'true';
-    }
+    tab.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle(!sidebar.classList.contains('is-show'));
+    });
     
-    if (close.dataset.setupComplete !== 'true') {
-      close.addEventListener('click', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle(false);
-      });
-      close.dataset.setupComplete = 'true';
-    }
+    close.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle(false);
+    });
     
+    sidebar.dataset.optimizedSetup = 'true';
     zIndex++;
     return true;
   };
@@ -979,16 +872,16 @@ function setupSidebars() {
     
     if (leftReady && rightReady) {
       setupInitialMargins();
-      setTimeout(setupControls, 100);
+      timerManager.debounce(setupControls, 100, 'setup-controls');
       return;
     }
     
     if (attempt < maxAttempts) {
       const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
-      setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
+      timerManager.debounce(() => attemptSetup(attempt + 1, maxAttempts), delay, `sidebar-setup-${attempt}`);
     } else {
       setupInitialMargins();
-      setTimeout(setupControls, 100);
+      timerManager.debounce(setupControls, 100, 'setup-controls');
     }
   };
   
@@ -1011,17 +904,18 @@ function setupSidebars() {
 function setupEvents() {
   const eventHandlers = [
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      // Only open sidebar on devices wider than 478px
       if (window.innerWidth > 478) {
-        setTimeout(() => toggleSidebar('Left', true), 100);
+        timerManager.debounce(() => toggleSidebar('Left', true), 100, 'auto-sidebar');
       }
     }},
-    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
-    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)}
+    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => timerManager.debounce(handleFilterUpdate, 100, 'select-filter')},
+    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => timerManager.debounce(handleFilterUpdate, 100, 'input-filter')}
   ];
   
   eventHandlers.forEach(({selector, events, handler}) => {
     $(selector).forEach(element => {
+      if (element.dataset.optimizedEvents === 'true') return;
+      
       events.forEach(event => {
         if (event === 'input' && ['text', 'search'].includes(element.type)) {
           element.addEventListener(event, handler);
@@ -1029,44 +923,38 @@ function setupEvents() {
           element.addEventListener(event, handler);
         }
       });
+      
+      element.dataset.optimizedEvents = 'true';
     });
   });
   
   // Consolidated apply-map-filter setup
   $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button').forEach(element => {
-    const newElement = element.cloneNode(true);
-    if (element.parentNode) element.parentNode.replaceChild(newElement, element);
+    if (element.dataset.optimizedMapFilter === 'true') return;
     
-    const events = newElement.id === 'refresh-on-enter' || newElement.getAttribute('apply-map-filter') === 'true' 
+    const events = element.id === 'refresh-on-enter' || element.getAttribute('apply-map-filter') === 'true' 
       ? ['click', 'keypress', 'input'] : ['click'];
     
     events.forEach(eventType => {
-      newElement.addEventListener(eventType, (e) => {
+      element.addEventListener(eventType, (e) => {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
         e.preventDefault();
         
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        
         const delay = eventType === 'input' ? 300 : 100;
-        
-        setTimeout(() => {
+        timerManager.debounce(() => {
           applyFilterToMarkers();
-          setTimeout(() => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, delay);
+        }, delay, 'map-filter');
       });
     });
+    
+    element.dataset.optimizedMapFilter = 'true';
   });
   
   // Global event listeners
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
     document.addEventListener(event, (e) => {
-      // Skip if this is a marker interaction or if it's not related to Map filtering
       if (window.isMarkerClick || state.markerInteractionLock) return;
       handleFilterUpdate();
     });
@@ -1075,6 +963,8 @@ function setupEvents() {
   // Firefox form handling
   if (navigator.userAgent.toLowerCase().includes('firefox')) {
     $('form').forEach(form => {
+      if (form.dataset.optimizedFirefox === 'true') return;
+      
       const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
       const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
       
@@ -1083,81 +973,65 @@ function setupEvents() {
           e.preventDefault();
           e.stopPropagation();
           
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
-          
-          setTimeout(() => {
+          timerManager.debounce(() => {
             applyFilterToMarkers();
-            setTimeout(() => {
-              state.flags.forceFilteredReframe = false;
-              state.flags.isRefreshButtonAction = false;
-            }, 1000);
-          }, 100);
+          }, 100, 'firefox-submit');
           
           return false;
         }, true);
+        
+        form.dataset.optimizedFirefox = 'true';
       }
     });
   }
   
   // Link click handlers
   $('a:not(.filterrefresh):not([fs-cmsfilter-element])').forEach(link => {
+    if (link.dataset.optimizedLink === 'true') return;
+    
     link.onclick = () => {
       if (!link.closest('[fs-cmsfilter-element]') && !link.classList.contains('w-pagination-next') && !link.classList.contains('w-pagination-previous')) {
         window.isLinkClick = true;
-        setTimeout(() => window.isLinkClick = false, 500);
+        timerManager.debounce(() => window.isLinkClick = false, 500, 'link-click');
       }
     };
+    
+    link.dataset.optimizedLink = 'true';
   });
 }
 
 // Optimized dropdown listeners
 function setupDropdownListeners() {
-  if (state.flags.dropdownListenersSetup) return;
-  state.flags.dropdownListenersSetup = true;
-  
   $('[districtselect]').forEach(element => {
+    if (element.dataset.optimizedDropdown === 'true') return;
+    
     element.addEventListener('click', (e) => {
       if (window.isMarkerClick) return;
       
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        
-        setTimeout(() => {
-          applyFilterToMarkers();
-          setTimeout(() => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, 100);
-      }, 50);
+      timerManager.debounce(() => {
+        applyFilterToMarkers();
+      }, 50, 'dropdown-district');
     });
+    
+    element.dataset.optimizedDropdown = 'true';
   });
   
   const selectField5 = $id('select-field-5');
-  if (selectField5) {
+  if (selectField5 && selectField5.dataset.optimizedSelect !== 'true') {
     selectField5.addEventListener('change', (e) => {
       if (window.isMarkerClick) return;
       
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        
-        setTimeout(() => {
-          applyFilterToMarkers();
-          setTimeout(() => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, 100);
-      }, 50);
+      timerManager.debounce(() => {
+        applyFilterToMarkers();
+      }, 50, 'select-change');
     });
+    
+    selectField5.dataset.optimizedSelect = 'true';
   }
 }
 
-// Load area overlays with improved error handling
-function loadAreaOverlays() {
+// Performance optimization: Parallel area overlay loading
+async function loadAreaOverlays() {
   console.log('loadAreaOverlays() called');
   
   const areas = [
@@ -1166,70 +1040,66 @@ function loadAreaOverlays() {
     {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#e99797', opacity: 0.5}
   ];
   
-  const addAreaToMap = area => {
-    console.log(`Starting fetch for ${area.name} from ${area.url}`);
-    fetch(area.url)
-      .then(response => {
-        console.log(`${area.name} fetch response:`, response.status, response.ok);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+  // Load all areas in parallel
+  const loadPromises = areas.map(async area => {
+    try {
+      console.log(`Starting fetch for ${area.name} from ${area.url}`);
+      const response = await fetch(area.url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const geojsonData = await response.json();
+      console.log(`${area.name} data loaded successfully:`, geojsonData.features ? `${geojsonData.features.length} features` : 'no features');
+      
+      // Remove existing layers/sources if they exist
+      try {
+        if (map.getLayer(area.layerId)) {
+          console.log(`Removing existing layer: ${area.layerId}`);
+          map.removeLayer(area.layerId);
         }
-        return response.json();
-      })
-      .then(geojsonData => {
-        console.log(`${area.name} data loaded successfully:`, geojsonData.features ? `${geojsonData.features.length} features` : 'no features');
-        
-        // Remove existing layers/sources if they exist
-        try {
-          if (map.getLayer(area.layerId)) {
-            console.log(`Removing existing layer: ${area.layerId}`);
-            map.removeLayer(area.layerId);
-          }
-          if (map.getSource(area.sourceId)) {
-            console.log(`Removing existing source: ${area.sourceId}`);
-            map.removeSource(area.sourceId);
-          }
-        } catch (e) {
-          console.log(`Cleanup error for ${area.name}:`, e);
+        if (map.getSource(area.sourceId)) {
+          console.log(`Removing existing source: ${area.sourceId}`);
+          map.removeSource(area.sourceId);
         }
-        
-        // Add source
-        console.log(`Adding source: ${area.sourceId}`);
-        map.addSource(area.sourceId, {
-          type: 'geojson',
-          data: geojsonData
-        });
-        
-        // Add the layer BELOW marker layers
-        console.log(`Adding layer: ${area.layerId}`);
-        map.addLayer({
-          id: area.layerId,
-          type: 'fill',
-          source: area.sourceId,
-          layout: {
-            'visibility': 'visible'
-          },
-          paint: {
-            'fill-color': area.color,
-            'fill-opacity': area.opacity,
-            'fill-outline-color': area.color
-          }
-        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined); // Add before marker layers
-        
-        console.log(`${area.name} layer added successfully. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
-        console.log(`Current map layers:`, map.getStyle().layers.map(l => l.id));
-      })
-      .catch(error => {
-        console.error(`Error loading ${area.name}:`, error);
+      } catch (e) {
+        console.log(`Cleanup error for ${area.name}:`, e);
+      }
+      
+      // Add source
+      console.log(`Adding source: ${area.sourceId}`);
+      map.addSource(area.sourceId, {
+        type: 'geojson',
+        data: geojsonData
       });
-  };
+      
+      // Add the layer BELOW marker layers
+      console.log(`Adding layer: ${area.layerId}`);
+      map.addLayer({
+        id: area.layerId,
+        type: 'fill',
+        source: area.sourceId,
+        layout: {
+          'visibility': 'visible'
+        },
+        paint: {
+          'fill-color': area.color,
+          'fill-opacity': area.opacity,
+          'fill-outline-color': area.color
+        }
+      }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+      
+      console.log(`${area.name} layer added successfully`);
+    } catch (error) {
+      console.error(`Error loading ${area.name}:`, error);
+    }
+  });
   
-  areas.forEach(addAreaToMap);
+  await Promise.allSettled(loadPromises);
+  console.log('All area overlays processing completed');
 }
 
 // Area key controls with improved functionality
 function setupAreaKeyControls() {
-  // Prevent multiple executions
   if (state.flags.areaControlsSetup) {
     console.log('Area controls already setup, skipping');
     return;
@@ -1254,17 +1124,13 @@ function setupAreaKeyControls() {
     
     console.log(`Setting up area control: ${control.keyId}`);
     
-    // Check if layer exists
     if (!map.getLayer(control.layerId)) {
       console.log(`Layer ${control.layerId} not found in map yet`);
       return;
     }
     
-    // Set initial state - unchecked means area is visible
     checkbox.checked = false;
     
-    // Add our event listener WITHOUT removing existing ones
-    // Use a unique identifier to prevent duplicate listeners from our script
     if (!checkbox.dataset.mapboxListenerAdded) {
       const mapboxChangeHandler = () => {
         console.log(`Area control ${control.keyId} changed to:`, checkbox.checked);
@@ -1274,7 +1140,6 @@ function setupAreaKeyControls() {
           return;
         }
         
-        // Checkbox logic: checked = hidden, unchecked = visible
         const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
         console.log(`${control.layerId} visibility set to: ${visibility}`);
@@ -1287,17 +1152,14 @@ function setupAreaKeyControls() {
       console.log(`Mapbox listener already exists for ${control.keyId}`);
     }
     
-    // Find the wrapper element for hover effects
     const wrapperDiv = $id(control.wrapId);
     
     if (wrapperDiv) {
       console.log(`Setting up hover effects for: ${control.wrapId}`);
       
-      // Add hover effects WITHOUT removing existing ones
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
           if (!map.getLayer(control.layerId)) return;
-          // Removed: map.moveLayer() to keep z-axis static for all GeoJSON layers
           map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
         };
         
@@ -1328,191 +1190,8 @@ function setupAreaKeyControls() {
   }
 }
 
-// Load boundaries with improved error handling and district marker collection
-function loadBoundaries() {
-  const districts = [
-    'Jerusalem', 'Hebron', 'Tulkarm', 'Tubas', 'Salfit', 'Ramallah', 
-    'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'
-  ];
-  
-  // Additional districts with custom URLs and names
-  const customDistricts = [
-    {name: 'East Jerusalem', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s0/east_jerusalem.json'},
-    {name: 'Deir Al-Balah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Deir%20Al-Balah.geojson'},
-    {name: 'Rafah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Rafah.geojson'},
-    {name: 'North Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/North%20Gaza.geojson'},
-    {name: 'Khan Younis', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Khan%20Younis.geojson'},
-    {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
-  ];
-  
-  let loadedCount = 0;
-  const totalCount = districts.length + customDistricts.length;
-  
-  const addBoundaryToMap = (name, customUrl = null) => {
-    const boundary = {
-      name,
-      url: customUrl || `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
-      sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
-      fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
-      borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
-    };
-    
-    console.log(`Loading boundary: ${name} from ${boundary.url}`);
-    
-    fetch(boundary.url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(geojsonData => {
-        console.log(`${name} boundary data loaded successfully`, geojsonData);
-        
-        // Remove existing layers/sources if they exist
-        try {
-          if (map.getLayer(boundary.borderId)) {
-            map.removeLayer(boundary.borderId);
-          }
-          if (map.getLayer(boundary.fillId)) {
-            map.removeLayer(boundary.fillId);
-          }
-          if (map.getSource(boundary.sourceId)) {
-            map.removeSource(boundary.sourceId);
-          }
-        } catch (e) {
-          console.log(`Cleanup error for ${name}:`, e);
-        }
-        
-        // Add source and layers
-        map.addSource(boundary.sourceId, {
-          type: 'geojson',
-          data: geojsonData
-        });
-        
-        // Add fill layer first (lower layer)
-        map.addLayer({
-          id: boundary.fillId,
-          type: 'fill',
-          source: boundary.sourceId,
-          layout: {
-            'visibility': 'visible'
-          },
-          paint: {
-            'fill-color': '#1a1b1e',
-            'fill-opacity': 0.4
-          }
-        }, 'locality-clusters'); // Add before locality layers
-        
-        // Add border layer on top of fill
-        map.addLayer({
-          id: boundary.borderId,
-          type: 'line',
-          source: boundary.sourceId,
-          layout: {
-            'visibility': 'visible'
-          },
-          paint: {
-            'line-color': '#1a1b1e',
-            'line-width': 2,
-            'line-opacity': 1
-          }
-        }, 'locality-clusters'); // Add before locality layers
-        
-        console.log(`${name} boundary layers added to map with visibility:`, 
-          map.getLayoutProperty(boundary.fillId, 'visibility'),
-          map.getLayoutProperty(boundary.borderId, 'visibility')
-        );
-        
-        // Calculate centroid and add to district features
-        if (geojsonData.features && geojsonData.features.length > 0) {
-          const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
-          
-          const districtFeature = {
-            type: "Feature",
-            geometry: {type: "Point", coordinates: centroid},
-            properties: {
-              name: name,
-              id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
-              type: 'district',
-              source: 'boundary'
-            }
-          };
-          
-          state.allDistrictFeatures.push(districtFeature);
-        }
-        
-        // Boundary interaction handlers
-        map.on('click', boundary.fillId, () => {
-          const bounds = new mapboxgl.LngLatBounds();
-          geojsonData.features.forEach(feature => {
-            const addCoords = coords => {
-              if (Array.isArray(coords) && coords.length > 0) {
-                if (typeof coords[0] === 'number') bounds.extend(coords);
-                else coords.forEach(addCoords);
-              }
-            };
-            addCoords(feature.geometry.coordinates);
-          });
-          map.fitBounds(bounds, {padding: 50, duration: 1000});
-        });
-        
-        map.on('mouseenter', boundary.fillId, () => {
-          map.getCanvas().style.cursor = 'pointer';
-          map.setPaintProperty(boundary.fillId, 'fill-color', '#e93119');
-          map.setPaintProperty(boundary.borderId, 'line-color', '#e93119');
-          // Removed: map.moveLayer() calls to prevent z-axis movement
-        });
-        
-        map.on('mouseleave', boundary.fillId, () => {
-          map.getCanvas().style.cursor = '';
-          map.setPaintProperty(boundary.fillId, 'fill-color', '#1a1b1e');
-          map.setPaintProperty(boundary.borderId, 'line-color', '#1a1b1e');
-        });
-        
-        // Increment loaded count and update district markers when all are loaded
-        loadedCount++;
-        if (loadedCount === totalCount) {
-          console.log('All boundaries loaded, updating district markers');
-          addNativeDistrictMarkers();
-        }
-      })
-      .catch(error => {
-        console.error(`Error loading ${name} boundary:`, error);
-        loadedCount++; // Still increment to prevent hanging
-        if (loadedCount === totalCount) {
-          console.log('All boundary attempts completed, updating district markers');
-          addNativeDistrictMarkers();
-        }
-      });
-  };
-  
-  const loadAllBoundaries = () => {
-    console.log('Starting to load all boundaries');
-    // Reset district features and loaded count
-    state.allDistrictFeatures = [];
-    loadedCount = 0;
-    
-    // Load standard districts
-    districts.forEach(name => addBoundaryToMap(name));
-    
-    // Load custom districts with specific URLs
-    customDistricts.forEach(district => addBoundaryToMap(district.name, district.url));
-  };
-  
-  // Ensure we load after the map style is ready
-  if (map.loaded() && map.isStyleLoaded()) {
-    loadAllBoundaries();
-  } else {
-    map.on('style.load', () => {
-      console.log('Style loaded, loading boundaries...');
-      loadAllBoundaries();
-    });
-  }
-}
-
-// Load simplified district boundaries (visual only, no interactions)
-function loadSimplifiedBoundaries() {
+// Performance optimization: Parallel boundary loading
+async function loadSimplifiedBoundaries() {
   console.log('loadSimplifiedBoundaries() called');
   
   const districts = [
@@ -1520,7 +1199,6 @@ function loadSimplifiedBoundaries() {
     'Nablus', 'Jericho', 'Jenin', 'Bethlehem', 'Qalqilya'
   ];
   
-  // Additional districts with custom URLs and names
   const customDistricts = [
     {name: 'East Jerusalem', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s0/east_jerusalem.json'},
     {name: 'Deir Al-Balah', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Deir%20Al-Balah.geojson'},
@@ -1530,135 +1208,111 @@ function loadSimplifiedBoundaries() {
     {name: 'Gaza', url: 'https://raw.githubusercontent.com/Tovlim/COTO/main/Gaza.geojson'}
   ];
   
-  let loadedCount = 0;
-  const totalCount = districts.length + customDistricts.length;
-  console.log(`Starting to load ${totalCount} simplified boundaries`);
+  console.log(`Starting to load ${districts.length + customDistricts.length} simplified boundaries in parallel`);
   
-  const addSimpleBoundaryToMap = (name, customUrl = null) => {
-    const boundary = {
-      name,
-      url: customUrl || `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`,
-      sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
-      fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
-      borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
-    };
-    
-    console.log(`Loading simplified boundary: ${name}`);
-    
-    fetch(boundary.url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(geojsonData => {
-        console.log(`${name} boundary loaded successfully`);
-        
-        // Remove existing layers/sources if they exist
-        try {
-          if (map.getLayer(boundary.borderId)) {
-            map.removeLayer(boundary.borderId);
-          }
-          if (map.getLayer(boundary.fillId)) {
-            map.removeLayer(boundary.fillId);
-          }
-          if (map.getSource(boundary.sourceId)) {
-            map.removeSource(boundary.sourceId);
-          }
-        } catch (e) {
-          console.log(`Cleanup error for ${name}:`, e);
-        }
-        
-        // Add source
-        map.addSource(boundary.sourceId, {
-          type: 'geojson',
-          data: geojsonData
-        });
-        
-        // Add fill layer (visual only) - BELOW marker layers
-        map.addLayer({
-          id: boundary.fillId,
-          type: 'fill',
-          source: boundary.sourceId,
-          layout: {
-            'visibility': 'visible'
-          },
-          paint: {
-            'fill-color': '#1a1b1e',
-            'fill-opacity': 0.15
-          }
-        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
-        
-        // Add border layer (visual only) - BELOW marker layers
-        map.addLayer({
-          id: boundary.borderId,
-          type: 'line',
-          source: boundary.sourceId,
-          layout: {
-            'visibility': 'visible'
-          },
-          paint: {
-            'line-color': '#888888', // Lighter gray
-            'line-width': 1,
-            'line-opacity': 0.4 // More see-through
-          }
-        }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
-        
-        console.log(`${name} simplified boundary added`);
-        
-        // Calculate centroid and add district marker (like the old system)
-        if (geojsonData.features && geojsonData.features.length > 0) {
-          const existingFeature = state.allDistrictFeatures.find(f => f.properties.name === name && f.properties.source === 'boundary');
-          if (!existingFeature) {
-            const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
-            
-            const districtFeature = {
-              type: "Feature",
-              geometry: {type: "Point", coordinates: centroid},
-              properties: {
-                name: name,
-                id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
-                type: 'district',
-                source: 'boundary'
-              }
-            };
-            
-            state.allDistrictFeatures.push(districtFeature);
-            console.log(`Added district marker for ${name} at centroid:`, centroid);
-          } else {
-            console.log(`District marker for ${name} already exists, skipping`);
-          }
-        }
-        
-        // NO interaction handlers added to boundaries (they remain visual only)
-        
-        // Increment loaded count and update district markers when all are loaded
-        loadedCount++;
-        console.log(`Loaded ${loadedCount}/${totalCount} boundaries`);
-        if (loadedCount === totalCount) {
-          console.log('All simplified boundaries loaded, updating district markers');
-          addNativeDistrictMarkers();
-          // Update colors after district markers are added
-          setTimeout(updateMarkerColors, 500);
-        }
-        
-      })
-      .catch(error => {
-        console.error(`Error loading ${name} boundary:`, error);
-        loadedCount++; // Still increment to prevent hanging
-        if (loadedCount === totalCount) {
-          console.log('All boundary attempts completed, updating district markers');
-          addNativeDistrictMarkers();
-          // Update colors after district markers are added
-          setTimeout(updateMarkerColors, 500);
-        }
+  // Reset district features for boundary-based districts
+  state.allDistrictFeatures = state.allDistrictFeatures.filter(f => f.properties.source !== 'boundary');
+  
+  const loadSingleBoundary = async (name, customUrl = null) => {
+    try {
+      const url = customUrl || `https://raw.githubusercontent.com/Tovlim/COTO/main/${name}.geojson`;
+      console.log(`Loading simplified boundary: ${name}`);
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const geojsonData = await response.json();
+      console.log(`${name} boundary loaded successfully`);
+      
+      const baseId = name.toLowerCase().replace(/\s+/g, '-');
+      const sourceId = `${baseId}-boundary`;
+      const fillId = `${baseId}-fill`;
+      const borderId = `${baseId}-border`;
+      
+      // Clean up existing layers
+      try {
+        if (map.getLayer(borderId)) map.removeLayer(borderId);
+        if (map.getLayer(fillId)) map.removeLayer(fillId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+      } catch (e) {
+        console.log(`Cleanup error for ${name}:`, e);
+      }
+      
+      // Add source
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: geojsonData
       });
+      
+      // Add fill layer (visual only) - BELOW marker layers
+      map.addLayer({
+        id: fillId,
+        type: 'fill',
+        source: sourceId,
+        layout: { 'visibility': 'visible' },
+        paint: {
+          'fill-color': '#1a1b1e',
+          'fill-opacity': 0.15
+        }
+      }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+      
+      // Add border layer (visual only) - BELOW marker layers
+      map.addLayer({
+        id: borderId,
+        type: 'line',
+        source: sourceId,
+        layout: { 'visibility': 'visible' },
+        paint: {
+          'line-color': '#888888',
+          'line-width': 1,
+          'line-opacity': 0.4
+        }
+      }, map.getLayer('locality-clusters') ? 'locality-clusters' : undefined);
+      
+      console.log(`${name} simplified boundary added`);
+      
+      // Calculate centroid and add district marker
+      if (geojsonData.features?.length > 0) {
+        const existingFeature = state.allDistrictFeatures.find(f => f.properties.name === name && f.properties.source === 'boundary');
+        if (!existingFeature) {
+          const centroid = utils.calculateCentroid(geojsonData.features[0].geometry.coordinates);
+          
+          state.allDistrictFeatures.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: centroid },
+            properties: {
+              name: name,
+              id: `district-${baseId}`,
+              type: 'district',
+              source: 'boundary'
+            }
+          });
+          console.log(`Added district marker for ${name} at centroid:`, centroid);
+        } else {
+          console.log(`District marker for ${name} already exists, skipping`);
+        }
+      }
+      
+    } catch (error) {
+      console.error(`Error loading ${name} boundary:`, error);
+    }
   };
   
-  // Load all boundaries
-  districts.forEach(name => addSimpleBoundaryToMap(name));
-  customDistricts.forEach(district => addSimpleBoundaryToMap(district.name, district.url));
+  // Load all boundaries in parallel
+  const boundaryPromises = [
+    ...districts.map(name => loadSingleBoundary(name)),
+    ...customDistricts.map(district => loadSingleBoundary(district.name, district.url))
+  ];
+  
+  await Promise.allSettled(boundaryPromises);
+  console.log('All simplified boundaries processing completed');
+  
+  // Update district markers
+  addNativeDistrictMarkers();
+  
+  // Update colors after a short delay
+  timerManager.debounce(updateMarkerColors, 500, 'update-colors');
 }
 
 // Function to select district in dropdown
@@ -1666,14 +1320,9 @@ function selectDistrictInDropdown(districtName) {
   const selectField = $id('select-field-5');
   if (!selectField) return;
   
-  // Set the select value first
   selectField.value = districtName;
-  
-  // Trigger change event on the select element
   utils.triggerEvent(selectField, ['change', 'input']);
   
-  // Form events will automatically trigger Finsweet v2
-  // No manual reload needed since filtering updates automatically
   const form = selectField.closest('form');
   if (form) {
     form.dispatchEvent(new Event('change', {bubbles: true}));
@@ -1683,7 +1332,6 @@ function selectDistrictInDropdown(districtName) {
 
 // Load district tags and add to district features
 function loadDistrictTags() {
-  // Prevent multiple executions
   if (state.flags.districtTagsLoaded) {
     console.log('District tags already loaded, skipping');
     return;
@@ -1734,15 +1382,11 @@ function loadDistrictTags() {
     state.allDistrictFeatures.push(districtFeature);
   });
   
-  // Mark as loaded to prevent duplicates
   state.flags.districtTagsLoaded = true;
   console.log(`District tags loaded. Total district features: ${state.allDistrictFeatures.length}`);
   
-  // Update district markers after adding tag features
   addNativeDistrictMarkers();
-  
-  // Update colors after a short delay
-  setTimeout(updateMarkerColors, 500);
+  timerManager.debounce(updateMarkerColors, 500, 'update-colors');
 }
 
 // Tag monitoring with optimized logic
@@ -1752,7 +1396,7 @@ const monitorTags = () => {
   
   const tagParent = $id('tagparent');
   if (tagParent) {
-    new MutationObserver(() => setTimeout(checkTags, 50)).observe(tagParent, {childList: true, subtree: true});
+    new MutationObserver(() => timerManager.debounce(checkTags, 50, 'tag-check')).observe(tagParent, {childList: true, subtree: true});
   } else {
     setInterval(checkTags, 1000);
   }
@@ -1762,7 +1406,6 @@ const monitorTags = () => {
 function updateMarkerColors() {
   console.log('Updating marker colors...');
   
-  // Update locality colors
   if (map.getLayer('locality-clusters')) {
     map.setPaintProperty('locality-clusters', 'text-halo-color', '#739005');
     console.log('Updated locality cluster colors to green');
@@ -1772,7 +1415,6 @@ function updateMarkerColors() {
     console.log('Updated locality point colors to green');
   }
   
-  // Update district colors
   if (map.getLayer('district-points')) {
     map.setPaintProperty('district-points', 'text-halo-color', '#f50000');
     console.log('Updated district marker colors to red');
@@ -1786,37 +1428,36 @@ function init() {
   addNativeMarkers();
   setupEvents();
   
-  // Update colors after a short delay to ensure layers exist
-  setTimeout(() => {
+  timerManager.debounce(() => {
     updateMarkerColors();
-  }, 1500);
+  }, 1500, 'initial-colors');
   
   const handleMapEvents = () => {
-    clearTimeout(state.timers.zoom);
-    state.timers.zoom = setTimeout(() => {
-      // No need for handleZoomBasedVisibility since we're using native markers
-    }, 10);
+    timerManager.clear('zoom-handler');
+    timerManager.debounce(() => {
+      // Future: Add any zoom-based logic here
+    }, 10, 'zoom-handler');
   };
   
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
   
   // Staggered setup with optimized timing
-  [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
-  [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
+  [1000, 3000].forEach(delay => timerManager.debounce(setupDropdownListeners, delay, `dropdown-${delay}`));
+  [500, 1500, 3000].forEach(delay => timerManager.debounce(setupTabSwitcher, delay, `tab-${delay}`));
   
   state.flags.mapInitialized = true;
   
   // Hide loading screen as soon as core map functionality is ready
-  setTimeout(() => {
+  timerManager.debounce(() => {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen) {
       loadingScreen.style.display = 'none';
       console.log('Loading screen hidden - core map ready');
     }
-  }, 1000); // Much shorter delay - hide when locality markers are ready
+  }, 1000, 'hide-loading');
   
-  setTimeout(() => {
+  timerManager.debounce(() => {
     if (state.flags.isInitialLoad) {
       const hasFiltering = checkMapMarkersFiltering();
       if (hasFiltering) {
@@ -1824,14 +1465,14 @@ function init() {
       }
       state.flags.isInitialLoad = false;
     }
-  }, 500);
+  }, 500, 'initial-filter');
 }
 
 // Control positioning and event setup
-setTimeout(() => {
+timerManager.debounce(() => {
   const ctrl = $1('.mapboxgl-ctrl-top-right');
   if (ctrl) utils.setStyles(ctrl, {top: '4rem', right: '0.5rem', zIndex: '10'});
-}, 500);
+}, 500, 'ctrl-position');
 
 // Optimized event handlers
 map.on("load", () => {
@@ -1839,30 +1480,34 @@ map.on("load", () => {
     console.log('Map loaded, starting initialization...');
     init();
     
-    // Load area overlays and simplified boundaries
-    setTimeout(() => {
-      console.log('Loading area overlays...');
-      loadAreaOverlays();
-      console.log('Loading simplified boundaries...');
-      loadSimplifiedBoundaries();
-    }, 500);
+    // Load secondary content in parallel
+    timerManager.debounce(() => {
+      console.log('Loading area overlays and simplified boundaries in parallel...');
+      Promise.all([
+        loadAreaOverlays(),
+        loadSimplifiedBoundaries()
+      ]).then(() => {
+        console.log('Secondary content loading completed');
+      }).catch(error => {
+        console.error('Error loading secondary content:', error);
+      });
+    }, 500, 'secondary-load');
     
-    setTimeout(loadDistrictTags, 2000);
-    setTimeout(() => {
+    timerManager.debounce(loadDistrictTags, 2000, 'district-tags');
+    timerManager.debounce(() => {
       console.log('Setting up area key controls...');
       setupAreaKeyControls();
-    }, 6000); // Increased delay to ensure areas are loaded first
+    }, 6000, 'area-controls');
     
   } catch (error) {
     console.error('Error during map initialization:', error);
-    // Still hide loading screen on error
-    setTimeout(() => {
+    timerManager.debounce(() => {
       const loadingScreen = document.getElementById('loading-map-screen');
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
         console.log('Loading screen hidden due to error');
       }
-    }, 2000);
+    }, 2000, 'error-hide-loading');
   }
 });
 
@@ -1874,43 +1519,43 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
-  setTimeout(() => {
+  timerManager.debounce(() => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
       try { init(); } catch (error) { console.error('Init error:', error); }
     }
-  }, 200);
+  }, 200, 'window-load-init');
   
-  // Only retry if not already loaded
+  // Retry mechanisms for district tags and area controls
   if (!state.flags.districtTagsLoaded) {
-    [3000, 5000].forEach(delay => setTimeout(() => {
+    [3000, 5000].forEach(delay => timerManager.debounce(() => {
       if (!state.flags.districtTagsLoaded) loadDistrictTags();
-    }, delay));
+    }, delay, `retry-tags-${delay}`));
   }
   
   if (!state.flags.areaControlsSetup) {
-    [8000, 10000].forEach(delay => setTimeout(() => {
+    [8000, 10000].forEach(delay => timerManager.debounce(() => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
-    }, delay));
+    }, delay, `retry-area-${delay}`));
   }
   
   // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
     if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
-      state.flags.forceFilteredReframe = true;
-      state.flags.isRefreshButtonAction = true;
       applyFilterToMarkers();
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = false;
-        state.flags.isRefreshButtonAction = false;
-      }, 1000);
       return true;
     }
     return false;
   };
   
   if (!checkAndReframe()) {
-    setTimeout(() => !checkAndReframe() && setTimeout(checkAndReframe, 1000), 500);
+    timerManager.debounce(() => !checkAndReframe() && timerManager.debounce(checkAndReframe, 1000, 'reframe-retry'), 500, 'reframe-check');
   }
 });
 
-setTimeout(monitorTags, 1000);
+timerManager.debounce(monitorTags, 1000, 'monitor-tags');
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  timerManager.clearAll();
+  domCache.clear();
+});
