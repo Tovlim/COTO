@@ -230,44 +230,6 @@ function highlightBoundary(districtName) {
   }
 }
 
-// Highlight all district boundaries
-function highlightAllDistrictBoundaries() {
-  // Get all district boundary layers
-  const allLayers = map.getStyle().layers;
-  const districtLayers = allLayers.filter(layer => 
-    layer.id.includes('-fill') || layer.id.includes('-border')
-  );
-  
-  districtLayers.forEach(layer => {
-    if (layer.id.includes('-fill')) {
-      map.setPaintProperty(layer.id, 'fill-color', '#fc4e37');
-      map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
-    } else if (layer.id.includes('-border')) {
-      map.setPaintProperty(layer.id, 'line-color', '#fc4e37');
-      map.setPaintProperty(layer.id, 'line-opacity', 0.6);
-    }
-  });
-}
-
-// Remove highlight from all district boundaries
-function removeAllDistrictBoundaryHighlight() {
-  // Get all district boundary layers
-  const allLayers = map.getStyle().layers;
-  const districtLayers = allLayers.filter(layer => 
-    layer.id.includes('-fill') || layer.id.includes('-border')
-  );
-  
-  districtLayers.forEach(layer => {
-    if (layer.id.includes('-fill')) {
-      map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
-      map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
-    } else if (layer.id.includes('-border')) {
-      map.setPaintProperty(layer.id, 'line-color', '#888888');
-      map.setPaintProperty(layer.id, 'line-opacity', 0.4);
-    }
-  });
-}
-
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
   if (state.highlightedBoundary) {
@@ -650,7 +612,7 @@ function addNativeDistrictMarkers() {
         'text-padding': 6,
         'text-offset': [0, 0],
         'text-anchor': 'center'
-      ],
+      },
       paint: {
         'text-color': '#ffffff',
         'text-halo-color': '#fc4e37',
@@ -1238,8 +1200,7 @@ function setupSidebars() {
     }
     
     if (attempt < maxAttempts) {
-      const attemptDelays = [100, 300, 500, 1000];
-  const delay = attemptDelays[attempt - 1] || 1000;
+      const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
       setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
@@ -1250,8 +1211,7 @@ function setupSidebars() {
   const setupInitialMargins = () => {
     if (window.innerWidth <= 478) return;
     
-    const allSides = ['Left', 'SecondLeft', 'Right'];
-    allSides.forEach(side => {
+    ['Left', 'SecondLeft', 'Right'].forEach(side => {
       const sidebar = $id(`${side}Sidebar`);
       if (sidebar && !sidebar.classList.contains('is-show')) {
         const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
@@ -1303,14 +1263,11 @@ function setupEvents() {
     // For #refresh-on-enter, exclude 'click' events to prevent reframing on click
     let events;
     if (newElement.id === 'refresh-on-enter') {
-      const refreshEvents = ['keypress', 'input'];
-      events = refreshEvents; // Only keypress and input, no click
+      events = ['keypress', 'input']; // Only keypress and input, no click
     } else if (newElement.getAttribute('apply-map-filter') === 'true') {
-      const filterEvents = ['click', 'keypress', 'input'];
-      events = filterEvents;
+      events = ['click', 'keypress', 'input'];
     } else {
-      const clickEvents = ['click'];
-      events = clickEvents;
+      events = ['click'];
     }
     
     events.forEach(eventType => {
@@ -1510,7 +1467,7 @@ function setupAreaKeyControls() {
       keyId: 'district-toggle-key', 
       wrapId: 'district-toggle-key-wrap',
       type: 'district',
-      layers: ['district-points'],
+      layers: ['district-points'], // Will also handle boundary layers dynamically
       label: 'District Markers & Boundaries'
     },
     {
@@ -1634,41 +1591,37 @@ function setupAreaKeyControls() {
       // Add hover effects WITHOUT removing existing ones
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
-          // Hover effect for marker controls - brighten halo colors instead of increasing width
+          // Highlight effect for marker controls
           if (control.type === 'district') {
-            // Brighten district markers halo color from #fc4e37 to a brighter version
+            // Highlight district markers
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-color', '#ff6b54'); // Brighter red
+              map.setPaintProperty('district-points', 'text-halo-width', 3);
             }
-            // Highlight all district boundaries
-            highlightAllDistrictBoundaries();
           } else if (control.type === 'locality') {
-            // Brighten locality markers halo color from #739005 to a brighter version
+            // Highlight locality markers
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#8fb005'); // Brighter green
+              map.setPaintProperty('locality-clusters', 'text-halo-width', 3);
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#8fb005'); // Brighter green
+              map.setPaintProperty('locality-points', 'text-halo-width', 3);
             }
           }
         };
         
         const mouseLeaveHandler = () => {
-          // Reset hover effect for marker controls
+          // Reset highlight effect for marker controls
           if (control.type === 'district') {
-            // Reset district markers to original halo color
+            // Reset district markers
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-color', '#fc4e37'); // Original red
+              map.setPaintProperty('district-points', 'text-halo-width', 2);
             }
-            // Remove highlight from all district boundaries
-            removeAllDistrictBoundaryHighlight();
           } else if (control.type === 'locality') {
-            // Reset locality markers to original halo color
+            // Reset locality markers
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#739005'); // Original green
+              map.setPaintProperty('locality-clusters', 'text-halo-width', 2);
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#739005'); // Original green
+              map.setPaintProperty('locality-points', 'text-halo-width', 2);
             }
           }
         };
@@ -1983,11 +1936,8 @@ function init() {
   map.on('zoomend', handleMapEvents);
   
   // Staggered setup with optimized timing
-  const setupDelays = [1000, 3000];
-  setupDelays.forEach(delay => setTimeout(setupDropdownListeners, delay));
-  
-  const tabDelays = [500, 1500, 3000];
-  tabDelays.forEach(delay => setTimeout(setupTabSwitcher, delay));
+  [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
+  [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
   
   state.flags.mapInitialized = true;
   
@@ -2064,15 +2014,13 @@ window.addEventListener('load', () => {
   
   // Only retry if not already loaded
   if (!state.flags.districtTagsLoaded) {
-    const delays = [3000, 5000];
-    delays.forEach(delay => setTimeout(() => {
+    [3000, 5000].forEach(delay => setTimeout(() => {
       if (!state.flags.districtTagsLoaded) loadDistrictTags();
     }, delay));
   }
   
   if (!state.flags.areaControlsSetup) {
-    const delays = [8000, 10000];
-    delays.forEach(delay => setTimeout(() => {
+    [8000, 10000].forEach(delay => setTimeout(() => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
     }, delay));
   }
