@@ -518,7 +518,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - GREEN color directly (NO beforeId - goes to top)
+    // Clustered points layer - GREEN color directly - FIXED: No overlap properties to prevent clipping
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -528,10 +528,10 @@ function addNativeMarkers() {
         'text-field': '{point_count_abbreviated}',
         'text-font': ['Open Sans Regular'],
         'text-size': 16,
-        'text-allow-overlap': true,
-        'text-ignore-placement': true,
-        'text-padding': 20, // Much larger padding to prevent halo clipping
-        'symbol-avoid-edges': true // Prevent clipping at tile edges
+        'text-allow-overlap': false, // FIXED: Prevent tile boundary clipping
+        'text-ignore-placement': false, // FIXED: Prevent tile boundary clipping
+        'text-padding': 20,
+        'symbol-avoid-edges': true
       },
       paint: {
         'text-color': '#ffffff',
