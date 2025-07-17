@@ -221,14 +221,12 @@ function highlightBoundary(districtName) {
           map.moveLayer(boundaryBorderId);
         }
       }
-      console.log(`Moved ${districtName} boundary above area overlays for highlighting`);
     } catch (e) {
-      console.log(`Could not move boundary layers for ${districtName}:`, e);
+      // Silent fail for layer movement
     }
     
     // Track the highlighted boundary
     state.highlightedBoundary = districtName;
-    console.log(`Highlighted boundary: ${districtName}`);
   }
 }
 
@@ -254,13 +252,10 @@ function removeBoundaryHighlight() {
           // Move boundary layers below the first area layer
           map.moveLayer(boundaryFillId, firstAreaLayer);
           map.moveLayer(boundaryBorderId, firstAreaLayer);
-          console.log(`Moved ${state.highlightedBoundary} boundary back below area overlays`);
         }
       } catch (e) {
-        console.log(`Could not move boundary layers back for ${state.highlightedBoundary}:`, e);
+        // Silent fail for layer movement
       }
-      
-      console.log(`Removed highlight from boundary: ${state.highlightedBoundary}`);
     }
     
     state.highlightedBoundary = null;
@@ -431,7 +426,6 @@ function getAvailableFilterLists() {
     }
   }
   
-  console.log(`Auto-discovered filter lists: ${lists.join(', ')}`);
   return lists;
 }
 
@@ -444,14 +438,12 @@ function getLocationData() {
   let totalLoaded = 0;
   
   if (lists.length === 0) {
-    console.log('No cms-filter-list containers found');
     return;
   }
   
   lists.forEach((listId, listIndex) => {
     const listContainer = $id(listId);
     if (!listContainer) {
-      console.log(`List container ${listId} not found`);
       return;
     }
     
@@ -465,11 +457,8 @@ function getLocationData() {
     
     const [names, lats, lngs, slugs, districts] = selectors;
     if (!names.length) {
-      console.log(`No data found in ${listId}`);
       return;
     }
-    
-    console.log(`Loading ${names.length} localities from ${listId}`);
     
     const minLength = Math.min(names.length, lats.length, lngs.length);
     for (let i = 0; i < minLength; i++) {
@@ -499,7 +488,6 @@ function getLocationData() {
   
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
-  console.log(`Loaded ${state.allLocalityFeatures.length} total localities from ${lists.length} filter lists`);
 }
 
 // Add native Mapbox markers using Symbol layers - GREEN FROM START!
@@ -518,7 +506,7 @@ function addNativeMarkers() {
       clusterRadius: 50
     });
     
-    // Clustered points layer - GREEN color directly - FIXED: No overlap properties to prevent clipping
+    // Clustered points layer - GREEN color directly (NO beforeId - goes to top)
     map.addLayer({
       id: 'locality-clusters',
       type: 'symbol',
@@ -528,10 +516,8 @@ function addNativeMarkers() {
         'text-field': '{point_count_abbreviated}',
         'text-font': ['Open Sans Regular'],
         'text-size': 16,
-        'text-allow-overlap': false, // FIXED: Prevent tile boundary clipping
-        'text-ignore-placement': false, // FIXED: Prevent tile boundary clipping
-        'text-padding': 20,
-        'symbol-avoid-edges': true
+        'text-allow-overlap': true,
+        'text-ignore-placement': true
       },
       paint: {
         'text-color': '#ffffff',
@@ -560,10 +546,9 @@ function addNativeMarkers() {
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
-        'text-padding': 20, // Much larger padding to prevent halo clipping
+        'text-padding': 4,
         'text-offset': [0, 1.5],
-        'text-anchor': 'top',
-        'symbol-avoid-edges': true // Prevent clipping at tile edges
+        'text-anchor': 'top'
       },
       paint: {
         'text-color': '#ffffff',
@@ -589,8 +574,6 @@ function addNativeMarkers() {
 // Add native district markers using Symbol layers - RED FROM START!
 function addNativeDistrictMarkers() {
   if (!state.allDistrictFeatures.length) return;
-  
-  console.log(`Adding ${state.allDistrictFeatures.length} district markers`);
   
   // Add districts source and layer
   if (map.getSource('districts-source')) {
@@ -626,10 +609,9 @@ function addNativeDistrictMarkers() {
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
-        'text-padding': 25, // Extra large padding for district names (often longer)
+        'text-padding': 6,
         'text-offset': [0, 0],
-        'text-anchor': 'center',
-        'symbol-avoid-edges': true // Prevent clipping at tile edges
+        'text-anchor': 'center'
       },
       paint: {
         'text-color': '#ffffff',
@@ -756,7 +738,6 @@ function setupDistrictMarkerClicks() {
     
     if (districtSource === 'boundary') {
       // District WITH boundary - reframe to boundary extents and highlight
-      console.log(`District ${districtName} has boundary, reframing to boundary extents and highlighting`);
       
       // Highlight the boundary with subtle red
       highlightBoundary(districtName);
@@ -776,7 +757,6 @@ function setupDistrictMarkerClicks() {
         source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
         map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
       } else {
-        console.log(`Boundary source ${boundarySourceId} not found, falling back to dropdown`);
         // Remove highlight since we're falling back
         removeBoundaryHighlight();
         // Fallback to dropdown if boundary source not available
@@ -793,7 +773,6 @@ function setupDistrictMarkerClicks() {
       }
     } else {
       // District WITHOUT boundary (tag-based) - remove any existing highlight and use dropdown
-      console.log(`District ${districtName} has no boundary, using dropdown selection`);
       
       // Remove any existing boundary highlight
       removeBoundaryHighlight();
@@ -887,7 +866,6 @@ const checkMapMarkersFiltering = () => {
     totalVisible += visibleFilteredLat.length;
   });
   
-  console.log(`Filtering check: ${totalVisible} visible of ${totalElements} total (across ${lists.length} lists)`);
   return totalVisible > 0 && totalVisible < totalElements;
 };
 
@@ -934,8 +912,6 @@ function applyFilterToMarkers() {
   
   let visibleCoordinates = [];
   
-  console.log(`Filter application: ${visibleFilteredLat.length} visible of ${allFilteredLat.length} total locations (${lists.length} lists)`);
-  
   if (visibleFilteredLat.length > 0 && visibleFilteredLat.length < allFilteredLat.length) {
     // Filtering is active - create coordinates from visible filtered data for reframing ONLY
     const minLength = Math.min(visibleFilteredLat.length, visibleFilteredLon.length);
@@ -948,8 +924,6 @@ function applyFilterToMarkers() {
       }
     }
     
-    console.log(`Extracted ${visibleCoordinates.length} coordinates for reframing`);
-    
     // DO NOT update the source data - keep all markers visible
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
@@ -959,7 +933,6 @@ function applyFilterToMarkers() {
     }
   } else if (visibleFilteredLat.length === allFilteredLat.length) {
     // No filtering - show all features and use all coordinates
-    console.log(`No filtering detected - using all coordinates from ${lists.length} lists`);
     if (map.getSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
@@ -969,7 +942,6 @@ function applyFilterToMarkers() {
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
   } else {
     // All filtered out or no data
-    console.log('All locations filtered out or no data');
     visibleCoordinates = [];
   }
   
@@ -980,7 +952,6 @@ function applyFilterToMarkers() {
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
     
-    console.log(`Reframing map to ${visibleCoordinates.length} coordinates`);
     map.fitBounds(bounds, {
       padding: {top: window.innerHeight * 0.15, bottom: window.innerHeight * 0.15, left: window.innerWidth * 0.15, right: window.innerWidth * 0.15},
       maxZoom: 13,
@@ -988,7 +959,6 @@ function applyFilterToMarkers() {
       essential: true
     });
   } else {
-    console.log('No coordinates to reframe to - using default position');
     if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
       map.flyTo({center: [35.22, 31.85], zoom: isMobile ? 7.5 : 8.33, duration: animationDuration, essential: true});
     }
@@ -1411,8 +1381,6 @@ function setupDropdownListeners() {
 
 // Load area overlays with improved error handling
 function loadAreaOverlays() {
-  console.log('loadAreaOverlays() called');
-  
   const areas = [
     {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.5},
     {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.5},
@@ -1420,41 +1388,33 @@ function loadAreaOverlays() {
   ];
   
   const addAreaToMap = area => {
-    console.log(`Starting fetch for ${area.name} from ${area.url}`);
     fetch(area.url)
       .then(response => {
-        console.log(`${area.name} fetch response:`, response.status, response.ok);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
       })
       .then(geojsonData => {
-        console.log(`${area.name} data loaded successfully:`, geojsonData.features ? `${geojsonData.features.length} features` : 'no features');
-        
         // Remove existing layers/sources if they exist
         try {
           if (map.getLayer(area.layerId)) {
-            console.log(`Removing existing layer: ${area.layerId}`);
             map.removeLayer(area.layerId);
           }
           if (map.getSource(area.sourceId)) {
-            console.log(`Removing existing source: ${area.sourceId}`);
             map.removeSource(area.sourceId);
           }
         } catch (e) {
-          console.log(`Cleanup error for ${area.name}:`, e);
+          // Silent fail for cleanup
         }
         
         // Add source
-        console.log(`Adding source: ${area.sourceId}`);
         map.addSource(area.sourceId, {
           type: 'geojson',
           data: geojsonData
         });
         
         // Add the layer ABOVE boundaries but BELOW markers
-        console.log(`Adding layer: ${area.layerId}`);
         const firstMarkerLayer = getFirstMarkerLayerId();
         map.addLayer({
           id: area.layerId,
@@ -1470,13 +1430,11 @@ function loadAreaOverlays() {
           }
         }, firstMarkerLayer); // Add before markers but after boundaries
         
-        console.log(`${area.name} layer added successfully above boundaries. Visibility:`, map.getLayoutProperty(area.layerId, 'visibility'));
-        
         // Ensure markers stay on top after adding GeoJSON
         setTimeout(ensureMarkersOnTop, 100);
       })
       .catch(error => {
-        console.error(`Error loading ${area.name}:`, error);
+        // Silent fail for area loading
       });
   };
   
@@ -1487,11 +1445,8 @@ function loadAreaOverlays() {
 function setupAreaKeyControls() {
   // Prevent multiple executions
   if (state.flags.areaControlsSetup) {
-    console.log('Area controls already setup, skipping');
     return;
   }
-  
-  console.log('setupAreaKeyControls() called');
   
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
@@ -1523,15 +1478,11 @@ function setupAreaKeyControls() {
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) {
-      console.log(`Checkbox ${control.keyId} not found`);
       return;
     }
     
-    console.log(`Setting up area control: ${control.keyId}`);
-    
     // Check if layer exists
     if (!map.getLayer(control.layerId)) {
-      console.log(`Layer ${control.layerId} not found in map yet`);
       return;
     }
     
@@ -1542,32 +1493,23 @@ function setupAreaKeyControls() {
     // Use a unique identifier to prevent duplicate listeners from our script
     if (!checkbox.dataset.mapboxListenerAdded) {
       const mapboxChangeHandler = () => {
-        console.log(`Area control ${control.keyId} changed to:`, checkbox.checked);
-        
         if (!map.getLayer(control.layerId)) {
-          console.log(`Layer ${control.layerId} not found in map`);
           return;
         }
         
         // Checkbox logic: checked = hidden, unchecked = visible
         const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
-        console.log(`${control.layerId} visibility set to: ${visibility}`);
       };
       
       checkbox.addEventListener('change', mapboxChangeHandler);
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Added Mapbox change listener to ${control.keyId}`);
-    } else {
-      console.log(`Mapbox listener already exists for ${control.keyId}`);
     }
     
     // Find the wrapper element for hover effects
     const wrapperDiv = $id(control.wrapId);
     
     if (wrapperDiv) {
-      console.log(`Setting up hover effects for: ${control.wrapId}`);
-      
       // Add hover effects WITHOUT removing existing ones
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
@@ -1584,14 +1526,9 @@ function setupAreaKeyControls() {
         wrapperDiv.addEventListener('mouseenter', mouseEnterHandler);
         wrapperDiv.addEventListener('mouseleave', mouseLeaveHandler);
         wrapperDiv.dataset.mapboxHoverAdded = 'true';
-        console.log(`Added Mapbox hover listeners to ${control.wrapId}`);
-      } else {
-        console.log(`Mapbox hover listeners already exist for ${control.wrapId}`);
       }
       
       setupCount++;
-    } else {
-      console.log(`Wrapper ${control.wrapId} not found`);
     }
   });
   
@@ -1599,11 +1536,8 @@ function setupAreaKeyControls() {
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) {
-      console.log(`Checkbox ${control.keyId} not found`);
       return;
     }
-    
-    console.log(`Setting up marker control: ${control.keyId}`);
     
     // Set initial state - unchecked means markers are visible
     checkbox.checked = false;
@@ -1611,8 +1545,6 @@ function setupAreaKeyControls() {
     // Add our event listener WITHOUT removing existing ones
     if (!checkbox.dataset.mapboxListenerAdded) {
       const mapboxChangeHandler = () => {
-        console.log(`Marker control ${control.keyId} changed to:`, checkbox.checked);
-        
         // Checkbox logic: checked = hidden, unchecked = visible
         const visibility = checkbox.checked ? 'none' : 'visible';
         
@@ -1621,7 +1553,6 @@ function setupAreaKeyControls() {
           control.layers.forEach(layerId => {
             if (map.getLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`${layerId} visibility set to: ${visibility}`);
             }
           });
           
@@ -1630,7 +1561,6 @@ function setupAreaKeyControls() {
           allLayers.forEach(layer => {
             if (layer.id.includes('-fill') || layer.id.includes('-border')) {
               map.setLayoutProperty(layer.id, 'visibility', visibility);
-              console.log(`Boundary ${layer.id} visibility set to: ${visibility}`);
             }
           });
         } else if (control.type === 'locality') {
@@ -1638,7 +1568,6 @@ function setupAreaKeyControls() {
           control.layers.forEach(layerId => {
             if (map.getLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`${layerId} visibility set to: ${visibility}`);
             }
           });
         }
@@ -1646,17 +1575,12 @@ function setupAreaKeyControls() {
       
       checkbox.addEventListener('change', mapboxChangeHandler);
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Added Mapbox change listener to ${control.keyId}`);
-    } else {
-      console.log(`Mapbox listener already exists for ${control.keyId}`);
     }
     
     // Find the wrapper element for hover effects
     const wrapperDiv = $id(control.wrapId);
     
     if (wrapperDiv) {
-      console.log(`Setting up hover effects for: ${control.wrapId}`);
-      
       // Add hover effects WITHOUT removing existing ones
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
@@ -1664,15 +1588,15 @@ function setupAreaKeyControls() {
           if (control.type === 'district') {
             // Highlight district markers
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-width', 4); // Increased for visibility
+              map.setPaintProperty('district-points', 'text-halo-width', 3);
             }
           } else if (control.type === 'locality') {
             // Highlight locality markers
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-width', 4); // Increased for visibility
+              map.setPaintProperty('locality-clusters', 'text-halo-width', 3);
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-width', 4); // Increased for visibility
+              map.setPaintProperty('locality-points', 'text-halo-width', 3);
             }
           }
         };
@@ -1682,15 +1606,15 @@ function setupAreaKeyControls() {
           if (control.type === 'district') {
             // Reset district markers
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-width', 2); // Back to normal
+              map.setPaintProperty('district-points', 'text-halo-width', 2);
             }
           } else if (control.type === 'locality') {
             // Reset locality markers
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-width', 2); // Back to normal
+              map.setPaintProperty('locality-clusters', 'text-halo-width', 2);
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-width', 2); // Back to normal
+              map.setPaintProperty('locality-points', 'text-halo-width', 2);
             }
           }
         };
@@ -1698,23 +1622,15 @@ function setupAreaKeyControls() {
         wrapperDiv.addEventListener('mouseenter', mouseEnterHandler);
         wrapperDiv.addEventListener('mouseleave', mouseLeaveHandler);
         wrapperDiv.dataset.mapboxHoverAdded = 'true';
-        console.log(`Added Mapbox hover listeners to ${control.wrapId}`);
-      } else {
-        console.log(`Mapbox hover listeners already exist for ${control.wrapId}`);
       }
       
       setupCount++;
-    } else {
-      console.log(`Wrapper ${control.wrapId} not found`);
     }
   });
   
   const totalControls = areaControls.length + markerControls.length;
   if (setupCount === totalControls) {
     state.flags.areaControlsSetup = true;
-    console.log('All area and marker controls setup completed successfully');
-  } else {
-    console.log(`Controls setup incomplete: ${setupCount}/${totalControls} completed`);
   }
 }
 
@@ -1899,27 +1815,21 @@ function selectDistrictInDropdown(districtName) {
 function loadDistrictTags() {
   // Prevent multiple executions
   if (state.flags.districtTagsLoaded) {
-    console.log('District tags already loaded, skipping');
     return;
   }
   
-  console.log('loadDistrictTags() called');
-  
   const districtTagCollection = $id('district-tag-collection');
   if (!districtTagCollection) {
-    console.log('District tag collection not found');
     return;
   }
   
   const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
-  console.log(`Found ${districtTagItems.length} district tag items`);
   
   // Clear existing tag-based features (keep boundary-based features)
   state.allDistrictFeatures = state.allDistrictFeatures.filter(f => f.properties.source !== 'tag');
   
   districtTagItems.forEach((tagItem, index) => {
     if (getComputedStyle(tagItem).display === 'none') {
-      console.log(`Skipping hidden district tag item ${index}`);
       return;
     }
     
@@ -1928,11 +1838,8 @@ function loadDistrictTags() {
     const lng = parseFloat(tagItem.getAttribute('district-tag-longitude'));
     
     if (!name || isNaN(lat) || isNaN(lng)) {
-      console.log(`Invalid district tag data: ${name}, ${lat}, ${lng}`);
       return;
     }
-    
-    console.log(`Adding district tag: ${name} at [${lng}, ${lat}]`);
     
     const districtFeature = {
       type: "Feature",
@@ -1950,7 +1857,6 @@ function loadDistrictTags() {
   
   // Mark as loaded to prevent duplicates
   state.flags.districtTagsLoaded = true;
-  console.log(`District tags loaded. Total district features: ${state.allDistrictFeatures.length}`);
   
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
@@ -1973,12 +1879,10 @@ function ensureMarkersOnTop() {
           map.addLayer(layer);
         }
       } catch (e) {
-        console.log(`Could not move layer ${layerId} to top:`, e);
+        // Silent fail for layer movement
       }
     }
   });
-  
-  console.log('Ensured markers are on top. Current layer order:', map.getStyle().layers.map(l => l.id));
 }
 
 // Get the first marker layer ID for use as beforeId in GeoJSON layers
@@ -2007,7 +1911,6 @@ const monitorTags = () => {
 
 // Optimized initialization
 function init() {
-  console.log('Initializing map...');
   getLocationData();
   addNativeMarkers();
   setupEvents();
@@ -2036,7 +1939,6 @@ function init() {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen) {
       loadingScreen.style.display = 'none';
-      console.log('Loading screen hidden - core map ready');
     }
   }, 1000);
   
@@ -2060,37 +1962,30 @@ setTimeout(() => {
 // Optimized event handlers
 map.on("load", () => {
   try {
-    console.log('Map loaded, starting initialization...');
     init();
     
     // Load area overlays and simplified boundaries
     setTimeout(() => {
-      console.log('Loading area overlays...');
       loadAreaOverlays();
-      console.log('Loading simplified boundaries...');
       loadSimplifiedBoundaries();
     }, 500);
     
     setTimeout(loadDistrictTags, 2000);
     setTimeout(() => {
-      console.log('Setting up area key controls...');
       setupAreaKeyControls();
     }, 6000); // Increased delay to ensure areas are loaded first
     
     // Final layer order enforcement
     setTimeout(() => {
-      console.log('Final layer order enforcement...');
       ensureMarkersOnTop();
     }, 8000);
     
   } catch (error) {
-    console.error('Error during map initialization:', error);
     // Still hide loading screen on error
     setTimeout(() => {
       const loadingScreen = document.getElementById('loading-map-screen');
       if (loadingScreen) {
         loadingScreen.style.display = 'none';
-        console.log('Loading screen hidden due to error');
       }
     }, 2000);
   }
@@ -2106,7 +2001,7 @@ window.addEventListener('load', () => {
   setupTabSwitcher();
   setTimeout(() => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
-      try { init(); } catch (error) { console.error('Init error:', error); }
+      try { init(); } catch (error) { /* Silent fail */ }
     }
   }, 200);
   
