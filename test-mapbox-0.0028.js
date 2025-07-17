@@ -199,9 +199,9 @@ function highlightBoundary(districtName) {
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
     // Apply subtle red highlight
-    map.setPaintProperty(boundaryFillId, 'fill-color', '#fc4e37');
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000');
     map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
-    map.setPaintProperty(boundaryBorderId, 'line-color', '#fc4e37');
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000');
     map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
     // Move boundary layers ABOVE area overlays for visibility during highlight
@@ -549,7 +549,7 @@ function addNativeMarkers() {
         'text-padding': 4,
         'text-offset': [0, 1.5],
         'text-anchor': 'top'
-      ],
+      },
       paint: {
         'text-color': '#ffffff',
         'text-halo-color': '#739005',
@@ -615,7 +615,7 @@ function addNativeDistrictMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#fc4e37',
+        'text-halo-color': '#f50000',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -1389,9 +1389,9 @@ function setupDropdownListeners() {
 // Load area overlays with improved error handling
 function loadAreaOverlays() {
   const areas = [
-    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#FADFBE', opacity: 0.5},
-    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#7A6142', opacity: 0.5},
-    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#50391E', opacity: 0.5}
+    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.5},
+    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.5},
+    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#e99797', opacity: 0.5}
   ];
   
   const addAreaToMap = area => {
