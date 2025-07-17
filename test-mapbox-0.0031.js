@@ -7,6 +7,84 @@ if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
+// TEMPORARY COLOR PICKER CONTROLS
+const colorPickerHTML = `
+<div id="temp-color-picker" style="position: fixed; top: 10px; left: 10px; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10000; font-family: Arial, sans-serif; font-size: 12px;">
+  <div style="margin-bottom: 5px;">
+    <label>Area A: </label>
+    <input type="color" id="areaA-color" value="#FFE3C2" style="width: 30px; height: 20px;">
+  </div>
+  <div style="margin-bottom: 5px;">
+    <label>Area B: </label>
+    <input type="color" id="areaB-color" value="#FFC278" style="width: 30px; height: 20px;">
+  </div>
+  <div style="margin-bottom: 5px;">
+    <label>Area C: </label>
+    <input type="color" id="areaC-color" value="#FF9C78" style="width: 30px; height: 20px;">
+  </div>
+  <div style="margin-bottom: 5px;">
+    <label>Districts: </label>
+    <input type="color" id="district-color" value="#fc4e37" style="width: 30px; height: 20px;">
+  </div>
+  <div style="margin-bottom: 5px;">
+    <label>Localities: </label>
+    <input type="color" id="locality-color" value="#739005" style="width: 30px; height: 20px;">
+  </div>
+  <button onclick="document.getElementById('temp-color-picker').remove()" style="margin-top: 5px; padding: 2px 8px; font-size: 10px;">Remove</button>
+</div>
+`;
+
+// Add color picker to page
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.insertAdjacentHTML('beforeend', colorPickerHTML);
+  
+  // Setup color change handlers
+  const setupColorHandler = (inputId, updateFunction) => {
+    const input = document.getElementById(inputId);
+    if (input) {
+      input.addEventListener('input', (e) => {
+        updateFunction(e.target.value);
+      });
+    }
+  };
+  
+  setupColorHandler('areaA-color', (color) => {
+    if (map.getLayer('area-a-layer')) {
+      map.setPaintProperty('area-a-layer', 'fill-color', color);
+      map.setPaintProperty('area-a-layer', 'fill-outline-color', color);
+    }
+  });
+  
+  setupColorHandler('areaB-color', (color) => {
+    if (map.getLayer('area-b-layer')) {
+      map.setPaintProperty('area-b-layer', 'fill-color', color);
+      map.setPaintProperty('area-b-layer', 'fill-outline-color', color);
+    }
+  });
+  
+  setupColorHandler('areaC-color', (color) => {
+    if (map.getLayer('area-c-layer')) {
+      map.setPaintProperty('area-c-layer', 'fill-color', color);
+      map.setPaintProperty('area-c-layer', 'fill-outline-color', color);
+    }
+  });
+  
+  setupColorHandler('district-color', (color) => {
+    if (map.getLayer('district-points')) {
+      map.setPaintProperty('district-points', 'text-halo-color', color);
+    }
+  });
+  
+  setupColorHandler('locality-color', (color) => {
+    if (map.getLayer('locality-clusters')) {
+      map.setPaintProperty('locality-clusters', 'text-halo-color', color);
+    }
+    if (map.getLayer('locality-points')) {
+      map.setPaintProperty('locality-points', 'text-halo-color', color);
+    }
+  });
+});
+
 // Fallback: Hide loading screen after max 10 seconds regardless
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
