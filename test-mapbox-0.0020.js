@@ -529,7 +529,8 @@ function addNativeMarkers() {
         'text-font': ['Open Sans Regular'],
         'text-size': 16,
         'text-allow-overlap': true,
-        'text-ignore-placement': true
+        'text-ignore-placement': true,
+        'text-padding': 8 // Increased padding for proper halo rendering
       },
       paint: {
         'text-color': '#ffffff',
@@ -558,7 +559,7 @@ function addNativeMarkers() {
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
-        'text-padding': 4,
+        'text-padding': 8, // Increased padding for proper halo rendering
         'text-offset': [0, 1.5],
         'text-anchor': 'top'
       },
@@ -623,7 +624,7 @@ function addNativeDistrictMarkers() {
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
-        'text-padding': 6,
+        'text-padding': 10, // Increased padding for proper halo rendering
         'text-offset': [0, 0],
         'text-anchor': 'center'
       },
@@ -1660,15 +1661,15 @@ function setupAreaKeyControls() {
           if (control.type === 'district') {
             // Highlight district markers
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-width', 3);
+              map.setPaintProperty('district-points', 'text-halo-width', 4); // Increased for visibility
             }
           } else if (control.type === 'locality') {
             // Highlight locality markers
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-width', 3);
+              map.setPaintProperty('locality-clusters', 'text-halo-width', 4); // Increased for visibility
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-width', 3);
+              map.setPaintProperty('locality-points', 'text-halo-width', 4); // Increased for visibility
             }
           }
         };
@@ -1678,15 +1679,15 @@ function setupAreaKeyControls() {
           if (control.type === 'district') {
             // Reset district markers
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-width', 2);
+              map.setPaintProperty('district-points', 'text-halo-width', 2); // Back to normal
             }
           } else if (control.type === 'locality') {
             // Reset locality markers
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-width', 2);
+              map.setPaintProperty('locality-clusters', 'text-halo-width', 2); // Back to normal
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-width', 2);
+              map.setPaintProperty('locality-points', 'text-halo-width', 2); // Back to normal
             }
           }
         };
