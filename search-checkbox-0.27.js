@@ -159,22 +159,30 @@ class IntegratedAutocomplete {
     
     // NEW: Helper method to check if a term corresponds to a checked checkbox
     isTermChecked(term) {
-        try {
-            // Look for checked checkboxes in the document
-            const checkedCheckboxes = document.querySelectorAll('[checkbox-filter="locality"] label.is-list-active');
+        const lists = this.getAvailableFilterLists();
+        
+        for (const listId of lists) {
+            const listContainer = document.getElementById(listId);
+            if (!listContainer) continue;
             
-            for (const label of checkedCheckboxes) {
-                const labelText = label.querySelector('.w-form-label');
+            // Look for checkbox containers with the checkbox-filter attribute
+            const checkboxItems = listContainer.querySelectorAll('[checkbox-filter="locality"]');
+            
+            for (const item of checkboxItems) {
+                const labelText = item.querySelector('.w-form-label');
                 if (labelText && labelText.textContent.trim() === term) {
-                    return true;
+                    // Check if this checkbox is checked by looking for the is-list-active class
+                    const labelElement = item.querySelector('label');
+                    if (labelElement && labelElement.classList.contains('is-list-active')) {
+                        console.log(`Found checked checkbox for term: ${term}`);
+                        return true;
+                    }
                 }
             }
-            
-            return false;
-        } catch (error) {
-            console.warn('Error checking if term is checked:', error);
-            return false;
         }
+        
+        console.log(`No checked checkbox found for term: ${term}`);
+        return false;
     }
     
     populateDropdown() {
@@ -332,6 +340,10 @@ class IntegratedAutocomplete {
             
             // Show item if it matches the filter OR if it's checked
             const shouldShow = isMatch || isChecked;
+            
+            if (isChecked) {
+                console.log(`Keeping checked item visible: ${term}`);
+            }
             
             li.style.display = shouldShow ? "block" : "none";
             if (shouldShow) hasVisibleItems = true;
