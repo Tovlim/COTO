@@ -1,5 +1,7 @@
 class IntegratedAutocomplete {
     constructor(options = {}) {
+        console.log('IntegratedAutocomplete constructor called with options:', options);
+        
         this.elementIds = {
             inputId: options.inputId || "refresh-on-enter",
             listId: options.listId || "search-terms",
@@ -7,10 +9,19 @@ class IntegratedAutocomplete {
             clearId: options.clearId || "searchclear"
         };
         
+        console.log('Looking for elements with IDs:', this.elementIds);
+        
         this.inputField = document.getElementById(this.elementIds.inputId);
         this.searchList = document.getElementById(this.elementIds.listId);
         this.searchWrapper = document.getElementById(this.elementIds.wrapperId);
         this.clearButton = document.getElementById(this.elementIds.clearId);
+        
+        console.log('Found elements:', {
+            inputField: !!this.inputField,
+            searchList: !!this.searchList,
+            searchWrapper: !!this.searchWrapper,
+            clearButton: !!this.clearButton
+        });
         
         // NEW: Integration with cms-filter-list system
         this.dataSource = options.dataSource || "cms-filter-lists"; // "cms-filter-lists" or "autofill-title"
@@ -22,7 +33,10 @@ class IntegratedAutocomplete {
         this.debounceDelay = options.debounceDelay || 150;
         
         if (this.inputField && this.searchList && this.searchWrapper) {
+            console.log('All required elements found, initializing...');
             this.init();
+        } else {
+            console.error('Missing required elements. Cannot initialize autocomplete.');
         }
     }
     
@@ -222,6 +236,7 @@ class IntegratedAutocomplete {
     }
     
     handleInput(e) {
+        console.log('handleInput called with value:', this.inputField.value);
         const value = this.inputField.value.trim();
         value.length === 0 ? this.hideDropdown() : this.filterAndShowDropdown(value);
     }
@@ -399,7 +414,11 @@ class IntegratedAutocomplete {
 
 // UPDATED: Initialization with cms-filter-list integration
 function initAutocomplete() {
+    console.log('initAutocomplete called');
+    
     setTimeout(() => {
+        console.log('Creating IntegratedAutocomplete instance...');
+        
         window.integratedAutocomplete = new IntegratedAutocomplete({
             inputId: "refresh-on-enter",
             listId: "search-terms", 
@@ -432,12 +451,22 @@ function initAutocomplete() {
     }, 500);
 }
 
+console.log('Script loaded, document.readyState:', document.readyState);
+
 if (document.readyState === 'loading') {
+    console.log('Document still loading, adding DOMContentLoaded listener');
     document.addEventListener('DOMContentLoaded', initAutocomplete);
 } else {
+    console.log('Document already loaded, calling initAutocomplete directly');
     initAutocomplete();
 }
 
 window.addEventListener('load', () => {
-    if (!window.integratedAutocomplete) initAutocomplete();
+    console.log('Window load event fired');
+    if (!window.integratedAutocomplete) {
+        console.log('No integratedAutocomplete found, initializing...');
+        initAutocomplete();
+    } else {
+        console.log('integratedAutocomplete already exists');
+    }
 });
