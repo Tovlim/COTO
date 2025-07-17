@@ -199,9 +199,9 @@ function highlightBoundary(districtName) {
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
     // Apply subtle red highlight
-    map.setPaintProperty(boundaryFillId, 'fill-color', '#f50000');
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#fc4e37');
     map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
-    map.setPaintProperty(boundaryBorderId, 'line-color', '#f50000');
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#fc4e37');
     map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
     // Move boundary layers ABOVE area overlays for visibility during highlight
@@ -228,6 +228,44 @@ function highlightBoundary(districtName) {
     // Track the highlighted boundary
     state.highlightedBoundary = districtName;
   }
+}
+
+// Highlight all district boundaries
+function highlightAllDistrictBoundaries() {
+  // Get all district boundary layers
+  const allLayers = map.getStyle().layers;
+  const districtLayers = allLayers.filter(layer => 
+    layer.id.includes('-fill') || layer.id.includes('-border')
+  );
+  
+  districtLayers.forEach(layer => {
+    if (layer.id.includes('-fill')) {
+      map.setPaintProperty(layer.id, 'fill-color', '#fc4e37');
+      map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
+    } else if (layer.id.includes('-border')) {
+      map.setPaintProperty(layer.id, 'line-color', '#fc4e37');
+      map.setPaintProperty(layer.id, 'line-opacity', 0.6);
+    }
+  });
+}
+
+// Remove highlight from all district boundaries
+function removeAllDistrictBoundaryHighlight() {
+  // Get all district boundary layers
+  const allLayers = map.getStyle().layers;
+  const districtLayers = allLayers.filter(layer => 
+    layer.id.includes('-fill') || layer.id.includes('-border')
+  );
+  
+  districtLayers.forEach(layer => {
+    if (layer.id.includes('-fill')) {
+      map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
+      map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
+    } else if (layer.id.includes('-border')) {
+      map.setPaintProperty(layer.id, 'line-color', '#888888');
+      map.setPaintProperty(layer.id, 'line-opacity', 0.4);
+    }
+  });
 }
 
 // Remove boundary highlight and move back below area overlays
@@ -549,7 +587,7 @@ function addNativeMarkers() {
         'text-padding': 4,
         'text-offset': [0, 1.5],
         'text-anchor': 'top'
-      },
+      ],
       paint: {
         'text-color': '#ffffff',
         'text-halo-color': '#739005',
@@ -612,10 +650,10 @@ function addNativeDistrictMarkers() {
         'text-padding': 6,
         'text-offset': [0, 0],
         'text-anchor': 'center'
-      },
+      ],
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#f50000',
+        'text-halo-color': '#fc4e37',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -1389,9 +1427,9 @@ function setupDropdownListeners() {
 // Load area overlays with improved error handling
 function loadAreaOverlays() {
   const areas = [
-    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#98b074', opacity: 0.5},
-    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#a84b4b', opacity: 0.5},
-    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#e99797', opacity: 0.5}
+    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#FADFBE', opacity: 0.5},
+    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#7A6142', opacity: 0.5},
+    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#50391E', opacity: 0.5}
   ];
   
   const addAreaToMap = area => {
@@ -1591,37 +1629,41 @@ function setupAreaKeyControls() {
       // Add hover effects WITHOUT removing existing ones
       if (!wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
-          // Highlight effect for marker controls
+          // Hover effect for marker controls - brighten halo colors instead of increasing width
           if (control.type === 'district') {
-            // Highlight district markers
+            // Brighten district markers halo color from #fc4e37 to a brighter version
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-width', 3);
+              map.setPaintProperty('district-points', 'text-halo-color', '#ff6b54'); // Brighter red
             }
+            // Highlight all district boundaries
+            highlightAllDistrictBoundaries();
           } else if (control.type === 'locality') {
-            // Highlight locality markers
+            // Brighten locality markers halo color from #739005 to a brighter version
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-width', 3);
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#8fb005'); // Brighter green
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-width', 3);
+              map.setPaintProperty('locality-points', 'text-halo-color', '#8fb005'); // Brighter green
             }
           }
         };
         
         const mouseLeaveHandler = () => {
-          // Reset highlight effect for marker controls
+          // Reset hover effect for marker controls
           if (control.type === 'district') {
-            // Reset district markers
+            // Reset district markers to original halo color
             if (map.getLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-width', 2);
+              map.setPaintProperty('district-points', 'text-halo-color', '#fc4e37'); // Original red
             }
+            // Remove highlight from all district boundaries
+            removeAllDistrictBoundaryHighlight();
           } else if (control.type === 'locality') {
-            // Reset locality markers
+            // Reset locality markers to original halo color
             if (map.getLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-width', 2);
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#739005'); // Original green
             }
             if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-width', 2);
+              map.setPaintProperty('locality-points', 'text-halo-color', '#739005'); // Original green
             }
           }
         };
