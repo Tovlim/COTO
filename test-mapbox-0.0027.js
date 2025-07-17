@@ -1238,7 +1238,8 @@ function setupSidebars() {
     }
     
     if (attempt < maxAttempts) {
-      const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
+      const attemptDelays = [100, 300, 500, 1000];
+  const delay = attemptDelays[attempt - 1] || 1000;
       setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
@@ -1249,7 +1250,8 @@ function setupSidebars() {
   const setupInitialMargins = () => {
     if (window.innerWidth <= 478) return;
     
-    ['Left', 'SecondLeft', 'Right'].forEach(side => {
+    const allSides = ['Left', 'SecondLeft', 'Right'];
+    allSides.forEach(side => {
       const sidebar = $id(`${side}Sidebar`);
       if (sidebar && !sidebar.classList.contains('is-show')) {
         const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
@@ -1301,11 +1303,14 @@ function setupEvents() {
     // For #refresh-on-enter, exclude 'click' events to prevent reframing on click
     let events;
     if (newElement.id === 'refresh-on-enter') {
-      events = ['keypress', 'input']; // Only keypress and input, no click
+      const refreshEvents = ['keypress', 'input'];
+      events = refreshEvents; // Only keypress and input, no click
     } else if (newElement.getAttribute('apply-map-filter') === 'true') {
-      events = ['click', 'keypress', 'input'];
+      const filterEvents = ['click', 'keypress', 'input'];
+      events = filterEvents;
     } else {
-      events = ['click'];
+      const clickEvents = ['click'];
+      events = clickEvents;
     }
     
     events.forEach(eventType => {
@@ -1505,7 +1510,7 @@ function setupAreaKeyControls() {
       keyId: 'district-toggle-key', 
       wrapId: 'district-toggle-key-wrap',
       type: 'district',
-      layers: ['district-points'], // Will also handle boundary layers dynamically
+      layers: ['district-points'],
       label: 'District Markers & Boundaries'
     },
     {
@@ -1978,8 +1983,11 @@ function init() {
   map.on('zoomend', handleMapEvents);
   
   // Staggered setup with optimized timing
-  [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
-  [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
+  const setupDelays = [1000, 3000];
+  setupDelays.forEach(delay => setTimeout(setupDropdownListeners, delay));
+  
+  const tabDelays = [500, 1500, 3000];
+  tabDelays.forEach(delay => setTimeout(setupTabSwitcher, delay));
   
   state.flags.mapInitialized = true;
   
@@ -2056,13 +2064,15 @@ window.addEventListener('load', () => {
   
   // Only retry if not already loaded
   if (!state.flags.districtTagsLoaded) {
-    [3000, 5000].forEach(delay => setTimeout(() => {
+    const delays = [3000, 5000];
+    delays.forEach(delay => setTimeout(() => {
       if (!state.flags.districtTagsLoaded) loadDistrictTags();
     }, delay));
   }
   
   if (!state.flags.areaControlsSetup) {
-    [8000, 10000].forEach(delay => setTimeout(() => {
+    const delays = [8000, 10000];
+    delays.forEach(delay => setTimeout(() => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
     }, delay));
   }
