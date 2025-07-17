@@ -159,28 +159,22 @@ class IntegratedAutocomplete {
     
     // NEW: Helper method to check if a term corresponds to a checked checkbox
     isTermChecked(term) {
-        const lists = this.getAvailableFilterLists();
-        
-        for (const listId of lists) {
-            const listContainer = document.getElementById(listId);
-            if (!listContainer) continue;
+        try {
+            // Look for checked checkboxes in the document
+            const checkedCheckboxes = document.querySelectorAll('[checkbox-filter="locality"] label.is-list-active');
             
-            // Look for checkboxes with this term
-            const checkboxItems = listContainer.querySelectorAll('[checkbox-filter="locality"]');
-            
-            for (const item of checkboxItems) {
-                const label = item.querySelector('.w-form-label');
-                if (label && label.textContent.trim() === term) {
-                    // Check if this checkbox is checked by looking for the is-list-active class
-                    const labelElement = item.querySelector('.w-checkbox.reporterwrap-copy');
-                    if (labelElement && labelElement.classList.contains('is-list-active')) {
-                        return true;
-                    }
+            for (const label of checkedCheckboxes) {
+                const labelText = label.querySelector('.w-form-label');
+                if (labelText && labelText.textContent.trim() === term) {
+                    return true;
                 }
             }
+            
+            return false;
+        } catch (error) {
+            console.warn('Error checking if term is checked:', error);
+            return false;
         }
-        
-        return false;
     }
     
     populateDropdown() {
