@@ -530,7 +530,8 @@ function addNativeMarkers() {
         'text-size': 16,
         'text-allow-overlap': true,
         'text-ignore-placement': true,
-        'text-padding': 8 // Increased padding for proper halo rendering
+        'text-padding': 20, // Much larger padding to prevent halo clipping
+        'symbol-avoid-edges': true // Prevent clipping at tile edges
       },
       paint: {
         'text-color': '#ffffff',
@@ -559,9 +560,10 @@ function addNativeMarkers() {
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
-        'text-padding': 8, // Increased padding for proper halo rendering
+        'text-padding': 20, // Much larger padding to prevent halo clipping
         'text-offset': [0, 1.5],
-        'text-anchor': 'top'
+        'text-anchor': 'top',
+        'symbol-avoid-edges': true // Prevent clipping at tile edges
       },
       paint: {
         'text-color': '#ffffff',
@@ -624,9 +626,10 @@ function addNativeDistrictMarkers() {
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
-        'text-padding': 10, // Increased padding for proper halo rendering
+        'text-padding': 25, // Extra large padding for district names (often longer)
         'text-offset': [0, 0],
-        'text-anchor': 'center'
+        'text-anchor': 'center',
+        'symbol-avoid-edges': true // Prevent clipping at tile edges
       },
       paint: {
         'text-color': '#ffffff',
