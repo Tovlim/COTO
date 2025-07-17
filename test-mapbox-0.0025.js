@@ -1260,8 +1260,15 @@ function setupEvents() {
     const newElement = element.cloneNode(true);
     if (element.parentNode) element.parentNode.replaceChild(newElement, element);
     
-    const events = newElement.id === 'refresh-on-enter' || newElement.getAttribute('apply-map-filter') === 'true' 
-      ? ['click', 'keypress', 'input'] : ['click'];
+    // For #refresh-on-enter, exclude 'click' events to prevent reframing on click
+    let events;
+    if (newElement.id === 'refresh-on-enter') {
+      events = ['keypress', 'input']; // Only keypress and input, no click
+    } else if (newElement.getAttribute('apply-map-filter') === 'true') {
+      events = ['click', 'keypress', 'input'];
+    } else {
+      events = ['click'];
+    }
     
     events.forEach(eventType => {
       newElement.addEventListener(eventType, (e) => {
