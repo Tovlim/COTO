@@ -692,18 +692,26 @@ function setupNativeMarkerClicks() {
   // Change cursor on hover
   map.on('mouseenter', 'locality-clusters', () => {
     map.getCanvas().style.cursor = 'pointer';
+    // Make clusters 20% brighter on hover
+    map.setPaintProperty('locality-clusters', 'text-halo-color', '#979000');
   });
   
   map.on('mouseleave', 'locality-clusters', () => {
     map.getCanvas().style.cursor = '';
+    // Reset to original color
+    map.setPaintProperty('locality-clusters', 'text-halo-color', '#7e7800');
   });
   
   map.on('mouseenter', 'locality-points', () => {
     map.getCanvas().style.cursor = 'pointer';
+    // Make locality points 20% brighter on hover
+    map.setPaintProperty('locality-points', 'text-halo-color', '#979000');
   });
   
   map.on('mouseleave', 'locality-points', () => {
     map.getCanvas().style.cursor = '';
+    // Reset to original color
+    map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
   });
 }
 
@@ -800,12 +808,33 @@ function setupDistrictMarkerClicks() {
   });
   
   // Change cursor on hover
-  map.on('mouseenter', 'district-points', () => {
+  map.on('mouseenter', 'district-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
+    // Make district points 20% brighter on hover
+    map.setPaintProperty('district-points', 'text-halo-color', '#844000');
+    
+    // For districts with boundaries, show boundary highlight on hover
+    const feature = e.features[0];
+    const districtName = feature.properties.name;
+    const districtSource = feature.properties.source;
+    
+    if (districtSource === 'boundary') {
+      highlightBoundary(districtName);
+    }
   });
   
-  map.on('mouseleave', 'district-points', () => {
+  map.on('mouseleave', 'district-points', (e) => {
     map.getCanvas().style.cursor = '';
+    // Reset to original color
+    map.setPaintProperty('district-points', 'text-halo-color', '#6e3500');
+    
+    // Remove boundary highlight on mouse leave
+    const feature = e.features[0];
+    const districtSource = feature.properties.source;
+    
+    if (districtSource === 'boundary') {
+      removeBoundaryHighlight();
+    }
   });
 }
 
