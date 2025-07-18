@@ -1898,6 +1898,56 @@ function loadDistrictTags() {
   setTimeout(ensureMarkersOnTop, 200);
 }
 
+// Generate locality checkboxes from map data
+function generateLocalityCheckboxes() {
+  const container = $id('locality-check-list');
+  if (!container) {
+    console.log('Locality checkbox container not found');
+    return;
+  }
+  
+  // Find the template checkbox (should be the empty one)
+  const template = container.querySelector('.div-block-31852');
+  if (!template) {
+    console.log('Locality checkbox template not found');
+    return;
+  }
+  
+  // Extract unique locality names from map data
+  const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
+  
+  if (localityNames.length === 0) {
+    console.log('No locality names found in map data');
+    return;
+  }
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Generate checkbox for each locality
+  localityNames.forEach(localityName => {
+    // Clone the template
+    const checkbox = template.cloneNode(true);
+    
+    // Update fs-list-value attribute
+    const input = checkbox.querySelector('input[name="locality"]');
+    if (input) {
+      input.setAttribute('fs-list-value', localityName);
+    }
+    
+    // Update span text content
+    const span = checkbox.querySelector('.test3.w-form-label');
+    if (span) {
+      span.textContent = localityName;
+    }
+    
+    // Append to container
+    container.appendChild(checkbox);
+  });
+  
+  console.log(`Generated ${localityNames.length} locality checkboxes`);
+}
+
 // Ensure markers are always on top of all other layers
 function ensureMarkersOnTop() {
   const markerLayers = ['locality-clusters', 'locality-points', 'district-points'];
@@ -2013,6 +2063,11 @@ map.on("load", () => {
       ensureMarkersOnTop();
     }, 8000);
     
+    // Generate locality checkboxes as one of the last things
+    setTimeout(() => {
+      generateLocalityCheckboxes();
+    }, 9000);
+    
   } catch (error) {
     // Still hide loading screen on error
     setTimeout(() => {
@@ -2050,6 +2105,11 @@ window.addEventListener('load', () => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
     }, delay));
   }
+  
+  // Generate locality checkboxes with fallback attempts
+  [9000, 11000].forEach(delay => setTimeout(() => {
+    if (state.allLocalityFeatures.length > 0) generateLocalityCheckboxes();
+  }, delay));
   
   // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
