@@ -7,84 +7,6 @@ if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
-// TEMPORARY COLOR PICKER CONTROLS
-const colorPickerHTML = `
-<div id="temp-color-picker" style="position: fixed; top: 10px; left: 10px; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10000; font-family: Arial, sans-serif; font-size: 12px;">
-  <div style="margin-bottom: 5px;">
-    <label>Area A: </label>
-    <input type="color" id="areaA-color" value="#FFE3C2" style="width: 30px; height: 20px;">
-  </div>
-  <div style="margin-bottom: 5px;">
-    <label>Area B: </label>
-    <input type="color" id="areaB-color" value="#FFC278" style="width: 30px; height: 20px;">
-  </div>
-  <div style="margin-bottom: 5px;">
-    <label>Area C: </label>
-    <input type="color" id="areaC-color" value="#FF9C78" style="width: 30px; height: 20px;">
-  </div>
-  <div style="margin-bottom: 5px;">
-    <label>Districts: </label>
-    <input type="color" id="district-color" value="#fc4e37" style="width: 30px; height: 20px;">
-  </div>
-  <div style="margin-bottom: 5px;">
-    <label>Localities: </label>
-    <input type="color" id="locality-color" value="#739005" style="width: 30px; height: 20px;">
-  </div>
-  <button onclick="document.getElementById('temp-color-picker').remove()" style="margin-top: 5px; padding: 2px 8px; font-size: 10px;">Remove</button>
-</div>
-`;
-
-// Add color picker to page
-document.addEventListener('DOMContentLoaded', () => {
-  document.body.insertAdjacentHTML('beforeend', colorPickerHTML);
-  
-  // Setup color change handlers
-  const setupColorHandler = (inputId, updateFunction) => {
-    const input = document.getElementById(inputId);
-    if (input) {
-      input.addEventListener('input', (e) => {
-        updateFunction(e.target.value);
-      });
-    }
-  };
-  
-  setupColorHandler('areaA-color', (color) => {
-    if (map.getLayer('area-a-layer')) {
-      map.setPaintProperty('area-a-layer', 'fill-color', color);
-      map.setPaintProperty('area-a-layer', 'fill-outline-color', color);
-    }
-  });
-  
-  setupColorHandler('areaB-color', (color) => {
-    if (map.getLayer('area-b-layer')) {
-      map.setPaintProperty('area-b-layer', 'fill-color', color);
-      map.setPaintProperty('area-b-layer', 'fill-outline-color', color);
-    }
-  });
-  
-  setupColorHandler('areaC-color', (color) => {
-    if (map.getLayer('area-c-layer')) {
-      map.setPaintProperty('area-c-layer', 'fill-color', color);
-      map.setPaintProperty('area-c-layer', 'fill-outline-color', color);
-    }
-  });
-  
-  setupColorHandler('district-color', (color) => {
-    if (map.getLayer('district-points')) {
-      map.setPaintProperty('district-points', 'text-halo-color', color);
-    }
-  });
-  
-  setupColorHandler('locality-color', (color) => {
-    if (map.getLayer('locality-clusters')) {
-      map.setPaintProperty('locality-clusters', 'text-halo-color', color);
-    }
-    if (map.getLayer('locality-points')) {
-      map.setPaintProperty('locality-points', 'text-halo-color', color);
-    }
-  });
-});
-
 // Fallback: Hide loading screen after max 10 seconds regardless
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
@@ -277,9 +199,9 @@ function highlightBoundary(districtName) {
   
   if (map.getLayer(boundaryFillId) && map.getLayer(boundaryBorderId)) {
     // Apply subtle red highlight
-    map.setPaintProperty(boundaryFillId, 'fill-color', '#fc4e37');
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
     map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
-    map.setPaintProperty(boundaryBorderId, 'line-color', '#fc4e37');
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
     map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
     // Move boundary layers ABOVE area overlays for visibility during highlight
@@ -599,7 +521,7 @@ function addNativeMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#739005',
+        'text-halo-color': '#7e7800',
         'text-halo-width': 2
       }
     });
@@ -630,7 +552,7 @@ function addNativeMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#739005',
+        'text-halo-color': '#7e7800',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -693,7 +615,7 @@ function addNativeDistrictMarkers() {
       },
       paint: {
         'text-color': '#ffffff',
-        'text-halo-color': '#fc4e37',
+        'text-halo-color': '#6e3500',
         'text-halo-width': 2,
         'text-opacity': [
           'interpolate',
@@ -1467,9 +1389,9 @@ function setupDropdownListeners() {
 // Load area overlays with improved error handling
 function loadAreaOverlays() {
   const areas = [
-    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#FFE3C2', opacity: 0.5},
-    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#FFC278', opacity: 0.5},
-    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#FF9C78', opacity: 0.5}
+    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#adc278', opacity: 0.5},
+    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#ffdcc6', opacity: 0.5},
+    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#889c9b', opacity: 0.5}
   ];
   
   const addAreaToMap = area => {
