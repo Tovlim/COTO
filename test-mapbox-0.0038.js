@@ -2001,6 +2001,11 @@ function init() {
   addNativeMarkers();
   setupEvents();
   
+  // Generate locality checkboxes early, right after data is loaded
+  setTimeout(() => {
+    generateLocalityCheckboxes();
+  }, 500);
+  
   // Ensure markers are on top after initial setup
   setTimeout(ensureMarkersOnTop, 200);
   
@@ -2066,11 +2071,6 @@ map.on("load", () => {
       ensureMarkersOnTop();
     }, 8000);
     
-    // Generate locality checkboxes as one of the last things
-    setTimeout(() => {
-      generateLocalityCheckboxes();
-    }, 9000);
-    
   } catch (error) {
     // Still hide loading screen on error
     setTimeout(() => {
@@ -2108,11 +2108,6 @@ window.addEventListener('load', () => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
     }, delay));
   }
-  
-  // Generate locality checkboxes with fallback attempts
-  [9000, 11000].forEach(delay => setTimeout(() => {
-    if (state.allLocalityFeatures.length > 0) generateLocalityCheckboxes();
-  }, delay));
   
   // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
