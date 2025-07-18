@@ -1906,8 +1906,8 @@ function generateLocalityCheckboxes() {
     return;
   }
   
-  // Find the template checkbox using the new ID
-  const template = $id('locality-checkbox');
+  // Find the template (parent div with checkbox-filter="locality")
+  const template = container.querySelector('[checkbox-filter="locality"]');
   if (!template) {
     console.log('Locality checkbox template not found');
     return;
@@ -1926,11 +1926,14 @@ function generateLocalityCheckboxes() {
   
   // Generate checkbox for each locality
   localityNames.forEach(localityName => {
-    // Clone the template
+    // Clone the template (entire div with checkbox-filter="locality")
     const checkbox = template.cloneNode(true);
     
-    // Remove the ID from cloned elements to avoid duplicate IDs
-    checkbox.removeAttribute('id');
+    // Remove the ID from the label to avoid duplicate IDs
+    const label = checkbox.querySelector('#locality-checkbox');
+    if (label) {
+      label.removeAttribute('id');
+    }
     
     // Update fs-list-value attribute
     const input = checkbox.querySelector('input[name="locality"]');
