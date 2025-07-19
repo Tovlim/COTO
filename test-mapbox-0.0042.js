@@ -22,7 +22,7 @@ if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.c
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/nitaihardy/cmbus40jb016n01s5dui12tre",
+  style: "mapbox://styles/nitaihardy/cmda7xa7i06q101sh2yls4fcr",
   center: [35.22, 31.85],
   zoom: isMobile ? 7.5 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
