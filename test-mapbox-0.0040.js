@@ -1949,9 +1949,34 @@ function generateLocalityCheckboxes() {
     
     // Append to container
     container.appendChild(checkbox);
+    
+    // Add event listeners for attributes like data-auto-sidebar="true"
+    setupCheckboxEvents(checkbox);
   });
   
   console.log(`Generated ${localityNames.length} locality checkboxes`);
+}
+
+// Setup events for a specific checkbox element (used for dynamically generated checkboxes)
+function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-sidebar="true"
+  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
+  autoSidebarElements.forEach(element => {
+    ['change', 'input'].forEach(eventType => {
+      element.addEventListener(eventType, () => {
+        // Only open sidebar on devices wider than 478px
+        if (window.innerWidth > 478) {
+          setTimeout(() => toggleSidebar('Left', true), 100);
+        }
+      });
+    });
+  });
+  
+  // Handle fs-cmsfilter-element filters
+  const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
+  filterElements.forEach(element => {
+    element.addEventListener('change', () => setTimeout(handleFilterUpdate, 100));
+  });
 }
 
 // Ensure markers are always on top of all other layers
