@@ -1456,27 +1456,61 @@ function loadCombinedBoundariesAndAreas() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return response.json();
+      return response.text(); // Get as text first to handle multiple FeatureCollections
     })
-    .then(geojsonData => {
+    .then(textData => {
       console.log('Combined file loaded successfully');
       
       let districtCount = 0;
       let areaCount = 0;
       
-      // Process each feature
-      geojsonData.features.forEach(feature => {
-        const props = feature.properties;
-        
-        // Check if this is an area (has name_en property)
-        if (props.name_en && props.name_en.includes('Area')) {
-          processAreaFeature(feature, props.name_en);
-          areaCount++;
+      // Split by FeatureCollection boundaries and parse each one
+      const featureCollections = [];
+      
+      // Try to parse as single FeatureCollection first
+      try {
+        const singleFC = JSON.parse(textData);
+        if (singleFC.type === 'FeatureCollection') {
+          featureCollections.push(singleFC);
         }
-        // Check if this is a district (has name property but not name_en)
-        else if (props.name && !props.name_en) {
-          processBoundaryFeature(feature, props.name);
-          districtCount++;
+      } catch (e) {
+        // If that fails, try to split multiple FeatureCollections
+        const lines = textData.split('\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const fc = JSON.parse(line);
+            if (fc.type === 'FeatureCollection') {
+              featureCollections.push(fc);
+            }
+          } catch (parseError) {
+            console.log('Could not parse line:', line.substring(0, 100));
+          }
+        }
+      }
+      
+      console.log(`Found ${featureCollections.length} FeatureCollections`);
+      
+      // Process each FeatureCollection
+      featureCollections.forEach(fc => {
+        // Check if this is an area (has name property that includes 'area')
+        if (fc.name && fc.name.includes('area')) {
+          // Process area FeatureCollection
+          fc.features.forEach(feature => {
+            if (feature.properties.name_en && feature.properties.name_en.includes('Area')) {
+              processAreaFeature(feature, feature.properties.name_en);
+              areaCount++;
+            }
+          });
+        }
+        // Otherwise treat as district FeatureCollection
+        else {
+          fc.features.forEach(feature => {
+            if (feature.properties.name && !feature.properties.name_en) {
+              processBoundaryFeature(feature, feature.properties.name);
+              districtCount++;
+            }
+          });
         }
       });
       
