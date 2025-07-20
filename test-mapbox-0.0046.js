@@ -1445,66 +1445,210 @@ function setupDropdownListeners() {
   }
 }
 
-// Load area overlays with improved error handling
-function loadAreaOverlays() {
-  const areas = [
-    {name: 'Area A', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_a.geojson', sourceId: 'area-a-source', layerId: 'area-a-layer', color: '#adc278', opacity: 0.5},
-    {name: 'Area B', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_b.geojson', sourceId: 'area-b-source', layerId: 'area-b-layer', color: '#ffdcc6', opacity: 0.5},
-    {name: 'Area C', url: 'https://raw.githubusercontent.com/btselem/map-data/master/s10/area_c.geojson', sourceId: 'area-c-source', layerId: 'area-c-layer', color: '#889c9b', opacity: 0.5}
-  ];
+// Load combined boundaries and areas from single file
+function loadCombinedBoundariesAndAreas() {
+  console.log('Loading combined boundaries and areas from single file');
   
-  const addAreaToMap = area => {
-    fetch(area.url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+  const url = 'https://raw.githubusercontent.com/Tovlim/COTO/main/combined-districts.geojson';
+  
+  fetch(url)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(geojsonData => {
+      console.log('Combined file loaded successfully');
+      
+      let districtCount = 0;
+      let areaCount = 0;
+      
+      // Process each feature
+      geojsonData.features.forEach(feature => {
+        const props = feature.properties;
+        
+        // Check if this is an area (has name_en property)
+        if (props.name_en && props.name_en.includes('Area')) {
+          processAreaFeature(feature, props.name_en);
+          areaCount++;
         }
-        return response.json();
-      })
-      .then(geojsonData => {
-        // Remove existing layers/sources if they exist
-        try {
-          if (map.getLayer(area.layerId)) {
-            map.removeLayer(area.layerId);
-          }
-          if (map.getSource(area.sourceId)) {
-            map.removeSource(area.sourceId);
-          }
-        } catch (e) {
-          // Silent fail for cleanup
+        // Check if this is a district (has name property but not name_en)
+        else if (props.name && !props.name_en) {
+          processBoundaryFeature(feature, props.name);
+          districtCount++;
         }
-        
-        // Add source
-        map.addSource(area.sourceId, {
-          type: 'geojson',
-          data: geojsonData
-        });
-        
-        // Add the layer ABOVE boundaries but BELOW markers
-        const firstMarkerLayer = getFirstMarkerLayerId();
-        map.addLayer({
-          id: area.layerId,
-          type: 'fill',
-          source: area.sourceId,
-          layout: {
-            'visibility': 'visible'
-          },
-          paint: {
-            'fill-color': area.color,
-            'fill-opacity': area.opacity,
-            'fill-outline-color': area.color
-          }
-        }, firstMarkerLayer); // Add before markers but after boundaries
-        
-        // Ensure markers stay on top after adding GeoJSON
-        setTimeout(ensureMarkersOnTop, 100);
-      })
-      .catch(error => {
-        // Silent fail for area loading
       });
+      
+      console.log(`Processed ${districtCount} districts and ${areaCount} areas`);
+      
+      // Update district markers after all boundaries are loaded
+      if (districtCount > 0) {
+        addNativeDistrictMarkers();
+        // Ensure final layer order is correct
+        setTimeout(ensureMarkersOnTop, 500);
+      }
+    })
+    .catch(error => {
+      console.error('Error loading combined boundaries and areas:', error);
+      // Still try to update district markers in case some were loaded
+      addNativeDistrictMarkers();
+      setTimeout(ensureMarkersOnTop, 500);
+    });
+}
+
+// Process individual area feature
+function processAreaFeature(feature, areaName) {
+  // Map area names to colors and IDs
+  const areaConfig = {
+    'Area A': { color: '#adc278', sourceId: 'area-a-source', layerId: 'area-a-layer' },
+    'Area B': { color: '#ffdcc6', sourceId: 'area-b-source', layerId: 'area-b-layer' },
+    'Area C': { color: '#889c9b', sourceId: 'area-c-source', layerId: 'area-c-layer' }
   };
   
-  areas.forEach(addAreaToMap);
+  const config = areaConfig[areaName];
+  if (!config) {
+    console.log(`Unknown area: ${areaName}`);
+    return;
+  }
+  
+  // Remove existing layers/sources if they exist
+  try {
+    if (map.getLayer(config.layerId)) {
+      map.removeLayer(config.layerId);
+    }
+    if (map.getSource(config.sourceId)) {
+      map.removeSource(config.sourceId);
+    }
+  } catch (e) {
+    // Silent fail for cleanup
+  }
+  
+  // Add source with just this feature
+  map.addSource(config.sourceId, {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: [feature]
+    }
+  });
+  
+  // Add the layer ABOVE boundaries but BELOW markers
+  const firstMarkerLayer = getFirstMarkerLayerId();
+  map.addLayer({
+    id: config.layerId,
+    type: 'fill',
+    source: config.sourceId,
+    layout: {
+      'visibility': 'visible'
+    },
+    paint: {
+      'fill-color': config.color,
+      'fill-opacity': 0.5,
+      'fill-outline-color': config.color
+    }
+  }, firstMarkerLayer); // Add before markers but after boundaries
+  
+  console.log(`${areaName} added to map`);
+  
+  // Ensure markers stay on top after adding area
+  setTimeout(ensureMarkersOnTop, 100);
+}
+
+// Process individual boundary feature  
+function processBoundaryFeature(feature, districtName) {
+  const boundary = {
+    name: districtName,
+    sourceId: `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`,
+    fillId: `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`,
+    borderId: `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`
+  };
+  
+  // Remove existing layers/sources if they exist
+  try {
+    if (map.getLayer(boundary.borderId)) {
+      map.removeLayer(boundary.borderId);
+    }
+    if (map.getLayer(boundary.fillId)) {
+      map.removeLayer(boundary.fillId);
+    }
+    if (map.getSource(boundary.sourceId)) {
+      map.removeSource(boundary.sourceId);
+    }
+  } catch (e) {
+    console.log(`Cleanup error for ${districtName}:`, e);
+  }
+  
+  // Add source with just this feature
+  map.addSource(boundary.sourceId, {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: [feature]
+    }
+  });
+  
+  // Add fill layer (visual only) - BELOW area overlays by default
+  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+  const firstAreaLayer = areaLayers.find(layerId => map.getLayer(layerId));
+  const beforeId = firstAreaLayer || getFirstMarkerLayerId();
+  
+  map.addLayer({
+    id: boundary.fillId,
+    type: 'fill',
+    source: boundary.sourceId,
+    layout: {
+      'visibility': 'visible'
+    },
+    paint: {
+      'fill-color': '#1a1b1e',
+      'fill-opacity': 0.15
+    }
+  }, beforeId); // Add before area layers (below them) or markers
+  
+  // Add border layer (visual only) - BELOW area overlays by default
+  map.addLayer({
+    id: boundary.borderId,
+    type: 'line',
+    source: boundary.sourceId,
+    layout: {
+      'visibility': 'visible'
+    },
+    paint: {
+      'line-color': '#888888', // Lighter gray
+      'line-width': 1,
+      'line-opacity': 0.4 // More see-through
+    }
+  }, beforeId); // Add before area layers (below them) or markers
+  
+  console.log(`${districtName} boundary added to map`);
+  
+  // Ensure markers stay on top after adding boundaries
+  setTimeout(ensureMarkersOnTop, 100);
+  
+  // Calculate centroid and add district marker
+  if (feature.geometry && feature.geometry.coordinates) {
+    const existingFeature = state.allDistrictFeatures.find(f => f.properties.name === districtName && f.properties.source === 'boundary');
+    if (!existingFeature) {
+      const centroid = utils.calculateCentroid(feature.geometry.coordinates);
+      
+      const districtFeature = {
+        type: "Feature",
+        geometry: {type: "Point", coordinates: centroid},
+        properties: {
+          name: districtName,
+          id: `district-${districtName.toLowerCase().replace(/\s+/g, '-')}`,
+          type: 'district',
+          source: 'boundary'
+        }
+      };
+      
+      state.allDistrictFeatures.push(districtFeature);
+      console.log(`Added district marker for ${districtName} at centroid:`, centroid);
+    } else {
+      console.log(`District marker for ${districtName} already exists, skipping`);
+    }
+  }
 }
 
 // Area key controls with improved functionality + District/Locality toggles
@@ -2179,10 +2323,9 @@ map.on("load", () => {
   try {
     init();
     
-    // Load area overlays and simplified boundaries
+    // Load combined boundaries and areas from single file
     setTimeout(() => {
-      loadAreaOverlays();
-      loadSimplifiedBoundaries();
+      loadCombinedBoundariesAndAreas();
     }, 500);
     
     setTimeout(loadDistrictTags, 2000);
