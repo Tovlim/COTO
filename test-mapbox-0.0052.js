@@ -670,7 +670,7 @@ function setupNativeMarkerClicks() {
     setTimeout(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
-    }, 1500);
+    }, 800);
   });
   
   // Handle cluster clicks
@@ -797,7 +797,7 @@ function setupDistrictMarkerClicks() {
     setTimeout(() => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
-    }, 1500);
+    }, 800);
   });
   
   // Change cursor on hover
@@ -980,7 +980,7 @@ const handleFilterUpdate = utils.debounce(() => {
   state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
-}, 300);
+}, 150);
 
 // Custom tab switcher
 function setupTabSwitcher() {
@@ -1205,12 +1205,12 @@ function setupSidebars() {
     
     if (leftReady && secondLeftReady && rightReady) {
       setupInitialMargins();
-      setTimeout(setupControls, 100);
+      setTimeout(setupControls, 50);
       return;
     }
     
     if (attempt < maxAttempts) {
-      const delay = [100, 300, 500, 1000][attempt - 1] || 1000;
+      const delay = [50, 150, 250, 500][attempt - 1] || 500;
       setTimeout(() => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
@@ -1240,7 +1240,7 @@ function setupEvents() {
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
       // Only open sidebar on devices wider than 478px
       if (window.innerWidth > 478) {
-        setTimeout(() => toggleSidebar('Left', true), 100);
+        setTimeout(() => toggleSidebar('Left', true), 50);
       }
     }},
     {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
@@ -1249,8 +1249,8 @@ function setupEvents() {
         setTimeout(() => toggleSidebar('SecondLeft', true), 100);
       }
     }},
-    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)},
-    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 100)}
+    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 50)},
+    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => setTimeout(handleFilterUpdate, 50)}
   ];
   
   eventHandlers.forEach(({selector, events, handler}) => {
@@ -1290,7 +1290,7 @@ function setupEvents() {
         state.flags.forceFilteredReframe = true;
         state.flags.isRefreshButtonAction = true;
         
-        const delay = eventType === 'input' ? 300 : 100;
+        const delay = eventType === 'input' ? 200 : 50;
         
         setTimeout(() => {
           applyFilterToMarkers();
@@ -1370,8 +1370,8 @@ function setupDropdownListeners() {
             state.flags.forceFilteredReframe = false;
             state.flags.isRefreshButtonAction = false;
           }, 1000);
-        }, 100);
-      }, 50);
+        }, 50);
+      }, 25);
     });
   });
   
@@ -1410,7 +1410,7 @@ function setupDropdownListeners() {
           // Clear flag after animation completes
           setTimeout(() => {
             state.flags.skipNextReframe = false;
-          }, 1500);
+          }, 1200);
         } else {
           // Fallback to regular filtering if boundary source not found
           setTimeout(() => {
@@ -1423,8 +1423,8 @@ function setupDropdownListeners() {
                 state.flags.forceFilteredReframe = false;
                 state.flags.isRefreshButtonAction = false;
               }, 1000);
-            }, 100);
-          }, 50);
+            }, 50);
+          }, 25);
         }
       } else {
         // District without boundaries - use current behavior (zoom to filtered localities)
@@ -1482,14 +1482,14 @@ function loadCombinedGeoData() {
       addNativeDistrictMarkers();
       
       // Ensure final layer order is correct
-      setTimeout(ensureMarkersOnTop, 500);
+      setTimeout(ensureMarkersOnTop, 300);
       
     })
     .catch(error => {
       console.error('Error loading combined GeoJSON data:', error);
       // Still update district markers in case some data was loaded
       addNativeDistrictMarkers();
-      setTimeout(ensureMarkersOnTop, 500);
+      setTimeout(ensureMarkersOnTop, 300);
     });
 }
 
@@ -1564,7 +1564,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   console.log(`${name} district boundary added`);
   
   // Ensure markers stay on top after adding boundaries
-  setTimeout(ensureMarkersOnTop, 100);
+  setTimeout(ensureMarkersOnTop, 50);
   
   // Calculate centroid and add district marker
   const existingFeature = state.allDistrictFeatures.find(f => f.properties.name === name && f.properties.source === 'boundary');
@@ -1644,7 +1644,7 @@ function addAreaOverlayToMap(name, areaFeature) {
   console.log(`${name} area overlay added`);
   
   // Ensure markers stay on top after adding GeoJSON
-  setTimeout(ensureMarkersOnTop, 100);
+  setTimeout(ensureMarkersOnTop, 50);
 }
 
 // Area key controls with improved functionality + District/Locality toggles
@@ -2094,7 +2094,7 @@ function loadDistrictTags() {
   addNativeDistrictMarkers();
   
   // Ensure markers stay on top
-  setTimeout(ensureMarkersOnTop, 200);
+  setTimeout(ensureMarkersOnTop, 100);
 }
 
 // Generate locality checkboxes from map data
@@ -2253,7 +2253,7 @@ const monitorTags = () => {
   
   const tagParent = $id('tagparent');
   if (tagParent) {
-    new MutationObserver(() => setTimeout(checkTags, 50)).observe(tagParent, {childList: true, subtree: true});
+    new MutationObserver(() => setTimeout(checkTags, 25)).observe(tagParent, {childList: true, subtree: true});
   } else {
     setInterval(checkTags, 1000);
   }
@@ -2268,10 +2268,10 @@ function init() {
   // Generate locality checkboxes early, right after data is loaded
   setTimeout(() => {
     generateLocalityCheckboxes();
-  }, 500);
+  }, 300);
   
   // Ensure markers are on top after initial setup
-  setTimeout(ensureMarkersOnTop, 200);
+  setTimeout(ensureMarkersOnTop, 100);
   
   const handleMapEvents = () => {
     clearTimeout(state.timers.zoom);
@@ -2284,8 +2284,8 @@ function init() {
   map.on('zoomend', handleMapEvents);
   
   // Staggered setup with optimized timing
-  [1000, 3000].forEach(delay => setTimeout(setupDropdownListeners, delay));
-  [500, 1500, 3000].forEach(delay => setTimeout(setupTabSwitcher, delay));
+  [300, 800].forEach(delay => setTimeout(setupDropdownListeners, delay));
+  [200, 600, 1200].forEach(delay => setTimeout(setupTabSwitcher, delay));
   
   state.flags.mapInitialized = true;
   
@@ -2295,7 +2295,7 @@ function init() {
     if (loadingScreen) {
       loadingScreen.style.display = 'none';
     }
-  }, 1000);
+  }, 600);
   
   setTimeout(() => {
     if (state.flags.isInitialLoad) {
@@ -2305,14 +2305,14 @@ function init() {
       }
       state.flags.isInitialLoad = false;
     }
-  }, 500);
+  }, 300);
 }
 
 // Control positioning and event setup
 setTimeout(() => {
   const ctrl = $1('.mapboxgl-ctrl-top-right');
   if (ctrl) utils.setStyles(ctrl, {top: '4rem', right: '0.5rem', zIndex: '10'});
-}, 500);
+}, 300);
 
 // Optimized event handlers
 map.on("load", () => {
@@ -2322,17 +2322,17 @@ map.on("load", () => {
     // Load combined GeoJSON data (districts + areas)
     setTimeout(() => {
       loadCombinedGeoData();
-    }, 500);
+    }, 100);
     
-    setTimeout(loadDistrictTags, 2000);
+    setTimeout(loadDistrictTags, 800);
     setTimeout(() => {
       setupAreaKeyControls();
-    }, 6000); // Increased delay to ensure areas are loaded first
+    }, 2000); // Reduced delay to ensure areas are loaded first
     
     // Final layer order enforcement
     setTimeout(() => {
       ensureMarkersOnTop();
-    }, 8000);
+    }, 3000);
     
   } catch (error) {
     // Still hide loading screen on error
@@ -2357,17 +2357,17 @@ window.addEventListener('load', () => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
       try { init(); } catch (error) { /* Silent fail */ }
     }
-  }, 200);
+  }, 100);
   
   // Only retry if not already loaded
   if (!state.flags.districtTagsLoaded) {
-    [3000, 5000].forEach(delay => setTimeout(() => {
+    [1200, 2500].forEach(delay => setTimeout(() => {
       if (!state.flags.districtTagsLoaded) loadDistrictTags();
     }, delay));
   }
   
   if (!state.flags.areaControlsSetup) {
-    [8000, 10000].forEach(delay => setTimeout(() => {
+    [2500, 4000].forEach(delay => setTimeout(() => {
       if (!state.flags.areaControlsSetup) setupAreaKeyControls();
     }, delay));
   }
@@ -2392,4 +2392,4 @@ window.addEventListener('load', () => {
   }
 });
 
-setTimeout(monitorTags, 1000);
+setTimeout(monitorTags, 600);
