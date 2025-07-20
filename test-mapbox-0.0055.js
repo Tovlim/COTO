@@ -107,14 +107,7 @@ const state = {
     dropdownListenersSetup: false,
     districtTagsLoaded: false,
     areaControlsSetup: false,
-    skipNextReframe: false, // New flag to skip reframing after boundary zoom
-    // New readiness flags for optimized initialization
-    domReady: false,
-    localitiesReady: false,
-    geojsonReady: false,
-    areasReady: false,
-    checkboxesGenerated: false,
-    uiSetupComplete: false
+    skipNextReframe: false // New flag to skip reframing after boundary zoom
   }
 };
 
@@ -1488,13 +1481,6 @@ function loadCombinedGeoData() {
       console.log('All combined data processed, updating district markers');
       addNativeDistrictMarkers();
       
-      // Mark GeoJSON and areas as ready
-      state.flags.geojsonReady = true;
-      state.flags.areasReady = true;
-      
-      // Trigger Phase 3 now that data is ready
-      setTimeout(initializePhase3, 100);
-      
       // Ensure final layer order is correct
       setTimeout(ensureMarkersOnTop, 300);
       
@@ -2107,11 +2093,6 @@ function loadDistrictTags() {
   // Update district markers after adding tag features
   addNativeDistrictMarkers();
   
-  // Trigger Phase 3 if not already running
-  if (!state.flags.areaControlsSetup || !state.flags.dropdownListenersSetup) {
-    setTimeout(initializePhase3, 50);
-  }
-  
   // Ensure markers stay on top
   setTimeout(ensureMarkersOnTop, 100);
 }
@@ -2120,23 +2101,23 @@ function loadDistrictTags() {
 function generateLocalityCheckboxes() {
   const container = $id('locality-check-list');
   if (!container) {
-    console.log('❌ Locality checkbox container not found');
-    return false;
+    console.log('Locality checkbox container not found');
+    return;
   }
   
   // Find the template (parent div with checkbox-filter="locality")
   const template = container.querySelector('[checkbox-filter="locality"]');
   if (!template) {
-    console.log('❌ Locality checkbox template not found');
-    return false;
+    console.log('Locality checkbox template not found');
+    return;
   }
   
   // Extract unique locality names from map data
   const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
   
   if (localityNames.length === 0) {
-    console.log('❌ No locality names found in map data');
-    return false;
+    console.log('No locality names found in map data');
+    return;
   }
   
   // Clear the container
@@ -2172,8 +2153,7 @@ function generateLocalityCheckboxes() {
     setupCheckboxEvents(checkbox);
   });
   
-  console.log(`✅ Generated ${localityNames.length} locality checkboxes`);
-  return true;
+  console.log(`Generated ${localityNames.length} locality checkboxes`);
 }
 
 // Setup events for a specific checkbox element (used for dynamically generated checkboxes)
@@ -2279,148 +2259,16 @@ const monitorTags = () => {
   }
 };
 
-// Readiness checking and conditional execution helpers
-const checkReadiness = {
-  localities: () => state.allLocalityFeatures.length > 0,
-  geojson: () => state.flags.geojsonReady,
-  areas: () => map.getLayer('area-a-layer') && map.getLayer('area-b-layer') && map.getLayer('area-c-layer'),
-  checkboxContainer: () => $id('locality-check-list') !== null,
-  districtTags: () => $id('district-tag-collection') !== null
-};
-
-// Smart conditional execution - only run if not already done and dependencies met
-const runOnce = (flagName, dependencies = [], fn) => {
-  if (state.flags[flagName]) return false; // Already done
-  
-  // Check dependencies
-  const depsMet = dependencies.every(dep => {
-    if (typeof dep === 'string') return state.flags[dep];
-    if (typeof dep === 'function') return dep();
-    return dep;
-  });
-  
-  if (depsMet) {
-    try {
-      fn();
-      state.flags[flagName] = true;
-      console.log(`✅ Completed: ${flagName}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed: ${flagName}`, error);
-      return false;
-    }
-  }
-  return false;
-};
-
-// Phase 1: Early DOM setup (runs immediately when DOM ready)
-function initializePhase1() {
-  console.log('🚀 Phase 1: Early DOM setup');
-  
-  // Setup sidebars and tabs immediately
-  setupSidebars();
-  setupTabSwitcher();
-  
-  // Mark DOM as ready
-  state.flags.domReady = true;
-  state.flags.uiSetupComplete = true;
-  console.log('✅ Phase 1 complete');
-}
-
-// Phase 2: Core map initialization
-function initializePhase2() {
-  console.log('🚀 Phase 2: Core map initialization');
-  
-  // Core map functions
+// Optimized initialization
+function init() {
   getLocationData();
   addNativeMarkers();
   setupEvents();
   
-  state.flags.localitiesReady = true;
-  
-  // Start parallel operations immediately
+  // Generate locality checkboxes early, right after data is loaded
   setTimeout(() => {
-    loadCombinedGeoData(); // Parallel: GeoJSON loading
-    loadDistrictTags();    // Parallel: District tags
-  }, 50);
-  
-  // Generate checkboxes as soon as localities are ready
-  setTimeout(() => {
-    runOnce('checkboxesGenerated', [checkReadiness.localities, checkReadiness.checkboxContainer], generateLocalityCheckboxes);
-  }, 100);
-  
-  console.log('✅ Phase 2 complete');
-}
-
-// Phase 3: Data-dependent operations (run when dependencies are ready)
-function initializePhase3() {
-  console.log('🚀 Phase 3: Data-dependent setup');
-  
-  // Smart retry system - check what's actually ready
-  const checkAndRun = () => {
-    let completedSomething = false;
-    
-    // Generate checkboxes when ready
-    if (runOnce('checkboxesGenerated', [checkReadiness.localities, checkReadiness.checkboxContainer], generateLocalityCheckboxes)) {
-      completedSomething = true;
-    }
-    
-    // Setup area controls when areas are ready
-    if (runOnce('areaControlsSetup', [checkReadiness.areas], setupAreaKeyControls)) {
-      completedSomething = true;
-    }
-    
-    // Setup dropdown listeners when DOM is ready
-    if (runOnce('dropdownListenersSetup', [state.flags.domReady], setupDropdownListeners)) {
-      completedSomething = true;
-    }
-    
-    return completedSomething;
-  };
-  
-  // Initial check
-  checkAndRun();
-  
-  // Smart retries - only if something is still pending
-  [200, 500, 1000, 2000].forEach(delay => {
-    setTimeout(() => {
-      if (!state.flags.checkboxesGenerated || !state.flags.areaControlsSetup || !state.flags.dropdownListenersSetup) {
-        checkAndRun();
-      }
-    }, delay);
-  });
-}
-
-// Phase 4: Final cleanup and optimization
-function initializePhase4() {
-  console.log('🚀 Phase 4: Final optimization');
-  
-  // Only run final cleanup when everything else is done
-  const finalCleanup = () => {
-    if (state.flags.geojsonReady && state.flags.localitiesReady) {
-      ensureMarkersOnTop();
-      console.log('✅ Final cleanup complete');
-      
-      // Hide loading screen
-      setTimeout(() => {
-        const loadingScreen = document.getElementById('loading-map-screen');
-        if (loadingScreen) {
-          loadingScreen.style.display = 'none';
-          console.log('✅ Loading screen hidden');
-        }
-      }, 200);
-    }
-  };
-  
-  // Check immediately and retry if needed
-  finalCleanup();
-  setTimeout(finalCleanup, 500);
-  setTimeout(finalCleanup, 1500);
-}
-
-// Optimized initialization - now just calls Phase 2
-function init() {
-  initializePhase2();
+    generateLocalityCheckboxes();
+  }, 300);
   
   // Ensure markers are on top after initial setup
   setTimeout(ensureMarkersOnTop, 100);
@@ -2435,7 +2283,19 @@ function init() {
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
   
+  // Staggered setup with optimized timing
+  [300, 800].forEach(delay => setTimeout(setupDropdownListeners, delay));
+  [200, 600, 1200].forEach(delay => setTimeout(setupTabSwitcher, delay));
+  
   state.flags.mapInitialized = true;
+  
+  // Hide loading screen as soon as core map functionality is ready
+  setTimeout(() => {
+    const loadingScreen = document.getElementById('loading-map-screen');
+    if (loadingScreen) {
+      loadingScreen.style.display = 'none';
+    }
+  }, 600);
   
   setTimeout(() => {
     if (state.flags.isInitialLoad) {
@@ -2454,17 +2314,27 @@ setTimeout(() => {
   if (ctrl) utils.setStyles(ctrl, {top: '4rem', right: '0.5rem', zIndex: '10'});
 }, 300);
 
-// Optimized event handlers with phased initialization
+// Optimized event handlers
 map.on("load", () => {
   try {
-    console.log('🗺️ Map loaded, starting Phase 2');
-    init(); // Phase 2: Core map initialization
+    init();
     
-    // Start Phase 4 after a short delay to allow data loading
-    setTimeout(initializePhase4, 1000);
+    // Load combined GeoJSON data (districts + areas)
+    setTimeout(() => {
+      loadCombinedGeoData();
+    }, 100);
+    
+    setTimeout(loadDistrictTags, 800);
+    setTimeout(() => {
+      setupAreaKeyControls();
+    }, 2000); // Reduced delay to ensure areas are loaded first
+    
+    // Final layer order enforcement
+    setTimeout(() => {
+      ensureMarkersOnTop();
+    }, 3000);
     
   } catch (error) {
-    console.error('Map initialization error:', error);
     // Still hide loading screen on error
     setTimeout(() => {
       const loadingScreen = document.getElementById('loading-map-screen');
@@ -2475,55 +2345,34 @@ map.on("load", () => {
   }
 });
 
-// Phase 1: Early DOM setup (runs as soon as DOM is ready)
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('📄 DOM ready, starting Phase 1');
-  initializePhase1();
+  setupSidebars();
+  setupTabSwitcher();
 });
 
-// Additional setup when everything is loaded
 window.addEventListener('load', () => {
-  console.log('🌐 Window loaded, running additional setup');
-  
-  // Ensure Phase 1 ran (fallback)
-  if (!state.flags.uiSetupComplete) {
-    initializePhase1();
-  }
-  
-  // Fallback initialization if map hasn't loaded yet
+  setupSidebars();
+  setupTabSwitcher();
   setTimeout(() => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
-      try { 
-        console.log('🔄 Fallback initialization');
-        init(); 
-      } catch (error) { 
-        console.error('Fallback init error:', error);
-      }
+      try { init(); } catch (error) { /* Silent fail */ }
     }
   }, 100);
   
-  // Smart fallback retries - only for what's actually missing
-  setTimeout(() => {
-    console.log('🔍 Checking completion status...');
-    
-    // Only retry specific missing components
-    if (!state.flags.districtTagsLoaded && checkReadiness.districtTags()) {
-      console.log('🔄 Retrying district tags...');
-      loadDistrictTags();
-    }
-    
-    if (!state.flags.areaControlsSetup && checkReadiness.areas()) {
-      console.log('🔄 Retrying area controls...');
-      setupAreaKeyControls();
-    }
-    
-    if (!state.flags.checkboxesGenerated && checkReadiness.checkboxContainer() && checkReadiness.localities()) {
-      console.log('🔄 Retrying checkbox generation...');
-      generateLocalityCheckboxes();
-    }
-  }, 2000);
+  // Only retry if not already loaded
+  if (!state.flags.districtTagsLoaded) {
+    [1200, 2500].forEach(delay => setTimeout(() => {
+      if (!state.flags.districtTagsLoaded) loadDistrictTags();
+    }, delay));
+  }
   
-  // Final auto-trigger reframing with optimized logic
+  if (!state.flags.areaControlsSetup) {
+    [2500, 4000].forEach(delay => setTimeout(() => {
+      if (!state.flags.areaControlsSetup) setupAreaKeyControls();
+    }, delay));
+  }
+  
+  // Auto-trigger reframing with optimized logic
   const checkAndReframe = () => {
     if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
       state.flags.forceFilteredReframe = true;
