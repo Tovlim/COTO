@@ -1456,7 +1456,7 @@ function loadCombinedBoundariesAndAreas() {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return response.text(); // Get as text first to handle multiple FeatureCollections
+      return response.text();
     })
     .then(textData => {
       console.log('Combined file loaded successfully');
@@ -1464,37 +1464,56 @@ function loadCombinedBoundariesAndAreas() {
       let districtCount = 0;
       let areaCount = 0;
       
-      // Split by FeatureCollection boundaries and parse each one
-      const featureCollections = [];
+      // Remove comment lines and clean the text
+      const cleanedText = textData
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//') && line.trim().length > 0)
+        .join('\n');
       
-      // Try to parse as single FeatureCollection first
-      try {
-        const singleFC = JSON.parse(textData);
-        if (singleFC.type === 'FeatureCollection') {
-          featureCollections.push(singleFC);
-        }
-      } catch (e) {
-        // If that fails, try to split multiple FeatureCollections
-        const lines = textData.split('\n').filter(line => line.trim());
+      console.log('Cleaned text length:', cleanedText.length);
+      
+      // Find all FeatureCollection objects by splitting on FeatureCollection boundaries
+      const featureCollections = [];
+      const fcPattern = /\{"type":"FeatureCollection"/g;
+      const matches = [];
+      let match;
+      
+      // Find all starting positions of FeatureCollections
+      while ((match = fcPattern.exec(cleanedText)) !== null) {
+        matches.push(match.index);
+      }
+      
+      console.log(`Found ${matches.length} FeatureCollection start positions`);
+      
+      // Extract each FeatureCollection
+      for (let i = 0; i < matches.length; i++) {
+        const start = matches[i];
+        const end = i < matches.length - 1 ? matches[i + 1] : cleanedText.length;
         
-        for (const line of lines) {
-          try {
-            const fc = JSON.parse(line);
-            if (fc.type === 'FeatureCollection') {
-              featureCollections.push(fc);
-            }
-          } catch (parseError) {
-            console.log('Could not parse line:', line.substring(0, 100));
+        let fcText = cleanedText.substring(start, end).trim();
+        
+        // Remove trailing comma or other characters that might be at the end
+        fcText = fcText.replace(/,\s*$/, '');
+        
+        try {
+          const fc = JSON.parse(fcText);
+          if (fc.type === 'FeatureCollection') {
+            featureCollections.push(fc);
+            console.log(`Parsed FeatureCollection:`, fc.name || 'unnamed', `with ${fc.features.length} features`);
           }
+        } catch (parseError) {
+          console.log('Could not parse FeatureCollection:', parseError.message);
+          console.log('First 200 chars:', fcText.substring(0, 200));
         }
       }
       
-      console.log(`Found ${featureCollections.length} FeatureCollections`);
+      console.log(`Successfully parsed ${featureCollections.length} FeatureCollections`);
       
       // Process each FeatureCollection
       featureCollections.forEach(fc => {
         // Check if this is an area (has name property that includes 'area')
         if (fc.name && fc.name.includes('area')) {
+          console.log(`Processing area: ${fc.name}`);
           // Process area FeatureCollection
           fc.features.forEach(feature => {
             if (feature.properties.name_en && feature.properties.name_en.includes('Area')) {
@@ -1507,6 +1526,7 @@ function loadCombinedBoundariesAndAreas() {
         else {
           fc.features.forEach(feature => {
             if (feature.properties.name && !feature.properties.name_en) {
+              console.log(`Processing district: ${feature.properties.name}`);
               processBoundaryFeature(feature, feature.properties.name);
               districtCount++;
             }
