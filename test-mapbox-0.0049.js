@@ -1449,92 +1449,56 @@ function setupDropdownListeners() {
 function loadCombinedBoundariesAndAreas() {
   console.log('Loading combined boundaries and areas from single file');
   
-  const url = 'https://raw.githubusercontent.com/Tovlim/COTO/main/combined-districts.geojson';
+  const url = 'https://raw.githubusercontent.com/Tovlim/COTO/main/combined-districts-0.001.geojson';
   
   fetch(url)
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return response.text();
+      return response.json(); // Much simpler now - single JSON parse!
     })
-    .then(textData => {
+    .then(geojsonData => {
       console.log('Combined file loaded successfully');
+      console.log(`Found ${geojsonData.features.length} total features`);
       
       let districtCount = 0;
       let areaCount = 0;
       
-      // Remove comment lines and clean the text
-      const cleanedText = textData
-        .split('\n')
-        .filter(line => !line.trim().startsWith('//') && line.trim().length > 0)
-        .join('\n');
-      
-      console.log('Cleaned text length:', cleanedText.length);
-      
-      // Find all FeatureCollection objects by splitting on FeatureCollection boundaries
-      const featureCollections = [];
-      const fcPattern = /\{"type":"FeatureCollection"/g;
-      const matches = [];
-      let match;
-      
-      // Find all starting positions of FeatureCollections
-      while ((match = fcPattern.exec(cleanedText)) !== null) {
-        matches.push(match.index);
-      }
-      
-      console.log(`Found ${matches.length} FeatureCollection start positions`);
-      
-      // Extract each FeatureCollection
-      for (let i = 0; i < matches.length; i++) {
-        const start = matches[i];
-        const end = i < matches.length - 1 ? matches[i + 1] : cleanedText.length;
+      // Process each feature in the single FeatureCollection
+      geojsonData.features.forEach(feature => {
+        const props = feature.properties;
         
-        let fcText = cleanedText.substring(start, end).trim();
-        
-        // Remove trailing comma or other characters that might be at the end
-        fcText = fcText.replace(/,\s*$/, '');
-        
-        try {
-          const fc = JSON.parse(fcText);
-          if (fc.type === 'FeatureCollection') {
-            featureCollections.push(fc);
-            console.log(`Parsed FeatureCollection:`, fc.name || 'unnamed', `with ${fc.features.length} features`);
-          }
-        } catch (parseError) {
-          console.log('Could not parse FeatureCollection:', parseError.message);
-          console.log('First 200 chars:', fcText.substring(0, 200));
+        // Check if this is an area
+        if (props.type === 'area' && props.name_en && props.name_en.includes('Area')) {
+          console.log(`Processing area: ${props.name_en}`);
+          processAreaFeature(feature, props.name_en);
+          areaCount++;
         }
-      }
-      
-      console.log(`Successfully parsed ${featureCollections.length} FeatureCollections`);
-      
-      // Process each FeatureCollection
-      featureCollections.forEach(fc => {
-        // Check if this is an area (has name property that includes 'area')
-        if (fc.name && fc.name.includes('area')) {
-          console.log(`Processing area: ${fc.name}`);
-          // Process area FeatureCollection
-          fc.features.forEach(feature => {
-            if (feature.properties.name_en && feature.properties.name_en.includes('Area')) {
-              processAreaFeature(feature, feature.properties.name_en);
-              areaCount++;
-            }
-          });
+        // Check if this is a district
+        else if (props.type === 'district' && props.name) {
+          console.log(`Processing district: ${props.name}`);
+          processBoundaryFeature(feature, props.name);
+          districtCount++;
         }
-        // Otherwise treat as district FeatureCollection
+        // Fallback: check for areas without type property (in case you missed some)
+        else if (props.name_en && props.name_en.includes('Area')) {
+          console.log(`Processing area (fallback): ${props.name_en}`);
+          processAreaFeature(feature, props.name_en);
+          areaCount++;
+        }
+        // Fallback: check for districts without type property
+        else if (props.name && !props.name_en) {
+          console.log(`Processing district (fallback): ${props.name}`);
+          processBoundaryFeature(feature, props.name);
+          districtCount++;
+        }
         else {
-          fc.features.forEach(feature => {
-            if (feature.properties.name && !feature.properties.name_en) {
-              console.log(`Processing district: ${feature.properties.name}`);
-              processBoundaryFeature(feature, feature.properties.name);
-              districtCount++;
-            }
-          });
+          console.log('Unrecognized feature:', props);
         }
       });
       
-      console.log(`Processed ${districtCount} districts and ${areaCount} areas`);
+      console.log(`Successfully processed ${districtCount} districts and ${areaCount} areas`);
       
       // Update district markers after all boundaries are loaded
       if (districtCount > 0) {
