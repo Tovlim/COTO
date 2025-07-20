@@ -106,7 +106,8 @@ const state = {
     isRefreshButtonAction: false,
     dropdownListenersSetup: false,
     districtTagsLoaded: false,
-    areaControlsSetup: false
+    areaControlsSetup: false,
+    skipNextReframe: false // New flag to skip reframing after boundary zoom
   }
 };
 
@@ -873,6 +874,12 @@ const checkMapMarkersFiltering = () => {
 function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
+  // Skip reframing if we just did a boundary zoom
+  if (state.flags.skipNextReframe) {
+    console.log('Skipping reframe due to boundary zoom');
+    return;
+  }
+  
   // Helper function to check if element is truly visible (not hidden by Finsweet)
   const isElementVisible = (el) => {
     let current = el;
@@ -967,6 +974,9 @@ function applyFilterToMarkers() {
 
 const handleFilterUpdate = utils.debounce(() => {
   if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
+  // Skip if we just did a boundary zoom
+  if (state.flags.skipNextReframe) return;
+  
   state.flags.isRefreshButtonAction = true;
   applyFilterToMarkers();
   setTimeout(() => state.flags.isRefreshButtonAction = false, 1000);
@@ -1383,6 +1393,9 @@ function setupDropdownListeners() {
         const source = map.getSource(boundarySourceId);
         
         if (source && source._data) {
+          // Set flag to prevent automatic reframing by filtering system
+          state.flags.skipNextReframe = true;
+          
           const bounds = new mapboxgl.LngLatBounds();
           const addCoords = coords => {
             if (Array.isArray(coords) && coords.length > 0) {
@@ -1393,6 +1406,11 @@ function setupDropdownListeners() {
           
           source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
           map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+          
+          // Clear flag after animation completes
+          setTimeout(() => {
+            state.flags.skipNextReframe = false;
+          }, 1500);
         } else {
           // Fallback to regular filtering if boundary source not found
           setTimeout(() => {
