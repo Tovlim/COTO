@@ -1449,7 +1449,7 @@ function setupDropdownListeners() {
 function loadCombinedGeoData() {
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/geo-test.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.003.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
