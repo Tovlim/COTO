@@ -22,7 +22,7 @@ if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.c
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/nitaihardy/cmda7xa7i06q101sh2yls4fcr",
+  style: "mapbox://styles/nitaihardy/cmbus40jb016n01s5dui12tre",
   center: [35.22, 31.85],
   zoom: isMobile ? 7.5 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
@@ -1370,18 +1370,59 @@ function setupDropdownListeners() {
     selectField5.addEventListener('change', (e) => {
       if (window.isMarkerClick) return;
       
-      setTimeout(() => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
+      const selectedDistrict = e.target.value;
+      
+      // Check if this district has boundaries
+      const districtWithBoundary = state.allDistrictFeatures.find(
+        f => f.properties.name === selectedDistrict && f.properties.source === 'boundary'
+      );
+      
+      if (districtWithBoundary && selectedDistrict) {
+        // District has boundaries - zoom to boundary extents without filtering
+        const boundarySourceId = `${selectedDistrict.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+        const source = map.getSource(boundarySourceId);
         
-        setTimeout(() => {
-          applyFilterToMarkers();
+        if (source && source._data) {
+          const bounds = new mapboxgl.LngLatBounds();
+          const addCoords = coords => {
+            if (Array.isArray(coords) && coords.length > 0) {
+              if (typeof coords[0] === 'number') bounds.extend(coords);
+              else coords.forEach(addCoords);
+            }
+          };
+          
+          source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+        } else {
+          // Fallback to regular filtering if boundary source not found
           setTimeout(() => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, 100);
-      }, 50);
+            state.flags.forceFilteredReframe = true;
+            state.flags.isRefreshButtonAction = true;
+            
+            setTimeout(() => {
+              applyFilterToMarkers();
+              setTimeout(() => {
+                state.flags.forceFilteredReframe = false;
+                state.flags.isRefreshButtonAction = false;
+              }, 1000);
+            }, 100);
+          }, 50);
+        }
+      } else {
+        // District without boundaries - use current behavior (zoom to filtered localities)
+        setTimeout(() => {
+          state.flags.forceFilteredReframe = true;
+          state.flags.isRefreshButtonAction = true;
+          
+          setTimeout(() => {
+            applyFilterToMarkers();
+            setTimeout(() => {
+              state.flags.forceFilteredReframe = false;
+              state.flags.isRefreshButtonAction = false;
+            }, 1000);
+          }, 100);
+        }, 50);
+      }
     });
   }
 }
