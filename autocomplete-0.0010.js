@@ -1,5 +1,5 @@
-// Integrated Autocomplete 2025 - HEAVILY OPTIMIZED
-// Add this script before the closing </body> tag
+// FIXED: Optimized Autocomplete - No Duplicates
+// Replace your existing autocomplete script with this fixed version
 
 class OptimizedIntegratedAutocomplete {
     constructor(options = {}) {
@@ -27,9 +27,9 @@ class OptimizedIntegratedAutocomplete {
         // Optimized data structures
         this.searchData = {
             rawTerms: new Set(),
-            normalizedTerms: new Map(), // normalized -> original
-            searchIndex: new Map(), // first char -> terms array
-            filteredCache: new Map() // search term -> filtered results
+            normalizedTerms: new Map(),
+            searchIndex: new Map(),
+            filteredCache: new Map()
         };
         
         // Performance tracking
@@ -59,31 +59,29 @@ class OptimizedIntegratedAutocomplete {
         this.setupOptimizedEventListeners();
         this.hideDropdown();
         
-        console.log(`Optimized autocomplete: ${this.searchData.rawTerms.size} terms, ${this.searchData.searchIndex.size} index buckets`);
+        console.log(`Optimized autocomplete: ${this.searchData.rawTerms.size} unique terms, ${this.searchData.searchIndex.size} index buckets`);
     }
     
-    // OPTIMIZED: Share utility with map script if available
+    // FIXED: Use map script's function if available (prevents duplicates)
     getAvailableFilterLists() {
         // Check if map script has this function available
         if (window.mapUtilities && typeof window.mapUtilities.getAvailableFilterLists === 'function') {
             return window.mapUtilities.getAvailableFilterLists();
         }
         
-        // Optimized version - cache results and use more efficient scanning
+        // Fallback to own implementation
         if (this._cachedFilterLists) {
             return this._cachedFilterLists;
         }
         
         const lists = [];
-        const maxCheck = 20; // Reasonable upper limit
+        const maxCheck = 20;
         
-        // More efficient scanning with early termination
         for (let i = 1; i <= maxCheck; i++) {
             const listId = `cms-filter-list-${i}`;
             if (document.getElementById(listId)) {
                 lists.push(listId);
             } else if (i > 5 && lists.length === 0) {
-                // Early termination if we haven't found anything by list 5
                 break;
             }
         }
@@ -93,11 +91,9 @@ class OptimizedIntegratedAutocomplete {
     }
     
     applyOptimizedStyles() {
-        // Batch style applications
         this.elements.input.setAttribute('autocomplete', 'off');
         this.elements.input.setAttribute('spellcheck', 'false');
         
-        // More efficient style application
         const wrapperStyles = {
             position: 'fixed',
             zIndex: '999999',
@@ -115,7 +111,6 @@ class OptimizedIntegratedAutocomplete {
         
         Object.assign(this.elements.wrapper.style, wrapperStyles);
         
-        // Add scrollbar hiding style only once
         if (!document.querySelector(`#${this.elementIds.wrapperId}-scrollbar-style`)) {
             const style = document.createElement('style');
             style.id = `${this.elementIds.wrapperId}-scrollbar-style`;
@@ -124,7 +119,7 @@ class OptimizedIntegratedAutocomplete {
         }
     }
     
-    // HEAVILY OPTIMIZED: Pre-process all data for lightning-fast searching
+    // HEAVILY OPTIMIZED: Pre-process all data with smart deduplication
     collectAndProcessTerms() {
         const startTime = performance.now();
         
@@ -143,9 +138,10 @@ class OptimizedIntegratedAutocomplete {
         // Build optimized search index
         this.buildSearchIndex();
         
-        console.log(`Data processing: ${performance.now() - startTime}ms for ${this.searchData.rawTerms.size} terms`);
+        console.log(`Autocomplete data processing: ${performance.now() - startTime}ms for ${this.searchData.rawTerms.size} unique terms`);
     }
     
+    // FIXED: Smart collection that avoids dynamically generated elements
     collectFromFilterLists() {
         const lists = this.getAvailableFilterLists();
         const selectors = [];
@@ -158,19 +154,28 @@ class OptimizedIntegratedAutocomplete {
             selectors.push('.data-places-district-filter');
         }
         
-        // Single query per list for all needed selectors
+        // FIXED: Only collect from original CMS data, skip dynamically generated checkboxes
         lists.forEach(listId => {
             const container = document.getElementById(listId);
             if (!container) return;
             
             const allElements = container.querySelectorAll(selectors.join(', '));
             for (const element of allElements) {
+                // FIXED: Skip elements that are inside dynamically generated checkboxes
+                const isInGeneratedCheckbox = element.closest('[checkbox-filter="locality"]');
+                if (isInGeneratedCheckbox) {
+                    // Skip this element as it's part of a generated checkbox
+                    continue;
+                }
+                
                 const term = element.textContent.trim();
                 if (term) {
                     this.addTermToIndex(term);
                 }
             }
         });
+        
+        console.log(`Collected from CMS lists (excluding generated checkboxes): ${this.searchData.rawTerms.size} unique terms`);
     }
     
     collectFromClassElements() {
@@ -191,15 +196,12 @@ class OptimizedIntegratedAutocomplete {
         this.searchData.normalizedTerms.set(normalized, term);
     }
     
-    // OPTIMIZED: Static method for better performance
     normalizeText(text) {
         return text.toLowerCase().trim();
     }
     
     buildSearchIndex() {
-        // Create character-based index for ultra-fast filtering
         this.searchData.normalizedTerms.forEach((original, normalized) => {
-            // Index by first character and first two characters for speed
             const firstChar = normalized.charAt(0);
             const firstTwo = normalized.substring(0, 2);
             
@@ -215,11 +217,9 @@ class OptimizedIntegratedAutocomplete {
         });
     }
     
-    // OPTIMIZED: Create dropdown with virtual elements
     createOptimizedDropdown() {
         if (this.searchData.rawTerms.size === 0) return;
         
-        // Use document fragment for better performance
         const fragment = document.createDocumentFragment();
         const sortedTerms = Array.from(this.searchData.rawTerms).sort();
         
@@ -244,24 +244,12 @@ class OptimizedIntegratedAutocomplete {
     }
     
     setupOptimizedEventListeners() {
-        // Optimized debounced input handler
         const debouncedInput = this.createOptimizedDebouncer(
             (e) => this.handleInput(e), 
             this.debounceDelay,
             'input'
         );
         
-        // Event handler mapping for easy cleanup
-        const handlers = {
-            input: ['input', debouncedInput],
-            keyup: ['keyup', debouncedInput],
-            focus: ['focus', () => this.handleFocus()],
-            keydown: ['keydown', (e) => this.handleKeydown(e)],
-            listClick: ['click', (e) => this.handleDropdownClick(e)],
-            outsideClick: ['click', (e) => this.handleOutsideClick(e)]
-        };
-        
-        // Attach events and track for cleanup
         this.attachEventHandler('input', 'input', debouncedInput);
         this.attachEventHandler('input', 'keyup', debouncedInput);
         this.attachEventHandler('input', 'focus', () => this.handleFocus());
@@ -280,7 +268,6 @@ class OptimizedIntegratedAutocomplete {
         
         element.addEventListener(eventType, handler);
         
-        // Track for cleanup
         const handlerKey = `${elementKey}-${eventType}`;
         this.eventHandlers.set(handlerKey, { element, eventType, handler });
     }
@@ -376,7 +363,6 @@ class OptimizedIntegratedAutocomplete {
     }
     
     setActiveItem(items, index) {
-        // Batch DOM operations
         requestAnimationFrame(() => {
             items.forEach(item => item.classList.remove('active'));
             if (items[index]) {
@@ -386,52 +372,41 @@ class OptimizedIntegratedAutocomplete {
         });
     }
     
-    // HEAVILY OPTIMIZED: Ultra-fast filtering with caching and indexing
     optimizedFilterAndShow(filter) {
         const startTime = performance.now();
         
-        // Check cache first
         const normalizedFilter = this.normalizeText(filter);
         if (this.searchData.filteredCache.has(normalizedFilter)) {
             this.showCachedResults(normalizedFilter);
             return;
         }
         
-        // Use search index for faster filtering
         const matchingTerms = this.getMatchingTermsFromIndex(normalizedFilter);
-        
-        // Cache results
         this.searchData.filteredCache.set(normalizedFilter, matchingTerms);
         
-        // Update positioning and show results
         this.updatePositioning();
         this.updateVisibleItems(matchingTerms);
         
         const hasResults = matchingTerms.length > 0;
         this.elements.wrapper.style.display = hasResults ? 'block' : 'none';
         
-        console.log(`Filter "${filter}": ${performance.now() - startTime}ms, ${matchingTerms.length} results`);
+        console.log(`Autocomplete filter "${filter}": ${performance.now() - startTime}ms, ${matchingTerms.length} unique results`);
     }
     
     getMatchingTermsFromIndex(normalizedFilter) {
-        // Use index for faster initial filtering
         const candidateTerms = new Set();
         
-        // Try different index approaches for best performance
         const firstChar = normalizedFilter.charAt(0);
         const firstTwo = normalizedFilter.substring(0, 2);
         
-        // Start with most specific index
         if (this.searchData.searchIndex.has(firstTwo)) {
             this.searchData.searchIndex.get(firstTwo).forEach(term => candidateTerms.add(term));
         } else if (this.searchData.searchIndex.has(firstChar)) {
             this.searchData.searchIndex.get(firstChar).forEach(term => candidateTerms.add(term));
         } else {
-            // Fallback to all terms (shouldn't happen often)
             this.searchData.rawTerms.forEach(term => candidateTerms.add(term));
         }
         
-        // Filter candidates
         const results = [];
         const normalizedFilterUpper = normalizedFilter.toUpperCase();
         
@@ -452,7 +427,6 @@ class OptimizedIntegratedAutocomplete {
     }
     
     updatePositioning() {
-        // Cache positioning calculations
         if (!this.cache.positioning) {
             const inputRect = this.elements.input.getBoundingClientRect();
             const wrapperElement = this.findWrapperElement();
@@ -465,7 +439,6 @@ class OptimizedIntegratedAutocomplete {
             };
         }
         
-        // Apply cached positioning
         const pos = this.cache.positioning;
         Object.assign(this.elements.wrapper.style, {
             top: pos.inputBottom + 'px',
@@ -475,7 +448,6 @@ class OptimizedIntegratedAutocomplete {
     }
     
     findWrapperElement() {
-        // Cache wrapper element discovery
         if (this._cachedWrapperElement !== undefined) {
             return this._cachedWrapperElement;
         }
@@ -498,12 +470,10 @@ class OptimizedIntegratedAutocomplete {
         return wrapperElement;
     }
     
-    // OPTIMIZED: Only update items that actually changed
     updateVisibleItems(matchingTerms) {
         const matchingSet = new Set(matchingTerms);
         const listItems = Array.from(this.elements.list.getElementsByTagName("li"));
         
-        // Batch DOM operations
         const toShow = [];
         const toHide = [];
         
@@ -519,13 +489,11 @@ class OptimizedIntegratedAutocomplete {
             }
         });
         
-        // Apply changes in batches
         if (toShow.length || toHide.length) {
             requestAnimationFrame(() => {
                 toShow.forEach(li => li.style.display = 'block');
                 toHide.forEach(li => li.style.display = 'none');
                 
-                // Clear active states
                 this.elements.list.querySelectorAll('.list-term.active')
                     .forEach(item => item.classList.remove('active'));
             });
@@ -548,7 +516,6 @@ class OptimizedIntegratedAutocomplete {
     }
     
     triggerSearchEvents() {
-        // Batch event triggering
         const events = ['input', 'change', 'keyup'];
         events.forEach(eventType => {
             this.elements.input.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
@@ -559,7 +526,6 @@ class OptimizedIntegratedAutocomplete {
             form.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
         }
         
-        // Finsweet integration
         if (window.fsAttributes?.cmsfilter) {
             setTimeout(() => {
                 window.fsAttributes.cmsfilter.reload();
@@ -573,58 +539,53 @@ class OptimizedIntegratedAutocomplete {
         }
     }
     
-    // OPTIMIZED: Smart refresh - only update what changed
+    // FIXED: Smart refresh that clears cache and avoids duplicates
     smartRefresh() {
         const startTime = performance.now();
-        console.log('Smart refreshing autocomplete...');
+        console.log('Smart refreshing autocomplete (avoiding duplicates)...');
         
         const previousSize = this.searchData.rawTerms.size;
         
-        // Clear cache but keep structure
+        // Clear all caches
         this.searchData.filteredCache.clear();
         this.cache.positioning = null;
         this._cachedFilterLists = null;
+        this._cachedWrapperElement = undefined;
         
-        // Collect new terms
+        // Collect new terms (will automatically deduplicate)
         this.collectAndProcessTerms();
         
         // Only rebuild dropdown if data actually changed
         if (this.searchData.rawTerms.size !== previousSize) {
             this.elements.list.innerHTML = '';
             this.createOptimizedDropdown();
-            console.log(`Dropdown rebuilt: ${previousSize} -> ${this.searchData.rawTerms.size} terms`);
+            console.log(`Autocomplete dropdown rebuilt: ${previousSize} -> ${this.searchData.rawTerms.size} unique terms`);
         }
         
-        console.log(`Smart refresh completed in ${performance.now() - startTime}ms`);
+        console.log(`Autocomplete smart refresh completed in ${performance.now() - startTime}ms`);
     }
     
-    // OPTIMIZED: Comprehensive cleanup
     destroy() {
         console.log('Cleaning up autocomplete...');
         
-        // Clear all timers
         this.debounceTimers.forEach(timer => clearTimeout(timer));
         this.debounceTimers.clear();
         
-        // Remove all event listeners
         this.eventHandlers.forEach(({ element, eventType, handler }) => {
             element.removeEventListener(eventType, handler);
         });
         this.eventHandlers.clear();
         
-        // Clear data structures
         this.searchData.rawTerms.clear();
         this.searchData.normalizedTerms.clear();
         this.searchData.searchIndex.clear();
         this.searchData.filteredCache.clear();
         
-        // Clear cache
         this.cache = {};
         
         console.log('Autocomplete cleanup completed');
     }
     
-    // Performance monitoring
     getPerformanceStats() {
         return {
             totalTerms: this.searchData.rawTerms.size,
@@ -636,9 +597,8 @@ class OptimizedIntegratedAutocomplete {
     }
 }
 
-// OPTIMIZED: Initialization with better timing and integration
+// FIXED: Initialization with better duplicate prevention
 function initOptimizedAutocomplete() {
-    // Wait for other scripts to be ready
     const initDelay = window.fsAttributes ? 300 : 100;
     
     setTimeout(() => {
@@ -649,51 +609,50 @@ function initOptimizedAutocomplete() {
             clearId: "searchclear",
             dataSource: "cms-filter-lists",
             dataField: "names",
-            debounceDelay: 100 // Reduced for better responsiveness
+            debounceDelay: 100
         });
         
-        // Global refresh function
         window.refreshAutocomplete = () => {
             if (window.integratedAutocomplete) {
                 window.integratedAutocomplete.smartRefresh();
             }
         };
         
-        // Performance monitoring (debug only)
         window.getAutocompleteStats = () => {
             if (window.integratedAutocomplete) {
                 return window.integratedAutocomplete.getPerformanceStats();
             }
         };
         
-        // Integration with other scripts
+        // FIXED: Don't auto-refresh when checkboxes are generated (prevents duplicates)
         if (window.checkboxFilterScript) {
-            // Coordinate with checkbox filter updates
             const originalRecache = window.checkboxFilterScript.recacheElements;
             window.checkboxFilterScript.recacheElements = function() {
                 originalRecache.call(this);
-                setTimeout(() => window.refreshAutocomplete?.(), 50);
+                // Removed automatic autocomplete refresh to prevent duplicates
+                console.log('Checkbox filter recached - autocomplete not refreshed to avoid duplicates');
             };
         }
         
-        // Auto-refresh on CMS filter changes
+        // Auto-refresh only on actual CMS filter changes (not checkbox generation)
         if (typeof window.fsAttributes !== 'undefined') {
-            document.addEventListener('fs-cmsfilter-filtered', () => {
-                setTimeout(() => window.refreshAutocomplete?.(), 50);
+            document.addEventListener('fs-cmsfilter-filtered', (e) => {
+                // Only refresh if it's not from our generated checkboxes
+                if (!e.detail || !e.detail.fromGeneratedCheckboxes) {
+                    setTimeout(() => window.refreshAutocomplete?.(), 50);
+                }
             });
         }
         
     }, initDelay);
 }
 
-// Initialize based on document state
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initOptimizedAutocomplete);
 } else {
     initOptimizedAutocomplete();
 }
 
-// Fallback initialization
 window.addEventListener('load', () => {
     if (!window.integratedAutocomplete) {
         initOptimizedAutocomplete();
