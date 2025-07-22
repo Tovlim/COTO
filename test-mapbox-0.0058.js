@@ -331,13 +331,9 @@ function selectDistrictCheckbox(districtName) {
 
 // Select locality checkbox for filtering (triggered by map markers)
 function selectLocalityCheckbox(localityName) {
-  console.log(`Attempting to select locality checkbox for: ${localityName}`);
-  
   // Find all district and locality checkboxes
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  
-  console.log(`Found ${districtCheckboxes.length} district checkboxes and ${localityCheckboxes.length} locality checkboxes`);
   
   // Clear ALL district checkboxes first
   districtCheckboxes.forEach(checkbox => {
@@ -375,7 +371,6 @@ function selectLocalityCheckbox(localityName) {
   );
   
   if (targetCheckbox) {
-    console.log(`Found target checkbox for ${localityName}, checking it`);
     targetCheckbox.checked = true;
     utils.triggerEvent(targetCheckbox, ['change', 'input']);
     
@@ -385,11 +380,6 @@ function selectLocalityCheckbox(localityName) {
       form.dispatchEvent(new Event('change', {bubbles: true}));
       form.dispatchEvent(new Event('input', {bubbles: true}));
     }
-  } else {
-    console.log(`No target checkbox found for ${localityName}`);
-    // List all available locality values for debugging
-    const availableValues = Array.from(localityCheckboxes).map(cb => cb.getAttribute('fs-list-value'));
-    console.log('Available locality values:', availableValues);
   }
 }
 
@@ -2138,9 +2128,6 @@ function generateLocalityCheckboxes() {
     // Clone the template (entire div with checkbox-filter="locality")
     const checkbox = template.cloneNode(true);
     
-    // Ensure checkbox-filter attribute is preserved
-    checkbox.setAttribute('checkbox-filter', 'locality');
-    
     // Remove the ID from the label to avoid duplicate IDs
     const label = checkbox.querySelector('#locality-checkbox');
     if (label) {
@@ -2151,8 +2138,6 @@ function generateLocalityCheckboxes() {
     const input = checkbox.querySelector('input[name="locality"]');
     if (input) {
       input.setAttribute('fs-list-value', localityName);
-      // Also ensure the input has the correct attributes
-      input.setAttribute('checkbox-filter', 'locality');
     }
     
     // Update span text content
@@ -2168,13 +2153,14 @@ function generateLocalityCheckboxes() {
     setupCheckboxEvents(checkbox);
   });
   
-  console.log(`Generated ${localityNames.length} locality checkboxes with checkbox-filter attributes`);
+  console.log(`Generated ${localityNames.length} locality checkboxes`);
   
-  // Debug: Check if checkboxes are properly structured
-  setTimeout(() => {
-    const generatedCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-    console.log(`Found ${generatedCheckboxes.length} locality checkboxes with proper attributes`);
-  }, 100);
+  // Re-cache checkbox filter script if it exists
+  if (window.checkboxFilterScript && typeof window.checkboxFilterScript.recacheElements === 'function') {
+    setTimeout(() => {
+      window.checkboxFilterScript.recacheElements();
+    }, 100);
+  }
 }
 
 // Setup events for a specific checkbox element (used for dynamically generated checkboxes)
