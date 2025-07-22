@@ -44,6 +44,11 @@
   }
   
   function cacheElements() {
+    // Clear existing cache
+    cache.searchBoxes.clear();
+    cache.clearButtons.clear();
+    cache.checkboxGroups.clear();
+    
     // Cache search boxes
     document.querySelectorAll(CONFIG.SELECTORS.SEARCH_BOX).forEach(element => {
       const groupName = element.getAttribute('searchbox-filter');
@@ -76,6 +81,8 @@
     Object.entries(groupedCheckboxes).forEach(([groupName, elements]) => {
       cache.checkboxGroups.set(groupName, elements);
     });
+    
+    console.log(`Cached ${cache.checkboxGroups.get('locality')?.length || 0} locality checkboxes`);
   }
   
   function bindEventListeners() {
@@ -219,5 +226,19 @@
       element.removeAttribute('data-filtered');
     }
   }
+  
+  // Expose public API for external scripts
+  window.checkboxFilterScript = {
+    recacheElements: function() {
+      console.log('Re-caching checkbox filter elements...');
+      cacheElements();
+      bindEventListeners();
+      initializeGroups();
+    },
+    
+    filterGroup: function(groupName, searchTerm) {
+      filterCheckboxGroup(groupName, searchTerm);
+    }
+  };
   
 })();
