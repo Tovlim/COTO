@@ -1370,8 +1370,8 @@ function setupDropdownListeners() {
             state.flags.forceFilteredReframe = false;
             state.flags.isRefreshButtonAction = false;
           }, 1000);
-        }, 50);
-      }, 25);
+        }, 150);
+      }, 100);
     });
   });
   
@@ -1423,8 +1423,8 @@ function setupDropdownListeners() {
                 state.flags.forceFilteredReframe = false;
                 state.flags.isRefreshButtonAction = false;
               }, 1000);
-            }, 50);
-          }, 25);
+            }, 150);
+          }, 100);
         }
       } else {
         // District without boundaries - use current behavior (zoom to filtered localities)
