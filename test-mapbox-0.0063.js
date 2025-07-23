@@ -2080,7 +2080,7 @@ function setupAreaKeyControls() {
     }
     
     const wrapperDiv = $id(control.wrapId);
-    if (wrapperDiv && ! wrapperDiv.dataset.mapboxHoverAdded) {
+    if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
@@ -2394,7 +2394,7 @@ const checkAndToggleFilteredElements = () => {
   const hiddenTagParent = document.getElementById('hiddentagparent');
   if (hiddenTagParent) {
     shouldShow = true;
-    console.debug('Filtering active'); // Simplified logging
+    console.log('Filtering detected: hiddentagparent found');
   }
   
   // Method 2: Check if any checkboxes are selected
@@ -2451,42 +2451,44 @@ const checkAndToggleFilteredElements = () => {
   return shouldShow;
 };
 
-// FIXED: Enhanced tag monitoring with duplicate prevention
+// FIXED: Enhanced tag monitoring with proper cleanup and no recursion
 const monitorTags = (() => {
-  let isMonitoring = false;
-  let tagObserver = null;
-  let pollingTimer = null;
-
-  const cleanup = () => {
-    if (tagObserver) {
-      tagObserver.disconnect();
-      tagObserver = null;
-    }
-    if (pollingTimer) {
-      clearTimeout(pollingTimer);
-      pollingTimer = null;
-    }
-  };
-
+  let isSetup = false; // Flag to prevent multiple setups
+  let pollingTimer = null; // Store polling timer for cleanup
+  
   return () => {
-    if (isMonitoring) return; // Prevent multiple monitoring instances
-    isMonitoring = true;
-
+    // Prevent multiple setups
+    if (isSetup) {
+      console.log('Enhanced tag monitoring: Already setup, skipping');
+      return;
+    }
+    
     // Initial check
     checkAndToggleFilteredElements();
-
-    // Setup observer only if not already observing
+    
+    // Don't use cached query for tagparent
     const tagParent = document.getElementById('tagparent');
-    if (tagParent && !tagObserver) {
-      cleanup(); // Cleanup any existing observer
-      tagObserver = new MutationObserver(() => {
+    if (tagParent) {
+      // Clean up existing observer if it exists
+      if (tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+        console.log('Enhanced tag monitoring: Cleaned up existing observer');
+      }
+      
+      const observer = new MutationObserver(() => {
+        // Immediate check when DOM changes
         checkAndToggleFilteredElements();
       });
-      tagObserver.observe(tagParent, {childList: true, subtree: true});
-      console.debug('Tag monitoring: Observer setup complete'); // Changed to debug level
+      observer.observe(tagParent, {childList: true, subtree: true});
+      
+      // Store observer for cleanup
+      tagParent._mutationObserver = observer;
+      console.log('Enhanced tag monitoring: MutationObserver setup on tagparent');
+    } else {
+      console.log('Enhanced tag monitoring: tagparent not found, using polling fallback');
     }
-
-    // Setup checkbox monitoring (only once)
+    
+    // Additional monitoring: Watch for checkbox changes
     const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
     allCheckboxes.forEach(checkbox => {
       if (!checkbox.dataset.filteredElementListener) {
@@ -2496,8 +2498,8 @@ const monitorTags = (() => {
         checkbox.dataset.filteredElementListener = 'true';
       }
     });
-
-    // Setup form monitoring (only once)
+    
+    // Additional monitoring: Watch for form changes that might indicate filtering
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
       if (!form.dataset.filteredElementListener) {
@@ -2510,23 +2512,254 @@ const monitorTags = (() => {
         form.dataset.filteredElementListener = 'true';
       }
     });
-
-    // Minimal polling as fallback
-    const poll = () => {
-      checkAndToggleFilteredElements();
-      pollingTimer = setTimeout(poll, 2000); // Increased interval to reduce frequency
+    
+    // FIXED: Fallback polling that doesn't recursively call monitorTags
+    const startPolling = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+      }
+      
+      pollingTimer = setTimeout(() => {
+        checkAndToggleFilteredElements(); // Just check, don't setup again
+        startPolling(); // Continue polling
+      }, 1000);
     };
-    pollingTimer = setTimeout(poll, 2000);
-
-    // Add cleanup to window object for proper teardown
-    window.mapTagMonitoring = {
-      cleanup,
-      isMonitoring: () => isMonitoring
+    
+    // Start the polling
+    startPolling();
+    
+    // Mark as setup
+    isSetup = true;
+    console.log('Enhanced tag monitoring: Setup completed');
+    
+    // Cleanup function (can be called to reset)
+    const cleanup = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+        pollingTimer = null;
+      }
+      
+      const tagParent = document.getElementById('tagparent');
+      if (tagParent && tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+        tagParent._mutationObserver = null;
+      }
+      
+      isSetup = false;
+      console.log('Enhanced tag monitoring: Cleanup completed');
     };
+    
+    // Store cleanup function for external access
+    window.cleanupTagMonitoring = cleanup;
   };
 })();
 
-// Modify the beforeunload handler to include new cleanup
+// OPTIMIZED: Smart initialization with parallel loading
+function init() {
+  const startTime = performance.now();
+  
+  // Core initialization (parallel where possible)
+  getLocationData();
+  addNativeMarkers();
+  setupEvents();
+  
+  // Generate locality checkboxes early
+  state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
+  
+  // Layer optimization
+  state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
+  
+  const handleMapEvents = () => {
+    state.clearTimer('mapEventHandler');
+    state.setTimer('mapEventHandler', () => {
+      // Map events handled by optimized layer management
+    }, 10);
+  };
+  
+  map.on('moveend', handleMapEvents);
+  map.on('zoomend', handleMapEvents);
+  
+  // Staggered setup with smart timing
+  [300, 800].forEach(delay => 
+    state.setTimer(`dropdownSetup-${delay}`, setupDropdownListeners, delay)
+  );
+  [200, 600, 1200].forEach(delay => 
+    state.setTimer(`tabSetup-${delay}`, setupTabSwitcher, delay)
+  );
+  
+  state.flags.mapInitialized = true;
+  
+  // Hide loading screen
+  state.setTimer('hideLoading', () => {
+    const loadingScreen = document.getElementById('loading-map-screen');
+    if (loadingScreen) {
+      loadingScreen.style.display = 'none';
+    }
+  }, 600);
+  
+  // Initial filtering check
+  state.setTimer('initialFiltering', () => {
+    if (state.flags.isInitialLoad) {
+      const hasFiltering = checkMapMarkersFiltering();
+      if (hasFiltering) {
+        applyFilterToMarkers();
+      }
+      state.flags.isInitialLoad = false;
+    }
+    
+    // FIXED: Always check filtered elements on initial load
+    checkAndToggleFilteredElements();
+  }, 300);
+  
+  console.log(`Map initialization completed in ${performance.now() - startTime}ms`);
+}
+
+// OPTIMIZED: Control positioning with better timing
+state.setTimer('controlPositioning', () => {
+  const ctrl = $1('.mapboxgl-ctrl-top-right');
+  if (ctrl) {
+    utils.setStyles(ctrl, {
+      top: '4rem', 
+      right: '0.5rem', 
+      zIndex: '10'
+    });
+  }
+}, 300);
+
+// OPTIMIZED: Map load event handler with parallel operations
+map.on("load", () => {
+  try {
+    console.log('Map loaded, initializing components...');
+    init();
+    
+    // Load combined data
+    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    
+    // Load district tags
+    state.setTimer('loadDistrictTags', loadDistrictTags, 800);
+    
+    // Setup area controls
+    state.setTimer('setupAreaControls', setupAreaKeyControls, 2000);
+    
+    // Final layer optimization
+    state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
+    
+  } catch (error) {
+    console.error('Map initialization error:', error);
+    // Still hide loading screen on error
+    state.setTimer('errorHideLoading', () => {
+      const loadingScreen = document.getElementById('loading-map-screen');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+      }
+    }, 2000);
+  }
+});
+
+// OPTIMIZED: DOM ready handlers
+document.addEventListener('DOMContentLoaded', () => {
+  setupSidebars();
+  setupTabSwitcher();
+});
+
+window.addEventListener('load', () => {
+  setupSidebars();
+  setupTabSwitcher();
+  
+  state.setTimer('loadFallbackInit', () => {
+    if (!state.allLocalityFeatures.length && map.loaded()) {
+      try { 
+        init(); 
+      } catch (error) { 
+        console.warn('Fallback init failed:', error);
+      }
+    }
+  }, 100);
+  
+  // Retry mechanisms with smart timing
+  if (!state.flags.districtTagsLoaded) {
+    [1200, 2500].forEach(delay => 
+      state.setTimer(`districtTagsRetry-${delay}`, () => {
+        if (!state.flags.districtTagsLoaded) loadDistrictTags();
+      }, delay)
+    );
+  }
+  
+  if (!state.flags.areaControlsSetup) {
+    [2500, 4000].forEach(delay => 
+      state.setTimer(`areaControlsRetry-${delay}`, () => {
+        if (!state.flags.areaControlsSetup) setupAreaKeyControls();
+      }, delay)
+    );
+  }
+  
+  // OPTIMIZED: Auto-trigger reframing with smart logic
+  const checkAndReframe = () => {
+    if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
+      state.flags.forceFilteredReframe = true;
+      state.flags.isRefreshButtonAction = true;
+      applyFilterToMarkers();
+      state.setTimer('autoReframeCleanup', () => {
+        state.flags.forceFilteredReframe = false;
+        state.flags.isRefreshButtonAction = false;
+      }, 1000);
+      
+      // FIXED: Also check filtered elements when reframing
+      checkAndToggleFilteredElements();
+      return true;
+    }
+    return false;
+  };
+  
+  if (!checkAndReframe()) {
+    state.setTimer('reframeCheck1', () => {
+      if (!checkAndReframe()) {
+        state.setTimer('reframeCheck2', checkAndReframe, 1000);
+      }
+    }, 500);
+  }
+});
+
+// FIXED: Enhanced tag monitoring initialization (immediate start)
+state.setTimer('initMonitorTags', monitorTags, 100);
+
+// FIXED: Additional check after page is fully loaded
+window.addEventListener('load', () => {
+  state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+});
+
+// OPTIMIZED: Shared utilities for other scripts (integration optimization)
+window.mapUtilities = {
+  getAvailableFilterLists,
+  domCache,
+  eventManager,
+  state,
+  utils,
+  mapLayers,
+  checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
+  toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+};
+
+// OPTIMIZED: Performance monitoring and cleanup
+window.getMapPerformanceStats = () => {
+  return {
+    ...state.getPerformanceStats(),
+    domCache: {
+      cached: domCache.cache.size,
+      selectors: domCache.selectorCache.size,
+      lists: domCache.listCache.size
+    },
+    events: eventManager.getStats(),
+    layers: {
+      cachedLayers: mapLayers.layerCache.size,
+      cachedSources: mapLayers.sourceCache.size,
+      pendingBatch: mapLayers.pendingBatch,
+      batchSize: mapLayers.batchOperations.length
+    }
+  };
+};
+
+// OPTIMIZED: Cleanup on page unload (prevent memory leaks)
 window.addEventListener('beforeunload', () => {
   console.log('Cleaning up map resources...');
   
@@ -2534,9 +2767,10 @@ window.addEventListener('beforeunload', () => {
   eventManager.cleanup();
   state.cleanup();
   
-  // Clean up tag monitoring
-  if (window.mapTagMonitoring?.cleanup) {
-    window.mapTagMonitoring.cleanup();
+  // Clean up mutation observers
+  const tagParent = $id('tagparent');
+  if (tagParent && tagParent._mutationObserver) {
+    tagParent._mutationObserver.disconnect();
   }
   
   // Clean up map resources
