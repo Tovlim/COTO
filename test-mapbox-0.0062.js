@@ -2080,7 +2080,7 @@ function setupAreaKeyControls() {
     }
     
     const wrapperDiv = $id(control.wrapId);
-    if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+    if (wrapperDiv && ! wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
         map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
@@ -2308,3 +2308,248 @@ function generateLocalityCheckboxes() {
     // Setup events for this checkbox
     setupCheckboxEvents(checkbox);
   });
+  
+  container.appendChild(fragment);
+  
+  console.log(`Generated ${localityNames.length} locality checkboxes`);
+  
+  // Re-cache checkbox filter script if it exists
+  if (window.checkboxFilterScript?.recacheElements) {
+    state.setTimer('recacheCheckboxFilter', () => {
+      window.checkboxFilterScript.recacheElements();
+    }, 100);
+  }
+  
+  // FIXED: Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
+// OPTIMIZED: Setup events for generated checkboxes with better performance
+function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-sidebar="true"
+  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
+  autoSidebarElements.forEach(element => {
+    ['change', 'input'].forEach(eventType => {
+      eventManager.add(element, eventType, () => {
+        if (window.innerWidth > 478) {
+          state.setTimer('checkboxAutoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      });
+    });
+  });
+  
+  // Handle fs-cmsfilter-element filters
+  const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
+  filterElements.forEach(element => {
+    eventManager.add(element, 'change', () => state.setTimer('checkboxFilter', handleFilterUpdate, 50));
+  });
+  
+  // Handle activate-filter-indicator functionality
+  const indicatorActivators = checkboxContainer.querySelectorAll('[activate-filter-indicator]');
+  indicatorActivators.forEach(activator => {
+    const groupName = activator.getAttribute('activate-filter-indicator');
+    if (!groupName) return;
+    
+    // Function to toggle indicators for this group
+    const toggleIndicators = (shouldShow) => {
+      const indicators = $(`[filter-indicator="${groupName}"]`);
+      indicators.forEach(indicator => {
+        indicator.style.display = shouldShow ? 'flex' : 'none';
+      });
+    };
+    
+    // Function to check if any activator in this group is active
+    const hasActiveFilters = () => {
+      const groupActivators = $(`[activate-filter-indicator="${groupName}"]`);
+      return groupActivators.some(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          return el.checked;
+        } else if (el.tagName.toLowerCase() === 'select') {
+          return el.selectedIndex > 0;
+        } else {
+          return el.value.trim() !== '';
+        }
+      });
+    };
+    
+    // Add change event listener for checkboxes
+    if (activator.type === 'checkbox' || activator.type === 'radio') {
+      eventManager.add(activator, 'change', () => {
+        const shouldShow = hasActiveFilters();
+        toggleIndicators(shouldShow);
+      });
+    }
+  });
+}
+
+// FIXED: Enhanced filtering detection with multiple trigger points
+const checkAndToggleFilteredElements = () => {
+  // Multiple ways to detect if filtering is active
+  let shouldShow = false;
+  
+  // Method 1: Check for hiddentagparent (Finsweet indicator)
+  const hiddenTagParent = document.getElementById('hiddentagparent');
+  if (hiddenTagParent) {
+    shouldShow = true;
+    console.debug('Filtering active'); // Simplified logging
+  }
+  
+  // Method 2: Check if any checkboxes are selected
+  if (!shouldShow) {
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
+    if (checkedBoxes.length > 0) {
+      shouldShow = true;
+      console.log(`Filtering detected: ${checkedBoxes.length} checkboxes selected`);
+    }
+  }
+  
+  // Method 3: Check URL parameters for filtering
+  if (!shouldShow) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasFilterParams = Array.from(urlParams.keys()).some(key => 
+      key.includes('district') || key.includes('locality') || key.includes('filter')
+    );
+    if (hasFilterParams) {
+      shouldShow = true;
+      console.log('Filtering detected: URL parameters found');
+    }
+  }
+  
+  // Method 4: Check for visible vs total items in filter lists
+  if (!shouldShow) {
+    const lists = getAvailableFilterLists();
+    for (const listId of lists) {
+      const container = document.getElementById(listId);
+      if (container) {
+        const allItems = container.querySelectorAll('.data-places-names-filter');
+        const visibleItems = Array.from(allItems).filter(item => {
+          let current = item;
+          while (current && current !== document.body) {
+            const style = getComputedStyle(current);
+            if (style.display === 'none' || style.visibility === 'hidden') {
+              return false;
+            }
+            current = current.parentElement;
+          }
+          return true;
+        });
+        
+        if (allItems.length > 0 && visibleItems.length < allItems.length && visibleItems.length > 0) {
+          shouldShow = true;
+          console.log(`Filtering detected: ${visibleItems.length}/${allItems.length} items visible in ${listId}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  toggleShowWhenFilteredElements(shouldShow);
+  return shouldShow;
+};
+
+// FIXED: Enhanced tag monitoring with duplicate prevention
+const monitorTags = (() => {
+  let isMonitoring = false;
+  let tagObserver = null;
+  let pollingTimer = null;
+
+  const cleanup = () => {
+    if (tagObserver) {
+      tagObserver.disconnect();
+      tagObserver = null;
+    }
+    if (pollingTimer) {
+      clearTimeout(pollingTimer);
+      pollingTimer = null;
+    }
+  };
+
+  return () => {
+    if (isMonitoring) return; // Prevent multiple monitoring instances
+    isMonitoring = true;
+
+    // Initial check
+    checkAndToggleFilteredElements();
+
+    // Setup observer only if not already observing
+    const tagParent = document.getElementById('tagparent');
+    if (tagParent && !tagObserver) {
+      cleanup(); // Cleanup any existing observer
+      tagObserver = new MutationObserver(() => {
+        checkAndToggleFilteredElements();
+      });
+      tagObserver.observe(tagParent, {childList: true, subtree: true});
+      console.debug('Tag monitoring: Observer setup complete'); // Changed to debug level
+    }
+
+    // Setup checkbox monitoring (only once)
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+      if (!checkbox.dataset.filteredElementListener) {
+        eventManager.add(checkbox, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 50);
+        });
+        checkbox.dataset.filteredElementListener = 'true';
+      }
+    });
+
+    // Setup form monitoring (only once)
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      if (!form.dataset.filteredElementListener) {
+        eventManager.add(form, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        eventManager.add(form, 'input', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        form.dataset.filteredElementListener = 'true';
+      }
+    });
+
+    // Minimal polling as fallback
+    const poll = () => {
+      checkAndToggleFilteredElements();
+      pollingTimer = setTimeout(poll, 2000); // Increased interval to reduce frequency
+    };
+    pollingTimer = setTimeout(poll, 2000);
+
+    // Add cleanup to window object for proper teardown
+    window.mapTagMonitoring = {
+      cleanup,
+      isMonitoring: () => isMonitoring
+    };
+  };
+})();
+
+// Modify the beforeunload handler to include new cleanup
+window.addEventListener('beforeunload', () => {
+  console.log('Cleaning up map resources...');
+  
+  // Clean up all managed resources
+  eventManager.cleanup();
+  state.cleanup();
+  
+  // Clean up tag monitoring
+  if (window.mapTagMonitoring?.cleanup) {
+    window.mapTagMonitoring.cleanup();
+  }
+  
+  // Clean up map resources
+  if (map) {
+    map.remove();
+  }
+  
+  console.log('Map cleanup completed');
+});
+
+// OPTIMIZED: Performance-focused console logging (only in debug mode)
+if (window.location.search.includes('debug=true')) {
+  console.log('🚀 Optimized Mapbox Script Loaded');
+  console.log('Performance monitoring available via window.getMapPerformanceStats()');
+  console.log('Shared utilities available via window.mapUtilities');
+}
