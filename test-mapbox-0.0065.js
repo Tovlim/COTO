@@ -2385,43 +2385,180 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// FIXED: Enhanced filtering detection with multiple trigger points
+// Debug tracking system for filter detection methods
+const filterDebug = {
+  stats: {
+    method1_hiddentagparent: 0,
+    method2_checkboxes: 0, 
+    method3_urlparams: 0,
+    method4_visibleitems: 0,
+    total_calls: 0,
+    show_count: 0,
+    hide_count: 0
+  },
+  
+  details: [],
+  
+  maxDetails: 50, // Keep last 50 detailed logs
+  
+  log(method, shouldShow, details) {
+    this.stats.total_calls++;
+    this.stats[`method${method}_${method === 1 ? 'hiddentagparent' : method === 2 ? 'checkboxes' : method === 3 ? 'urlparams' : 'visibleitems'}`]++;
+    
+    if (shouldShow) {
+      this.stats.show_count++;
+    } else {
+      this.stats.hide_count++;
+    }
+    
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      method: method,
+      methodName: method === 1 ? 'hiddentagparent' : method === 2 ? 'checkboxes' : method === 3 ? 'urlparams' : 'visibleitems',
+      shouldShow: shouldShow,
+      details: details,
+      stackTrace: new Error().stack.split('\n').slice(2, 5).map(line => line.trim())
+    };
+    
+    this.details.push(logEntry);
+    
+    // Keep only recent entries
+    if (this.details.length > this.maxDetails) {
+      this.details = this.details.slice(-this.maxDetails);
+    }
+  },
+  
+  getReport() {
+    const total = this.stats.total_calls;
+    const report = {
+      summary: {
+        totalCalls: total,
+        showResults: this.stats.show_count,
+        hideResults: this.stats.hide_count,
+        showPercentage: total > 0 ? ((this.stats.show_count / total) * 100).toFixed(1) : 0
+      },
+      methodUsage: {
+        method1_hiddentagparent: {
+          count: this.stats.method1_hiddentagparent,
+          percentage: total > 0 ? ((this.stats.method1_hiddentagparent / total) * 100).toFixed(1) : 0
+        },
+        method2_checkboxes: {
+          count: this.stats.method2_checkboxes,
+          percentage: total > 0 ? ((this.stats.method2_checkboxes / total) * 100).toFixed(1) : 0
+        },
+        method3_urlparams: {
+          count: this.stats.method3_urlparams,
+          percentage: total > 0 ? ((this.stats.method3_urlparams / total) * 100).toFixed(1) : 0
+        },
+        method4_visibleitems: {
+          count: this.stats.method4_visibleitems,
+          percentage: total > 0 ? ((this.stats.method4_visibleitems / total) * 100).toFixed(1) : 0
+        }
+      },
+      recentActivity: this.details.slice(-10) // Last 10 activities
+    };
+    
+    return report;
+  },
+  
+  reset() {
+    this.stats = {
+      method1_hiddentagparent: 0,
+      method2_checkboxes: 0, 
+      method3_urlparams: 0,
+      method4_visibleitems: 0,
+      total_calls: 0,
+      show_count: 0,
+      hide_count: 0
+    };
+    this.details = [];
+    console.log('Filter debug stats reset');
+  }
+};
+
+// DEBUGGING VERSION: Enhanced filtering detection with comprehensive logging
 const checkAndToggleFilteredElements = () => {
-  // Multiple ways to detect if filtering is active
+  const startTime = performance.now();
   let shouldShow = false;
+  let triggeredMethod = null;
+  let methodDetails = null;
+  
+  console.group('🔍 Filter Detection Debug');
   
   // Method 1: Check for hiddentagparent (Finsweet indicator)
+  console.log('Method 1: Checking hiddentagparent...');
   const hiddenTagParent = document.getElementById('hiddentagparent');
   if (hiddenTagParent) {
     shouldShow = true;
-    console.log('Filtering detected: hiddentagparent found');
+    triggeredMethod = 1;
+    methodDetails = {
+      element: hiddenTagParent,
+      innerHTML: hiddenTagParent.innerHTML.slice(0, 100) + (hiddenTagParent.innerHTML.length > 100 ? '...' : ''),
+      childCount: hiddenTagParent.children.length
+    };
+    console.log('✅ Method 1 TRIGGERED: hiddentagparent found', methodDetails);
+    filterDebug.log(1, true, methodDetails);
+  } else {
+    console.log('❌ Method 1: hiddentagparent not found');
   }
   
   // Method 2: Check if any checkboxes are selected
   if (!shouldShow) {
+    console.log('Method 2: Checking selected checkboxes...');
     const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
     const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
+    
     if (checkedBoxes.length > 0) {
       shouldShow = true;
-      console.log(`Filtering detected: ${checkedBoxes.length} checkboxes selected`);
+      triggeredMethod = 2;
+      methodDetails = {
+        totalCheckboxes: allCheckboxes.length,
+        checkedCount: checkedBoxes.length,
+        checkedValues: checkedBoxes.map(cb => ({
+          value: cb.getAttribute('fs-list-value') || cb.value,
+          name: cb.name,
+          id: cb.id
+        })).slice(0, 5) // Limit to first 5 for readability
+      };
+      console.log(`✅ Method 2 TRIGGERED: ${checkedBoxes.length} checkboxes selected`, methodDetails);
+      filterDebug.log(2, true, methodDetails);
+    } else {
+      console.log(`❌ Method 2: No checkboxes selected (${allCheckboxes.length} total checkboxes found)`);
     }
   }
   
   // Method 3: Check URL parameters for filtering
   if (!shouldShow) {
+    console.log('Method 3: Checking URL parameters...');
     const urlParams = new URLSearchParams(window.location.search);
-    const hasFilterParams = Array.from(urlParams.keys()).some(key => 
+    const allParams = Array.from(urlParams.keys());
+    const filterParams = allParams.filter(key => 
       key.includes('district') || key.includes('locality') || key.includes('filter')
     );
-    if (hasFilterParams) {
+    
+    if (filterParams.length > 0) {
       shouldShow = true;
-      console.log('Filtering detected: URL parameters found');
+      triggeredMethod = 3;
+      methodDetails = {
+        allParams: allParams,
+        filterParams: filterParams,
+        paramValues: Object.fromEntries(filterParams.map(key => [key, urlParams.get(key)]))
+      };
+      console.log('✅ Method 3 TRIGGERED: URL filter parameters found', methodDetails);
+      filterDebug.log(3, true, methodDetails);
+    } else {
+      console.log(`❌ Method 3: No filter URL parameters (${allParams.length} total params: ${allParams.join(', ') || 'none'})`);
     }
   }
   
   // Method 4: Check for visible vs total items in filter lists
   if (!shouldShow) {
+    console.log('Method 4: Checking visible vs total items...');
     const lists = getAvailableFilterLists();
+    let totalAllItems = 0;
+    let totalVisibleItems = 0;
+    const listDetails = [];
+    
     for (const listId of lists) {
       const container = document.getElementById(listId);
       if (container) {
@@ -2438,16 +2575,70 @@ const checkAndToggleFilteredElements = () => {
           return true;
         });
         
+        totalAllItems += allItems.length;
+        totalVisibleItems += visibleItems.length;
+        
+        listDetails.push({
+          listId: listId,
+          total: allItems.length,
+          visible: visibleItems.length,
+          filtered: allItems.length !== visibleItems.length
+        });
+        
         if (allItems.length > 0 && visibleItems.length < allItems.length && visibleItems.length > 0) {
           shouldShow = true;
-          console.log(`Filtering detected: ${visibleItems.length}/${allItems.length} items visible in ${listId}`);
+          triggeredMethod = 4;
+          methodDetails = {
+            triggerList: listId,
+            totalLists: lists.length,
+            listDetails: listDetails,
+            summary: {
+              totalAllItems: totalAllItems,
+              totalVisibleItems: totalVisibleItems,
+              isFiltered: totalVisibleItems < totalAllItems
+            }
+          };
+          console.log(`✅ Method 4 TRIGGERED: ${visibleItems.length}/${allItems.length} items visible in ${listId}`, methodDetails);
+          filterDebug.log(4, true, methodDetails);
           break;
         }
       }
     }
+    
+    if (!shouldShow) {
+      console.log(`❌ Method 4: No filtering detected in ${lists.length} lists`, {
+        totalLists: lists.length,
+        listDetails: listDetails,
+        summary: {
+          totalAllItems: totalAllItems,
+          totalVisibleItems: totalVisibleItems
+        }
+      });
+    }
   }
   
+  // Apply the result
   toggleShowWhenFilteredElements(shouldShow);
+  
+  const duration = performance.now() - startTime;
+  const elements = document.querySelectorAll('[show-when-filtered="true"]');
+  
+  // Final summary
+  console.log(`📊 RESULT: Elements ${shouldShow ? 'SHOWN' : 'HIDDEN'} (${elements.length} elements affected)`);
+  console.log(`⏱️  Duration: ${duration.toFixed(2)}ms`);
+  console.log(`🎯 Triggered by: ${triggeredMethod ? `Method ${triggeredMethod}` : 'No method triggered'}`);
+  
+  if (!shouldShow) {
+    // Log when hiding - this helps identify if multiple methods are redundant
+    filterDebug.log(0, false, {
+      reason: 'All methods returned false',
+      checkedMethods: [1, 2, 3, 4],
+      duration: duration
+    });
+  }
+  
+  console.groupEnd();
+  
   return shouldShow;
 };
 
@@ -2740,6 +2931,59 @@ window.mapUtilities = {
   toggleShowWhenFilteredElements // FIXED: Export the toggle function too
 };
 
+// DEBUG: Filter detection debugging utilities
+window.filterDebug = filterDebug;
+
+window.getFilterDebugReport = () => {
+  const report = filterDebug.getReport();
+  console.group('📈 Filter Debug Report');
+  console.log('Summary:', report.summary);
+  console.log('Method Usage:', report.methodUsage);
+  console.log('Recent Activity:', report.recentActivity);
+  console.groupEnd();
+  return report;
+};
+
+window.logFilterMethodEfficiency = () => {
+  const report = filterDebug.getReport();
+  const methods = report.methodUsage;
+  
+  console.group('🎯 Filter Method Efficiency Analysis');
+  
+  Object.entries(methods).forEach(([methodName, data]) => {
+    const efficiency = data.count > 0 ? 'USED' : 'UNUSED';
+    const style = efficiency === 'USED' ? 'color: green; font-weight: bold' : 'color: red';
+    console.log(`%c${methodName}: ${efficiency} (${data.count} times, ${data.percentage}%)`, style);
+  });
+  
+  // Recommendations
+  const unusedMethods = Object.entries(methods).filter(([_, data]) => data.count === 0);
+  if (unusedMethods.length > 0) {
+    console.log('\n💡 RECOMMENDATIONS:');
+    unusedMethods.forEach(([methodName]) => {
+      console.log(`%c• Consider removing ${methodName} (never used)`, 'color: orange');
+    });
+  }
+  
+  const dominantMethod = Object.entries(methods).reduce((prev, current) => 
+    current[1].count > prev[1].count ? current : prev
+  );
+  
+  if (dominantMethod[1].count > 0) {
+    console.log(`\n🏆 Most used method: ${dominantMethod[0]} (${dominantMethod[1].percentage}% of calls)`);
+  }
+  
+  console.groupEnd();
+  
+  return {
+    unusedMethods: unusedMethods.map(([name]) => name),
+    dominantMethod: dominantMethod[0],
+    recommendations: unusedMethods.length > 0 ? 'Remove unused methods' : 'All methods are being used'
+  };
+};
+
+window.resetFilterDebug = () => filterDebug.reset();
+
 // OPTIMIZED: Performance monitoring and cleanup
 window.getMapPerformanceStats = () => {
   return {
@@ -2786,4 +3030,17 @@ if (window.location.search.includes('debug=true')) {
   console.log('🚀 Optimized Mapbox Script Loaded');
   console.log('Performance monitoring available via window.getMapPerformanceStats()');
   console.log('Shared utilities available via window.mapUtilities');
+  
+  // Auto-report filter debug every 30 seconds in debug mode
+  setInterval(() => {
+    const report = filterDebug.getReport();
+    if (report.summary.totalCalls > 0) {
+      console.log(`🔄 Filter Debug Auto-Report: ${report.summary.totalCalls} calls, ${report.summary.showResults} shows, Method usage: [1:${report.methodUsage.method1_hiddentagparent.count}, 2:${report.methodUsage.method2_checkboxes.count}, 3:${report.methodUsage.method3_urlparams.count}, 4:${report.methodUsage.method4_visibleitems.count}]`);
+    }
+  }, 30000);
+  
+  console.log('🐛 Filter debug mode enabled! Use these commands:');
+  console.log('• window.getFilterDebugReport() - View detailed report');
+  console.log('• window.logFilterMethodEfficiency() - See which methods are actually used');
+  console.log('• window.resetFilterDebug() - Reset debug statistics');
 }
