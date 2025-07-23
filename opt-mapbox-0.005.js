@@ -803,7 +803,7 @@ function addNativeDistrictMarkers() {
           'text-padding': 6,
           'text-offset': [0, 0],
           'text-anchor': 'center'
-        ],
+        },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#6e3500',
