@@ -737,7 +737,7 @@ function addNativeMarkers() {
           'text-padding': 4,
           'text-offset': [0, 1.5],
           'text-anchor': 'top'
-        },
+        ],
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800',
@@ -802,7 +802,7 @@ function addNativeDistrictMarkers() {
           'text-padding': 6,
           'text-offset': [0, 0],
           'text-anchor': 'center'
-        },
+        ],
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#6e3500',
