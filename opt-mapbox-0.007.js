@@ -192,9 +192,8 @@ class MapResetControl {
       this._map.flyTo({
         center: [35.22, 31.85],
         zoom: isMobile ? 7.5 : 8.33,
-        duration: 1200,
-        essential: true,
-        easing: t => t * (2 - t) // Smooth easing
+        duration: 1000,
+        essential: true
       });
       
       if (this._map.getSource('localities-source')) {
@@ -864,9 +863,7 @@ function setupNativeMarkerClicks() {
     map.flyTo({
       center: features[0].geometry.coordinates,
       zoom: map.getZoom() + 2.5,
-      duration: 1200,
-      essential: true,
-      easing: t => t * (2 - t) // Smooth easing
+      duration: 800
     });
   };
   
@@ -915,17 +912,7 @@ function setupDistrictMarkerClicks() {
         };
         
         source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-        map.fitBounds(bounds, {
-          padding: {
-            top: 80,
-            bottom: 80, 
-            left: 80,
-            right: 80
-          },
-          duration: 1500,
-          essential: true,
-          easing: t => t * (2 - t) // Smooth easing function
-        });
+        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
       } else {
         removeBoundaryHighlight();
         selectDistrictInDropdown(districtName);
@@ -1153,8 +1140,7 @@ function applyFilterToMarkers() {
       },
       maxZoom: 13,
       duration: animationDuration,
-      essential: true,
-      easing: t => t * (2 - t) // Smooth easing
+      essential: true
     });
   } else {
     if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
@@ -1162,8 +1148,7 @@ function applyFilterToMarkers() {
         center: [35.22, 31.85], 
         zoom: isMobile ? 7.5 : 8.33, 
         duration: animationDuration, 
-        essential: true,
-        easing: t => t * (2 - t) // Smooth easing
+        essential: true
       });
     }
   }
@@ -1612,17 +1597,7 @@ function setupDropdownListeners() {
           };
           
           source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-          map.fitBounds(bounds, {
-            padding: {
-              top: 80,
-              bottom: 80,
-              left: 80, 
-              right: 80
-            },
-            duration: 1500,
-            essential: true,
-            easing: t => t * (2 - t) // Smooth easing function
-          });
+          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
           
           state.setTimer('skipReframeCleanup', () => {
             state.flags.skipNextReframe = false;
