@@ -194,22 +194,20 @@ function fixLightboxEnhanced(item, itemSlug) {
   }, 200);
 }
 
-// Fixed toggle that stores proper pane references like the working system
+// Simplified toggle that uses the existing working click handlers
 function addToggleFunctionality(item) {
   if (item.hasAttribute('data-toggle-processed')) return;
   
   const tabMenu = item.querySelector('.w-tab-menu');
-  const tabContent = item.querySelector('.w-tab-content');
-  if (!tabMenu || !tabContent) return;
+  if (!tabMenu) return;
   
   item.setAttribute('data-toggle-processed', 'true');
   
   let lastClosedTab = null;
-  let lastClosedPane = null; // Store the pane reference too!
   
   const closeAllTabs = () => {
     const tabs = tabMenu.querySelectorAll('.w-tab-link');
-    const panes = tabContent.querySelectorAll('.w-tab-pane');
+    const allPanes = item.querySelectorAll('.w-tab-pane');
     
     tabs.forEach(tab => {
       tab.classList.remove('w--current');
@@ -217,61 +215,17 @@ function addToggleFunctionality(item) {
       tab.setAttribute('tabindex', '-1');
     });
     
-    panes.forEach(pane => {
+    allPanes.forEach(pane => {
       pane.classList.remove('w--tab-active');
     });
   };
   
-  const activateTab = (tab, pane) => {
-    if (!tab) return;
-    
-    // Use the exact same logic as switchTabEnhanced
-    const allTabs = tabMenu.querySelectorAll('.w-tab-link');
-    const allPanes = tabContent.querySelectorAll('.w-tab-pane');
-    
-    // Remove active from all
-    allTabs.forEach(t => {
-      t.classList.remove('w--current');
-      t.setAttribute('aria-selected', 'false');
-      t.setAttribute('tabindex', '-1');
-    });
-    
-    allPanes.forEach(p => {
-      p.classList.remove('w--tab-active');
-    });
-    
-    // Activate clicked tab
-    tab.classList.add('w--current');
-    tab.setAttribute('aria-selected', 'true');
-    tab.setAttribute('tabindex', '0');
-    
-    // Activate the stored pane reference
-    if (pane) {
-      pane.classList.add('w--tab-active');
-      
-      if (window.location.search.includes('debug=tabs')) {
-        console.log(`🔄 Reopened: ${tab.getAttribute('data-w-tab')} → pane activated`);
-      }
-    } else {
-      if (window.location.search.includes('debug=tabs')) {
-        console.log(`⚠️ No pane reference for: ${tab.getAttribute('data-w-tab')}`);
-      }
-    }
-  };
-  
-  // Process each tab and find its corresponding pane once
+  // Process each tab
   const tabs = tabMenu.querySelectorAll('.w-tab-link:not([data-toggle-enhanced])');
   tabs.forEach(tab => {
     tab.setAttribute('data-toggle-enhanced', 'true');
     
-    // Find the correct pane for this tab (same logic as our working tab system)
-    const tabName = tab.getAttribute('data-w-tab');
-    const allPanes = tabContent.querySelectorAll('.w-tab-pane');
-    const correspondingPane = Array.from(allPanes).find(pane => 
-      pane.getAttribute('data-w-pane') === tabName
-    );
-    
-    // Create enhanced handler with pane reference stored
+    // Create enhanced handler that intercepts clicks
     const enhancedHandler = (e) => {
       const currentTab = e.currentTarget;
       const isActive = currentTab.classList.contains('w--current');
@@ -281,25 +235,33 @@ function addToggleFunctionality(item) {
         e.preventDefault();
         e.stopPropagation();
         lastClosedTab = currentTab;
-        lastClosedPane = correspondingPane; // Store pane reference
         closeAllTabs();
         
         if (window.location.search.includes('debug=tabs')) {
           console.log(`🔻 Closed: ${currentTab.getAttribute('data-w-tab')}`);
         }
       } else if (currentTab === lastClosedTab) {
-        // Clicking the same tab that was just closed - reopen with stored pane
-        e.preventDefault();
-        e.stopPropagation();
-        activateTab(currentTab, lastClosedPane); // Use stored pane reference!
+        // Clicking the same tab that was just closed - reopen by triggering original handler
+        if (window.location.search.includes('debug=tabs')) {
+          console.log(`🔄 Reopening: ${currentTab.getAttribute('data-w-tab')} (using original handler)`);
+        }
         
-        // Keep references for repeated toggling
+        // Use the exact same logic that works for normal tabs
+        const originalHandler = currentTab._originalClickHandler;
+        if (originalHandler) {
+          // Don't prevent default - let the original handler do its job
+          originalHandler(e);
+        } else {
+          if (window.location.search.includes('debug=tabs')) {
+            console.log(`⚠️ No original handler found for: ${currentTab.getAttribute('data-w-tab')}`);
+          }
+        }
+        
+        // Keep as lastClosedTab for repeated toggling
       } else {
-        // Clicking a different tab - normal behavior
+        // Clicking a different tab - reset and let original handler work
         lastClosedTab = null;
-        lastClosedPane = null;
         
-        // Let original handler work
         const originalHandler = currentTab._originalClickHandler;
         if (originalHandler) {
           originalHandler(e);
@@ -311,14 +273,9 @@ function addToggleFunctionality(item) {
       }
     };
     
+    // Add the enhanced handler
     tab._enhancedClickHandler = enhancedHandler;
     tab.addEventListener('click', enhancedHandler);
-    
-    if (window.location.search.includes('debug=tabs') && correspondingPane) {
-      console.log(`🔗 Toggle linked: ${tabName} → ${correspondingPane.id}`);
-    } else if (window.location.search.includes('debug=tabs')) {
-      console.log(`⚠️ No pane found for: ${tabName}`);
-    }
   });
   
   if (window.location.search.includes('debug=tabs') && tabs.length > 0) {
