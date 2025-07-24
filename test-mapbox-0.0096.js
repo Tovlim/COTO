@@ -297,6 +297,7 @@ class OptimizedMapState {
       dropdownListenersSetup: false,
       districtTagsLoaded: false,
       areaControlsSetup: false,
+      areasLoaded: false,
       skipNextReframe: false
     }, {
       set: (target, property, value) => {
@@ -1832,10 +1833,10 @@ function setupDropdownListeners() {
   }
 }
 
-// OPTIMIZED: Combined GeoJSON loading with better performance
-function loadCombinedGeoData() {
+// OPTIMIZED: Combined GeoJSON loading with lazy area loading
+function loadCombinedGeoData(loadAreas = false) {
   const startTime = performance.now();
-  console.log('Loading combined GeoJSON data...');
+  console.log(`Loading combined GeoJSON data... ${loadAreas ? 'including areas' : 'districts only'}`);
   
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
     .then(response => {
@@ -1854,38 +1855,48 @@ function loadCombinedGeoData() {
       combinedData.features.forEach(feature => {
         if (feature.properties.type === 'district') {
           districts.push(feature);
-        } else if (feature.properties.type === 'area') {
+        } else if (feature.properties.type === 'area' && loadAreas) {
           areas.push(feature);
         }
       });
       
-      console.log(`Found ${districts.length} districts and ${areas.length} areas`);
+      console.log(`Found ${districts.length} districts${loadAreas ? ` and ${areas.length} areas` : ' (areas skipped)'}`);
       
-      // Batch process districts
-      mapLayers.addToBatch(() => {
-        districts.forEach(districtFeature => {
-          const name = districtFeature.properties.name;
-          addDistrictBoundaryToMap(name, districtFeature);
+      // Always process districts
+      if (districts.length > 0) {
+        mapLayers.addToBatch(() => {
+          districts.forEach(districtFeature => {
+            const name = districtFeature.properties.name;
+            addDistrictBoundaryToMap(name, districtFeature);
+          });
         });
-      });
+      }
       
-      // Batch process areas
-      mapLayers.addToBatch(() => {
-        areas.forEach(areaFeature => {
-          const name = areaFeature.properties.name;
-          addAreaOverlayToMap(name, areaFeature);
+      // Only process areas if requested
+      if (loadAreas && areas.length > 0) {
+        mapLayers.addToBatch(() => {
+          areas.forEach(areaFeature => {
+            const name = areaFeature.properties.name;
+            addAreaOverlayToMap(name, areaFeature);
+          });
         });
-      });
+        
+        // Mark areas as loaded and setup controls
+        state.flags.areasLoaded = true;
+        state.setTimer('setupAreaControlsAfterLoad', () => {
+          setupAreaKeyControls();
+        }, 200);
+      }
       
       // Update district markers after processing
       state.setTimer('updateDistrictMarkers', () => {
-        console.log('All combined data processed, updating district markers');
+        console.log(`${loadAreas ? 'All' : 'District'} data processed, updating district markers`);
         addNativeDistrictMarkers();
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
       }, 100);
       
-      state.performance.loadTimes.set('combinedGeoData', performance.now() - startTime);
+      state.performance.loadTimes.set(`combinedGeoData${loadAreas ? 'WithAreas' : 'DistrictsOnly'}`, performance.now() - startTime);
     })
     .catch(error => {
       console.error('Error loading combined GeoJSON data:', error);
@@ -2034,7 +2045,7 @@ function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.layerCache.set(config.layerId, true);
 }
 
-// OPTIMIZED: Area key controls with better performance
+// OPTIMIZED: Area key controls with lazy loading support
 function setupAreaKeyControls() {
   if (state.flags.areaControlsSetup) return;
   
@@ -2065,43 +2076,45 @@ function setupAreaKeyControls() {
   let areaSetupCount = 0;
   let markerSetupCount = 0;
   
-  // Setup area controls
-  areaControls.forEach(control => {
-    const checkbox = $id(control.keyId);
-    if (!checkbox) return;
-    
-    checkbox.checked = false;
-    
-    if (!checkbox.dataset.mapboxListenerAdded) {
-      eventManager.add(checkbox, 'change', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
+  // Setup area controls only if areas are loaded
+  if (state.flags.areasLoaded) {
+    areaControls.forEach(control => {
+      const checkbox = $id(control.keyId);
+      if (!checkbox) return;
+      
+      checkbox.checked = false;
+      
+      if (!checkbox.dataset.mapboxListenerAdded) {
+        eventManager.add(checkbox, 'change', () => {
+          if (!mapLayers.hasLayer(control.layerId)) return;
+          
+          // CHANGED: Checked = visible, Unchecked = hidden (more intuitive)
+          const visibility = checkbox.checked ? 'visible' : 'none';
+          map.setLayoutProperty(control.layerId, 'visibility', visibility);
+        });
+        checkbox.dataset.mapboxListenerAdded = 'true';
+      }
+      
+      const wrapperDiv = $id(control.wrapId);
+      if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+        eventManager.add(wrapperDiv, 'mouseenter', () => {
+          if (!mapLayers.hasLayer(control.layerId)) return;
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+        });
         
-        // CHANGED: Checked = visible, Unchecked = hidden (more intuitive)
-        const visibility = checkbox.checked ? 'visible' : 'none';
-        map.setLayoutProperty(control.layerId, 'visibility', visibility);
-      });
-      checkbox.dataset.mapboxListenerAdded = 'true';
-    }
-    
-    const wrapperDiv = $id(control.wrapId);
-    if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
-      eventManager.add(wrapperDiv, 'mouseenter', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
-      });
+        eventManager.add(wrapperDiv, 'mouseleave', () => {
+          if (!mapLayers.hasLayer(control.layerId)) return;
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+        });
+        
+        wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      }
       
-      eventManager.add(wrapperDiv, 'mouseleave', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
-      });
-      
-      wrapperDiv.dataset.mapboxHoverAdded = 'true';
-    }
-    
-    areaSetupCount++;
-  });
+      areaSetupCount++;
+    });
+  }
   
-  // Setup marker controls with direct DOM listeners
+  // Always setup marker controls
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) return;
@@ -2209,10 +2222,34 @@ function setupAreaKeyControls() {
   });
   
   // Mark as complete if we got most controls
-  if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
+  const expectedAreas = state.flags.areasLoaded ? areaControls.length : 0;
+  if (areaSetupCount >= expectedAreas - 1 && markerSetupCount >= markerControls.length - 1) {
     state.flags.areaControlsSetup = true;
-    console.log('Area and marker controls setup completed');
+    console.log(`Controls setup completed - Areas: ${areaSetupCount}/${expectedAreas}, Markers: ${markerSetupCount}/${markerControls.length}`);
   }
+}
+
+// LAZY LOADING: Setup area loading when SecondLeftSideTab is clicked
+function setupLazyAreaLoading() {
+  const secondLeftTab = $id('SecondLeftSideTab');
+  if (!secondLeftTab) {
+    console.warn('SecondLeftSideTab not found, areas will not be lazy loaded');
+    return;
+  }
+  
+  // Add one-time click listener for lazy loading
+  const lazyLoadHandler = () => {
+    if (!state.flags.areasLoaded) {
+      console.log('🚀 Loading areas on demand...');
+      loadCombinedGeoData(true); // Load areas now
+      
+      // Remove this listener since areas are now loading
+      secondLeftTab.removeEventListener('click', lazyLoadHandler);
+    }
+  };
+  
+  secondLeftTab.addEventListener('click', lazyLoadHandler);
+  console.log('Lazy area loading setup complete - areas will load on first SecondLeftSideTab click');
 }
 
 // Function to select district in dropdown
@@ -2523,6 +2560,9 @@ function init() {
   // Generate locality checkboxes early
   state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
   
+  // Setup lazy area loading early
+  state.setTimer('setupLazyAreaLoading', setupLazyAreaLoading, 400);
+  
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
   
@@ -2589,14 +2629,17 @@ map.on("load", () => {
     console.log('Map loaded, initializing components...');
     init();
     
-    // Load combined data
-    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    // Load combined data (districts only initially)
+    state.setTimer('loadCombinedData', () => loadCombinedGeoData(false), 100);
+    
+    // Setup lazy area loading
+    state.setTimer('setupLazyLoading', setupLazyAreaLoading, 200);
     
     // Load district tags
     state.setTimer('loadDistrictTags', loadDistrictTags, 800);
     
-    // Setup area controls
-    state.setTimer('setupAreaControls', setupAreaKeyControls, 2000);
+    // Setup marker controls only (areas will be setup when loaded)
+    state.setTimer('setupMarkerControls', setupAreaKeyControls, 2000);
     
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
@@ -2645,6 +2688,7 @@ window.addEventListener('load', () => {
   if (!state.flags.areaControlsSetup) {
     [2500, 4000].forEach(delay => 
       state.setTimer(`areaControlsRetry-${delay}`, () => {
+        // Only retry if we should have controls setup by now
         if (!state.flags.areaControlsSetup) setupAreaKeyControls();
       }, delay)
     );
