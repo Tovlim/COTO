@@ -2062,7 +2062,8 @@ function setupAreaKeyControls() {
     }
   ];
   
-  let setupCount = 0;
+  let areaSetupCount = 0;
+  let markerSetupCount = 0;
   
   // Setup area controls
   areaControls.forEach(control => {
@@ -2094,14 +2095,17 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
-      setupCount++;
+      areaSetupCount++;
     }
   });
   
   // Setup marker controls
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    if (!checkbox) return;
+    if (!checkbox) {
+      console.log(`Marker control checkbox not found: ${control.keyId}`);
+      return;
+    }
     
     checkbox.checked = false;
     
@@ -2134,6 +2138,7 @@ function setupAreaKeyControls() {
         }
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
+      console.log(`Marker control setup: ${control.keyId}`);
     }
     
     const wrapperDiv = $id(control.wrapId);
@@ -2187,20 +2192,26 @@ function setupAreaKeyControls() {
             map.setPaintProperty('locality-clusters', 'text-halo-color', '#7e7800');
           }
           if (mapLayers.hasLayer('locality-points')) {
-            map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
+            map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
           }
         }
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
-      setupCount++;
+      markerSetupCount++;
     }
   });
   
-  const totalControls = areaControls.length + markerControls.length;
-  if (setupCount >= totalControls - 2) { // Allow some tolerance
+  // FIXED: Better completion logic
+  const expectedAreaControls = areaControls.length;
+  const expectedMarkerControls = markerControls.length;
+  
+  console.log(`Area controls setup: ${areaSetupCount}/${expectedAreaControls}, Marker controls: ${markerSetupCount}/${expectedMarkerControls}`);
+  
+  // Mark as complete if we got most controls (allow some tolerance for missing elements)
+  if (areaSetupCount >= expectedAreaControls - 1 && markerSetupCount >= expectedMarkerControls - 1) {
     state.flags.areaControlsSetup = true;
-    console.log('Area controls setup completed');
+    console.log('Area and marker controls setup completed');
   }
 }
 
