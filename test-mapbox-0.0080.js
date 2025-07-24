@@ -1837,7 +1837,7 @@ function loadCombinedGeoData() {
   const startTime = performance.now();
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.003.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1927,7 +1927,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   });
   
   // Get layer positioning
-  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
@@ -1989,7 +1989,8 @@ function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
-    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' }
+    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
+    'Firing Zones': { color: '#af4256', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
   };
   
   const config = areaConfig[name];
@@ -2040,7 +2041,8 @@ function setupAreaKeyControls() {
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
     {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
+    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
+    {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
   ];
   
   const markerControls = [
@@ -2385,123 +2387,118 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// FIXED: Enhanced filtering detection with multiple trigger points
+// SIMPLIFIED: Only use hiddentagparent method for filtering detection
 const checkAndToggleFilteredElements = () => {
-  // Multiple ways to detect if filtering is active
-  let shouldShow = false;
-  
-  // Method 1: Check for hiddentagparent (Finsweet indicator)
+  // Check for hiddentagparent (Finsweet official filtering indicator)
   const hiddenTagParent = document.getElementById('hiddentagparent');
-  if (hiddenTagParent) {
-    shouldShow = true;
-    console.log('Filtering detected: hiddentagparent found');
-  }
-  
-  // Method 2: Check if any checkboxes are selected
-  if (!shouldShow) {
-    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-    const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
-    if (checkedBoxes.length > 0) {
-      shouldShow = true;
-      console.log(`Filtering detected: ${checkedBoxes.length} checkboxes selected`);
-    }
-  }
-  
-  // Method 3: Check URL parameters for filtering
-  if (!shouldShow) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasFilterParams = Array.from(urlParams.keys()).some(key => 
-      key.includes('district') || key.includes('locality') || key.includes('filter')
-    );
-    if (hasFilterParams) {
-      shouldShow = true;
-      console.log('Filtering detected: URL parameters found');
-    }
-  }
-  
-  // Method 4: Check for visible vs total items in filter lists
-  if (!shouldShow) {
-    const lists = getAvailableFilterLists();
-    for (const listId of lists) {
-      const container = document.getElementById(listId);
-      if (container) {
-        const allItems = container.querySelectorAll('.data-places-names-filter');
-        const visibleItems = Array.from(allItems).filter(item => {
-          let current = item;
-          while (current && current !== document.body) {
-            const style = getComputedStyle(current);
-            if (style.display === 'none' || style.visibility === 'hidden') {
-              return false;
-            }
-            current = current.parentElement;
-          }
-          return true;
-        });
-        
-        if (allItems.length > 0 && visibleItems.length < allItems.length && visibleItems.length > 0) {
-          shouldShow = true;
-          console.log(`Filtering detected: ${visibleItems.length}/${allItems.length} items visible in ${listId}`);
-          break;
-        }
-      }
-    }
-  }
+  const shouldShow = !!hiddenTagParent;
   
   toggleShowWhenFilteredElements(shouldShow);
   return shouldShow;
 };
-// FIXED: Enhanced tag monitoring with multiple detection methods
-const monitorTags = () => {
-  // Initial check
-  checkAndToggleFilteredElements();
+
+// FIXED: Enhanced tag monitoring with proper cleanup and no recursion
+const monitorTags = (() => {
+  let isSetup = false; // Flag to prevent multiple setups
+  let pollingTimer = null; // Store polling timer for cleanup
   
-  // Don't use cached query for tagparent
-  const tagParent = document.getElementById('tagparent');
-  if (tagParent) {
-    const observer = new MutationObserver(() => {
-      // Immediate check when DOM changes
-      checkAndToggleFilteredElements();
-    });
-    observer.observe(tagParent, {childList: true, subtree: true});
+  return () => {
+    // Prevent multiple setups
+    if (isSetup) {
+      console.log('Enhanced tag monitoring: Already setup, skipping');
+      return;
+    }
     
-    // Store observer for cleanup
-    tagParent._mutationObserver = observer;
-    console.log('Enhanced tag monitoring: MutationObserver setup on tagparent');
-  } else {
-    console.log('Enhanced tag monitoring: tagparent not found, using polling fallback');
-  }
-  
-  // Additional monitoring: Watch for checkbox changes
-  const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-  allCheckboxes.forEach(checkbox => {
-    if (!checkbox.dataset.filteredElementListener) {
-      eventManager.add(checkbox, 'change', () => {
-        setTimeout(checkAndToggleFilteredElements, 50);
-      });
-      checkbox.dataset.filteredElementListener = 'true';
-    }
-  });
-  
-  // Additional monitoring: Watch for form changes that might indicate filtering
-  const forms = document.querySelectorAll('form');
-  forms.forEach(form => {
-    if (!form.dataset.filteredElementListener) {
-      eventManager.add(form, 'change', () => {
-        setTimeout(checkAndToggleFilteredElements, 100);
-      });
-      eventManager.add(form, 'input', () => {
-        setTimeout(checkAndToggleFilteredElements, 100);
-      });
-      form.dataset.filteredElementListener = 'true';
-    }
-  });
-  
-  // Fallback polling to catch anything we missed
-  state.setTimer('enhancedTagPolling', () => {
+    // Initial check
     checkAndToggleFilteredElements();
-    state.setTimer('enhancedTagPollingRepeating', () => monitorTags(), 1000);
-  }, 1000);
-};
+    
+    // Don't use cached query for tagparent
+    const tagParent = document.getElementById('tagparent');
+    if (tagParent) {
+      // Clean up existing observer if it exists
+      if (tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+        console.log('Enhanced tag monitoring: Cleaned up existing observer');
+      }
+      
+      const observer = new MutationObserver(() => {
+        // Immediate check when DOM changes
+        checkAndToggleFilteredElements();
+      });
+      observer.observe(tagParent, {childList: true, subtree: true});
+      
+      // Store observer for cleanup
+      tagParent._mutationObserver = observer;
+      console.log('Enhanced tag monitoring: MutationObserver setup on tagparent');
+    } else {
+      console.log('Enhanced tag monitoring: tagparent not found, using polling fallback');
+    }
+    
+    // Additional monitoring: Watch for checkbox changes
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+      if (!checkbox.dataset.filteredElementListener) {
+        eventManager.add(checkbox, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 50);
+        });
+        checkbox.dataset.filteredElementListener = 'true';
+      }
+    });
+    
+    // Additional monitoring: Watch for form changes that might indicate filtering
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      if (!form.dataset.filteredElementListener) {
+        eventManager.add(form, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        eventManager.add(form, 'input', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        form.dataset.filteredElementListener = 'true';
+      }
+    });
+    
+    // FIXED: Fallback polling that doesn't recursively call monitorTags
+    const startPolling = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+      }
+      
+      pollingTimer = setTimeout(() => {
+        checkAndToggleFilteredElements(); // Just check, don't setup again
+        startPolling(); // Continue polling
+      }, 1000);
+    };
+    
+    // Start the polling
+    startPolling();
+    
+    // Mark as setup
+    isSetup = true;
+    console.log('Enhanced tag monitoring: Setup completed');
+    
+    // Cleanup function (can be called to reset)
+    const cleanup = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+        pollingTimer = null;
+      }
+      
+      const tagParent = document.getElementById('tagparent');
+      if (tagParent && tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+        tagParent._mutationObserver = null;
+      }
+      
+      isSetup = false;
+      console.log('Enhanced tag monitoring: Cleanup completed');
+    };
+    
+    // Store cleanup function for external access
+    window.cleanupTagMonitoring = cleanup;
+  };
+})();
 
 // OPTIMIZED: Smart initialization with parallel loading
 function init() {
