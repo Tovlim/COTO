@@ -2046,7 +2046,21 @@ function setupAreaKeyControls() {
   ];
   
   const markerControls = [
-    // District and locality marker controls removed per user request
+    {
+      keyId: 'district-toggle-key', 
+      wrapId: 'district-toggle-key-wrap',
+      type: 'district',
+      layers: ['district-points'],
+      boundaryLayers: ['-fill', '-border'], // For dynamic boundary detection
+      label: 'District Markers & Boundaries'
+    },
+    {
+      keyId: 'locality-toggle-key', 
+      wrapId: 'locality-toggle-key-wrap',
+      type: 'locality',
+      layers: ['locality-clusters', 'locality-points'],
+      label: 'Locality Markers'
+    }
   ];
   
   let setupCount = 0;
