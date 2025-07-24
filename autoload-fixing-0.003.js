@@ -3,7 +3,7 @@
 // ✅ FEATURES:
 // • Fixes broken tabs/lightboxes on auto-loaded CMS items
 // • Integrates LazyLoad for images on new items  
-// • Adds toggle functionality (click active tab to close/reopen)
+// • Adds PERFECT toggle functionality with dummy tab reset 🎯
 // • Supports WFU lightbox grouping
 // • Works with Finsweet list load v2 (2025)
 //
@@ -15,6 +15,11 @@
 // • Memory leak prevention with cleanup handlers
 // • Staggered processing for large batches
 // • Reduced setTimeout calls and better timing coordination
+//
+// 🎯 TOGGLE FIX:
+// • Creates hidden dummy tabs to reset Webflow's internal state
+// • Enables perfect toggle behavior: click → open, click → close, click → open
+// • No more need to click other tabs to reset state
 
 console.log('🚀 Webflow Component Fix Loading...');
 
@@ -194,92 +199,95 @@ function fixLightboxEnhanced(item, itemSlug) {
   }, 200);
 }
 
-// Simplified toggle that uses the existing working click handlers
+// Optimized toggle with dummy tab reset for perfect toggle behavior
 function addToggleFunctionality(item) {
   if (item.hasAttribute('data-toggle-processed')) return;
   
   const tabMenu = item.querySelector('.w-tab-menu');
-  if (!tabMenu) return;
+  const tabContent = item.querySelector('.w-tab-content');
+  if (!tabMenu || !tabContent) return;
   
   item.setAttribute('data-toggle-processed', 'true');
   
-  let lastClosedTab = null;
+  // Get reference to dummy tab for state reset
+  const dummyTab = item._dummyTab;
   
+  // Optimized close function that resets Webflow state
   const closeAllTabs = () => {
-    const tabs = tabMenu.querySelectorAll('.w-tab-link');
-    const allPanes = item.querySelectorAll('.w-tab-pane');
+    // Close all visible tabs
+    const tabs = tabMenu.querySelectorAll('.w-tab-link:not(.dummy-tab-reset)');
+    const panes = tabContent.querySelectorAll('.w-tab-pane:not(.dummy-tab-reset)');
     
-    tabs.forEach(tab => {
-      tab.classList.remove('w--current');
-      tab.setAttribute('aria-selected', 'false');
-      tab.setAttribute('tabindex', '-1');
-    });
+    tabs.forEach(tab => tab.classList.remove('w--current'));
+    panes.forEach(pane => pane.classList.remove('w--tab-active'));
     
-    allPanes.forEach(pane => {
-      pane.classList.remove('w--tab-active');
-    });
+    // Click dummy tab to reset Webflow's internal state
+    if (dummyTab) {
+      setTimeout(() => {
+        dummyTab.click();
+      }, 10);
+    }
   };
   
-  // Process each tab
-  const tabs = tabMenu.querySelectorAll('.w-tab-link:not([data-toggle-enhanced])');
-  tabs.forEach(tab => {
-    tab.setAttribute('data-toggle-enhanced', 'true');
+  const activateTab = (tab) => {
+    if (!tab) return;
     
-    // Create enhanced handler that intercepts clicks
-    const enhancedHandler = (e) => {
+    // Use the original click handler to properly activate tab
+    const originalHandler = tab._originalClickHandler;
+    if (originalHandler) {
+      // Create a synthetic click event
+      const syntheticEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      });
+      
+      // Let Webflow handle the tab activation properly
+      setTimeout(() => {
+        originalHandler.call(tab, syntheticEvent);
+      }, 50);
+    }
+  };
+  
+  // Enhanced toggle handler with dummy tab reset
+  const createToggleHandler = () => {
+    return (tab) => (e) => {
       const currentTab = e.currentTarget;
       const isActive = currentTab.classList.contains('w--current');
       
       if (isActive) {
-        // Clicking active tab - close it
+        // Clicking active tab - close it and reset state
         e.preventDefault();
         e.stopPropagation();
-        lastClosedTab = currentTab;
-        closeAllTabs();
+        
+        closeAllTabs(); // This will click the dummy tab to reset state
         
         if (window.location.search.includes('debug=tabs')) {
-          console.log(`🔻 Closed: ${currentTab.getAttribute('data-w-tab')}`);
+          console.log(`🔄 Closed tab and reset state: ${currentTab.getAttribute('data-w-tab')}`);
         }
-      } else if (currentTab === lastClosedTab) {
-        // Clicking the same tab that was just closed - reopen by triggering original handler
-        if (window.location.search.includes('debug=tabs')) {
-          console.log(`🔄 Reopening: ${currentTab.getAttribute('data-w-tab')} (using original handler)`);
-        }
-        
-        // Use the exact same logic that works for normal tabs
-        const originalHandler = currentTab._originalClickHandler;
-        if (originalHandler) {
-          // Don't prevent default - let the original handler do its job
-          originalHandler(e);
-        } else {
-          if (window.location.search.includes('debug=tabs')) {
-            console.log(`⚠️ No original handler found for: ${currentTab.getAttribute('data-w-tab')}`);
-          }
-        }
-        
-        // Keep as lastClosedTab for repeated toggling
       } else {
-        // Clicking a different tab - reset and let original handler work
-        lastClosedTab = null;
-        
+        // Normal tab click - let original handler work
         const originalHandler = currentTab._originalClickHandler;
         if (originalHandler) {
           originalHandler(e);
-        }
-        
-        if (window.location.search.includes('debug=tabs')) {
-          console.log(`🔀 Switched to: ${currentTab.getAttribute('data-w-tab')}`);
         }
       }
     };
-    
-    // Add the enhanced handler
+  };
+  
+  // Apply enhanced toggle to all tabs (excluding dummy)
+  const tabs = tabMenu.querySelectorAll('.w-tab-link:not([data-toggle-enhanced]):not(.dummy-tab-reset)');
+  const toggleHandler = createToggleHandler();
+  
+  tabs.forEach(tab => {
+    tab.setAttribute('data-toggle-enhanced', 'true');
+    const enhancedHandler = toggleHandler(tab);
     tab._enhancedClickHandler = enhancedHandler;
     tab.addEventListener('click', enhancedHandler);
   });
   
   if (window.location.search.includes('debug=tabs') && tabs.length > 0) {
-    console.log(`✅ Toggle added to ${tabs.length} tabs in: ${item.getAttribute('itemslug')}`);
+    console.log(`✅ Enhanced toggle with dummy reset added to ${tabs.length} tabs in: ${item.getAttribute('itemslug')}`);
   }
 }
 
@@ -309,7 +317,7 @@ function updateLazyLoad() {
   }
 }
 
-// Optimized processing with smart caching and validation
+// Enhanced processing with dummy tab creation for toggle fix
 function processItems(items) {
   if (!items?.length) return;
   
@@ -333,12 +341,14 @@ function processItems(items) {
       const tabElements = item.querySelectorAll('[data-w-tab]');
       const slugPattern = itemSlug.replace(/[^a-zA-Z0-9-]/g, '-');
       
-      // Step 1: Fix tabs and lightboxes immediately
+      // Step 1: Create dummy tab for toggle reset
+      createDummyTab(item);
+      
+      // Step 2: Fix tabs and lightboxes immediately
       fixTabSystemEnhanced(item, itemSlug);
       fixLightboxEnhanced(item, itemSlug);
       
-      // Step 2: Intelligent verification and toggle addition
-      // Use a single timeout for all items in the batch for better performance
+      // Step 3: Intelligent verification and toggle addition
       setTimeout(() => {
         const workingTabs = Array.from(tabElements).filter(tab => 
           tab.id && tab.id.includes(slugPattern)
@@ -371,6 +381,75 @@ function processItems(items) {
   
   // Single lazy load update for the entire batch
   setTimeout(updateLazyLoad, 100);
+}
+
+// Create hidden dummy tab for Webflow state reset
+function createDummyTab(item) {
+  // Skip if dummy tab already exists
+  if (item.querySelector('.dummy-tab-reset')) return;
+  
+  const tabMenu = item.querySelector('.w-tab-menu');
+  const tabContent = item.querySelector('.w-tab-content');
+  
+  if (!tabMenu || !tabContent) return;
+  
+  const itemSlug = getItemSlug(item);
+  const dummyId = `dummy-reset-${itemSlug.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+  
+  // Create dummy tab link (hidden)
+  const dummyTab = document.createElement('a');
+  dummyTab.setAttribute('data-w-tab', 'DummyReset');
+  dummyTab.className = 'dummy-tab-reset w-tab-link';
+  dummyTab.id = `${dummyId}-tab`;
+  dummyTab.href = `#${dummyId}-pane`;
+  dummyTab.setAttribute('role', 'tab');
+  dummyTab.setAttribute('aria-controls', `${dummyId}-pane`);
+  dummyTab.setAttribute('tabindex', '-1');
+  dummyTab.setAttribute('aria-selected', 'false');
+  dummyTab.style.display = 'none'; // Hidden
+  dummyTab.style.position = 'absolute';
+  dummyTab.style.left = '-9999px';
+  
+  // Create dummy tab pane (hidden)
+  const dummyPane = document.createElement('div');
+  dummyPane.setAttribute('data-w-pane', 'DummyReset');
+  dummyPane.className = 'dummy-tab-reset w-tab-pane';
+  dummyPane.id = `${dummyId}-pane`;
+  dummyPane.setAttribute('role', 'tabpanel');
+  dummyPane.setAttribute('aria-labelledby', `${dummyId}-tab`);
+  dummyPane.style.display = 'none'; // Hidden
+  dummyPane.style.position = 'absolute';
+  dummyPane.style.left = '-9999px';
+  
+  // Add to DOM
+  tabMenu.appendChild(dummyTab);
+  tabContent.appendChild(dummyPane);
+  
+  // Store reference for easy access
+  item._dummyTab = dummyTab;
+  
+  // Add basic click handler to dummy tab
+  dummyTab.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Just activate the dummy tab (Webflow will handle the rest)
+    const allTabs = item.querySelectorAll('.w-tab-link');
+    const allPanes = item.querySelectorAll('.w-tab-pane');
+    
+    allTabs.forEach(tab => {
+      tab.classList.remove('w--current');
+      tab.setAttribute('aria-selected', 'false');
+    });
+    
+    allPanes.forEach(pane => {
+      pane.classList.remove('w--tab-active');
+    });
+    
+    // Don't actually show the dummy tab - just use it to reset state
+  });
+  
+  if (window.location.search.includes('debug=tabs')) {
+    console.log(`🎯 Created dummy tab for: ${itemSlug}`);
+  }
 }
 
 // Optimized observer with better batching and throttling
