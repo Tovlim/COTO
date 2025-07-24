@@ -1837,7 +1837,7 @@ function loadCombinedGeoData() {
   const startTime = performance.now();
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.003.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1927,7 +1927,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   });
   
   // Get layer positioning
-  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
@@ -1989,7 +1989,8 @@ function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
-    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' }
+    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
+    'Firing Zones': { color: '#af4256', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
   };
   
   const config = areaConfig[name];
@@ -2033,14 +2034,20 @@ function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.layerCache.set(config.layerId, true);
 }
 
-// OPTIMIZED: Area key controls with better performance
+// FIXED: Area key controls with proper debugging and logic
 function setupAreaKeyControls() {
-  if (state.flags.areaControlsSetup) return;
+  if (state.flags.areaControlsSetup) {
+    console.log('Area controls already setup, skipping...');
+    return;
+  }
+  
+  console.log('Setting up area and marker controls...');
   
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
     {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
+    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
+    {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
   ];
   
   const markerControls = [
@@ -2060,26 +2067,38 @@ function setupAreaKeyControls() {
     }
   ];
   
-  let setupCount = 0;
+  let areaSetupCount = 0;
+  let markerSetupCount = 0;
   
   // Setup area controls
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    if (!checkbox || !mapLayers.hasLayer(control.layerId)) return;
+    const wrapperDiv = $id(control.wrapId);
+    
+    console.log(`Area control ${control.keyId}: checkbox=${!!checkbox}, wrapper=${!!wrapperDiv}, layer=${mapLayers.hasLayer(control.layerId)}`);
+    
+    if (!checkbox) {
+      console.warn(`Area checkbox not found: ${control.keyId}`);
+      return;
+    }
     
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
+        console.log(`Area control toggled: ${control.keyId}, checked: ${checkbox.checked}`);
+        if (!mapLayers.hasLayer(control.layerId)) {
+          console.warn(`Layer not found when toggling: ${control.layerId}`);
+          return;
+        }
         
         const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
+      console.log(`Area control listener added: ${control.keyId}`);
     }
     
-    const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
@@ -2092,19 +2111,28 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
-      setupCount++;
     }
+    
+    areaSetupCount++;
   });
   
-  // Setup marker controls
+  // Setup marker controls - ALWAYS try to set these up regardless of layers
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    if (!checkbox) return;
+    const wrapperDiv = $id(control.wrapId);
+    
+    console.log(`Marker control ${control.keyId}: checkbox=${!!checkbox}, wrapper=${!!wrapperDiv}`);
+    
+    if (!checkbox) {
+      console.warn(`Marker control checkbox not found: ${control.keyId}`);
+      return;
+    }
     
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
+        console.log(`Marker control toggled: ${control.keyId}, checked: ${checkbox.checked}`);
         const visibility = checkbox.checked ? 'none' : 'visible';
         
         if (control.type === 'district') {
@@ -2112,29 +2140,39 @@ function setupAreaKeyControls() {
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
+              console.log(`District layer visibility set: ${layerId} -> ${visibility}`);
+            } else {
+              console.warn(`District layer not found: ${layerId}`);
             }
           });
           
           // Handle all district boundaries dynamically
           const allLayers = map.getStyle().layers;
+          let boundaryCount = 0;
           allLayers.forEach(layer => {
             if (layer.id.includes('-fill') || layer.id.includes('-border')) {
               map.setLayoutProperty(layer.id, 'visibility', visibility);
+              boundaryCount++;
             }
           });
+          console.log(`District boundaries toggled: ${boundaryCount} layers -> ${visibility}`);
+          
         } else if (control.type === 'locality') {
           // Handle locality markers
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
+              console.log(`Locality layer visibility set: ${layerId} -> ${visibility}`);
+            } else {
+              console.warn(`Locality layer not found: ${layerId}`);
             }
           });
         }
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
+      console.log(`Marker control listener added: ${control.keyId}`);
     }
     
-    const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (control.type === 'district') {
@@ -2191,14 +2229,19 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
-      setupCount++;
     }
+    
+    markerSetupCount++;
   });
   
-  const totalControls = areaControls.length + markerControls.length;
-  if (setupCount >= totalControls - 2) { // Allow some tolerance
+  console.log(`Controls setup complete - Areas: ${areaSetupCount}/${areaControls.length}, Markers: ${markerSetupCount}/${markerControls.length}`);
+  
+  // Mark as complete if we got the checkboxes set up (don't require layers to exist yet)
+  if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
     state.flags.areaControlsSetup = true;
-    console.log('Area controls setup completed');
+    console.log('Area and marker controls setup completed successfully');
+  } else {
+    console.log('Some controls missing, will retry later...');
   }
 }
 
@@ -2385,67 +2428,11 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// FIXED: Enhanced filtering detection with multiple trigger points
+// SIMPLIFIED: Only use hiddentagparent method for filtering detection
 const checkAndToggleFilteredElements = () => {
-  // Multiple ways to detect if filtering is active
-  let shouldShow = false;
-  
-  // Method 1: Check for hiddentagparent (Finsweet indicator)
+  // Check for hiddentagparent (Finsweet official filtering indicator)
   const hiddenTagParent = document.getElementById('hiddentagparent');
-  if (hiddenTagParent) {
-    shouldShow = true;
-    console.log('Filtering detected: hiddentagparent found');
-  }
-  
-  // Method 2: Check if any checkboxes are selected
-  if (!shouldShow) {
-    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-    const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
-    if (checkedBoxes.length > 0) {
-      shouldShow = true;
-      console.log(`Filtering detected: ${checkedBoxes.length} checkboxes selected`);
-    }
-  }
-  
-  // Method 3: Check URL parameters for filtering
-  if (!shouldShow) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasFilterParams = Array.from(urlParams.keys()).some(key => 
-      key.includes('district') || key.includes('locality') || key.includes('filter')
-    );
-    if (hasFilterParams) {
-      shouldShow = true;
-      console.log('Filtering detected: URL parameters found');
-    }
-  }
-  
-  // Method 4: Check for visible vs total items in filter lists
-  if (!shouldShow) {
-    const lists = getAvailableFilterLists();
-    for (const listId of lists) {
-      const container = document.getElementById(listId);
-      if (container) {
-        const allItems = container.querySelectorAll('.data-places-names-filter');
-        const visibleItems = Array.from(allItems).filter(item => {
-          let current = item;
-          while (current && current !== document.body) {
-            const style = getComputedStyle(current);
-            if (style.display === 'none' || style.visibility === 'hidden') {
-              return false;
-            }
-            current = current.parentElement;
-          }
-          return true;
-        });
-        
-        if (allItems.length > 0 && visibleItems.length < allItems.length && visibleItems.length > 0) {
-          shouldShow = true;
-          console.log(`Filtering detected: ${visibleItems.length}/${allItems.length} items visible in ${listId}`);
-          break;
-        }
-      }
-    }
-  }
+  const shouldShow = !!hiddenTagParent;
   
   toggleShowWhenFilteredElements(shouldShow);
   return shouldShow;
