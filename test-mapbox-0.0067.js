@@ -1837,7 +1837,7 @@ function loadCombinedGeoData() {
   const startTime = performance.now();
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.003.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.005.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1927,7 +1927,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   });
   
   // Get layer positioning
-  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
+  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
@@ -1989,7 +1989,8 @@ function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
-    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' }
+    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
+    'Firing Zones': { color: '#af4256', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
   };
   
   const config = areaConfig[name];
@@ -2040,7 +2041,8 @@ function setupAreaKeyControls() {
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
     {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
+    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
+    {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
   ];
   
   const markerControls = [
