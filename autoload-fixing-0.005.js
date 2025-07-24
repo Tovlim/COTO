@@ -1,27 +1,25 @@
-// 🚀 PERFORMANCE OPTIMIZED Webflow Component Fix v2.0
+// 🚀 LAZY PROCESSING Webflow Component Fix v3.0
 // 
 // ✅ FEATURES:
-// • Fixes broken tabs/lightboxes on auto-loaded CMS items
+// • Fixes broken tabs/lightboxes ONLY when items come into view
 // • Integrates LazyLoad for images on new items  
 // • Adds PERFECT toggle functionality with dummy tab reset 🎯
 // • Supports WFU lightbox grouping
 // • Works with Finsweet list load v2 (2025)
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
-// • Batched DOM operations (reduced reflows/repaints)
-// • Smart caching and duplicate prevention
-// • Optimized event handling with closures
-// • Efficient mutation observation with Set collections
-// • Memory leak prevention with cleanup handlers
-// • Staggered processing for large batches
-// • Reduced setTimeout calls and better timing coordination
+// • LAZY PROCESSING: Only processes visible items
+// • Intersection Observer triggers processing on scroll
+// • Dramatically reduces initial page load work
+// • Prevents UI freezing on large item counts
+// • Smart viewport detection with buffer zone
 //
 // 🎯 TOGGLE FIX:
 // • Creates hidden dummy tabs to reset Webflow's internal state
 // • Enables perfect toggle behavior: click → open, click → close, click → open
 // • No more need to click other tabs to reset state
 
-console.log('🚀 Webflow Component Fix Loading...');
+console.log('🚀 Webflow Component Fix with Lazy Processing Loading...');
 
 // Debounce function
 function debounce(func, wait) {
@@ -317,70 +315,169 @@ function updateLazyLoad() {
   }
 }
 
-// Enhanced processing with dummy tab creation for toggle fix
-function processItems(items) {
-  if (!items?.length) return;
-  
-  // Filter out items that don't need processing to avoid unnecessary work
-  const itemsToProcess = items.filter(item => {
-    const tabs = item.querySelectorAll('[data-w-tab]');
-    return tabs.length > 0; // Only process items that actually have tabs
+// Lazy Intersection Observer for processing items only when visible
+let itemProcessingObserver = null;
+let processedItems = new WeakSet(); // Track which items have been processed
+
+function initLazyProcessing() {
+  // Create intersection observer with buffer zone
+  itemProcessingObserver = new IntersectionObserver((entries) => {
+    const itemsToProcess = [];
+    
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const item = entry.target;
+        
+        // Only process if not already processed
+        if (!processedItems.has(item)) {
+          itemsToProcess.push(item);
+          processedItems.add(item);
+          
+          // Stop observing this item since it's now processed
+          itemProcessingObserver.unobserve(item);
+          
+          if (window.location.search.includes('debug=tabs')) {
+            console.log(`👁️ Item came into view: ${item.getAttribute('itemslug')}`);
+          }
+        }
+      }
+    });
+    
+    if (itemsToProcess.length > 0) {
+      // Process items that just became visible
+      requestIdleCallback(() => {
+        processItemsLazily(itemsToProcess);
+      }, { timeout: 1000 });
+    }
+  }, {
+    // Process items when they're 200px from entering viewport
+    rootMargin: '200px 0px 200px 0px',
+    threshold: 0.1
   });
   
-  if (itemsToProcess.length === 0) {
-    updateLazyLoad();
-    return;
+  if (window.location.search.includes('debug=tabs')) {
+    console.log('👁️ Lazy processing observer initialized');
+  }
+}
+
+// Queue new items for lazy processing instead of immediate processing
+function queueItemForLazyProcessing(item) {
+  // Quick check - does this item actually need processing?
+  const tabs = item.querySelectorAll('[data-w-tab]');
+  if (tabs.length === 0) {
+    return; // No tabs, no processing needed
   }
   
-  // Process items with optimized timing
-  itemsToProcess.forEach((item, itemIndex) => {
-    try {
-      const itemSlug = getItemSlug(item);
-      
-      // Cache tab elements to avoid repeated queries
-      const tabElements = item.querySelectorAll('[data-w-tab]');
-      const slugPattern = itemSlug.replace(/[^a-zA-Z0-9-]/g, '-');
-      
-      // Step 1: Create dummy tab for toggle reset
-      createDummyTab(item);
-      
-      // Step 2: Fix tabs and lightboxes immediately
-      fixTabSystemEnhanced(item, itemSlug);
-      fixLightboxEnhanced(item, itemSlug);
-      
-      // Step 3: Intelligent verification and toggle addition
-      setTimeout(() => {
-        const workingTabs = Array.from(tabElements).filter(tab => 
-          tab.id && tab.id.includes(slugPattern)
-        ).length;
+  // Mark item for observation
+  if (itemProcessingObserver && !processedItems.has(item)) {
+    itemProcessingObserver.observe(item);
+    
+    if (window.location.search.includes('debug=tabs')) {
+      console.log(`📋 Queued for lazy processing: ${item.getAttribute('itemslug')}`);
+    }
+  }
+}
+
+// Lightweight immediate processing for above-the-fold items
+function processItemsLazily(items) {
+  if (!items?.length) return;
+  
+  if (window.location.search.includes('debug=tabs')) {
+    console.log(`⚡ Lazy processing ${items.length} visible items`);
+  }
+  
+  // Use requestAnimationFrame to avoid blocking the main thread
+  const processInChunks = (itemsToProcess, chunkSize = 1) => {
+    if (itemsToProcess.length === 0) {
+      updateLazyLoad();
+      return;
+    }
+    
+    const chunk = itemsToProcess.splice(0, chunkSize);
+    
+    chunk.forEach(item => {
+      try {
+        const itemSlug = getItemSlug(item);
         
-        if (workingTabs === tabElements.length) {
-          // All tabs working - add toggle
+        // Step 1: Create dummy tab for toggle reset
+        createDummyTab(item);
+        
+        // Step 2: Fix tabs and lightboxes
+        fixTabSystemEnhanced(item, itemSlug);
+        fixLightboxEnhanced(item, itemSlug);
+        
+        // Step 3: Add toggle functionality after a brief delay
+        setTimeout(() => {
           addToggleFunctionality(item);
           
           if (window.location.search.includes('debug=tabs')) {
-            console.log(`✅ ${itemSlug}: Ready (${workingTabs}/${tabElements.length})`);
+            console.log(`✅ Lazy processed: ${itemSlug}`);
           }
-        } else if (workingTabs < tabElements.length && workingTabs > 0) {
-          // Partial fix - retry once
-          if (window.location.search.includes('debug=tabs')) {
-            console.log(`⚠️ ${itemSlug}: Partial (${workingTabs}/${tabElements.length}), retrying`);
-          }
-          
-          setTimeout(() => {
-            fixTabSystemEnhanced(item, itemSlug);
-            setTimeout(() => addToggleFunctionality(item), 100);
-          }, 200);
-        }
-      }, 50 + (itemIndex * 10)); // Stagger slightly for large batches
-      
-    } catch (error) {
-      console.error('Item processing error:', error);
+        }, 50);
+        
+      } catch (error) {
+        console.error('Lazy processing error:', error);
+      }
+    });
+    
+    // Process next chunk on next animation frame
+    if (itemsToProcess.length > 0) {
+      requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
+    } else {
+      // All items processed, update lazy load
+      setTimeout(updateLazyLoad, 100);
+    }
+  };
+  
+  // Start processing in small chunks
+  processInChunks([...items]);
+}
+
+// Process initial above-the-fold items immediately (but still efficiently)
+function processInitialVisibleItems() {
+  const allItems = document.querySelectorAll('[itemslug]');
+  const visibleItems = [];
+  const itemsToQueue = [];
+  
+  allItems.forEach(item => {
+    const rect = item.getBoundingClientRect();
+    const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+    
+    if (isVisible) {
+      // Process immediately if visible
+      visibleItems.push(item);
+      processedItems.add(item);
+    } else {
+      // Queue for lazy processing
+      itemsToQueue.push(item);
     }
   });
   
-  // Single lazy load update for the entire batch
-  setTimeout(updateLazyLoad, 100);
+  if (window.location.search.includes('debug=tabs')) {
+    console.log(`👁️ Found ${visibleItems.length} visible items, ${itemsToQueue.length} queued for lazy processing`);
+  }
+  
+  // Process visible items immediately (but efficiently)
+  if (visibleItems.length > 0) {
+    processItemsLazily(visibleItems);
+  }
+  
+  // Queue non-visible items for lazy processing
+  itemsToQueue.forEach(item => {
+    queueItemForLazyProcessing(item);
+  });
+  
+  // Add toggle to items that already work
+  setTimeout(() => {
+    allItems.forEach(item => {
+      const tabs = item.querySelectorAll('[data-w-tab]');
+      const workingTabs = Array.from(tabs).filter(tab => tab.id).length;
+      
+      if (tabs.length > 0 && workingTabs === tabs.length && !item.hasAttribute('data-toggle-processed')) {
+        addToggleFunctionality(item);
+      }
+    });
+  }, 500);
 }
 
 // Create hidden dummy tab for Webflow state reset
@@ -452,52 +549,40 @@ function createDummyTab(item) {
   }
 }
 
-// Optimized observer with better batching and throttling
+// Optimized observer with lazy processing queue
 document.addEventListener('DOMContentLoaded', function() {
   initLazyLoad();
+  initLazyProcessing();
   
-  let pendingItems = new Set(); // Use Set to avoid duplicates
-  let processingTimeout = null;
-  let isProcessing = false;
+  let pendingItems = new Set();
+  let queueTimeout = null;
   
-  // Optimized processing scheduler
-  const scheduleProcessing = () => {
-    if (processingTimeout) return; // Already scheduled
+  // Lightweight queuing for new items
+  const scheduleItemQueuing = () => {
+    if (queueTimeout) return;
     
-    processingTimeout = setTimeout(() => {
-      if (isProcessing || pendingItems.size === 0) {
-        processingTimeout = null;
-        return;
-      }
-      
-      isProcessing = true;
-      const itemsToProcess = Array.from(pendingItems);
-      pendingItems.clear();
-      
-      if (window.location.search.includes('debug=tabs')) {
-        console.log(`📦 Processing batch of ${itemsToProcess.length} items`);
-      }
-      
-      processItems(itemsToProcess);
-      
-      // Reset processing flag after completion
-      setTimeout(() => {
-        isProcessing = false;
-        processingTimeout = null;
+    queueTimeout = setTimeout(() => {
+      if (pendingItems.size > 0) {
+        const itemsToQueue = Array.from(pendingItems);
+        pendingItems.clear();
         
-        // Check if more items were added while processing
-        if (pendingItems.size > 0) {
-          scheduleProcessing();
+        if (window.location.search.includes('debug=tabs')) {
+          console.log(`📋 Queuing ${itemsToQueue.length} new items for lazy processing`);
         }
-      }, 50);
-    }, 200); // Optimized debounce time
+        
+        // Queue items for lazy processing instead of immediate processing
+        itemsToQueue.forEach(item => {
+          queueItemForLazyProcessing(item);
+        });
+      }
+      queueTimeout = null;
+    }, 100); // Very short delay just to batch multiple rapid additions
   };
   
-  // Optimized mutation observer
+  // Lightweight mutation observer
   const observer = new MutationObserver((mutations) => {
     let hasNewItems = false;
     
-    // Batch process all mutations
     for (const mutation of mutations) {
       if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
       
@@ -510,10 +595,10 @@ document.addEventListener('DOMContentLoaded', function() {
           hasNewItems = true;
           
           if (window.location.search.includes('debug=tabs')) {
-            console.log(`➕ Queued: ${node.getAttribute('itemslug')}`);
+            console.log(`➕ New item detected: ${node.getAttribute('itemslug')}`);
           }
         }
-        // Check for child items (more efficient query)
+        // Check for child items
         else if (node.querySelector) {
           const childItems = node.querySelectorAll('[itemslug]');
           for (const item of childItems) {
@@ -521,7 +606,7 @@ document.addEventListener('DOMContentLoaded', function() {
             hasNewItems = true;
             
             if (window.location.search.includes('debug=tabs')) {
-              console.log(`➕ Child queued: ${item.getAttribute('itemslug')}`);
+              console.log(`➕ New child item detected: ${item.getAttribute('itemslug')}`);
             }
           }
         }
@@ -529,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (hasNewItems) {
-      scheduleProcessing();
+      scheduleItemQueuing();
     }
   });
   
@@ -538,40 +623,19 @@ document.addEventListener('DOMContentLoaded', function() {
     subtree: true
   });
   
-  // Optimized initial processing
+  // Process initial items with lazy approach
   setTimeout(() => {
-    const existingItems = document.querySelectorAll('[itemslug]');
-    
-    // Filter items that actually need fixing
-    const itemsNeedingFix = Array.from(existingItems).filter(item => {
-      const tabs = item.querySelectorAll('[data-w-tab]');
-      return tabs.length > 0 && !tabs[0].id;
-    });
-    
-    if (itemsNeedingFix.length > 0) {
-      if (window.location.search.includes('debug=tabs')) {
-        console.log(`🔧 Processing ${itemsNeedingFix.length} existing items that need fixing`);
-      }
-      processItems(itemsNeedingFix);
-    }
-    
-    // Batch add toggle functionality to existing working items
-    const workingItems = Array.from(existingItems).filter(item => {
-      const tabs = item.querySelectorAll('[data-w-tab]');
-      return tabs.length > 0 && tabs[0].id;
-    });
-    
-    workingItems.forEach((item, index) => {
-      setTimeout(() => addToggleFunctionality(item), index * 10); // Stagger for performance
-    });
-    
+    processInitialVisibleItems();
     updateLazyLoad();
   }, 500);
   
-  // Cleanup on page unload to prevent memory leaks
+  // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
     observer.disconnect();
-    if (processingTimeout) clearTimeout(processingTimeout);
+    if (itemProcessingObserver) {
+      itemProcessingObserver.disconnect();
+    }
+    if (queueTimeout) clearTimeout(queueTimeout);
   });
 });
 
