@@ -2247,7 +2247,9 @@ function setupAreaKeyControls() {
     }
     
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
-      eventManager.add(wrapperDiv, 'mouseenter', () => {
+      // FIXED: Add hover listeners directly to DOM element (bypass eventManager)
+      const mouseEnterHandler = () => {
+        console.log(`🎯 Hover ENTER on ${control.keyId}-wrap`);
         if (control.type === 'district') {
           if (mapLayers.hasLayer('district-points')) {
             map.setPaintProperty('district-points', 'text-halo-color', '#8f4500');
@@ -2272,9 +2274,10 @@ function setupAreaKeyControls() {
             map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
           }
         }
-      });
+      };
       
-      eventManager.add(wrapperDiv, 'mouseleave', () => {
+      const mouseLeaveHandler = () => {
+        console.log(`🎯 Hover LEAVE on ${control.keyId}-wrap`);
         if (control.type === 'district') {
           if (mapLayers.hasLayer('district-points')) {
             map.setPaintProperty('district-points', 'text-halo-color', '#6e3500');
@@ -2299,9 +2302,14 @@ function setupAreaKeyControls() {
             map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
           }
         }
-      });
+      };
+      
+      // Add hover listeners directly to DOM element instead of using eventManager
+      wrapperDiv.addEventListener('mouseenter', mouseEnterHandler);
+      wrapperDiv.addEventListener('mouseleave', mouseLeaveHandler);
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      console.log(`✅ DIRECT hover listeners added to: ${control.wrapId}`);
     }
     
     markerSetupCount++;
