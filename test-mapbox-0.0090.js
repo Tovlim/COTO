@@ -2181,76 +2181,53 @@ function setupAreaKeyControls() {
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
-      // Add immediate click debugging
-      const clickHandler = (e) => {
-        console.log(`🔥 MARKER CONTROL CLICKED: ${control.keyId}, checked: ${e.target.checked}`);
-        
-        // Get fresh reference to checkbox in case DOM changed
-        const freshCheckbox = document.getElementById(control.keyId);
-        if (!freshCheckbox) {
-          console.error(`Fresh checkbox not found: ${control.keyId}`);
-          return;
-        }
-        
-        const visibility = freshCheckbox.checked ? 'none' : 'visible';
-        console.log(`Setting visibility to: ${visibility}`);
-        
-        if (control.type === 'district') {
-          console.log('Processing district control...');
-          // Handle district markers and boundaries
-          let processedLayers = 0;
-          control.layers.forEach(layerId => {
-            if (mapLayers.hasLayer(layerId)) {
-              map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`✅ District layer visibility set: ${layerId} -> ${visibility}`);
-              processedLayers++;
-            } else {
-              console.warn(`❌ District layer not found: ${layerId}`);
-            }
-          });
+      // FIXED: Simple event handler like the working area controls
+      const simpleHandler = () => {
+        console.log(`🔥 MARKER CONTROL CLICKED: ${control.keyId}`);
+        try {
+          const visibility = checkbox.checked ? 'none' : 'visible';
+          console.log(`Setting visibility to: ${visibility}`);
           
-          // Handle all district boundaries dynamically
-          const allLayers = map.getStyle().layers;
-          let boundaryCount = 0;
-          allLayers.forEach(layer => {
-            if (layer.id.includes('-fill') || layer.id.includes('-border')) {
-              map.setLayoutProperty(layer.id, 'visibility', visibility);
-              boundaryCount++;
-            }
-          });
-          console.log(`✅ District boundaries toggled: ${boundaryCount} layers -> ${visibility}`);
-          console.log(`District control processed: ${processedLayers} marker layers, ${boundaryCount} boundary layers`);
-          
-        } else if (control.type === 'locality') {
-          console.log('Processing locality control...');
-          // Handle locality markers
-          let processedLayers = 0;
-          control.layers.forEach(layerId => {
-            if (mapLayers.hasLayer(layerId)) {
-              map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`✅ Locality layer visibility set: ${layerId} -> ${visibility}`);
-              processedLayers++;
-            } else {
-              console.warn(`❌ Locality layer not found: ${layerId}`);
-            }
-          });
-          console.log(`Locality control processed: ${processedLayers} layers`);
+          if (control.type === 'district') {
+            console.log('Processing district control...');
+            // Handle district markers
+            control.layers.forEach(layerId => {
+              if (mapLayers.hasLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+                console.log(`✅ District layer: ${layerId} -> ${visibility}`);
+              }
+            });
+            
+            // Handle district boundaries
+            const allLayers = map.getStyle().layers;
+            let boundaryCount = 0;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-fill') || layer.id.includes('-border')) {
+                map.setLayoutProperty(layer.id, 'visibility', visibility);
+                boundaryCount++;
+              }
+            });
+            console.log(`✅ District boundaries: ${boundaryCount} layers -> ${visibility}`);
+            
+          } else if (control.type === 'locality') {
+            console.log('Processing locality control...');
+            // Handle locality markers
+            control.layers.forEach(layerId => {
+              if (mapLayers.hasLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+                console.log(`✅ Locality layer: ${layerId} -> ${visibility}`);
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`Error in ${control.keyId} handler:`, error);
         }
       };
       
-      // Test if the checkbox is actually clickable
-      eventManager.add(checkbox, 'change', clickHandler);
-      
-      // Also add direct click listener as backup
-      eventManager.add(checkbox, 'click', (e) => {
-        console.log(`🔥 DIRECT CLICK detected on ${control.keyId}`);
-      });
-      
+      // Use the same event type as working area controls
+      eventManager.add(checkbox, 'change', simpleHandler);
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Marker control listener added: ${control.keyId}`);
-      
-      // Test immediate functionality
-      console.log(`Testing ${control.keyId}: clickable=${!checkbox.disabled}, visible=${checkbox.offsetParent !== null}`);
+      console.log(`✅ Marker control listener added: ${control.keyId}`);
     }
     
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
