@@ -2131,18 +2131,31 @@ function setupAreaKeyControls() {
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
-      eventManager.add(checkbox, 'change', () => {
-        console.log(`Marker control toggled: ${control.keyId}, checked: ${checkbox.checked}`);
-        const visibility = checkbox.checked ? 'none' : 'visible';
+      // Add immediate click debugging
+      const clickHandler = (e) => {
+        console.log(`🔥 MARKER CONTROL CLICKED: ${control.keyId}, checked: ${e.target.checked}`);
+        
+        // Get fresh reference to checkbox in case DOM changed
+        const freshCheckbox = document.getElementById(control.keyId);
+        if (!freshCheckbox) {
+          console.error(`Fresh checkbox not found: ${control.keyId}`);
+          return;
+        }
+        
+        const visibility = freshCheckbox.checked ? 'none' : 'visible';
+        console.log(`Setting visibility to: ${visibility}`);
         
         if (control.type === 'district') {
+          console.log('Processing district control...');
           // Handle district markers and boundaries
+          let processedLayers = 0;
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`District layer visibility set: ${layerId} -> ${visibility}`);
+              console.log(`✅ District layer visibility set: ${layerId} -> ${visibility}`);
+              processedLayers++;
             } else {
-              console.warn(`District layer not found: ${layerId}`);
+              console.warn(`❌ District layer not found: ${layerId}`);
             }
           });
           
@@ -2155,22 +2168,39 @@ function setupAreaKeyControls() {
               boundaryCount++;
             }
           });
-          console.log(`District boundaries toggled: ${boundaryCount} layers -> ${visibility}`);
+          console.log(`✅ District boundaries toggled: ${boundaryCount} layers -> ${visibility}`);
+          console.log(`District control processed: ${processedLayers} marker layers, ${boundaryCount} boundary layers`);
           
         } else if (control.type === 'locality') {
+          console.log('Processing locality control...');
           // Handle locality markers
+          let processedLayers = 0;
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`Locality layer visibility set: ${layerId} -> ${visibility}`);
+              console.log(`✅ Locality layer visibility set: ${layerId} -> ${visibility}`);
+              processedLayers++;
             } else {
-              console.warn(`Locality layer not found: ${layerId}`);
+              console.warn(`❌ Locality layer not found: ${layerId}`);
             }
           });
+          console.log(`Locality control processed: ${processedLayers} layers`);
         }
+      };
+      
+      // Test if the checkbox is actually clickable
+      eventManager.add(checkbox, 'change', clickHandler);
+      
+      // Also add direct click listener as backup
+      eventManager.add(checkbox, 'click', (e) => {
+        console.log(`🔥 DIRECT CLICK detected on ${control.keyId}`);
       });
+      
       checkbox.dataset.mapboxListenerAdded = 'true';
       console.log(`Marker control listener added: ${control.keyId}`);
+      
+      // Test immediate functionality
+      console.log(`Testing ${control.keyId}: clickable=${!checkbox.disabled}, visible=${checkbox.offsetParent !== null}`);
     }
     
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
