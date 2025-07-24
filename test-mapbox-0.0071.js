@@ -1875,11 +1875,6 @@ function loadCombinedGeoData() {
           const name = areaFeature.properties.name;
           addAreaOverlayToMap(name, areaFeature);
         });
-        
-        // FIXED: Ensure proper area layer ordering after all areas are added
-        setTimeout(() => {
-          ensureProperAreaLayerOrder();
-        }, 100);
       });
       
       // Update district markers after processing
@@ -1989,34 +1984,6 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   }
 }
 
-// FIXED: Ensure proper area layer ordering (Firing Zones on top)
-function ensureProperAreaLayerOrder() {
-  const desiredOrder = [
-    'area-a-layer',
-    'area-b-layer', 
-    'area-c-layer',
-    'firing-zones-layer' // This should be on top of all other areas
-  ];
-  
-  // Move layers in reverse order to ensure proper stacking
-  for (let i = desiredOrder.length - 1; i >= 0; i--) {
-    const layerId = desiredOrder[i];
-    if (mapLayers.hasLayer(layerId)) {
-      try {
-        // Move to just below locality markers
-        if (mapLayers.hasLayer('locality-clusters')) {
-          map.moveLayer(layerId, 'locality-clusters');
-        }
-        console.log(`Moved ${layerId} to correct position`);
-      } catch (error) {
-        console.warn(`Failed to move layer ${layerId}:`, error);
-      }
-    }
-  }
-  
-  console.log('Area layer ordering completed - Firing Zones should be on top');
-}
-
 // OPTIMIZED: Area overlay addition with batching
 function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
@@ -2048,7 +2015,7 @@ function addAreaOverlayToMap(name, areaFeature) {
     }
   });
   
-  // Add layer with standard positioning (ordering handled separately)
+  // Add layer
   const beforeId = 'locality-clusters';
   map.addLayer({
     id: config.layerId,
