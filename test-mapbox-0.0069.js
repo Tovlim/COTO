@@ -2015,19 +2015,42 @@ function addAreaOverlayToMap(name, areaFeature) {
     }
   });
   
-  // Add layer
-  const beforeId = 'locality-clusters';
-  map.addLayer({
-    id: config.layerId,
-    type: 'fill',
-    source: config.sourceId,
-    layout: { 'visibility': 'visible' },
-    paint: {
-      'fill-color': config.color,
-      'fill-opacity': 0.5,
-      'fill-outline-color': config.color
+  // Add layer with proper z-index positioning
+  let beforeId = 'locality-clusters';
+  
+  // SPECIAL: Place firing zones above all other areas (but below markers)
+  if (name === 'Firing Zones') {
+    // Add without beforeId first (puts it on top), then move it to correct position
+    map.addLayer({
+      id: config.layerId,
+      type: 'fill',
+      source: config.sourceId,
+      layout: { 'visibility': 'visible' },
+      paint: {
+        'fill-color': config.color,
+        'fill-opacity': 0.5,
+        'fill-outline-color': config.color
+      }
+    });
+    
+    // Move it to be above other areas but below markers
+    if (mapLayers.hasLayer('locality-clusters')) {
+      map.moveLayer(config.layerId, 'locality-clusters');
     }
-  }, beforeId);
+  } else {
+    // Regular areas go in standard position
+    map.addLayer({
+      id: config.layerId,
+      type: 'fill',
+      source: config.sourceId,
+      layout: { 'visibility': 'visible' },
+      paint: {
+        'fill-color': config.color,
+        'fill-opacity': 0.5,
+        'fill-outline-color': config.color
+      }
+    }, beforeId);
+  }
   
   // Update cache
   mapLayers.sourceCache.set(config.sourceId, true);
