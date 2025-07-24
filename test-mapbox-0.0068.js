@@ -1837,7 +1837,7 @@ function loadCombinedGeoData() {
   const startTime = performance.now();
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.005.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
