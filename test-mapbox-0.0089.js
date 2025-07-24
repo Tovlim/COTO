@@ -2067,6 +2067,56 @@ function setupAreaKeyControls() {
     }
   ];
   
+  // DEBUG: Let's check what elements actually exist
+  console.log('🔍 DEBUGGING: Checking for marker control elements...');
+  
+  // Check for district controls
+  const districtCheckbox = document.getElementById('district-toggle-key');
+  const districtWrapper = document.getElementById('district-toggle-key-wrap');
+  console.log('District elements:', {
+    checkbox: !!districtCheckbox,
+    checkboxType: districtCheckbox?.type,
+    checkboxDisabled: districtCheckbox?.disabled,
+    checkboxStyle: districtCheckbox ? getComputedStyle(districtCheckbox).display : 'not found',
+    wrapper: !!districtWrapper,
+    wrapperStyle: districtWrapper ? getComputedStyle(districtWrapper).display : 'not found'
+  });
+  
+  // Check for locality controls  
+  const localityCheckbox = document.getElementById('locality-toggle-key');
+  const localityWrapper = document.getElementById('locality-toggle-key-wrap');
+  console.log('Locality elements:', {
+    checkbox: !!localityCheckbox,
+    checkboxType: localityCheckbox?.type,
+    checkboxDisabled: localityCheckbox?.disabled,
+    checkboxStyle: localityCheckbox ? getComputedStyle(localityCheckbox).display : 'not found',
+    wrapper: !!localityWrapper,
+    wrapperStyle: localityWrapper ? getComputedStyle(localityWrapper).display : 'not found'
+  });
+  
+  // Check if any elements exist with similar IDs
+  const allElements = document.querySelectorAll('[id*="district"], [id*="locality"]');
+  console.log('All elements with district/locality in ID:', Array.from(allElements).map(el => ({
+    id: el.id,
+    tagName: el.tagName,
+    type: el.type,
+    className: el.className
+  })));
+  
+  // Try manual event test
+  if (districtCheckbox) {
+    console.log('🧪 Testing manual district checkbox click...');
+    const testClick = () => {
+      console.log('Manual test click fired!');
+    };
+    districtCheckbox.addEventListener('click', testClick);
+    // Try to programmatically click it
+    setTimeout(() => {
+      console.log('Attempting programmatic click...');
+      districtCheckbox.click();
+    }, 1000);
+  }
+  
   let areaSetupCount = 0;
   let markerSetupCount = 0;
   
@@ -2116,7 +2166,7 @@ function setupAreaKeyControls() {
     areaSetupCount++;
   });
   
-  // Setup marker controls - HANDLE WEBFLOW INTERACTIONS
+  // Setup marker controls - ALWAYS try to set these up regardless of layers
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
     const wrapperDiv = $id(control.wrapId);
@@ -2130,23 +2180,19 @@ function setupAreaKeyControls() {
     
     checkbox.checked = false;
     
-    // FIXED: Listen to the wrapper div instead of hidden checkbox
-    if (wrapperDiv && !wrapperDiv.dataset.mapboxClickAdded) {
-      console.log(`Adding click listener to wrapper: ${control.wrapId}`);
-      
-      const wrapperClickHandler = (e) => {
-        // Prevent Webflow interactions from interfering
-        e.preventDefault();
-        e.stopPropagation();
+    if (!checkbox.dataset.mapboxListenerAdded) {
+      // Add immediate click debugging
+      const clickHandler = (e) => {
+        console.log(`🔥 MARKER CONTROL CLICKED: ${control.keyId}, checked: ${e.target.checked}`);
         
-        console.log(`🔥 WRAPPER CLICKED: ${control.wrapId}`);
+        // Get fresh reference to checkbox in case DOM changed
+        const freshCheckbox = document.getElementById(control.keyId);
+        if (!freshCheckbox) {
+          console.error(`Fresh checkbox not found: ${control.keyId}`);
+          return;
+        }
         
-        // Manually toggle the checkbox
-        checkbox.checked = !checkbox.checked;
-        console.log(`Checkbox toggled: ${control.keyId}, checked: ${checkbox.checked}`);
-        
-        // Trigger our visibility logic
-        const visibility = checkbox.checked ? 'none' : 'visible';
+        const visibility = freshCheckbox.checked ? 'none' : 'visible';
         console.log(`Setting visibility to: ${visibility}`);
         
         if (control.type === 'district') {
@@ -2190,50 +2236,21 @@ function setupAreaKeyControls() {
           });
           console.log(`Locality control processed: ${processedLayers} layers`);
         }
-        
-        // Dispatch change event to trigger any other listeners
-        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       };
       
-      // Add click listener to the wrapper
-      eventManager.add(wrapperDiv, 'click', wrapperClickHandler);
-      wrapperDiv.dataset.mapboxClickAdded = 'true';
+      // Test if the checkbox is actually clickable
+      eventManager.add(checkbox, 'change', clickHandler);
       
-      console.log(`✅ Wrapper click listener added: ${control.wrapId}`);
-    }
-    
-    // ALSO keep the original checkbox listener as backup
-    if (!checkbox.dataset.mapboxListenerAdded) {
-      const checkboxHandler = (e) => {
-        console.log(`🔥 CHECKBOX CHANGE: ${control.keyId}, checked: ${e.target.checked}`);
-        // Same logic as above but triggered by checkbox directly
-        const visibility = e.target.checked ? 'none' : 'visible';
-        
-        if (control.type === 'district') {
-          control.layers.forEach(layerId => {
-            if (mapLayers.hasLayer(layerId)) {
-              map.setLayoutProperty(layerId, 'visibility', visibility);
-            }
-          });
-          
-          const allLayers = map.getStyle().layers;
-          allLayers.forEach(layer => {
-            if (layer.id.includes('-fill') || layer.id.includes('-border')) {
-              map.setLayoutProperty(layer.id, 'visibility', visibility);
-            }
-          });
-        } else if (control.type === 'locality') {
-          control.layers.forEach(layerId => {
-            if (mapLayers.hasLayer(layerId)) {
-              map.setLayoutProperty(layerId, 'visibility', visibility);
-            }
-          });
-        }
-      };
+      // Also add direct click listener as backup
+      eventManager.add(checkbox, 'click', (e) => {
+        console.log(`🔥 DIRECT CLICK detected on ${control.keyId}`);
+      });
       
-      eventManager.add(checkbox, 'change', checkboxHandler);
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Checkbox change listener added: ${control.keyId}`);
+      console.log(`Marker control listener added: ${control.keyId}`);
+      
+      // Test immediate functionality
+      console.log(`Testing ${control.keyId}: clickable=${!checkbox.disabled}, visible=${checkbox.offsetParent !== null}`);
     }
     
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
