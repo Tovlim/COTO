@@ -1837,7 +1837,7 @@ function loadCombinedGeoData() {
   const startTime = performance.now();
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.003.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1927,7 +1927,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   });
   
   // Get layer positioning
-  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
+  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
@@ -1989,8 +1989,7 @@ function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
-    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
-    'Firing Zones': { color: '#af4256', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
+    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' }
   };
   
   const config = areaConfig[name];
@@ -2041,8 +2040,7 @@ function setupAreaKeyControls() {
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
     {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
-    {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
+    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
   ];
   
   const markerControls = [
@@ -2062,8 +2060,7 @@ function setupAreaKeyControls() {
     }
   ];
   
-  let areaSetupCount = 0;
-  let markerSetupCount = 0;
+  let setupCount = 0;
   
   // Setup area controls
   areaControls.forEach(control => {
@@ -2095,17 +2092,14 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
-      areaSetupCount++;
+      setupCount++;
     }
   });
   
   // Setup marker controls
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    if (!checkbox) {
-      console.log(`Marker control checkbox not found: ${control.keyId}`);
-      return;
-    }
+    if (!checkbox) return;
     
     checkbox.checked = false;
     
@@ -2138,7 +2132,6 @@ function setupAreaKeyControls() {
         }
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Marker control setup: ${control.keyId}`);
     }
     
     const wrapperDiv = $id(control.wrapId);
@@ -2192,26 +2185,20 @@ function setupAreaKeyControls() {
             map.setPaintProperty('locality-clusters', 'text-halo-color', '#7e7800');
           }
           if (mapLayers.hasLayer('locality-points')) {
-            map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
+            map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
           }
         }
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
-      markerSetupCount++;
+      setupCount++;
     }
   });
   
-  // FIXED: Better completion logic
-  const expectedAreaControls = areaControls.length;
-  const expectedMarkerControls = markerControls.length;
-  
-  console.log(`Area controls setup: ${areaSetupCount}/${expectedAreaControls}, Marker controls: ${markerSetupCount}/${expectedMarkerControls}`);
-  
-  // Mark as complete if we got most controls (allow some tolerance for missing elements)
-  if (areaSetupCount >= expectedAreaControls - 1 && markerSetupCount >= expectedMarkerControls - 1) {
+  const totalControls = areaControls.length + markerControls.length;
+  if (setupCount >= totalControls - 2) { // Allow some tolerance
     state.flags.areaControlsSetup = true;
-    console.log('Area and marker controls setup completed');
+    console.log('Area controls setup completed');
   }
 }
 
@@ -2398,11 +2385,67 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// SIMPLIFIED: Only use hiddentagparent method for filtering detection
+// FIXED: Enhanced filtering detection with multiple trigger points
 const checkAndToggleFilteredElements = () => {
-  // Check for hiddentagparent (Finsweet official filtering indicator)
+  // Multiple ways to detect if filtering is active
+  let shouldShow = false;
+  
+  // Method 1: Check for hiddentagparent (Finsweet indicator)
   const hiddenTagParent = document.getElementById('hiddentagparent');
-  const shouldShow = !!hiddenTagParent;
+  if (hiddenTagParent) {
+    shouldShow = true;
+    console.log('Filtering detected: hiddentagparent found');
+  }
+  
+  // Method 2: Check if any checkboxes are selected
+  if (!shouldShow) {
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
+    if (checkedBoxes.length > 0) {
+      shouldShow = true;
+      console.log(`Filtering detected: ${checkedBoxes.length} checkboxes selected`);
+    }
+  }
+  
+  // Method 3: Check URL parameters for filtering
+  if (!shouldShow) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasFilterParams = Array.from(urlParams.keys()).some(key => 
+      key.includes('district') || key.includes('locality') || key.includes('filter')
+    );
+    if (hasFilterParams) {
+      shouldShow = true;
+      console.log('Filtering detected: URL parameters found');
+    }
+  }
+  
+  // Method 4: Check for visible vs total items in filter lists
+  if (!shouldShow) {
+    const lists = getAvailableFilterLists();
+    for (const listId of lists) {
+      const container = document.getElementById(listId);
+      if (container) {
+        const allItems = container.querySelectorAll('.data-places-names-filter');
+        const visibleItems = Array.from(allItems).filter(item => {
+          let current = item;
+          while (current && current !== document.body) {
+            const style = getComputedStyle(current);
+            if (style.display === 'none' || style.visibility === 'hidden') {
+              return false;
+            }
+            current = current.parentElement;
+          }
+          return true;
+        });
+        
+        if (allItems.length > 0 && visibleItems.length < allItems.length && visibleItems.length > 0) {
+          shouldShow = true;
+          console.log(`Filtering detected: ${visibleItems.length}/${allItems.length} items visible in ${listId}`);
+          break;
+        }
+      }
+    }
+  }
   
   toggleShowWhenFilteredElements(shouldShow);
   return shouldShow;
