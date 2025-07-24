@@ -2034,14 +2034,9 @@ function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.layerCache.set(config.layerId, true);
 }
 
-// FIXED: Area key controls with proper debugging and logic
+// OPTIMIZED: Area key controls with better performance
 function setupAreaKeyControls() {
-  if (state.flags.areaControlsSetup) {
-    console.log('Area controls already setup, skipping...');
-    return;
-  }
-  
-  console.log('Setting up area and marker controls...');
+  if (state.flags.areaControlsSetup) return;
   
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
@@ -2067,38 +2062,26 @@ function setupAreaKeyControls() {
     }
   ];
   
-  let areaSetupCount = 0;
-  let markerSetupCount = 0;
+  let setupCount = 0;
   
   // Setup area controls
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    const wrapperDiv = $id(control.wrapId);
-    
-    console.log(`Area control ${control.keyId}: checkbox=${!!checkbox}, wrapper=${!!wrapperDiv}, layer=${mapLayers.hasLayer(control.layerId)}`);
-    
-    if (!checkbox) {
-      console.warn(`Area checkbox not found: ${control.keyId}`);
-      return;
-    }
+    if (!checkbox || !mapLayers.hasLayer(control.layerId)) return;
     
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
-        console.log(`Area control toggled: ${control.keyId}, checked: ${checkbox.checked}`);
-        if (!mapLayers.hasLayer(control.layerId)) {
-          console.warn(`Layer not found when toggling: ${control.layerId}`);
-          return;
-        }
+        if (!mapLayers.hasLayer(control.layerId)) return;
         
         const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Area control listener added: ${control.keyId}`);
     }
     
+    const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
@@ -2111,98 +2094,55 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      setupCount++;
     }
-    
-    areaSetupCount++;
   });
   
-  // Setup marker controls - ALWAYS try to set these up regardless of layers
+  // FIXED: Setup marker controls with corrected logic
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    const wrapperDiv = $id(control.wrapId);
-    
-    console.log(`Marker control ${control.keyId}: checkbox=${!!checkbox}, wrapper=${!!wrapperDiv}`);
-    
     if (!checkbox) {
-      console.warn(`Marker control checkbox not found: ${control.keyId}`);
+      console.log(`Checkbox not found: ${control.keyId}`);
       return;
     }
     
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
-      // Add immediate click debugging
-      const clickHandler = (e) => {
-        console.log(`🔥 MARKER CONTROL CLICKED: ${control.keyId}, checked: ${e.target.checked}`);
-        
-        // Get fresh reference to checkbox in case DOM changed
-        const freshCheckbox = document.getElementById(control.keyId);
-        if (!freshCheckbox) {
-          console.error(`Fresh checkbox not found: ${control.keyId}`);
-          return;
-        }
-        
-        const visibility = freshCheckbox.checked ? 'none' : 'visible';
-        console.log(`Setting visibility to: ${visibility}`);
+      eventManager.add(checkbox, 'change', () => {
+        const visibility = checkbox.checked ? 'none' : 'visible';
         
         if (control.type === 'district') {
-          console.log('Processing district control...');
+          console.log(`District toggle: ${visibility}`);
           // Handle district markers and boundaries
-          let processedLayers = 0;
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`✅ District layer visibility set: ${layerId} -> ${visibility}`);
-              processedLayers++;
-            } else {
-              console.warn(`❌ District layer not found: ${layerId}`);
             }
           });
           
           // Handle all district boundaries dynamically
           const allLayers = map.getStyle().layers;
-          let boundaryCount = 0;
           allLayers.forEach(layer => {
             if (layer.id.includes('-fill') || layer.id.includes('-border')) {
               map.setLayoutProperty(layer.id, 'visibility', visibility);
-              boundaryCount++;
             }
           });
-          console.log(`✅ District boundaries toggled: ${boundaryCount} layers -> ${visibility}`);
-          console.log(`District control processed: ${processedLayers} marker layers, ${boundaryCount} boundary layers`);
-          
         } else if (control.type === 'locality') {
-          console.log('Processing locality control...');
+          console.log(`Locality toggle: ${visibility}`);
           // Handle locality markers
-          let processedLayers = 0;
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`✅ Locality layer visibility set: ${layerId} -> ${visibility}`);
-              processedLayers++;
-            } else {
-              console.warn(`❌ Locality layer not found: ${layerId}`);
             }
           });
-          console.log(`Locality control processed: ${processedLayers} layers`);
         }
-      };
-      
-      // Test if the checkbox is actually clickable
-      eventManager.add(checkbox, 'change', clickHandler);
-      
-      // Also add direct click listener as backup
-      eventManager.add(checkbox, 'click', (e) => {
-        console.log(`🔥 DIRECT CLICK detected on ${control.keyId}`);
       });
-      
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Marker control listener added: ${control.keyId}`);
-      
-      // Test immediate functionality
-      console.log(`Testing ${control.keyId}: clickable=${!checkbox.disabled}, visible=${checkbox.offsetParent !== null}`);
+      console.log(`Added listener for ${control.keyId}`);
     }
     
+    const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (control.type === 'district') {
@@ -2259,19 +2199,20 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      setupCount++;
     }
-    
-    markerSetupCount++;
   });
   
-  console.log(`Controls setup complete - Areas: ${areaSetupCount}/${areaControls.length}, Markers: ${markerSetupCount}/${markerControls.length}`);
-  
-  // Mark as complete if we got the checkboxes set up (don't require layers to exist yet)
-  if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
+  const totalControls = areaControls.length + markerControls.length;
+  if (setupCount >= totalControls - 2) { // Allow some tolerance
     state.flags.areaControlsSetup = true;
-    console.log('Area and marker controls setup completed successfully');
-  } else {
-    console.log('Some controls missing, will retry later...');
+    console.log('Area controls setup completed');
+  }
+  
+  // FIXED: Force a retry if marker controls aren't working
+  if (!state.flags.areaControlsSetup) {
+    console.log('Marker controls setup incomplete, will retry...');
+    state.setTimer('retryAreaControls', () => setupAreaKeyControls(), 1000);
   }
 }
 
