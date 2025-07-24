@@ -1837,7 +1837,7 @@ function loadCombinedGeoData() {
   const startTime = performance.now();
   console.log('Loading combined GeoJSON data...');
   
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.003.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1927,7 +1927,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   });
   
   // Get layer positioning
-  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
+  const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer'];
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
@@ -1989,8 +1989,7 @@ function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
-    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
-    'Firing Zones': { color: '#af4256', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
+    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' }
   };
   
   const config = areaConfig[name];
@@ -2034,20 +2033,14 @@ function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.layerCache.set(config.layerId, true);
 }
 
-// FIXED: Area key controls with proper debugging and logic
+// OPTIMIZED: Area key controls with better performance
 function setupAreaKeyControls() {
-  if (state.flags.areaControlsSetup) {
-    console.log('Area controls already setup, skipping...');
-    return;
-  }
-  
-  console.log('Setting up area and marker controls...');
+  if (state.flags.areaControlsSetup) return;
   
   const areaControls = [
     {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
     {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
-    {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
+    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'}
   ];
   
   const markerControls = [
@@ -2067,38 +2060,26 @@ function setupAreaKeyControls() {
     }
   ];
   
-  let areaSetupCount = 0;
-  let markerSetupCount = 0;
+  let setupCount = 0;
   
   // Setup area controls
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    const wrapperDiv = $id(control.wrapId);
-    
-    console.log(`Area control ${control.keyId}: checkbox=${!!checkbox}, wrapper=${!!wrapperDiv}, layer=${mapLayers.hasLayer(control.layerId)}`);
-    
-    if (!checkbox) {
-      console.warn(`Area checkbox not found: ${control.keyId}`);
-      return;
-    }
+    if (!checkbox || !mapLayers.hasLayer(control.layerId)) return;
     
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
-        console.log(`Area control toggled: ${control.keyId}, checked: ${checkbox.checked}`);
-        if (!mapLayers.hasLayer(control.layerId)) {
-          console.warn(`Layer not found when toggling: ${control.layerId}`);
-          return;
-        }
+        if (!mapLayers.hasLayer(control.layerId)) return;
         
         const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Area control listener added: ${control.keyId}`);
     }
     
+    const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
@@ -2111,98 +2092,49 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      setupCount++;
     }
-    
-    areaSetupCount++;
   });
   
-  // Setup marker controls - ALWAYS try to set these up regardless of layers
+  // Setup marker controls
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
-    const wrapperDiv = $id(control.wrapId);
-    
-    console.log(`Marker control ${control.keyId}: checkbox=${!!checkbox}, wrapper=${!!wrapperDiv}`);
-    
-    if (!checkbox) {
-      console.warn(`Marker control checkbox not found: ${control.keyId}`);
-      return;
-    }
+    if (!checkbox) return;
     
     checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
-      // Add immediate click debugging
-      const clickHandler = (e) => {
-        console.log(`🔥 MARKER CONTROL CLICKED: ${control.keyId}, checked: ${e.target.checked}`);
-        
-        // Get fresh reference to checkbox in case DOM changed
-        const freshCheckbox = document.getElementById(control.keyId);
-        if (!freshCheckbox) {
-          console.error(`Fresh checkbox not found: ${control.keyId}`);
-          return;
-        }
-        
-        const visibility = freshCheckbox.checked ? 'none' : 'visible';
-        console.log(`Setting visibility to: ${visibility}`);
+      eventManager.add(checkbox, 'change', () => {
+        const visibility = checkbox.checked ? 'none' : 'visible';
         
         if (control.type === 'district') {
-          console.log('Processing district control...');
           // Handle district markers and boundaries
-          let processedLayers = 0;
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`✅ District layer visibility set: ${layerId} -> ${visibility}`);
-              processedLayers++;
-            } else {
-              console.warn(`❌ District layer not found: ${layerId}`);
             }
           });
           
           // Handle all district boundaries dynamically
           const allLayers = map.getStyle().layers;
-          let boundaryCount = 0;
           allLayers.forEach(layer => {
             if (layer.id.includes('-fill') || layer.id.includes('-border')) {
               map.setLayoutProperty(layer.id, 'visibility', visibility);
-              boundaryCount++;
             }
           });
-          console.log(`✅ District boundaries toggled: ${boundaryCount} layers -> ${visibility}`);
-          console.log(`District control processed: ${processedLayers} marker layers, ${boundaryCount} boundary layers`);
-          
         } else if (control.type === 'locality') {
-          console.log('Processing locality control...');
           // Handle locality markers
-          let processedLayers = 0;
           control.layers.forEach(layerId => {
             if (mapLayers.hasLayer(layerId)) {
               map.setLayoutProperty(layerId, 'visibility', visibility);
-              console.log(`✅ Locality layer visibility set: ${layerId} -> ${visibility}`);
-              processedLayers++;
-            } else {
-              console.warn(`❌ Locality layer not found: ${layerId}`);
             }
           });
-          console.log(`Locality control processed: ${processedLayers} layers`);
         }
-      };
-      
-      // Test if the checkbox is actually clickable
-      eventManager.add(checkbox, 'change', clickHandler);
-      
-      // Also add direct click listener as backup
-      eventManager.add(checkbox, 'click', (e) => {
-        console.log(`🔥 DIRECT CLICK detected on ${control.keyId}`);
       });
-      
       checkbox.dataset.mapboxListenerAdded = 'true';
-      console.log(`Marker control listener added: ${control.keyId}`);
-      
-      // Test immediate functionality
-      console.log(`Testing ${control.keyId}: clickable=${!checkbox.disabled}, visible=${checkbox.offsetParent !== null}`);
     }
     
+    const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
       eventManager.add(wrapperDiv, 'mouseenter', () => {
         if (control.type === 'district') {
@@ -2259,19 +2191,14 @@ function setupAreaKeyControls() {
       });
       
       wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      setupCount++;
     }
-    
-    markerSetupCount++;
   });
   
-  console.log(`Controls setup complete - Areas: ${areaSetupCount}/${areaControls.length}, Markers: ${markerSetupCount}/${markerControls.length}`);
-  
-  // Mark as complete if we got the checkboxes set up (don't require layers to exist yet)
-  if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
+  const totalControls = areaControls.length + markerControls.length;
+  if (setupCount >= totalControls - 2) { // Allow some tolerance
     state.flags.areaControlsSetup = true;
-    console.log('Area and marker controls setup completed successfully');
-  } else {
-    console.log('Some controls missing, will retry later...');
+    console.log('Area controls setup completed');
   }
 }
 
@@ -2458,118 +2385,123 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// SIMPLIFIED: Only use hiddentagparent method for filtering detection
+// FIXED: Enhanced filtering detection with multiple trigger points
 const checkAndToggleFilteredElements = () => {
-  // Check for hiddentagparent (Finsweet official filtering indicator)
+  // Multiple ways to detect if filtering is active
+  let shouldShow = false;
+  
+  // Method 1: Check for hiddentagparent (Finsweet indicator)
   const hiddenTagParent = document.getElementById('hiddentagparent');
-  const shouldShow = !!hiddenTagParent;
+  if (hiddenTagParent) {
+    shouldShow = true;
+    console.log('Filtering detected: hiddentagparent found');
+  }
+  
+  // Method 2: Check if any checkboxes are selected
+  if (!shouldShow) {
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    const checkedBoxes = Array.from(allCheckboxes).filter(cb => cb.checked);
+    if (checkedBoxes.length > 0) {
+      shouldShow = true;
+      console.log(`Filtering detected: ${checkedBoxes.length} checkboxes selected`);
+    }
+  }
+  
+  // Method 3: Check URL parameters for filtering
+  if (!shouldShow) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasFilterParams = Array.from(urlParams.keys()).some(key => 
+      key.includes('district') || key.includes('locality') || key.includes('filter')
+    );
+    if (hasFilterParams) {
+      shouldShow = true;
+      console.log('Filtering detected: URL parameters found');
+    }
+  }
+  
+  // Method 4: Check for visible vs total items in filter lists
+  if (!shouldShow) {
+    const lists = getAvailableFilterLists();
+    for (const listId of lists) {
+      const container = document.getElementById(listId);
+      if (container) {
+        const allItems = container.querySelectorAll('.data-places-names-filter');
+        const visibleItems = Array.from(allItems).filter(item => {
+          let current = item;
+          while (current && current !== document.body) {
+            const style = getComputedStyle(current);
+            if (style.display === 'none' || style.visibility === 'hidden') {
+              return false;
+            }
+            current = current.parentElement;
+          }
+          return true;
+        });
+        
+        if (allItems.length > 0 && visibleItems.length < allItems.length && visibleItems.length > 0) {
+          shouldShow = true;
+          console.log(`Filtering detected: ${visibleItems.length}/${allItems.length} items visible in ${listId}`);
+          break;
+        }
+      }
+    }
+  }
   
   toggleShowWhenFilteredElements(shouldShow);
   return shouldShow;
 };
-
-// FIXED: Enhanced tag monitoring with proper cleanup and no recursion
-const monitorTags = (() => {
-  let isSetup = false; // Flag to prevent multiple setups
-  let pollingTimer = null; // Store polling timer for cleanup
+// FIXED: Enhanced tag monitoring with multiple detection methods
+const monitorTags = () => {
+  // Initial check
+  checkAndToggleFilteredElements();
   
-  return () => {
-    // Prevent multiple setups
-    if (isSetup) {
-      console.log('Enhanced tag monitoring: Already setup, skipping');
-      return;
-    }
+  // Don't use cached query for tagparent
+  const tagParent = document.getElementById('tagparent');
+  if (tagParent) {
+    const observer = new MutationObserver(() => {
+      // Immediate check when DOM changes
+      checkAndToggleFilteredElements();
+    });
+    observer.observe(tagParent, {childList: true, subtree: true});
     
-    // Initial check
-    checkAndToggleFilteredElements();
-    
-    // Don't use cached query for tagparent
-    const tagParent = document.getElementById('tagparent');
-    if (tagParent) {
-      // Clean up existing observer if it exists
-      if (tagParent._mutationObserver) {
-        tagParent._mutationObserver.disconnect();
-        console.log('Enhanced tag monitoring: Cleaned up existing observer');
-      }
-      
-      const observer = new MutationObserver(() => {
-        // Immediate check when DOM changes
-        checkAndToggleFilteredElements();
+    // Store observer for cleanup
+    tagParent._mutationObserver = observer;
+    console.log('Enhanced tag monitoring: MutationObserver setup on tagparent');
+  } else {
+    console.log('Enhanced tag monitoring: tagparent not found, using polling fallback');
+  }
+  
+  // Additional monitoring: Watch for checkbox changes
+  const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+  allCheckboxes.forEach(checkbox => {
+    if (!checkbox.dataset.filteredElementListener) {
+      eventManager.add(checkbox, 'change', () => {
+        setTimeout(checkAndToggleFilteredElements, 50);
       });
-      observer.observe(tagParent, {childList: true, subtree: true});
-      
-      // Store observer for cleanup
-      tagParent._mutationObserver = observer;
-      console.log('Enhanced tag monitoring: MutationObserver setup on tagparent');
-    } else {
-      console.log('Enhanced tag monitoring: tagparent not found, using polling fallback');
+      checkbox.dataset.filteredElementListener = 'true';
     }
-    
-    // Additional monitoring: Watch for checkbox changes
-    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-    allCheckboxes.forEach(checkbox => {
-      if (!checkbox.dataset.filteredElementListener) {
-        eventManager.add(checkbox, 'change', () => {
-          setTimeout(checkAndToggleFilteredElements, 50);
-        });
-        checkbox.dataset.filteredElementListener = 'true';
-      }
-    });
-    
-    // Additional monitoring: Watch for form changes that might indicate filtering
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-      if (!form.dataset.filteredElementListener) {
-        eventManager.add(form, 'change', () => {
-          setTimeout(checkAndToggleFilteredElements, 100);
-        });
-        eventManager.add(form, 'input', () => {
-          setTimeout(checkAndToggleFilteredElements, 100);
-        });
-        form.dataset.filteredElementListener = 'true';
-      }
-    });
-    
-    // FIXED: Fallback polling that doesn't recursively call monitorTags
-    const startPolling = () => {
-      if (pollingTimer) {
-        clearTimeout(pollingTimer);
-      }
-      
-      pollingTimer = setTimeout(() => {
-        checkAndToggleFilteredElements(); // Just check, don't setup again
-        startPolling(); // Continue polling
-      }, 1000);
-    };
-    
-    // Start the polling
-    startPolling();
-    
-    // Mark as setup
-    isSetup = true;
-    console.log('Enhanced tag monitoring: Setup completed');
-    
-    // Cleanup function (can be called to reset)
-    const cleanup = () => {
-      if (pollingTimer) {
-        clearTimeout(pollingTimer);
-        pollingTimer = null;
-      }
-      
-      const tagParent = document.getElementById('tagparent');
-      if (tagParent && tagParent._mutationObserver) {
-        tagParent._mutationObserver.disconnect();
-        tagParent._mutationObserver = null;
-      }
-      
-      isSetup = false;
-      console.log('Enhanced tag monitoring: Cleanup completed');
-    };
-    
-    // Store cleanup function for external access
-    window.cleanupTagMonitoring = cleanup;
-  };
-})();
+  });
+  
+  // Additional monitoring: Watch for form changes that might indicate filtering
+  const forms = document.querySelectorAll('form');
+  forms.forEach(form => {
+    if (!form.dataset.filteredElementListener) {
+      eventManager.add(form, 'change', () => {
+        setTimeout(checkAndToggleFilteredElements, 100);
+      });
+      eventManager.add(form, 'input', () => {
+        setTimeout(checkAndToggleFilteredElements, 100);
+      });
+      form.dataset.filteredElementListener = 'true';
+    }
+  });
+  
+  // Fallback polling to catch anything we missed
+  state.setTimer('enhancedTagPolling', () => {
+    checkAndToggleFilteredElements();
+    state.setTimer('enhancedTagPollingRepeating', () => monitorTags(), 1000);
+  }, 1000);
+};
 
 // OPTIMIZED: Smart initialization with parallel loading
 function init() {
