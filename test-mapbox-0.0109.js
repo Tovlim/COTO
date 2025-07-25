@@ -2015,13 +2015,13 @@ function addAreaOverlayToMap(name, areaFeature) {
     }
   });
   
-  // Add layer - DEFAULT TO HIDDEN for performance
+  // Add layer
   const beforeId = 'locality-clusters';
   map.addLayer({
     id: config.layerId,
     type: 'fill',
     source: config.sourceId,
-    layout: { 'visibility': 'none' }, // CHANGED: Default to hidden
+    layout: { 'visibility': 'visible' },
     paint: {
       'fill-color': config.color,
       'fill-opacity': 0.5,
@@ -2076,8 +2076,7 @@ function setupAreaKeyControls() {
       eventManager.add(checkbox, 'change', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
         
-        // CHANGED: Checked = visible, Unchecked = hidden (more intuitive)
-        const visibility = checkbox.checked ? 'visible' : 'none';
+        const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
