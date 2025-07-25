@@ -369,7 +369,103 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// Setup checkbox functionality for all discovered lists
+// Generate locality checkboxes from cms-filter-list data
+function generateLocalityCheckboxes() {
+  const container = $id('locality-check-list');
+  if (!container) {
+    console.log('Locality checkbox container #locality-check-list not found');
+    return;
+  }
+  
+  const template = container.querySelector('#locality-checkbox');
+  if (!template) {
+    console.log('Locality checkbox template #locality-checkbox not found');
+    return;
+  }
+  
+  console.log('Generating locality checkboxes from cms-filter-list data...');
+  
+  // Extract locality names from all cms-filter-list elements
+  const lists = getAvailableFilterLists();
+  const localityNames = new Set(); // Use Set to avoid duplicates
+  
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) return;
+    
+    const nameElements = listContainer.querySelectorAll('.data-places-names-filter');
+    console.log(`Found ${nameElements.length} .data-places-names-filter elements in ${listId}`);
+    
+    nameElements.forEach(nameElement => {
+      const name = nameElement.textContent.trim();
+      if (name) {
+        localityNames.add(name);
+      }
+    });
+  });
+  
+  const uniqueLocalityNames = Array.from(localityNames).sort();
+  console.log(`Found ${uniqueLocalityNames.length} unique locality names:`, uniqueLocalityNames);
+  
+  if (uniqueLocalityNames.length === 0) {
+    console.log('No locality names found in cms-filter-list data');
+    return;
+  }
+  
+  // Clear the container (remove the template)
+  container.innerHTML = '';
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  uniqueLocalityNames.forEach(localityName => {
+    const checkbox = template.cloneNode(true);
+    
+    // Remove ID to avoid duplicates
+    checkbox.removeAttribute('id');
+    const label = checkbox.querySelector('#locality-checkbox');
+    if (label) label.removeAttribute('id');
+    
+    // Update attributes - look for input with name="locality"
+    const input = checkbox.querySelector('input[name="locality"]');
+    if (input) {
+      input.setAttribute('fs-list-value', localityName);
+    }
+    
+    // Update the label text - look for the text container
+    const span = checkbox.querySelector('.test3.w-form-label');
+    if (span) {
+      span.textContent = localityName;
+    } else {
+      // Fallback - look for any label or span that might contain text
+      const labelElement = checkbox.querySelector('label') || checkbox.querySelector('span');
+      if (labelElement) {
+        labelElement.textContent = localityName;
+      }
+    }
+    
+    fragment.appendChild(checkbox);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(checkbox);
+  });
+  
+  container.appendChild(fragment);
+  
+  console.log(`Generated ${uniqueLocalityNames.length} locality checkboxes in #locality-check-list`);
+  
+  // Re-cache checkbox filter script if it exists
+  if (window.checkboxFilterScript?.recacheElements) {
+    state.setTimer('recacheCheckboxFilter', () => {
+      window.checkboxFilterScript.recacheElements();
+    }, 100);
+  }
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
 function setupCheckboxFunctionality() {
   console.log('Setting up checkbox functionality...');
   
@@ -750,6 +846,9 @@ function init() {
   checkAndToggleFilteredElements();
   setupFilteredElementsEvents();
   
+  // Generate locality checkboxes from cms-filter-list data
+  generateLocalityCheckboxes();
+  
   // Setup checkbox functionality for cms-filter-lists
   setupCheckboxFunctionality();
   
@@ -779,6 +878,13 @@ window.addEventListener('load', () => {
       const lists = getAvailableFilterLists();
       if (lists.length > 0) {
         setupCheckboxFunctionality();
+        
+        // Also retry checkbox generation if no checkboxes were created yet
+        const container = $id('locality-check-list');
+        if (container && container.children.length === 0) {
+          console.log(`Retrying checkbox generation at ${delay}ms...`);
+          generateLocalityCheckboxes();
+        }
       }
     }, delay);
   });
@@ -798,7 +904,8 @@ window.rightSidebarUtilities = {
   toggleSidebar,
   getAvailableFilterLists,
   setupCheckboxFunctionality,
-  setupCheckboxEvents
+  setupCheckboxEvents,
+  generateLocalityCheckboxes
 };
 
 // Performance monitoring
