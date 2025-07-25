@@ -371,6 +371,24 @@ function setupTabSwitcher() {
 
 // Setup right sidebar controls
 function setupControls() {
+  // #AllEvents functionality - triggers #ClearAll click
+  const allEventsBtn = $id('AllEvents');
+  if (allEventsBtn && !allEventsBtn.dataset.allEventsSetup) {
+    eventManager.add(allEventsBtn, 'click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const clearAllBtn = $id('ClearAll');
+      if (clearAllBtn) {
+        console.log('AllEvents clicked - triggering ClearAll');
+        clearAllBtn.click();
+      } else {
+        console.warn('ClearAll element not found');
+      }
+    });
+    allEventsBtn.dataset.allEventsSetup = 'true';
+  }
+  
   // Right sidebar controls with event delegation
   const setupSidebarControls = (selector, eventType = 'click') => {
     const elements = $(selector);
