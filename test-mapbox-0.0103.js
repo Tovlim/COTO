@@ -2034,7 +2034,7 @@ function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.layerCache.set(config.layerId, true);
 }
 
-// OPTIMIZED: Area key controls with better performance and state persistence
+// OPTIMIZED: Area key controls with better performance
 function setupAreaKeyControls() {
   if (state.flags.areaControlsSetup) return;
   
@@ -2062,72 +2062,23 @@ function setupAreaKeyControls() {
     }
   ];
   
-  // Helper functions for state persistence and Webflow checkbox styling
-  const saveControlState = (controlId, isChecked) => {
-    try {
-      localStorage.setItem(`mapControl_${controlId}`, isChecked.toString());
-    } catch (e) {
-      console.warn('Could not save control state to localStorage:', e);
-    }
-  };
-  
-  const getControlState = (controlId) => {
-    try {
-      const saved = localStorage.getItem(`mapControl_${controlId}`);
-      return saved !== null ? saved === 'true' : null;
-    } catch (e) {
-      console.warn('Could not read control state from localStorage:', e);
-      return null;
-    }
-  };
-  
-  // FIXED: Helper to sync Webflow checkbox visual state
-  const syncWebflowCheckboxVisual = (checkbox) => {
-    // Find the Webflow visual div (sibling of the input)
-    const webflowDiv = checkbox.parentElement.querySelector('.w-checkbox-input');
-    if (webflowDiv) {
-      if (checkbox.checked) {
-        webflowDiv.classList.add('w--redirected-checked');
-      } else {
-        webflowDiv.classList.remove('w--redirected-checked');
-      }
-    }
-  };
-  
   let areaSetupCount = 0;
   let markerSetupCount = 0;
   
-  // Setup area controls with state persistence
+  // Setup area controls
   areaControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) return;
     
-    // Restore saved state or use default
-    const savedState = getControlState(control.keyId);
-    if (savedState !== null) {
-      checkbox.checked = savedState;
-      // FIXED: Sync Webflow visual state
-      syncWebflowCheckboxVisual(checkbox);
-    }
-    
-    // Apply initial visibility based on checkbox state
-    if (mapLayers.hasLayer(control.layerId)) {
-      const visibility = checkbox.checked ? 'none' : 'visible';
-      map.setLayoutProperty(control.layerId, 'visibility', visibility);
-    }
+    checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
         if (!mapLayers.hasLayer(control.layerId)) return;
         
-        const visibility = checkbox.checked ? 'none' : 'visible';
+        // CHANGED: Checked = visible, Unchecked = hidden (more intuitive)
+        const visibility = checkbox.checked ? 'visible' : 'none';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
-        
-        // FIXED: Sync Webflow visual state on change
-        syncWebflowCheckboxVisual(checkbox);
-        
-        // Save state to localStorage
-        saveControlState(control.keyId, checkbox.checked);
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
     }
@@ -2150,57 +2101,42 @@ function setupAreaKeyControls() {
     areaSetupCount++;
   });
   
-  // Setup marker controls with state persistence and direct DOM listeners
+  // Setup marker controls with direct DOM listeners
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) return;
     
-    // Restore saved state or use default
-    const savedState = getControlState(control.keyId);
-    if (savedState !== null) {
-      checkbox.checked = savedState;
-      // FIXED: Sync Webflow visual state
-      syncWebflowCheckboxVisual(checkbox);
-    }
-    
-    // Apply initial visibility based on checkbox state
-    const applyMarkerVisibility = (visibility) => {
-      if (control.type === 'district') {
-        control.layers.forEach(layerId => {
-          if (mapLayers.hasLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', visibility);
-          }
-        });
-        
-        const allLayers = map.getStyle().layers;
-        allLayers.forEach(layer => {
-          if (layer.id.includes('-fill') || layer.id.includes('-border')) {
-            map.setLayoutProperty(layer.id, 'visibility', visibility);
-          }
-        });
-      } else if (control.type === 'locality') {
-        control.layers.forEach(layerId => {
-          if (mapLayers.hasLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', visibility);
-          }
-        });
-      }
-    };
-    
-    // Apply saved state to map layers
-    const initialVisibility = checkbox.checked ? 'none' : 'visible';
-    applyMarkerVisibility(initialVisibility);
+    checkbox.checked = false;
     
     if (!checkbox.dataset.mapboxListenerAdded) {
+      // Use direct DOM event listeners for marker controls
       const changeHandler = (e) => {
         const visibility = e.target.checked ? 'none' : 'visible';
-        applyMarkerVisibility(visibility);
         
-        // FIXED: Sync Webflow visual state on change
-        syncWebflowCheckboxVisual(e.target);
-        
-        // Save state to localStorage
-        saveControlState(control.keyId, e.target.checked);
+        if (control.type === 'district') {
+          // Handle district markers
+          control.layers.forEach(layerId => {
+            if (mapLayers.hasLayer(layerId)) {
+              map.setLayoutProperty(layerId, 'visibility', visibility);
+            }
+          });
+          
+          // Handle district boundaries
+          const allLayers = map.getStyle().layers;
+          allLayers.forEach(layer => {
+            if (layer.id.includes('-fill') || layer.id.includes('-border')) {
+              map.setLayoutProperty(layer.id, 'visibility', visibility);
+            }
+          });
+          
+        } else if (control.type === 'locality') {
+          // Handle locality markers
+          control.layers.forEach(layerId => {
+            if (mapLayers.hasLayer(layerId)) {
+              map.setLayoutProperty(layerId, 'visibility', visibility);
+            }
+          });
+        }
       };
       
       checkbox.addEventListener('change', changeHandler);
@@ -2209,6 +2145,7 @@ function setupAreaKeyControls() {
     
     const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+      // Use direct DOM event listeners for marker control hovers
       const mouseEnterHandler = () => {
         if (control.type === 'district') {
           if (mapLayers.hasLayer('district-points')) {
@@ -2274,7 +2211,7 @@ function setupAreaKeyControls() {
   // Mark as complete if we got most controls
   if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
     state.flags.areaControlsSetup = true;
-    console.log('Area and marker controls setup completed with state persistence');
+    console.log('Area and marker controls setup completed');
   }
 }
 
