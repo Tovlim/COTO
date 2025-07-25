@@ -283,6 +283,21 @@ const getAvailableFilterLists = (() => {
 
 // Setup events for checkboxes with enhanced functionality
 function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-sidebar="true"
+  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
+  autoSidebarElements.forEach(element => {
+    if (element.dataset.autoSidebarSetup === 'true') return;
+    
+    ['change', 'input'].forEach(eventType => {
+      eventManager.add(element, eventType, () => {
+        if (window.innerWidth > 478) {
+          state.setTimer('checkboxAutoSidebar', () => toggleSidebar(true), 50);
+        }
+      });
+    });
+    element.dataset.autoSidebarSetup = 'true';
+  });
+  
   // Handle data-auto-right-sidebar="true" (for right sidebar)
   const autoRightSidebarElements = checkboxContainer.querySelectorAll('[data-auto-right-sidebar="true"]');
   autoRightSidebarElements.forEach(element => {
