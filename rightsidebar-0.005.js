@@ -240,7 +240,175 @@ const checkAndToggleFilteredElements = () => {
   return shouldShow;
 };
 
-// Enhanced tag monitoring with proper cleanup
+// OPTIMIZED: Smart filter list discovery with caching
+const getAvailableFilterLists = (() => {
+  let cachedLists = null;
+  let lastCacheTime = 0;
+  const cacheTimeout = 5000; // Cache for 5 seconds
+  
+  return () => {
+    const now = Date.now();
+    if (cachedLists && (now - lastCacheTime) < cacheTimeout) {
+      return cachedLists;
+    }
+    
+    const lists = [];
+    let consecutiveGaps = 0;
+    
+    // More efficient scanning with early termination
+    for (let i = 1; i <= 20; i++) {
+      const listId = `cms-filter-list-${i}`;
+      if ($id(listId)) {
+        lists.push(listId);
+        consecutiveGaps = 0;
+      } else {
+        consecutiveGaps++;
+        if (consecutiveGaps >= 3 && lists.length === 0) {
+          // Early termination if no lists found
+          break;
+        }
+        if (consecutiveGaps >= 5) {
+          // Stop after 5 consecutive gaps
+          break;
+        }
+      }
+    }
+    
+    cachedLists = lists;
+    lastCacheTime = now;
+    console.log(`Found ${lists.length} cms-filter-list elements:`, lists);
+    return lists;
+  };
+})();
+
+// Setup events for checkboxes with enhanced functionality
+function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-right-sidebar="true" (for right sidebar)
+  const autoRightSidebarElements = checkboxContainer.querySelectorAll('[data-auto-right-sidebar="true"]');
+  autoRightSidebarElements.forEach(element => {
+    if (element.dataset.autoRightSidebarSetup === 'true') return;
+    
+    ['change', 'input'].forEach(eventType => {
+      eventManager.add(element, eventType, () => {
+        if (window.innerWidth > 478) {
+          state.setTimer('checkboxAutoRightSidebar', () => toggleSidebar(true), 50);
+        }
+      });
+    });
+    element.dataset.autoRightSidebarSetup = 'true';
+  });
+  
+  // Handle fs-cmsfilter-element filters
+  const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
+  filterElements.forEach(element => {
+    if (element.dataset.filterElementSetup === 'true') return;
+    
+    eventManager.add(element, 'change', () => {
+      state.setTimer('checkboxFilter', () => {
+        // Trigger filtered elements check when filters change
+        setTimeout(checkAndToggleFilteredElements, 50);
+      }, 50);
+    });
+    element.dataset.filterElementSetup = 'true';
+  });
+  
+  // Handle activate-filter-indicator functionality
+  const indicatorActivators = checkboxContainer.querySelectorAll('[activate-filter-indicator]');
+  indicatorActivators.forEach(activator => {
+    if (activator.dataset.indicatorSetup === 'true') return;
+    
+    const groupName = activator.getAttribute('activate-filter-indicator');
+    if (!groupName) return;
+    
+    // Function to toggle indicators for this group
+    const toggleIndicators = (shouldShow) => {
+      const indicators = $(`[filter-indicator="${groupName}"]`);
+      indicators.forEach(indicator => {
+        indicator.style.display = shouldShow ? 'flex' : 'none';
+      });
+    };
+    
+    // Function to check if any activator in this group is active
+    const hasActiveFilters = () => {
+      const groupActivators = $(`[activate-filter-indicator="${groupName}"]`);
+      return groupActivators.some(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          return el.checked;
+        } else if (el.tagName.toLowerCase() === 'select') {
+          return el.selectedIndex > 0;
+        } else {
+          return el.value.trim() !== '';
+        }
+      });
+    };
+    
+    // Add change event listener for checkboxes
+    if (activator.type === 'checkbox' || activator.type === 'radio') {
+      eventManager.add(activator, 'change', () => {
+        const shouldShow = hasActiveFilters();
+        toggleIndicators(shouldShow);
+      });
+    }
+    
+    activator.dataset.indicatorSetup = 'true';
+  });
+}
+
+// Setup checkbox functionality for all discovered lists
+function setupCheckboxFunctionality() {
+  console.log('Setting up checkbox functionality...');
+  
+  const lists = getAvailableFilterLists();
+  
+  if (lists.length === 0) {
+    console.warn('No cms-filter-list elements found');
+    return;
+  }
+  
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) {
+      console.warn(`List container ${listId} not found`);
+      return;
+    }
+    
+    console.log(`Setting up checkboxes for ${listId}`);
+    
+    // Setup events for existing checkboxes in this list
+    setupCheckboxEvents(listContainer);
+    
+    // Setup general checkbox and form event handlers
+    const checkboxes = listContainer.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+    checkboxes.forEach(checkbox => {
+      if (checkbox.dataset.generalCheckboxSetup === 'true') return;
+      
+      eventManager.add(checkbox, 'change', () => {
+        // Check for filtered elements when any checkbox changes
+        setTimeout(checkAndToggleFilteredElements, 50);
+      });
+      
+      checkbox.dataset.generalCheckboxSetup = 'true';
+    });
+    
+    // Setup form event handlers
+    const forms = listContainer.querySelectorAll('form');
+    forms.forEach(form => {
+      if (form.dataset.formSetup === 'true') return;
+      
+      eventManager.add(form, 'change', () => {
+        setTimeout(checkAndToggleFilteredElements, 100);
+      });
+      
+      eventManager.add(form, 'input', () => {
+        setTimeout(checkAndToggleFilteredElements, 100);
+      });
+      
+      form.dataset.formSetup = 'true';
+    });
+  });
+  
+  console.log(`Checkbox functionality setup completed for ${lists.length} lists`);
+}
 const monitorTags = (() => {
   let isSetup = false; // Flag to prevent multiple setups
   let pollingTimer = null; // Store polling timer for cleanup
@@ -567,6 +735,9 @@ function init() {
   checkAndToggleFilteredElements();
   setupFilteredElementsEvents();
   
+  // Setup checkbox functionality for cms-filter-lists
+  setupCheckboxFunctionality();
+  
   // Setup tab switcher
   setupTabSwitcher();
   
@@ -586,6 +757,16 @@ window.addEventListener('load', () => {
   
   // Check filtered elements after page is fully loaded
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+  
+  // Retry checkbox setup with smart timing (in case cms-filter-lists load later)
+  [500, 1000, 2000].forEach(delay => {
+    state.setTimer(`checkboxRetry-${delay}`, () => {
+      const lists = getAvailableFilterLists();
+      if (lists.length > 0) {
+        setupCheckboxFunctionality();
+      }
+    }, delay);
+  });
 });
 
 // Enhanced tag monitoring initialization
@@ -599,7 +780,10 @@ window.rightSidebarUtilities = {
   utils,
   checkAndToggleFilteredElements,
   toggleShowWhenFilteredElements,
-  toggleSidebar
+  toggleSidebar,
+  getAvailableFilterLists,
+  setupCheckboxFunctionality,
+  setupCheckboxEvents
 };
 
 // Performance monitoring
