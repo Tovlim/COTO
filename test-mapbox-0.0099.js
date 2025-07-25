@@ -2081,6 +2081,41 @@ function setupAreaKeyControls() {
     }
   };
   
+  // Function to sync checkbox state with layer visibility
+  const syncControlWithLayer = (control, checkbox) => {
+    if (control.layerId && mapLayers.hasLayer(control.layerId)) {
+      // checked = hidden, unchecked = visible
+      const visibility = checkbox.checked ? 'none' : 'visible';
+      map.setLayoutProperty(control.layerId, 'visibility', visibility);
+    }
+  };
+  
+  const syncMarkerControlWithLayers = (control, checkbox) => {
+    // checked = hidden, unchecked = visible
+    const visibility = checkbox.checked ? 'none' : 'visible';
+    
+    if (control.type === 'district') {
+      control.layers.forEach(layerId => {
+        if (mapLayers.hasLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', visibility);
+        }
+      });
+      
+      const allLayers = map.getStyle().layers;
+      allLayers.forEach(layer => {
+        if (layer.id.includes('-fill') || layer.id.includes('-border')) {
+          map.setLayoutProperty(layer.id, 'visibility', visibility);
+        }
+      });
+    } else if (control.type === 'locality') {
+      control.layers.forEach(layerId => {
+        if (mapLayers.hasLayer(layerId)) {
+          map.setLayoutProperty(layerId, 'visibility', visibility);
+        }
+      });
+    }
+  };
+  
   let areaSetupCount = 0;
   let markerSetupCount = 0;
   
@@ -2095,20 +2130,9 @@ function setupAreaKeyControls() {
       checkbox.checked = savedState;
     }
     
-    // Apply initial visibility based on checkbox state
-    if (mapLayers.hasLayer(control.layerId)) {
-      const visibility = checkbox.checked ? 'none' : 'visible';
-      map.setLayoutProperty(control.layerId, 'visibility', visibility);
-    }
-    
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
-        
-        const visibility = checkbox.checked ? 'none' : 'visible';
-        map.setLayoutProperty(control.layerId, 'visibility', visibility);
-        
-        // Save state to localStorage
+        syncControlWithLayer(control, checkbox);
         saveControlState(control.keyId, checkbox.checked);
       });
       checkbox.dataset.mapboxListenerAdded = 'true';
@@ -2143,40 +2167,9 @@ function setupAreaKeyControls() {
       checkbox.checked = savedState;
     }
     
-    // Apply initial visibility based on checkbox state
-    const applyMarkerVisibility = (visibility) => {
-      if (control.type === 'district') {
-        control.layers.forEach(layerId => {
-          if (mapLayers.hasLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', visibility);
-          }
-        });
-        
-        const allLayers = map.getStyle().layers;
-        allLayers.forEach(layer => {
-          if (layer.id.includes('-fill') || layer.id.includes('-border')) {
-            map.setLayoutProperty(layer.id, 'visibility', visibility);
-          }
-        });
-      } else if (control.type === 'locality') {
-        control.layers.forEach(layerId => {
-          if (mapLayers.hasLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', visibility);
-          }
-        });
-      }
-    };
-    
-    // Apply saved state to map layers
-    const initialVisibility = checkbox.checked ? 'none' : 'visible';
-    applyMarkerVisibility(initialVisibility);
-    
     if (!checkbox.dataset.mapboxListenerAdded) {
       const changeHandler = (e) => {
-        const visibility = e.target.checked ? 'none' : 'visible';
-        applyMarkerVisibility(visibility);
-        
-        // Save state to localStorage
+        syncMarkerControlWithLayers(control, e.target);
         saveControlState(control.keyId, e.target.checked);
       };
       
@@ -2247,6 +2240,44 @@ function setupAreaKeyControls() {
     
     markerSetupCount++;
   });
+  
+  // FIXED: Apply saved states after all controls are set up
+  const applySavedStates = () => {
+    // Apply area control states
+    areaControls.forEach(control => {
+      const checkbox = $id(control.keyId);
+      if (checkbox) {
+        syncControlWithLayer(control, checkbox);
+      }
+    });
+    
+    // Apply marker control states
+    markerControls.forEach(control => {
+      const checkbox = $id(control.keyId);
+      if (checkbox) {
+        syncMarkerControlWithLayers(control, checkbox);
+      }
+    });
+    
+    console.log('Saved layer states applied - checkboxes and layers synchronized');
+  };
+  
+  // Apply states with retry mechanism for better synchronization
+  const applyStatesWithRetry = (attempt = 1, maxAttempts = 3) => {
+    if (map.loaded() && map.getStyle().layers.length > 0) {
+      applySavedStates();
+    } else if (attempt < maxAttempts) {
+      const delay = attempt * 500; // Increase delay with each attempt
+      state.setTimer(`applySavedStates-${attempt}`, () => {
+        applyStatesWithRetry(attempt + 1, maxAttempts);
+      }, delay);
+    } else {
+      console.log('Applied saved states with maximum attempts');
+      applySavedStates(); // Try one last time
+    }
+  };
+  
+  applyStatesWithRetry();
   
   // Mark as complete if we got most controls
   if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
