@@ -1882,13 +1882,6 @@ function loadCombinedGeoData() {
         console.log('All combined data processed, updating district markers');
         addNativeDistrictMarkers();
         
-        // Apply pending area control states after layers are loaded
-        state.setTimer('applyAreaStates', () => {
-          if (window.applyPendingAreaStates) {
-            window.applyPendingAreaStates();
-          }
-        }, 100);
-        
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
       }, 100);
       
@@ -1898,14 +1891,6 @@ function loadCombinedGeoData() {
       console.error('Error loading combined GeoJSON data:', error);
       // Still update district markers in case some data was loaded
       addNativeDistrictMarkers();
-      
-      // Apply pending area control states even if there was an error
-      state.setTimer('applyAreaStatesError', () => {
-        if (window.applyPendingAreaStates) {
-          window.applyPendingAreaStates();
-        }
-      }, 100);
-      
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
     });
 }
@@ -2077,7 +2062,7 @@ function setupAreaKeyControls() {
     }
   ];
   
-  // Helper functions for state persistence
+  // Helper functions for state persistence and Webflow checkbox styling
   const saveControlState = (controlId, isChecked) => {
     try {
       localStorage.setItem(`mapControl_${controlId}`, isChecked.toString());
@@ -2096,17 +2081,18 @@ function setupAreaKeyControls() {
     }
   };
   
-  // Function to apply area visibility (can be called after layers load)
-  const applyAreaVisibility = (control, checkbox) => {
-    if (mapLayers.hasLayer(control.layerId)) {
-      const visibility = checkbox.checked ? 'none' : 'visible';
-      map.setLayoutProperty(control.layerId, 'visibility', visibility);
-      console.log(`Applied ${control.keyId}: checked=${checkbox.checked}, visibility=${visibility}`);
+  // FIXED: Helper to sync Webflow checkbox visual state
+  const syncWebflowCheckboxVisual = (checkbox) => {
+    // Find the Webflow visual div (sibling of the input)
+    const webflowDiv = checkbox.parentElement.querySelector('.w-checkbox-input');
+    if (webflowDiv) {
+      if (checkbox.checked) {
+        webflowDiv.classList.add('w--redirected-checked');
+      } else {
+        webflowDiv.classList.remove('w--redirected-checked');
+      }
     }
   };
-  
-  // Store area controls for later application
-  const pendingAreaControls = [];
   
   let areaSetupCount = 0;
   let markerSetupCount = 0;
@@ -2120,13 +2106,15 @@ function setupAreaKeyControls() {
     const savedState = getControlState(control.keyId);
     if (savedState !== null) {
       checkbox.checked = savedState;
+      // FIXED: Sync Webflow visual state
+      syncWebflowCheckboxVisual(checkbox);
     }
     
-    // Store for later application when layers are loaded
-    pendingAreaControls.push({ control, checkbox });
-    
-    // Try to apply visibility immediately (in case layer already exists)
-    applyAreaVisibility(control, checkbox);
+    // Apply initial visibility based on checkbox state
+    if (mapLayers.hasLayer(control.layerId)) {
+      const visibility = checkbox.checked ? 'none' : 'visible';
+      map.setLayoutProperty(control.layerId, 'visibility', visibility);
+    }
     
     if (!checkbox.dataset.mapboxListenerAdded) {
       eventManager.add(checkbox, 'change', () => {
@@ -2134,6 +2122,9 @@ function setupAreaKeyControls() {
         
         const visibility = checkbox.checked ? 'none' : 'visible';
         map.setLayoutProperty(control.layerId, 'visibility', visibility);
+        
+        // FIXED: Sync Webflow visual state on change
+        syncWebflowCheckboxVisual(checkbox);
         
         // Save state to localStorage
         saveControlState(control.keyId, checkbox.checked);
@@ -2159,14 +2150,6 @@ function setupAreaKeyControls() {
     areaSetupCount++;
   });
   
-  // Store function globally to apply area states after layers load
-  window.applyPendingAreaStates = () => {
-    pendingAreaControls.forEach(({ control, checkbox }) => {
-      applyAreaVisibility(control, checkbox);
-    });
-    console.log(`Applied visibility states for ${pendingAreaControls.length} area controls`);
-  };
-  
   // Setup marker controls with state persistence and direct DOM listeners
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
@@ -2176,6 +2159,8 @@ function setupAreaKeyControls() {
     const savedState = getControlState(control.keyId);
     if (savedState !== null) {
       checkbox.checked = savedState;
+      // FIXED: Sync Webflow visual state
+      syncWebflowCheckboxVisual(checkbox);
     }
     
     // Apply initial visibility based on checkbox state
@@ -2210,6 +2195,9 @@ function setupAreaKeyControls() {
       const changeHandler = (e) => {
         const visibility = e.target.checked ? 'none' : 'visible';
         applyMarkerVisibility(visibility);
+        
+        // FIXED: Sync Webflow visual state on change
+        syncWebflowCheckboxVisual(e.target);
         
         // Save state to localStorage
         saveControlState(control.keyId, e.target.checked);
