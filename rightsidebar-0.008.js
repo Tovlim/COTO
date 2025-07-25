@@ -369,6 +369,37 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
+// Clean up empty facet checkboxes (those with display: none)
+function cleanupEmptyFacetCheckboxes() {
+  console.log('Cleaning up empty facet checkboxes...');
+  
+  // Find all checkbox labels with fs-list-emptyfacet="hide" that are hidden
+  const emptyFacetLabels = document.querySelectorAll('label[fs-list-emptyfacet="hide"].w-checkbox.reporterwrap-copy[style*="display: none"]');
+  
+  console.log(`Found ${emptyFacetLabels.length} empty facet checkboxes to remove`);
+  
+  let removedCount = 0;
+  emptyFacetLabels.forEach(label => {
+    // Double-check that it actually has display: none in the style
+    const computedStyle = getComputedStyle(label);
+    const inlineStyle = label.getAttribute('style') || '';
+    
+    if (computedStyle.display === 'none' || inlineStyle.includes('display: none')) {
+      const localityName = label.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
+      console.log(`Removing empty facet checkbox for: ${localityName}`);
+      label.remove();
+      removedCount++;
+    }
+  });
+  
+  console.log(`Cleanup completed: Removed ${removedCount} empty facet checkboxes`);
+  
+  // Invalidate DOM cache since we removed elements
+  if (removedCount > 0) {
+    domCache.markStale();
+  }
+}
+
 // Generate locality checkboxes from cms-filter-list data
 function generateLocalityCheckboxes() {
   const container = $id('locality-check-list');
@@ -462,6 +493,9 @@ function generateLocalityCheckboxes() {
   
   // Check filtered elements after generating checkboxes
   state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Clean up empty facet checkboxes after generation
+  state.setTimer('cleanupEmptyFacets', cleanupEmptyFacetCheckboxes, 300);
   
   // Invalidate DOM cache since we added new elements
   domCache.markStale();
@@ -872,6 +906,9 @@ window.addEventListener('load', () => {
   // Check filtered elements after page is fully loaded
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
   
+  // Also run cleanup after page is fully loaded (in case empty facets load later)
+  state.setTimer('loadCleanupEmptyFacets', cleanupEmptyFacetCheckboxes, 400);
+  
   // Retry checkbox setup with smart timing (in case cms-filter-lists load later)
   [500, 1000, 2000].forEach(delay => {
     state.setTimer(`checkboxRetry-${delay}`, () => {
@@ -884,6 +921,10 @@ window.addEventListener('load', () => {
         if (container && container.children.length === 0) {
           console.log(`Retrying checkbox generation at ${delay}ms...`);
           generateLocalityCheckboxes();
+        } else if (container && container.children.length > 0) {
+          // If checkboxes exist, also run cleanup in case it wasn't done yet
+          console.log(`Running cleanup at ${delay}ms...`);
+          cleanupEmptyFacetCheckboxes();
         }
       }
     }, delay);
@@ -905,7 +946,8 @@ window.rightSidebarUtilities = {
   getAvailableFilterLists,
   setupCheckboxFunctionality,
   setupCheckboxEvents,
-  generateLocalityCheckboxes
+  generateLocalityCheckboxes,
+  cleanupEmptyFacetCheckboxes
 };
 
 // Performance monitoring
