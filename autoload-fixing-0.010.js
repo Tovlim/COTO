@@ -48,11 +48,6 @@ function getItemSlug(item) {
 function fixTabSystemEnhanced(item, itemSlug) {
   const tabContainers = item.querySelectorAll('.w-tabs');
   
-  if (window.location.search.includes('debug=tabs')) {
-    console.log(`🔧 Fixing tabs for: ${itemSlug}`);
-    console.log(`Found ${tabContainers.length} tab containers`);
-  }
-  
   // Batch DOM operations for better performance
   const updates = [];
   
@@ -63,10 +58,6 @@ function fixTabSystemEnhanced(item, itemSlug) {
     if (containerTabs.length === 0) return;
     
     const baseId = `w-tabs-${itemSlug.replace(/[^a-zA-Z0-9-]/g, '-')}-${containerIndex}`;
-    
-    if (window.location.search.includes('debug=tabs')) {
-      console.log(`Container ${containerIndex}: ${containerTabs.length} tabs, ${containerPanes.length} panes`);
-    }
     
     // Pre-calculate all updates to batch DOM operations
     containerTabs.forEach((tabLink, index) => {
@@ -123,17 +114,7 @@ function fixTabSystemEnhanced(item, itemSlug) {
       tabLink._originalClickHandler = clickHandler;
       tabLink.addEventListener('click', clickHandler);
     }
-    
-    if (window.location.search.includes('debug=tabs') && containerIndex === 0 && index < 2) {
-      console.log(`Tab ${index} (${tabName}): → ${tabId}`);
-    }
   });
-  
-  if (window.location.search.includes('debug=tabs')) {
-    // Use more efficient counting
-    const finalWorkingTabs = updates.filter(u => u.tabLink.id && u.tabLink.id.includes(itemSlug.replace(/[^a-zA-Z0-9-]/g, '-'))).length;
-    console.log(`✅ Final result: ${finalWorkingTabs} tabs fixed for ${itemSlug}`);
-  }
 }
 
 // BACK TO WORKING TAB SWITCHING
@@ -259,10 +240,6 @@ function addToggleFunctionality(item) {
         e.stopPropagation();
         
         closeAllTabs(); // This will click the global dummy tab to reset state
-        
-        if (window.location.search.includes('debug=tabs')) {
-          console.log(`🔄 Closed tab and reset state: ${currentTab.getAttribute('data-w-tab')}`);
-        }
       } else {
         // Normal tab click - let original handler work
         const originalHandler = currentTab._originalClickHandler;
@@ -283,10 +260,6 @@ function addToggleFunctionality(item) {
     tab._enhancedClickHandler = enhancedHandler;
     tab.addEventListener('click', enhancedHandler);
   });
-  
-  if (window.location.search.includes('debug=tabs') && tabs.length > 0) {
-    console.log(`✅ Enhanced toggle with global dummy reset added to ${tabs.length} tabs in: ${item.getAttribute('itemslug')}`);
-  }
 }
 
 // LazyLoad integration
@@ -298,9 +271,7 @@ function initLazyLoad() {
       elements_selector: '.lazy',
       threshold: 100,
       callback_loaded: el => {
-        if (window.location.search.includes('debug=tabs')) {
-          console.log('🖼️ Lazy loaded:', el);
-        }
+        // Lazy image loaded
       }
     });
     console.log('✅ LazyLoad initialized');
@@ -335,10 +306,6 @@ function initLazyProcessing() {
           
           // Stop observing this item since it's now processed
           itemProcessingObserver.unobserve(item);
-          
-          if (window.location.search.includes('debug=tabs')) {
-            console.log(`👁️ Item came into view: ${item.getAttribute('itemslug')}`);
-          }
         }
       }
     });
@@ -354,10 +321,6 @@ function initLazyProcessing() {
     rootMargin: '200px 0px 200px 0px',
     threshold: 0.1
   });
-  
-  if (window.location.search.includes('debug=tabs')) {
-    console.log('👁️ Lazy processing observer initialized');
-  }
 }
 
 // Queue new items for lazy processing instead of immediate processing
@@ -371,20 +334,12 @@ function queueItemForLazyProcessing(item) {
   // Mark item for observation
   if (itemProcessingObserver && !processedItems.has(item)) {
     itemProcessingObserver.observe(item);
-    
-    if (window.location.search.includes('debug=tabs')) {
-      console.log(`📋 Queued for lazy processing: ${item.getAttribute('itemslug')}`);
-    }
   }
 }
 
 // Lightweight immediate processing for above-the-fold items
 function processItemsLazily(items) {
   if (!items?.length) return;
-  
-  if (window.location.search.includes('debug=tabs')) {
-    console.log(`⚡ Lazy processing ${items.length} visible items`);
-  }
   
   // Use requestAnimationFrame to avoid blocking the main thread
   const processInChunks = (itemsToProcess, chunkSize = 1) => {
@@ -409,10 +364,6 @@ function processItemsLazily(items) {
         // Step 3: Add toggle functionality after a brief delay
         setTimeout(() => {
           addToggleFunctionality(item);
-          
-          if (window.location.search.includes('debug=tabs')) {
-            console.log(`✅ Lazy processed: ${itemSlug}`);
-          }
         }, 50);
         
       } catch (error) {
@@ -452,10 +403,6 @@ function processInitialVisibleItems() {
       itemsToQueue.push(item);
     }
   });
-  
-  if (window.location.search.includes('debug=tabs')) {
-    console.log(`👁️ Found ${visibleItems.length} visible items, ${itemsToQueue.length} queued for lazy processing`);
-  }
   
   // Process visible items immediately (but efficiently)
   if (visibleItems.length > 0) {
@@ -543,10 +490,6 @@ function ensureGlobalDummyTab() {
     
     // Don't actually show the dummy tab - just use it to reset state
   });
-  
-  if (window.location.search.includes('debug=tabs')) {
-    console.log(`🎯 Created global dummy tab for the entire page`);
-  }
 }
 
 // Optimized observer with lazy processing queue
@@ -565,10 +508,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (pendingItems.size > 0) {
         const itemsToQueue = Array.from(pendingItems);
         pendingItems.clear();
-        
-        if (window.location.search.includes('debug=tabs')) {
-          console.log(`📋 Queuing ${itemsToQueue.length} new items for lazy processing`);
-        }
         
         // Queue items for lazy processing instead of immediate processing
         itemsToQueue.forEach(item => {
@@ -593,10 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (node.hasAttribute?.('itemslug')) {
           pendingItems.add(node);
           hasNewItems = true;
-          
-          if (window.location.search.includes('debug=tabs')) {
-            console.log(`➕ New item detected: ${node.getAttribute('itemslug')}`);
-          }
         }
         // Check for child items
         else if (node.querySelector) {
@@ -604,10 +539,6 @@ document.addEventListener('DOMContentLoaded', function() {
           for (const item of childItems) {
             pendingItems.add(item);
             hasNewItems = true;
-            
-            if (window.location.search.includes('debug=tabs')) {
-              console.log(`➕ New child item detected: ${item.getAttribute('itemslug')}`);
-            }
           }
         }
       }
@@ -638,96 +569,5 @@ document.addEventListener('DOMContentLoaded', function() {
     if (queueTimeout) clearTimeout(queueTimeout);
   });
 });
-
-// Debug mode
-if (window.location.search.includes('debug=tabs')) {
-  console.log('🐛 Debug mode enabled');
-  
-  window.debugTabs = function() {
-    const allItems = document.querySelectorAll('[itemslug]');
-    console.group(`🔍 Debug: ${allItems.length} items found`);
-    
-    allItems.forEach((item, index) => {
-      const slug = item.getAttribute('itemslug');
-      const tabs = item.querySelectorAll('[data-w-tab]');
-      const lightboxes = item.querySelectorAll('.w-lightbox');
-      const lazyElements = item.querySelectorAll('.lazy');
-      const workingTabs = Array.from(tabs).filter(tab => tab.id).length;
-      const hasToggle = item.hasAttribute('data-toggle-processed');
-      const hasEnhancedToggle = item.querySelectorAll('[data-toggle-enhanced]').length;
-      
-      console.log(`${index + 1}. ${slug}:`);
-      console.log(`   Tabs: ${tabs.length} (${workingTabs} working)`);
-      console.log(`   Toggle: ${hasToggle} (${hasEnhancedToggle} enhanced)`);
-      console.log(`   Lightboxes: ${lightboxes.length}`);
-      console.log(`   Lazy elements: ${lazyElements.length}`);
-      
-      // Test clicking the first tab
-      if (tabs.length > 0) {
-        const firstTab = tabs[0];
-        console.log(`   First tab details:`, {
-          text: firstTab.textContent.trim(),
-          id: firstTab.id,
-          href: firstTab.href,
-          hasClickListener: firstTab.hasAttribute('data-tab-fixed'),
-          classes: firstTab.className
-        });
-      }
-    });
-    
-    console.log(`\n🖼️ LazyLoad instance:`, lazyLoadInstance ? 'Active' : 'Not found');
-    console.log(`🎯 Global dummy tab:`, globalDummyTab ? 'Created' : 'Not found');
-    console.groupEnd();
-  };
-  
-  // Add manual test function
-  window.testToggle = function(itemIndex = 0) {
-    const items = document.querySelectorAll('[itemslug]');
-    const item = items[itemIndex];
-    if (!item) {
-      console.log('❌ Item not found at index', itemIndex);
-      return;
-    }
-    
-    const slug = item.getAttribute('itemslug');
-    const tabs = item.querySelectorAll('[data-w-tab]');
-    
-    console.group(`🧪 Testing toggle on item ${itemIndex}: ${slug}`);
-    
-    if (tabs.length === 0) {
-      console.log('❌ No tabs found');
-      console.groupEnd();
-      return;
-    }
-    
-    const firstTab = tabs[0];
-    console.log('Clicking first tab...');
-    
-    // Simulate click
-    const clickEvent = new MouseEvent('click', {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    });
-    
-    console.log('Before click - Active?', firstTab.classList.contains('w--current'));
-    firstTab.dispatchEvent(clickEvent);
-    
-    setTimeout(() => {
-      console.log('After click - Active?', firstTab.classList.contains('w--current'));
-      
-      // Click again to test toggle
-      console.log('Clicking again to test toggle...');
-      firstTab.dispatchEvent(clickEvent);
-      
-      setTimeout(() => {
-        console.log('After second click - Active?', firstTab.classList.contains('w--current'));
-        console.groupEnd();
-      }, 100);
-    }, 100);
-  };
-  
-  console.log('💡 Commands: debugTabs(), testToggle(0), testToggle(1), etc.');
-}
 
 console.log('✅ Webflow Fix + LazyLoad + Toggle Ready!');
