@@ -1,28 +1,45 @@
-// 🚀 LAZY PROCESSING Webflow Component Fix v3.0
+// 🚀 COMBINED Webflow Component Fix + Auto Load More v4.0
 // 
 // ✅ FEATURES:
+// • Auto-clicks #load-more when visible with smart throttling
 // • Fixes broken tabs/lightboxes ONLY when items come into view
 // • Integrates LazyLoad for images on new items  
 // • Adds PERFECT toggle functionality with single dummy tab reset 🎯
 // • Supports WFU lightbox grouping
 // • Works with Finsweet list load v2 (2025)
+// • IMMEDIATE processing of new load-more items
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
 // • LAZY PROCESSING: Only processes visible items
-// • Intersection Observer triggers processing on scroll
+// • Coordinated observers for maximum efficiency
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
+// • Single mutation observer handles both systems
 //
 // 🎯 TOGGLE FIX:
 // • Creates ONE hidden dummy tab for the entire page to reset Webflow's internal state
 // • Enables perfect toggle behavior: click → open, click → close, click → open
 // • No more need to click other tabs to reset state
+//
+// 🔄 AUTO LOAD MORE:
+// • Automatically clicks load-more button when it becomes visible
+// • Preserves scroll position during loading
+// • Coordinates with tab processing for optimal performance
 
-console.log('🚀 Webflow Component Fix with Lazy Processing Loading...');
+console.log('🚀 Combined Webflow Fix + Auto Load More Loading...');
 
-// Global dummy tab reference
+// Global state management
 let globalDummyTab = null;
+let isLoadingMore = false;
+let lazyLoadInstance = null;
+let itemProcessingObserver = null;
+let loadMoreObserver = null;
+let processedItems = new WeakSet();
+
+// Configuration
+const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
+const PROCESSING_CHUNK_SIZE = 1;
 
 // Debounce function
 function debounce(func, wait) {
@@ -85,7 +102,7 @@ function fixTabSystemEnhanced(item, itemSlug) {
   });
   
   // Batch apply all DOM updates
-  updates.forEach(({tabLink, tabId, paneId, matchingPane, containerTabs, containerPanes, tabName, index, containerIndex}) => {
+  updates.forEach(({tabLink, tabId, paneId, matchingPane, containerTabs, containerPanes}) => {
     // Batch set all tab attributes at once
     tabLink.id = tabId;
     tabLink.href = `#${paneId}`;
@@ -117,7 +134,7 @@ function fixTabSystemEnhanced(item, itemSlug) {
   });
 }
 
-// BACK TO WORKING TAB SWITCHING
+// Enhanced tab switching
 function switchTabEnhanced(clickedTab, allTabLinks, allTabPanes, targetPane) {
   allTabLinks.forEach(tab => {
     tab.classList.remove('w--current');
@@ -138,7 +155,7 @@ function switchTabEnhanced(clickedTab, allTabLinks, allTabPanes, targetPane) {
   }
 }
 
-// WORKING LIGHTBOX SYSTEM
+// Enhanced lightbox system
 function fixLightboxEnhanced(item, itemSlug) {
   const lightboxElements = item.querySelectorAll('.w-lightbox');
   
@@ -181,7 +198,7 @@ function fixLightboxEnhanced(item, itemSlug) {
   }, 200);
 }
 
-// Optimized toggle with global dummy tab reset for perfect toggle behavior
+// Optimized toggle with global dummy tab reset
 function addToggleFunctionality(item) {
   if (item.hasAttribute('data-toggle-processed')) return;
   
@@ -191,9 +208,8 @@ function addToggleFunctionality(item) {
   
   item.setAttribute('data-toggle-processed', 'true');
   
-  // Optimized close function that resets Webflow state using global dummy tab
+  // Close function using global dummy tab
   const closeAllTabs = () => {
-    // Close all visible tabs
     const tabs = tabMenu.querySelectorAll('.w-tab-link:not(.dummy-tab-reset)');
     const panes = tabContent.querySelectorAll('.w-tab-pane:not(.dummy-tab-reset)');
     
@@ -208,27 +224,7 @@ function addToggleFunctionality(item) {
     }
   };
   
-  const activateTab = (tab) => {
-    if (!tab) return;
-    
-    // Use the original click handler to properly activate tab
-    const originalHandler = tab._originalClickHandler;
-    if (originalHandler) {
-      // Create a synthetic click event
-      const syntheticEvent = new MouseEvent('click', {
-        bubbles: true,
-        cancelable: true,
-        view: window
-      });
-      
-      // Let Webflow handle the tab activation properly
-      setTimeout(() => {
-        originalHandler.call(tab, syntheticEvent);
-      }, 50);
-    }
-  };
-  
-  // Enhanced toggle handler with global dummy tab reset
+  // Enhanced toggle handler
   const createToggleHandler = () => {
     return (tab) => (e) => {
       const currentTab = e.currentTarget;
@@ -238,8 +234,7 @@ function addToggleFunctionality(item) {
         // Clicking active tab - close it and reset state
         e.preventDefault();
         e.stopPropagation();
-        
-        closeAllTabs(); // This will click the global dummy tab to reset state
+        closeAllTabs();
       } else {
         // Normal tab click - let original handler work
         const originalHandler = currentTab._originalClickHandler;
@@ -250,7 +245,7 @@ function addToggleFunctionality(item) {
     };
   };
   
-  // Apply enhanced toggle to all tabs (excluding dummy)
+  // Apply enhanced toggle to all tabs
   const tabs = tabMenu.querySelectorAll('.w-tab-link:not([data-toggle-enhanced]):not(.dummy-tab-reset)');
   const toggleHandler = createToggleHandler();
   
@@ -263,8 +258,6 @@ function addToggleFunctionality(item) {
 }
 
 // LazyLoad integration
-let lazyLoadInstance = null;
-
 function initLazyLoad() {
   if (typeof LazyLoad !== 'undefined') {
     lazyLoadInstance = new LazyLoad({
@@ -286,153 +279,10 @@ function updateLazyLoad() {
   }
 }
 
-// Lazy Intersection Observer for processing items only when visible
-let itemProcessingObserver = null;
-let processedItems = new WeakSet(); // Track which items have been processed
-
-function initLazyProcessing() {
-  // Create intersection observer with buffer zone
-  itemProcessingObserver = new IntersectionObserver((entries) => {
-    const itemsToProcess = [];
-    
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const item = entry.target;
-        
-        // Only process if not already processed
-        if (!processedItems.has(item)) {
-          itemsToProcess.push(item);
-          processedItems.add(item);
-          
-          // Stop observing this item since it's now processed
-          itemProcessingObserver.unobserve(item);
-        }
-      }
-    });
-    
-    if (itemsToProcess.length > 0) {
-      // Process items that just became visible
-      requestIdleCallback(() => {
-        processItemsLazily(itemsToProcess);
-      }, { timeout: 1000 });
-    }
-  }, {
-    // Process items when they're 200px from entering viewport
-    rootMargin: '200px 0px 200px 0px',
-    threshold: 0.1
-  });
-}
-
-// Queue new items for lazy processing instead of immediate processing
-function queueItemForLazyProcessing(item) {
-  // Quick check - does this item actually need processing?
-  const tabs = item.querySelectorAll('[data-w-tab]');
-  if (tabs.length === 0) {
-    return; // No tabs, no processing needed
-  }
-  
-  // Mark item for observation
-  if (itemProcessingObserver && !processedItems.has(item)) {
-    itemProcessingObserver.observe(item);
-  }
-}
-
-// Lightweight immediate processing for above-the-fold items
-function processItemsLazily(items) {
-  if (!items?.length) return;
-  
-  // Use requestAnimationFrame to avoid blocking the main thread
-  const processInChunks = (itemsToProcess, chunkSize = 1) => {
-    if (itemsToProcess.length === 0) {
-      updateLazyLoad();
-      return;
-    }
-    
-    const chunk = itemsToProcess.splice(0, chunkSize);
-    
-    chunk.forEach(item => {
-      try {
-        const itemSlug = getItemSlug(item);
-        
-        // Step 1: Ensure global dummy tab exists (only creates once)
-        ensureGlobalDummyTab();
-        
-        // Step 2: Fix tabs and lightboxes
-        fixTabSystemEnhanced(item, itemSlug);
-        fixLightboxEnhanced(item, itemSlug);
-        
-        // Step 3: Add toggle functionality after a brief delay
-        setTimeout(() => {
-          addToggleFunctionality(item);
-        }, 50);
-        
-      } catch (error) {
-        console.error('Lazy processing error:', error);
-      }
-    });
-    
-    // Process next chunk on next animation frame
-    if (itemsToProcess.length > 0) {
-      requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
-    } else {
-      // All items processed, update lazy load
-      setTimeout(updateLazyLoad, 100);
-    }
-  };
-  
-  // Start processing in small chunks
-  processInChunks([...items]);
-}
-
-// Process initial above-the-fold items immediately (but still efficiently)
-function processInitialVisibleItems() {
-  const allItems = document.querySelectorAll('[itemslug]');
-  const visibleItems = [];
-  const itemsToQueue = [];
-  
-  allItems.forEach(item => {
-    const rect = item.getBoundingClientRect();
-    const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-    
-    if (isVisible) {
-      // Process immediately if visible
-      visibleItems.push(item);
-      processedItems.add(item);
-    } else {
-      // Queue for lazy processing
-      itemsToQueue.push(item);
-    }
-  });
-  
-  // Process visible items immediately (but efficiently)
-  if (visibleItems.length > 0) {
-    processItemsLazily(visibleItems);
-  }
-  
-  // Queue non-visible items for lazy processing
-  itemsToQueue.forEach(item => {
-    queueItemForLazyProcessing(item);
-  });
-  
-  // Add toggle to items that already work
-  setTimeout(() => {
-    allItems.forEach(item => {
-      const tabs = item.querySelectorAll('[data-w-tab]');
-      const workingTabs = Array.from(tabs).filter(tab => tab.id).length;
-      
-      if (tabs.length > 0 && workingTabs === tabs.length && !item.hasAttribute('data-toggle-processed')) {
-        addToggleFunctionality(item);
-      }
-    });
-  }, 500);
-}
-
-// Create single hidden dummy tab for the entire page to reset Webflow state
+// Create single hidden dummy tab for the entire page
 function ensureGlobalDummyTab() {
-  // Skip if global dummy tab already exists
   if (globalDummyTab) return;
   
-  // Find the first tab container on the page
   const firstTabMenu = document.querySelector('.w-tab-menu');
   const firstTabContent = document.querySelector('.w-tab-content');
   
@@ -450,7 +300,7 @@ function ensureGlobalDummyTab() {
   dummyTab.setAttribute('aria-controls', `${dummyId}-pane`);
   dummyTab.setAttribute('tabindex', '-1');
   dummyTab.setAttribute('aria-selected', 'false');
-  dummyTab.style.display = 'none'; // Hidden
+  dummyTab.style.display = 'none';
   dummyTab.style.position = 'absolute';
   dummyTab.style.left = '-9999px';
   
@@ -461,7 +311,7 @@ function ensureGlobalDummyTab() {
   dummyPane.id = `${dummyId}-pane`;
   dummyPane.setAttribute('role', 'tabpanel');
   dummyPane.setAttribute('aria-labelledby', `${dummyId}-tab`);
-  dummyPane.style.display = 'none'; // Hidden
+  dummyPane.style.display = 'none';
   dummyPane.style.position = 'absolute';
   dummyPane.style.left = '-9999px';
   
@@ -472,10 +322,9 @@ function ensureGlobalDummyTab() {
   // Store global reference
   globalDummyTab = dummyTab;
   
-  // Add basic click handler to dummy tab
+  // Add click handler to dummy tab
   dummyTab.addEventListener('click', (e) => {
     e.preventDefault();
-    // Just activate the dummy tab (Webflow will handle the rest)
     const allTabs = document.querySelectorAll('.w-tab-link');
     const allPanes = document.querySelectorAll('.w-tab-pane');
     
@@ -487,20 +336,218 @@ function ensureGlobalDummyTab() {
     allPanes.forEach(pane => {
       pane.classList.remove('w--tab-active');
     });
-    
-    // Don't actually show the dummy tab - just use it to reset state
   });
 }
 
-// Optimized observer with lazy processing queue
+// AUTO LOAD MORE FUNCTIONALITY
+function clickLoadMore(element) {
+  if (isLoadingMore) return;
+  
+  isLoadingMore = true;
+  console.log('Auto-clicking load-more button...');
+  
+  // Store current scroll position
+  const currentScrollY = window.scrollY;
+  
+  // Click the button
+  element.click();
+  
+  // Restore scroll position after a brief moment
+  setTimeout(() => {
+    window.scrollTo(0, currentScrollY);
+  }, 100);
+  
+  // Process any new items that were just added
+  setTimeout(() => {
+    processNewlyAddedItems();
+  }, 300);
+  
+  // Reset loading flag after delay
+  setTimeout(() => {
+    isLoadingMore = false;
+    console.log('Ready for next load-more click');
+  }, LOAD_MORE_DELAY);
+}
+
+function initLoadMoreObserver() {
+  loadMoreObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !isLoadingMore) {
+        clickLoadMore(entry.target);
+      }
+    });
+  }, {
+    threshold: 0.01,
+    rootMargin: '150px'
+  });
+}
+
+function observeLoadMoreButton() {
+  const loadMoreButton = document.querySelector('#load-more');
+  if (loadMoreButton && loadMoreObserver) {
+    loadMoreObserver.observe(loadMoreButton);
+    console.log('Started observing #load-more button');
+    return true;
+  }
+  return false;
+}
+
+// ITEM PROCESSING SYSTEM
+function initItemProcessingObserver() {
+  itemProcessingObserver = new IntersectionObserver((entries) => {
+    const itemsToProcess = [];
+    
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const item = entry.target;
+        
+        if (!processedItems.has(item)) {
+          itemsToProcess.push(item);
+          processedItems.add(item);
+          itemProcessingObserver.unobserve(item);
+        }
+      }
+    });
+    
+    if (itemsToProcess.length > 0) {
+      requestIdleCallback(() => {
+        processItemsLazily(itemsToProcess);
+      }, { timeout: 1000 });
+    }
+  }, {
+    rootMargin: '200px 0px 200px 0px',
+    threshold: 0.1
+  });
+}
+
+function queueItemForLazyProcessing(item) {
+  const tabs = item.querySelectorAll('[data-w-tab]');
+  if (tabs.length === 0) return;
+  
+  if (itemProcessingObserver && !processedItems.has(item)) {
+    itemProcessingObserver.observe(item);
+  }
+}
+
+function processItemsLazily(items) {
+  if (!items?.length) return;
+  
+  const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
+    if (itemsToProcess.length === 0) {
+      updateLazyLoad();
+      return;
+    }
+    
+    const chunk = itemsToProcess.splice(0, chunkSize);
+    
+    chunk.forEach(item => {
+      try {
+        const itemSlug = getItemSlug(item);
+        
+        // Ensure global dummy tab exists
+        ensureGlobalDummyTab();
+        
+        // Fix tabs and lightboxes
+        fixTabSystemEnhanced(item, itemSlug);
+        fixLightboxEnhanced(item, itemSlug);
+        
+        // Add toggle functionality
+        setTimeout(() => {
+          addToggleFunctionality(item);
+        }, 50);
+        
+      } catch (error) {
+        console.error('Processing error:', error);
+      }
+    });
+    
+    // Process next chunk
+    if (itemsToProcess.length > 0) {
+      requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
+    } else {
+      setTimeout(updateLazyLoad, 100);
+    }
+  };
+  
+  processInChunks([...items]);
+}
+
+// Process items that were just added by load-more
+function processNewlyAddedItems() {
+  const allItems = document.querySelectorAll('[itemslug]');
+  const newItems = [];
+  
+  allItems.forEach(item => {
+    if (!processedItems.has(item)) {
+      const rect = item.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight + 400; // Slightly larger buffer
+      
+      if (isVisible) {
+        newItems.push(item);
+        processedItems.add(item);
+      } else {
+        // Queue non-visible items for lazy processing
+        queueItemForLazyProcessing(item);
+      }
+    }
+  });
+  
+  if (newItems.length > 0) {
+    console.log(`Processing ${newItems.length} newly loaded items`);
+    processItemsLazily(newItems);
+  }
+}
+
+function processInitialVisibleItems() {
+  const allItems = document.querySelectorAll('[itemslug]');
+  const visibleItems = [];
+  const itemsToQueue = [];
+  
+  allItems.forEach(item => {
+    const rect = item.getBoundingClientRect();
+    const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+    
+    if (isVisible) {
+      visibleItems.push(item);
+      processedItems.add(item);
+    } else {
+      itemsToQueue.push(item);
+    }
+  });
+  
+  // Process visible items immediately
+  if (visibleItems.length > 0) {
+    processItemsLazily(visibleItems);
+  }
+  
+  // Queue non-visible items
+  itemsToQueue.forEach(item => {
+    queueItemForLazyProcessing(item);
+  });
+  
+  // Add toggle to items that already work
+  setTimeout(() => {
+    allItems.forEach(item => {
+      const tabs = item.querySelectorAll('[data-w-tab]');
+      const workingTabs = Array.from(tabs).filter(tab => tab.id).length;
+      
+      if (tabs.length > 0 && workingTabs === tabs.length && !item.hasAttribute('data-toggle-processed')) {
+        addToggleFunctionality(item);
+      }
+    });
+  }, 500);
+}
+
+// UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   initLazyLoad();
-  initLazyProcessing();
+  initItemProcessingObserver();
+  initLoadMoreObserver();
   
   let pendingItems = new Set();
   let queueTimeout = null;
   
-  // Lightweight queuing for new items
+  // Unified item queuing
   const scheduleItemQueuing = () => {
     if (queueTimeout) return;
     
@@ -509,18 +556,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemsToQueue = Array.from(pendingItems);
         pendingItems.clear();
         
-        // Queue items for lazy processing instead of immediate processing
         itemsToQueue.forEach(item => {
           queueItemForLazyProcessing(item);
         });
       }
       queueTimeout = null;
-    }, 100); // Very short delay just to batch multiple rapid additions
+    }, 100);
   };
   
-  // Lightweight mutation observer
+  // Unified mutation observer
   const observer = new MutationObserver((mutations) => {
     let hasNewItems = false;
+    let hasNewLoadMore = false;
     
     for (const mutation of mutations) {
       if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -528,17 +575,20 @@ document.addEventListener('DOMContentLoaded', function() {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
         
-        // Check for direct items
+        // Check for new items
         if (node.hasAttribute?.('itemslug')) {
           pendingItems.add(node);
           hasNewItems = true;
-        }
-        // Check for child items
-        else if (node.querySelector) {
+        } else if (node.querySelector) {
           const childItems = node.querySelectorAll('[itemslug]');
           for (const item of childItems) {
             pendingItems.add(item);
             hasNewItems = true;
+          }
+          
+          // Check for new load-more button
+          if (node.id === 'load-more' || node.querySelector('#load-more')) {
+            hasNewLoadMore = true;
           }
         }
       }
@@ -547,6 +597,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hasNewItems) {
       scheduleItemQueuing();
     }
+    
+    if (hasNewLoadMore) {
+      setTimeout(() => {
+        observeLoadMoreButton();
+      }, 100);
+    }
   });
   
   observer.observe(document.body, {
@@ -554,20 +610,20 @@ document.addEventListener('DOMContentLoaded', function() {
     subtree: true
   });
   
-  // Process initial items with lazy approach
+  // Initial setup
   setTimeout(() => {
     processInitialVisibleItems();
+    observeLoadMoreButton();
     updateLazyLoad();
   }, 500);
   
   // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
     observer.disconnect();
-    if (itemProcessingObserver) {
-      itemProcessingObserver.disconnect();
-    }
+    if (itemProcessingObserver) itemProcessingObserver.disconnect();
+    if (loadMoreObserver) loadMoreObserver.disconnect();
     if (queueTimeout) clearTimeout(queueTimeout);
   });
 });
 
-console.log('✅ Webflow Fix + LazyLoad + Toggle Ready!');
+console.log('✅ Combined Webflow Fix + Auto Load More Ready!');
