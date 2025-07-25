@@ -2241,12 +2241,20 @@ function setupAreaKeyControls() {
     markerSetupCount++;
   });
   
-  // FIXED: Apply saved states after all controls are set up
+  // FIXED: Apply saved states after all controls are set up with better timing
   const applySavedStates = () => {
+    console.log('Applying saved checkbox and layer states...');
+    
     // Apply area control states
     areaControls.forEach(control => {
       const checkbox = $id(control.keyId);
       if (checkbox) {
+        // Re-apply saved checkbox state to ensure it sticks
+        const savedState = getControlState(control.keyId);
+        if (savedState !== null) {
+          checkbox.checked = savedState;
+          console.log(`Restored ${control.keyId}: checked=${savedState}`);
+        }
         syncControlWithLayer(control, checkbox);
       }
     });
@@ -2255,24 +2263,31 @@ function setupAreaKeyControls() {
     markerControls.forEach(control => {
       const checkbox = $id(control.keyId);
       if (checkbox) {
+        // Re-apply saved checkbox state to ensure it sticks
+        const savedState = getControlState(control.keyId);
+        if (savedState !== null) {
+          checkbox.checked = savedState;
+          console.log(`Restored ${control.keyId}: checked=${savedState}`);
+        }
         syncMarkerControlWithLayers(control, checkbox);
       }
     });
     
-    console.log('Saved layer states applied - checkboxes and layers synchronized');
+    console.log('Saved checkbox and layer states applied - fully synchronized');
   };
   
-  // Apply states with retry mechanism for better synchronization
+  // Apply states with retry mechanism and longer delays for better synchronization
   const applyStatesWithRetry = (attempt = 1, maxAttempts = 3) => {
     if (map.loaded() && map.getStyle().layers.length > 0) {
-      applySavedStates();
+      // Add extra delay to ensure all layers are fully processed
+      state.setTimer('finalStateApplication', applySavedStates, 200);
     } else if (attempt < maxAttempts) {
-      const delay = attempt * 500; // Increase delay with each attempt
+      const delay = attempt * 800; // Longer delays for better loading
       state.setTimer(`applySavedStates-${attempt}`, () => {
         applyStatesWithRetry(attempt + 1, maxAttempts);
       }, delay);
     } else {
-      console.log('Applied saved states with maximum attempts');
+      console.log('Applying saved states with maximum attempts reached');
       applySavedStates(); // Try one last time
     }
   };
@@ -2283,6 +2298,32 @@ function setupAreaKeyControls() {
   if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
     state.flags.areaControlsSetup = true;
     console.log('Area and marker controls setup completed with state persistence');
+    
+    // ADDITIONAL: Final sync check after everything is complete
+    state.setTimer('finalSyncCheck', () => {
+      console.log('Running final checkbox-layer synchronization check...');
+      
+      // Final verification and sync of all controls
+      [...areaControls, ...markerControls].forEach(control => {
+        const checkbox = $id(control.keyId);
+        if (checkbox) {
+          const savedState = getControlState(control.keyId);
+          if (savedState !== null && checkbox.checked !== savedState) {
+            console.log(`Final sync fix: ${control.keyId} checkbox ${checkbox.checked} -> ${savedState}`);
+            checkbox.checked = savedState;
+            
+            // Apply to layers immediately
+            if (control.layerId) {
+              syncControlWithLayer(control, checkbox);
+            } else {
+              syncMarkerControlWithLayers(control, checkbox);
+            }
+          }
+        }
+      });
+      
+      console.log('Final synchronization check completed');
+    }, 1000);
   }
 }
 
