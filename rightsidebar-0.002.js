@@ -374,19 +374,36 @@ function setupControls() {
   // Right sidebar controls with event delegation
   const setupSidebarControls = (selector, eventType = 'click') => {
     const elements = $(selector);
+    console.log(`Found ${elements.length} elements with selector: ${selector}`);
+    
     elements.forEach(element => {
-      const handler = () => {
+      // Skip if already setup to prevent duplicate handlers
+      if (element.dataset.rightSidebarSetup === 'true') return;
+      
+      const handler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
         const sidebar = $id('RightSidebar');
-        if (!sidebar) return;
-        
-        const openRightSidebar = element.getAttribute('open-right-sidebar');
-        
-        if (openRightSidebar === 'open-only') {
-          toggleSidebar(true);
-        } else {
-          toggleSidebar(!sidebar.classList.contains('is-show'));
+        if (!sidebar) {
+          console.warn('RightSidebar element not found');
+          return;
         }
         
+        const openRightSidebar = element.getAttribute('open-right-sidebar');
+        console.log(`Clicked element with open-right-sidebar="${openRightSidebar}"`);
+        
+        if (openRightSidebar === 'open-only') {
+          console.log('Opening sidebar (open-only)');
+          toggleSidebar(true);
+        } else if (openRightSidebar === 'true') {
+          console.log('Toggling sidebar (true)');
+          const currentlyShowing = sidebar.classList.contains('is-show');
+          console.log(`Current state: ${currentlyShowing ? 'open' : 'closed'}`);
+          toggleSidebar(!currentlyShowing);
+        }
+        
+        // Handle tab switching
         const groupName = element.getAttribute('open-tab');
         if (groupName) {
           state.setTimer(`openTab-${groupName}`, () => {
@@ -396,10 +413,8 @@ function setupControls() {
         }
       };
       
-      eventManager.add(element, eventType, (e) => {
-        e.stopPropagation(); 
-        handler();
-      });
+      eventManager.add(element, eventType, handler);
+      element.dataset.rightSidebarSetup = 'true';
     });
   };
   
