@@ -1,4 +1,4 @@
-// 🚀 COMBINED Webflow Component Fix + Auto Load More v4.0
+// 🚀 COMBINED Webflow Component Fix + Auto Load More v4.1 (Mobile Optimized)
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -8,14 +8,16 @@
 // • Supports WFU lightbox grouping
 // • Works with Finsweet list load v2 (2025)
 // • IMMEDIATE processing of new load-more items
+// • MOBILE OPTIMIZED: Adaptive performance for mobile devices
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
 // • LAZY PROCESSING: Only processes visible items
+// • Mobile-specific lightweight processing paths
 // • Coordinated observers for maximum efficiency
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
-// • Single mutation observer handles both systems
+// • Fallback processing when observers fail on mobile
 //
 // 🎯 TOGGLE FIX:
 // • Creates ONE hidden dummy tab for the entire page to reset Webflow's internal state
@@ -26,8 +28,21 @@
 // • Automatically clicks load-more button when it becomes visible
 // • Preserves scroll position during loading
 // • Coordinates with tab processing for optimal performance
+//
+// 📱 MOBILE OPTIMIZATIONS:
+// • Detects mobile devices and uses lighter processing
+// • Increased timeouts and reduced complexity for mobile
+// • Fallback processing systems for mobile browsers
+// • Touch-friendly event handling
 
-console.log('🚀 Combined Webflow Fix + Auto Load More Loading...');
+console.log('🚀 Combined Webflow Fix + Auto Load More (Mobile Optimized) Loading...');
+
+// Mobile detection
+const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                 window.innerWidth <= 768 || 
+                 ('ontouchstart' in window);
+
+console.log(isMobile ? '📱 Mobile device detected - using optimized processing' : '🖥️ Desktop device detected - using full processing');
 
 // Global state management
 let globalDummyTab = null;
@@ -36,21 +51,33 @@ let lazyLoadInstance = null;
 let itemProcessingObserver = null;
 let loadMoreObserver = null;
 let processedItems = new WeakSet();
+let fallbackProcessingActive = false;
 
-// Configuration
-const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
-const PROCESSING_CHUNK_SIZE = 1;
+// Mobile-adaptive configuration
+const CONFIG = {
+  LOAD_MORE_DELAY: isMobile ? 2500 : 1500, // Longer delay on mobile
+  PROCESSING_CHUNK_SIZE: 1,
+  PROCESSING_DELAY: isMobile ? 200 : 50, // Much longer delays on mobile
+  MUTATION_DEBOUNCE: isMobile ? 300 : 100, // More aggressive debouncing on mobile
+  INTERSECTION_THRESHOLD: isMobile ? 0.2 : 0.1, // Higher threshold on mobile
+  INTERSECTION_MARGIN: isMobile ? '100px' : '200px', // Smaller margin on mobile
+  FALLBACK_INTERVAL: isMobile ? 2000 : null, // Fallback processing only on mobile
+  USE_IDLE_CALLBACK: !isMobile, // Disable requestIdleCallback on mobile
+  LIGHTBOX_DELAY: isMobile ? 400 : 200,
+  TOGGLE_DELAY: isMobile ? 100 : 50
+};
 
-// Debounce function
+// Debounce function with mobile-adaptive timing
 function debounce(func, wait) {
   let timeout;
+  const actualWait = wait || CONFIG.MUTATION_DEBOUNCE;
   return function executedFunction(...args) {
     const later = () => {
       clearTimeout(timeout);
       func(...args);
     };
     clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+    timeout = setTimeout(later, actualWait);
   };
 }
 
@@ -61,14 +88,13 @@ function getItemSlug(item) {
          `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 }
 
-// Performance-optimized tab fixing with batched DOM operations
+// Mobile-optimized tab fixing with reduced DOM operations
 function fixTabSystemEnhanced(item, itemSlug) {
   const tabContainers = item.querySelectorAll('.w-tabs');
+  if (tabContainers.length === 0) return;
   
-  // Batch DOM operations for better performance
-  const updates = [];
-  
-  tabContainers.forEach((container, containerIndex) => {
+  // On mobile, process one container at a time to reduce memory pressure
+  const processContainer = (container, containerIndex) => {
     const containerTabs = container.querySelectorAll('[data-w-tab]');
     const containerPanes = container.querySelectorAll('[data-w-pane]');
     
@@ -76,62 +102,61 @@ function fixTabSystemEnhanced(item, itemSlug) {
     
     const baseId = `w-tabs-${itemSlug.replace(/[^a-zA-Z0-9-]/g, '-')}-${containerIndex}`;
     
-    // Pre-calculate all updates to batch DOM operations
+    // Process tabs individually on mobile to prevent memory spikes
     containerTabs.forEach((tabLink, index) => {
       const tabName = tabLink.getAttribute('data-w-tab');
       const tabId = `${baseId}-data-w-tab-${index}`;
       const paneId = `${baseId}-data-w-pane-${index}`;
       
-      // Find matching pane once
+      // Find matching pane
       const matchingPane = Array.from(containerPanes).find(pane => 
         pane.getAttribute('data-w-pane') === tabName
       );
       
-      updates.push({
-        tabLink,
-        tabId,
-        paneId,
-        matchingPane,
-        containerTabs,
-        containerPanes,
-        tabName,
-        index,
-        containerIndex
-      });
+      // Apply attributes immediately - no batching on mobile to avoid complexity
+      tabLink.id = tabId;
+      tabLink.href = `#${paneId}`;
+      tabLink.setAttribute('role', 'tab');
+      tabLink.setAttribute('aria-controls', paneId);
+      tabLink.setAttribute('tabindex', '-1');
+      tabLink.setAttribute('aria-selected', 'false');
+      tabLink.classList.remove('w--current');
+      tabLink.removeAttribute('data-tab-fixed');
+      tabLink.setAttribute('data-tab-fixed', 'true');
+      
+      if (matchingPane) {
+        matchingPane.id = paneId;
+        matchingPane.setAttribute('role', 'tabpanel');
+        matchingPane.setAttribute('aria-labelledby', tabId);
+        matchingPane.classList.remove('w--tab-active');
+        
+        // Simplified click handler for mobile
+        const clickHandler = (e) => {
+          e.preventDefault();
+          switchTabEnhanced(e.currentTarget, containerTabs, containerPanes, matchingPane);
+        };
+        
+        tabLink._originalClickHandler = clickHandler;
+        tabLink.addEventListener('click', clickHandler, { passive: false });
+        
+        // Add touch handling for mobile
+        if (isMobile) {
+          tabLink.addEventListener('touchend', clickHandler, { passive: false });
+        }
+      }
     });
-  });
+  };
   
-  // Batch apply all DOM updates
-  updates.forEach(({tabLink, tabId, paneId, matchingPane, containerTabs, containerPanes}) => {
-    // Batch set all tab attributes at once
-    tabLink.id = tabId;
-    tabLink.href = `#${paneId}`;
-    tabLink.setAttribute('role', 'tab');
-    tabLink.setAttribute('aria-controls', paneId);
-    tabLink.setAttribute('tabindex', '-1');
-    tabLink.setAttribute('aria-selected', 'false');
-    tabLink.classList.remove('w--current');
-    tabLink.removeAttribute('data-tab-fixed');
-    tabLink.setAttribute('data-tab-fixed', 'true');
-    
-    if (matchingPane) {
-      // Batch set all pane attributes
-      matchingPane.id = paneId;
-      matchingPane.setAttribute('role', 'tabpanel');
-      matchingPane.setAttribute('aria-labelledby', tabId);
-      matchingPane.classList.remove('w--tab-active');
-      
-      // Create optimized click handler with closure
-      const clickHandler = ((link, tabs, panes, pane) => (e) => {
-        e.preventDefault();
-        switchTabEnhanced(e.currentTarget, tabs, panes, pane);
-      })(tabLink, containerTabs, containerPanes, matchingPane);
-      
-      // Store and add handler
-      tabLink._originalClickHandler = clickHandler;
-      tabLink.addEventListener('click', clickHandler);
-    }
-  });
+  // Process containers sequentially on mobile
+  if (isMobile) {
+    tabContainers.forEach((container, index) => {
+      setTimeout(() => {
+        processContainer(container, index);
+      }, index * 10); // Small delay between containers on mobile
+    });
+  } else {
+    tabContainers.forEach(processContainer);
+  }
 }
 
 // Enhanced tab switching with proper attribute management
@@ -159,9 +184,10 @@ function switchTabEnhanced(clickedTab, allTabLinks, allTabPanes, targetPane) {
   }
 }
 
-// Enhanced lightbox system
+// Mobile-optimized lightbox system
 function fixLightboxEnhanced(item, itemSlug) {
   const lightboxElements = item.querySelectorAll('.w-lightbox');
+  if (lightboxElements.length === 0) return;
   
   lightboxElements.forEach((lightbox, index) => {
     if (!lightbox.hasAttribute('aria-label')) {
@@ -183,6 +209,7 @@ function fixLightboxEnhanced(item, itemSlug) {
     }
   });
   
+  // Longer delay on mobile for Webflow re-initialization
   setTimeout(() => {
     if (window.Webflow && window.Webflow.require) {
       try {
@@ -199,7 +226,7 @@ function fixLightboxEnhanced(item, itemSlug) {
     if (window.Webflow && window.Webflow.ready) {
       window.Webflow.ready();
     }
-  }, 200);
+  }, CONFIG.LIGHTBOX_DELAY);
 }
 
 // Optimized toggle with isolated item-level reset
@@ -274,7 +301,12 @@ function addToggleFunctionality(item) {
     tab.setAttribute('data-toggle-enhanced', 'true');
     const enhancedHandler = toggleHandler(tab);
     tab._enhancedClickHandler = enhancedHandler;
-    tab.addEventListener('click', enhancedHandler);
+    tab.addEventListener('click', enhancedHandler, { passive: false });
+    
+    // Add touch support for mobile
+    if (isMobile) {
+      tab.addEventListener('touchend', enhancedHandler, { passive: false });
+    }
   });
 }
 
@@ -283,7 +315,7 @@ function initLazyLoad() {
   if (typeof LazyLoad !== 'undefined') {
     lazyLoadInstance = new LazyLoad({
       elements_selector: '.lazy',
-      threshold: 100,
+      threshold: isMobile ? 200 : 100, // Higher threshold on mobile
       callback_loaded: el => {
         // Lazy image loaded
       }
@@ -374,21 +406,21 @@ function clickLoadMore(element) {
   // Click the button
   element.click();
   
-  // Restore scroll position after a brief moment
+  // Restore scroll position after a brief moment (longer delay on mobile)
   setTimeout(() => {
     window.scrollTo(0, currentScrollY);
-  }, 100);
+  }, isMobile ? 200 : 100);
   
-  // Process any new items that were just added
+  // Process any new items that were just added (longer delay on mobile)
   setTimeout(() => {
     processNewlyAddedItems();
-  }, 300);
+  }, isMobile ? 500 : 300);
   
   // Reset loading flag after delay
   setTimeout(() => {
     isLoadingMore = false;
     console.log('Ready for next load-more click');
-  }, LOAD_MORE_DELAY);
+  }, CONFIG.LOAD_MORE_DELAY);
 }
 
 function initLoadMoreObserver() {
@@ -399,8 +431,8 @@ function initLoadMoreObserver() {
       }
     });
   }, {
-    threshold: 0.01,
-    rootMargin: '150px'
+    threshold: CONFIG.INTERSECTION_THRESHOLD,
+    rootMargin: CONFIG.INTERSECTION_MARGIN
   });
 }
 
@@ -414,32 +446,41 @@ function observeLoadMoreButton() {
   return false;
 }
 
-// ITEM PROCESSING SYSTEM
+// MOBILE-OPTIMIZED ITEM PROCESSING SYSTEM
 function initItemProcessingObserver() {
-  itemProcessingObserver = new IntersectionObserver((entries) => {
-    const itemsToProcess = [];
-    
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const item = entry.target;
-        
-        if (!processedItems.has(item)) {
-          itemsToProcess.push(item);
-          processedItems.add(item);
-          itemProcessingObserver.unobserve(item);
+  if (!itemProcessingObserver) {
+    itemProcessingObserver = new IntersectionObserver((entries) => {
+      const itemsToProcess = [];
+      
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const item = entry.target;
+          
+          if (!processedItems.has(item)) {
+            itemsToProcess.push(item);
+            processedItems.add(item);
+            itemProcessingObserver.unobserve(item);
+          }
+        }
+      });
+      
+      if (itemsToProcess.length > 0) {
+        // Use setTimeout instead of requestIdleCallback on mobile
+        if (CONFIG.USE_IDLE_CALLBACK) {
+          requestIdleCallback(() => {
+            processItemsLazily(itemsToProcess);
+          }, { timeout: 1000 });
+        } else {
+          setTimeout(() => {
+            processItemsLazily(itemsToProcess);
+          }, CONFIG.PROCESSING_DELAY);
         }
       }
+    }, {
+      rootMargin: `${CONFIG.INTERSECTION_MARGIN} 0px ${CONFIG.INTERSECTION_MARGIN} 0px`,
+      threshold: CONFIG.INTERSECTION_THRESHOLD
     });
-    
-    if (itemsToProcess.length > 0) {
-      requestIdleCallback(() => {
-        processItemsLazily(itemsToProcess);
-      }, { timeout: 1000 });
-    }
-  }, {
-    rootMargin: '200px 0px 200px 0px',
-    threshold: 0.1
-  });
+  }
 }
 
 function queueItemForLazyProcessing(item) {
@@ -451,10 +492,11 @@ function queueItemForLazyProcessing(item) {
   }
 }
 
+// Mobile-optimized processing with reduced complexity
 function processItemsLazily(items) {
   if (!items?.length) return;
   
-  const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
+  const processInChunks = (itemsToProcess, chunkSize = CONFIG.PROCESSING_CHUNK_SIZE) => {
     if (itemsToProcess.length === 0) {
       updateLazyLoad();
       return;
@@ -473,28 +515,32 @@ function processItemsLazily(items) {
         fixTabSystemEnhanced(item, itemSlug);
         fixLightboxEnhanced(item, itemSlug);
         
-        // Add toggle functionality
+        // Add toggle functionality with mobile-optimized delay
         setTimeout(() => {
           addToggleFunctionality(item);
-        }, 50);
+        }, CONFIG.TOGGLE_DELAY);
         
       } catch (error) {
         console.error('Processing error:', error);
       }
     });
     
-    // Process next chunk
+    // Process next chunk with appropriate timing
     if (itemsToProcess.length > 0) {
-      requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
+      if (isMobile) {
+        setTimeout(() => processInChunks(itemsToProcess, chunkSize), CONFIG.PROCESSING_DELAY);
+      } else {
+        requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
+      }
     } else {
-      setTimeout(updateLazyLoad, 100);
+      setTimeout(updateLazyLoad, isMobile ? 200 : 100);
     }
   };
   
   processInChunks([...items]);
 }
 
-// Process items that were just added by load-more
+// Enhanced mobile processing for newly added items
 function processNewlyAddedItems() {
   const allItems = document.querySelectorAll('[itemslug]');
   const newItems = [];
@@ -502,7 +548,9 @@ function processNewlyAddedItems() {
   allItems.forEach(item => {
     if (!processedItems.has(item)) {
       const rect = item.getBoundingClientRect();
-      const isVisible = rect.top < window.innerHeight + 400; // Slightly larger buffer
+      // Larger buffer zone on mobile
+      const bufferZone = isMobile ? 600 : 400;
+      const isVisible = rect.top < window.innerHeight + bufferZone;
       
       if (isVisible) {
         newItems.push(item);
@@ -547,7 +595,7 @@ function processInitialVisibleItems() {
     queueItemForLazyProcessing(item);
   });
   
-  // Add toggle to items that already work
+  // Add toggle to items that already work (longer delay on mobile)
   setTimeout(() => {
     allItems.forEach(item => {
       const tabs = item.querySelectorAll('[data-w-tab]');
@@ -557,7 +605,43 @@ function processInitialVisibleItems() {
         addToggleFunctionality(item);
       }
     });
-  }, 500);
+  }, isMobile ? 1000 : 500);
+}
+
+// Mobile fallback processing system
+function initMobileFallback() {
+  if (!isMobile || !CONFIG.FALLBACK_INTERVAL) return;
+  
+  setInterval(() => {
+    if (fallbackProcessingActive) return;
+    
+    fallbackProcessingActive = true;
+    
+    // Find unprocessed items that should be processed
+    const allItems = document.querySelectorAll('[itemslug]');
+    const unprocessedItems = [];
+    
+    allItems.forEach(item => {
+      if (!processedItems.has(item)) {
+        const rect = item.getBoundingClientRect();
+        // Check if item is near viewport
+        if (rect.top < window.innerHeight + 300 && rect.bottom > -300) {
+          unprocessedItems.push(item);
+        }
+      }
+    });
+    
+    if (unprocessedItems.length > 0) {
+      console.log(`📱 Fallback processing ${unprocessedItems.length} items`);
+      processItemsLazily(unprocessedItems);
+    }
+    
+    setTimeout(() => {
+      fallbackProcessingActive = false;
+    }, 1000);
+  }, CONFIG.FALLBACK_INTERVAL);
+  
+  console.log('📱 Mobile fallback processing initialized');
 }
 
 // UNIFIED INITIALIZATION
@@ -566,28 +650,28 @@ document.addEventListener('DOMContentLoaded', function() {
   initItemProcessingObserver();
   initLoadMoreObserver();
   
+  // Initialize mobile fallback if needed
+  if (isMobile) {
+    initMobileFallback();
+  }
+  
   let pendingItems = new Set();
   let queueTimeout = null;
   
-  // Unified item queuing
-  const scheduleItemQueuing = () => {
-    if (queueTimeout) return;
-    
-    queueTimeout = setTimeout(() => {
-      if (pendingItems.size > 0) {
-        const itemsToQueue = Array.from(pendingItems);
-        pendingItems.clear();
-        
-        itemsToQueue.forEach(item => {
-          queueItemForLazyProcessing(item);
-        });
-      }
-      queueTimeout = null;
-    }, 100);
-  };
+  // Mobile-optimized item queuing with aggressive debouncing
+  const scheduleItemQueuing = debounce(() => {
+    if (pendingItems.size > 0) {
+      const itemsToQueue = Array.from(pendingItems);
+      pendingItems.clear();
+      
+      itemsToQueue.forEach(item => {
+        queueItemForLazyProcessing(item);
+      });
+    }
+  }, CONFIG.MUTATION_DEBOUNCE);
   
-  // Unified mutation observer
-  const observer = new MutationObserver((mutations) => {
+  // Unified mutation observer with mobile optimizations
+  const observer = new MutationObserver(debounce((mutations) => {
     let hasNewItems = false;
     let hasNewLoadMore = false;
     
@@ -623,21 +707,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hasNewLoadMore) {
       setTimeout(() => {
         observeLoadMoreButton();
-      }, 100);
+      }, isMobile ? 200 : 100);
     }
-  });
+  }, CONFIG.MUTATION_DEBOUNCE));
   
   observer.observe(document.body, {
     childList: true,
     subtree: true
   });
   
-  // Initial setup
+  // Initial setup with mobile-optimized timing
   setTimeout(() => {
     processInitialVisibleItems();
     observeLoadMoreButton();
     updateLazyLoad();
-  }, 500);
+  }, isMobile ? 1000 : 500);
   
   // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
@@ -648,4 +732,4 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-console.log('✅ Combined Webflow Fix + Auto Load More Ready!');
+console.log('✅ Combined Webflow Fix + Auto Load More (Mobile Optimized) Ready!');
