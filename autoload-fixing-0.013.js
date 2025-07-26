@@ -1,45 +1,28 @@
-// 🚀 COMBINED Webflow Component Fix + Auto Load More v4.0
+// 🚀 LAZY PROCESSING Webflow Component Fix v3.0
 // 
 // ✅ FEATURES:
-// • Auto-clicks #load-more when visible with smart throttling
 // • Fixes broken tabs/lightboxes ONLY when items come into view
 // • Integrates LazyLoad for images on new items  
 // • Adds PERFECT toggle functionality with single dummy tab reset 🎯
 // • Supports WFU lightbox grouping
 // • Works with Finsweet list load v2 (2025)
-// • IMMEDIATE processing of new load-more items
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
 // • LAZY PROCESSING: Only processes visible items
-// • Coordinated observers for maximum efficiency
+// • Intersection Observer triggers processing on scroll
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
-// • Single mutation observer handles both systems
 //
 // 🎯 TOGGLE FIX:
 // • Creates ONE hidden dummy tab for the entire page to reset Webflow's internal state
 // • Enables perfect toggle behavior: click → open, click → close, click → open
 // • No more need to click other tabs to reset state
-//
-// 🔄 AUTO LOAD MORE:
-// • Automatically clicks load-more button when it becomes visible
-// • Preserves scroll position during loading
-// • Coordinates with tab processing for optimal performance
 
-console.log('🚀 Combined Webflow Fix + Auto Load More Loading...');
+console.log('🚀 Webflow Component Fix with Lazy Processing Loading...');
 
-// Global state management
+// Global dummy tab reference
 let globalDummyTab = null;
-let isLoadingMore = false;
-let lazyLoadInstance = null;
-let itemProcessingObserver = null;
-let loadMoreObserver = null;
-let processedItems = new WeakSet();
-
-// Configuration
-const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
-const PROCESSING_CHUNK_SIZE = 1;
 
 // Debounce function
 function debounce(func, wait) {
@@ -102,7 +85,7 @@ function fixTabSystemEnhanced(item, itemSlug) {
   });
   
   // Batch apply all DOM updates
-  updates.forEach(({tabLink, tabId, paneId, matchingPane, containerTabs, containerPanes}) => {
+  updates.forEach(({tabLink, tabId, paneId, matchingPane, containerTabs, containerPanes, tabName, index, containerIndex}) => {
     // Batch set all tab attributes at once
     tabLink.id = tabId;
     tabLink.href = `#${paneId}`;
@@ -134,32 +117,28 @@ function fixTabSystemEnhanced(item, itemSlug) {
   });
 }
 
-// Enhanced tab switching with proper attribute management
+// BACK TO WORKING TAB SWITCHING
 function switchTabEnhanced(clickedTab, allTabLinks, allTabPanes, targetPane) {
-  // Deactivate all tabs in this container
   allTabLinks.forEach(tab => {
     tab.classList.remove('w--current');
     tab.setAttribute('aria-selected', 'false');
     tab.setAttribute('tabindex', '-1');
   });
   
-  // Hide all panes in this container
   allTabPanes.forEach(pane => {
     pane.classList.remove('w--tab-active');
   });
   
-  // Activate clicked tab
   clickedTab.classList.add('w--current');
   clickedTab.setAttribute('aria-selected', 'true');
   clickedTab.setAttribute('tabindex', '0');
   
-  // Show target pane
   if (targetPane) {
     targetPane.classList.add('w--tab-active');
   }
 }
 
-// Enhanced lightbox system
+// WORKING LIGHTBOX SYSTEM
 function fixLightboxEnhanced(item, itemSlug) {
   const lightboxElements = item.querySelectorAll('.w-lightbox');
   
@@ -202,7 +181,7 @@ function fixLightboxEnhanced(item, itemSlug) {
   }, 200);
 }
 
-// Optimized toggle with isolated item-level reset
+// Optimized toggle with global dummy tab reset for perfect toggle behavior
 function addToggleFunctionality(item) {
   if (item.hasAttribute('data-toggle-processed')) return;
   
@@ -212,50 +191,55 @@ function addToggleFunctionality(item) {
   
   item.setAttribute('data-toggle-processed', 'true');
   
-  // Close function that only affects THIS item's tabs
-  const closeAllTabsInItem = () => {
+  // Optimized close function that resets Webflow state using global dummy tab
+  const closeAllTabs = () => {
+    // Close all visible tabs
     const tabs = tabMenu.querySelectorAll('.w-tab-link:not(.dummy-tab-reset)');
     const panes = tabContent.querySelectorAll('.w-tab-pane:not(.dummy-tab-reset)');
     
-    tabs.forEach(tab => {
-      tab.classList.remove('w--current');
-      tab.setAttribute('aria-selected', 'false');
-      tab.setAttribute('tabindex', '-1');
-    });
+    tabs.forEach(tab => tab.classList.remove('w--current'));
+    panes.forEach(pane => pane.classList.remove('w--tab-active'));
     
-    panes.forEach(pane => {
-      pane.classList.remove('w--tab-active');
-    });
-    
-    // Reset Webflow's internal state by clicking dummy tab (but don't let it affect other items)
+    // Click global dummy tab to reset Webflow's internal state
     if (globalDummyTab) {
       setTimeout(() => {
-        // Temporarily disable the dummy tab's global reset to prevent affecting other items
-        const originalHandler = globalDummyTab.onclick;
-        globalDummyTab.onclick = null;
-        
-        // Click dummy to reset Webflow state
         globalDummyTab.click();
-        
-        // Restore original handler after a moment
-        setTimeout(() => {
-          globalDummyTab.onclick = originalHandler;
-        }, 50);
       }, 10);
     }
   };
   
-  // Enhanced toggle handler that works per item
+  const activateTab = (tab) => {
+    if (!tab) return;
+    
+    // Use the original click handler to properly activate tab
+    const originalHandler = tab._originalClickHandler;
+    if (originalHandler) {
+      // Create a synthetic click event
+      const syntheticEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      });
+      
+      // Let Webflow handle the tab activation properly
+      setTimeout(() => {
+        originalHandler.call(tab, syntheticEvent);
+      }, 50);
+    }
+  };
+  
+  // Enhanced toggle handler with global dummy tab reset
   const createToggleHandler = () => {
     return (tab) => (e) => {
       const currentTab = e.currentTarget;
       const isActive = currentTab.classList.contains('w--current');
       
       if (isActive) {
-        // Clicking active tab - close it and reset state for this item only
+        // Clicking active tab - close it and reset state
         e.preventDefault();
         e.stopPropagation();
-        closeAllTabsInItem();
+        
+        closeAllTabs(); // This will click the global dummy tab to reset state
       } else {
         // Normal tab click - let original handler work
         const originalHandler = currentTab._originalClickHandler;
@@ -266,7 +250,7 @@ function addToggleFunctionality(item) {
     };
   };
   
-  // Apply enhanced toggle to all tabs in this item
+  // Apply enhanced toggle to all tabs (excluding dummy)
   const tabs = tabMenu.querySelectorAll('.w-tab-link:not([data-toggle-enhanced]):not(.dummy-tab-reset)');
   const toggleHandler = createToggleHandler();
   
@@ -279,6 +263,8 @@ function addToggleFunctionality(item) {
 }
 
 // LazyLoad integration
+let lazyLoadInstance = null;
+
 function initLazyLoad() {
   if (typeof LazyLoad !== 'undefined') {
     lazyLoadInstance = new LazyLoad({
@@ -300,122 +286,12 @@ function updateLazyLoad() {
   }
 }
 
-// Create single hidden dummy tab for the entire page
-function ensureGlobalDummyTab() {
-  if (globalDummyTab) return;
-  
-  const firstTabMenu = document.querySelector('.w-tab-menu');
-  const firstTabContent = document.querySelector('.w-tab-content');
-  
-  if (!firstTabMenu || !firstTabContent) return;
-  
-  const dummyId = 'global-dummy-reset';
-  
-  // Create dummy tab link (hidden)
-  const dummyTab = document.createElement('a');
-  dummyTab.setAttribute('data-w-tab', 'GlobalDummyReset');
-  dummyTab.className = 'dummy-tab-reset w-tab-link';
-  dummyTab.id = `${dummyId}-tab`;
-  dummyTab.href = `#${dummyId}-pane`;
-  dummyTab.setAttribute('role', 'tab');
-  dummyTab.setAttribute('aria-controls', `${dummyId}-pane`);
-  dummyTab.setAttribute('tabindex', '-1');
-  dummyTab.setAttribute('aria-selected', 'false');
-  dummyTab.style.display = 'none';
-  dummyTab.style.position = 'absolute';
-  dummyTab.style.left = '-9999px';
-  
-  // Create dummy tab pane (hidden)
-  const dummyPane = document.createElement('div');
-  dummyPane.setAttribute('data-w-pane', 'GlobalDummyReset');
-  dummyPane.className = 'dummy-tab-reset w-tab-pane';
-  dummyPane.id = `${dummyId}-pane`;
-  dummyPane.setAttribute('role', 'tabpanel');
-  dummyPane.setAttribute('aria-labelledby', `${dummyId}-tab`);
-  dummyPane.style.display = 'none';
-  dummyPane.style.position = 'absolute';
-  dummyPane.style.left = '-9999px';
-  
-  // Add to DOM
-  firstTabMenu.appendChild(dummyTab);
-  firstTabContent.appendChild(dummyPane);
-  
-  // Store global reference
-  globalDummyTab = dummyTab;
-  
-  // Add minimal click handler to dummy tab - just for Webflow state reset
-  dummyTab.addEventListener('click', (e) => {
-    e.preventDefault();
-    // Only activate the dummy tab itself to reset Webflow's internal state
-    // Don't touch any other tabs - let individual items handle their own tab states
-    dummyTab.classList.add('w--current');
-    dummyTab.setAttribute('aria-selected', 'true');
-    dummyPane.classList.add('w--tab-active');
-    
-    // Immediately deactivate the dummy tab since it's just for state reset
-    setTimeout(() => {
-      dummyTab.classList.remove('w--current');
-      dummyTab.setAttribute('aria-selected', 'false');
-      dummyPane.classList.remove('w--tab-active');
-    }, 1);
-  });
-}
+// Lazy Intersection Observer for processing items only when visible
+let itemProcessingObserver = null;
+let processedItems = new WeakSet(); // Track which items have been processed
 
-// AUTO LOAD MORE FUNCTIONALITY
-function clickLoadMore(element) {
-  if (isLoadingMore) return;
-  
-  isLoadingMore = true;
-  console.log('Auto-clicking load-more button...');
-  
-  // Store current scroll position
-  const currentScrollY = window.scrollY;
-  
-  // Click the button
-  element.click();
-  
-  // Restore scroll position after a brief moment
-  setTimeout(() => {
-    window.scrollTo(0, currentScrollY);
-  }, 100);
-  
-  // Process any new items that were just added
-  setTimeout(() => {
-    processNewlyAddedItems();
-  }, 300);
-  
-  // Reset loading flag after delay
-  setTimeout(() => {
-    isLoadingMore = false;
-    console.log('Ready for next load-more click');
-  }, LOAD_MORE_DELAY);
-}
-
-function initLoadMoreObserver() {
-  loadMoreObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && !isLoadingMore) {
-        clickLoadMore(entry.target);
-      }
-    });
-  }, {
-    threshold: 0.01,
-    rootMargin: '150px'
-  });
-}
-
-function observeLoadMoreButton() {
-  const loadMoreButton = document.querySelector('#load-more');
-  if (loadMoreButton && loadMoreObserver) {
-    loadMoreObserver.observe(loadMoreButton);
-    console.log('Started observing #load-more button');
-    return true;
-  }
-  return false;
-}
-
-// ITEM PROCESSING SYSTEM
-function initItemProcessingObserver() {
+function initLazyProcessing() {
+  // Create intersection observer with buffer zone
   itemProcessingObserver = new IntersectionObserver((entries) => {
     const itemsToProcess = [];
     
@@ -423,38 +299,50 @@ function initItemProcessingObserver() {
       if (entry.isIntersecting) {
         const item = entry.target;
         
+        // Only process if not already processed
         if (!processedItems.has(item)) {
           itemsToProcess.push(item);
           processedItems.add(item);
+          
+          // Stop observing this item since it's now processed
           itemProcessingObserver.unobserve(item);
         }
       }
     });
     
     if (itemsToProcess.length > 0) {
+      // Process items that just became visible
       requestIdleCallback(() => {
         processItemsLazily(itemsToProcess);
       }, { timeout: 1000 });
     }
   }, {
+    // Process items when they're 200px from entering viewport
     rootMargin: '200px 0px 200px 0px',
     threshold: 0.1
   });
 }
 
+// Queue new items for lazy processing instead of immediate processing
 function queueItemForLazyProcessing(item) {
+  // Quick check - does this item actually need processing?
   const tabs = item.querySelectorAll('[data-w-tab]');
-  if (tabs.length === 0) return;
+  if (tabs.length === 0) {
+    return; // No tabs, no processing needed
+  }
   
+  // Mark item for observation
   if (itemProcessingObserver && !processedItems.has(item)) {
     itemProcessingObserver.observe(item);
   }
 }
 
+// Lightweight immediate processing for above-the-fold items
 function processItemsLazily(items) {
   if (!items?.length) return;
   
-  const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
+  // Use requestAnimationFrame to avoid blocking the main thread
+  const processInChunks = (itemsToProcess, chunkSize = 1) => {
     if (itemsToProcess.length === 0) {
       updateLazyLoad();
       return;
@@ -466,60 +354,37 @@ function processItemsLazily(items) {
       try {
         const itemSlug = getItemSlug(item);
         
-        // Ensure global dummy tab exists
+        // Step 1: Ensure global dummy tab exists (only creates once)
         ensureGlobalDummyTab();
         
-        // Fix tabs and lightboxes
+        // Step 2: Fix tabs and lightboxes
         fixTabSystemEnhanced(item, itemSlug);
         fixLightboxEnhanced(item, itemSlug);
         
-        // Add toggle functionality
+        // Step 3: Add toggle functionality after a brief delay
         setTimeout(() => {
           addToggleFunctionality(item);
         }, 50);
         
       } catch (error) {
-        console.error('Processing error:', error);
+        console.error('Lazy processing error:', error);
       }
     });
     
-    // Process next chunk
+    // Process next chunk on next animation frame
     if (itemsToProcess.length > 0) {
       requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
     } else {
+      // All items processed, update lazy load
       setTimeout(updateLazyLoad, 100);
     }
   };
   
+  // Start processing in small chunks
   processInChunks([...items]);
 }
 
-// Process items that were just added by load-more
-function processNewlyAddedItems() {
-  const allItems = document.querySelectorAll('[itemslug]');
-  const newItems = [];
-  
-  allItems.forEach(item => {
-    if (!processedItems.has(item)) {
-      const rect = item.getBoundingClientRect();
-      const isVisible = rect.top < window.innerHeight + 400; // Slightly larger buffer
-      
-      if (isVisible) {
-        newItems.push(item);
-        processedItems.add(item);
-      } else {
-        // Queue non-visible items for lazy processing
-        queueItemForLazyProcessing(item);
-      }
-    }
-  });
-  
-  if (newItems.length > 0) {
-    console.log(`Processing ${newItems.length} newly loaded items`);
-    processItemsLazily(newItems);
-  }
-}
-
+// Process initial above-the-fold items immediately (but still efficiently)
 function processInitialVisibleItems() {
   const allItems = document.querySelectorAll('[itemslug]');
   const visibleItems = [];
@@ -530,19 +395,21 @@ function processInitialVisibleItems() {
     const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
     
     if (isVisible) {
+      // Process immediately if visible
       visibleItems.push(item);
       processedItems.add(item);
     } else {
+      // Queue for lazy processing
       itemsToQueue.push(item);
     }
   });
   
-  // Process visible items immediately
+  // Process visible items immediately (but efficiently)
   if (visibleItems.length > 0) {
     processItemsLazily(visibleItems);
   }
   
-  // Queue non-visible items
+  // Queue non-visible items for lazy processing
   itemsToQueue.forEach(item => {
     queueItemForLazyProcessing(item);
   });
@@ -560,16 +427,80 @@ function processInitialVisibleItems() {
   }, 500);
 }
 
-// UNIFIED INITIALIZATION
+// Create single hidden dummy tab for the entire page to reset Webflow state
+function ensureGlobalDummyTab() {
+  // Skip if global dummy tab already exists
+  if (globalDummyTab) return;
+  
+  // Find the first tab container on the page
+  const firstTabMenu = document.querySelector('.w-tab-menu');
+  const firstTabContent = document.querySelector('.w-tab-content');
+  
+  if (!firstTabMenu || !firstTabContent) return;
+  
+  const dummyId = 'global-dummy-reset';
+  
+  // Create dummy tab link (hidden)
+  const dummyTab = document.createElement('a');
+  dummyTab.setAttribute('data-w-tab', 'GlobalDummyReset');
+  dummyTab.className = 'dummy-tab-reset w-tab-link';
+  dummyTab.id = `${dummyId}-tab`;
+  dummyTab.href = `#${dummyId}-pane`;
+  dummyTab.setAttribute('role', 'tab');
+  dummyTab.setAttribute('aria-controls', `${dummyId}-pane`);
+  dummyTab.setAttribute('tabindex', '-1');
+  dummyTab.setAttribute('aria-selected', 'false');
+  dummyTab.style.display = 'none'; // Hidden
+  dummyTab.style.position = 'absolute';
+  dummyTab.style.left = '-9999px';
+  
+  // Create dummy tab pane (hidden)
+  const dummyPane = document.createElement('div');
+  dummyPane.setAttribute('data-w-pane', 'GlobalDummyReset');
+  dummyPane.className = 'dummy-tab-reset w-tab-pane';
+  dummyPane.id = `${dummyId}-pane`;
+  dummyPane.setAttribute('role', 'tabpanel');
+  dummyPane.setAttribute('aria-labelledby', `${dummyId}-tab`);
+  dummyPane.style.display = 'none'; // Hidden
+  dummyPane.style.position = 'absolute';
+  dummyPane.style.left = '-9999px';
+  
+  // Add to DOM
+  firstTabMenu.appendChild(dummyTab);
+  firstTabContent.appendChild(dummyPane);
+  
+  // Store global reference
+  globalDummyTab = dummyTab;
+  
+  // Add basic click handler to dummy tab
+  dummyTab.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Just activate the dummy tab (Webflow will handle the rest)
+    const allTabs = document.querySelectorAll('.w-tab-link');
+    const allPanes = document.querySelectorAll('.w-tab-pane');
+    
+    allTabs.forEach(tab => {
+      tab.classList.remove('w--current');
+      tab.setAttribute('aria-selected', 'false');
+    });
+    
+    allPanes.forEach(pane => {
+      pane.classList.remove('w--tab-active');
+    });
+    
+    // Don't actually show the dummy tab - just use it to reset state
+  });
+}
+
+// Optimized observer with lazy processing queue
 document.addEventListener('DOMContentLoaded', function() {
   initLazyLoad();
-  initItemProcessingObserver();
-  initLoadMoreObserver();
+  initLazyProcessing();
   
   let pendingItems = new Set();
   let queueTimeout = null;
   
-  // Unified item queuing
+  // Lightweight queuing for new items
   const scheduleItemQueuing = () => {
     if (queueTimeout) return;
     
@@ -578,18 +509,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemsToQueue = Array.from(pendingItems);
         pendingItems.clear();
         
+        // Queue items for lazy processing instead of immediate processing
         itemsToQueue.forEach(item => {
           queueItemForLazyProcessing(item);
         });
       }
       queueTimeout = null;
-    }, 100);
+    }, 100); // Very short delay just to batch multiple rapid additions
   };
   
-  // Unified mutation observer
+  // Lightweight mutation observer
   const observer = new MutationObserver((mutations) => {
     let hasNewItems = false;
-    let hasNewLoadMore = false;
     
     for (const mutation of mutations) {
       if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -597,20 +528,17 @@ document.addEventListener('DOMContentLoaded', function() {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
         
-        // Check for new items
+        // Check for direct items
         if (node.hasAttribute?.('itemslug')) {
           pendingItems.add(node);
           hasNewItems = true;
-        } else if (node.querySelector) {
+        }
+        // Check for child items
+        else if (node.querySelector) {
           const childItems = node.querySelectorAll('[itemslug]');
           for (const item of childItems) {
             pendingItems.add(item);
             hasNewItems = true;
-          }
-          
-          // Check for new load-more button
-          if (node.id === 'load-more' || node.querySelector('#load-more')) {
-            hasNewLoadMore = true;
           }
         }
       }
@@ -619,12 +547,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hasNewItems) {
       scheduleItemQueuing();
     }
-    
-    if (hasNewLoadMore) {
-      setTimeout(() => {
-        observeLoadMoreButton();
-      }, 100);
-    }
   });
   
   observer.observe(document.body, {
@@ -632,20 +554,20 @@ document.addEventListener('DOMContentLoaded', function() {
     subtree: true
   });
   
-  // Initial setup
+  // Process initial items with lazy approach
   setTimeout(() => {
     processInitialVisibleItems();
-    observeLoadMoreButton();
     updateLazyLoad();
   }, 500);
   
   // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
     observer.disconnect();
-    if (itemProcessingObserver) itemProcessingObserver.disconnect();
-    if (loadMoreObserver) loadMoreObserver.disconnect();
+    if (itemProcessingObserver) {
+      itemProcessingObserver.disconnect();
+    }
     if (queueTimeout) clearTimeout(queueTimeout);
   });
 });
 
-console.log('✅ Combined Webflow Fix + Auto Load More Ready!');
+console.log('✅ Webflow Fix + LazyLoad + Toggle Ready!');
