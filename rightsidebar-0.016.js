@@ -398,11 +398,24 @@ function cleanupEmptyFacetCheckboxes() {
   
   console.log(`Cleanup completed: Removed ${removedCount} empty facet checkboxes`);
   
+  // Remove fs-list-emptyfacet="hide" attribute from remaining checkboxes
+  const remainingLabels = document.querySelectorAll('label[fs-list-emptyfacet="hide"].w-checkbox.reporterwrap-copy');
+  let attributesRemovedCount = 0;
+  
+  remainingLabels.forEach(label => {
+    const localityName = label.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
+    label.removeAttribute('fs-list-emptyfacet');
+    console.log(`Removed fs-list-emptyfacet attribute from: ${localityName}`);
+    attributesRemovedCount++;
+  });
+  
+  console.log(`Attribute cleanup completed: Removed fs-list-emptyfacet from ${attributesRemovedCount} remaining checkboxes`);
+  
   // Mark as executed
   cleanupEmptyFacetCheckboxes.hasRun = true;
   
-  // Invalidate DOM cache since we removed elements
-  if (removedCount > 0) {
+  // Invalidate DOM cache since we modified elements
+  if (removedCount > 0 || attributesRemovedCount > 0) {
     domCache.markStale();
   }
 }
