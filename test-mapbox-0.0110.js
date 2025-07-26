@@ -10,13 +10,14 @@ if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
-// Fallback: Hide loading screen after max 10 seconds regardless
+// Fallback: Hide loading screen after max 15 seconds regardless
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
   if (loadingScreen && loadingScreen.style.display !== 'none') {
+    console.warn('⚠️ Loading timeout - forcing loading screen to hide');
     loadingScreen.style.display = 'none';
   }
-}, 10000);
+}, 15000);
 
 // OPTIMIZED: Comprehensive DOM Element Cache
 class OptimizedDOMCache {
@@ -351,9 +352,48 @@ class OptimizedMapState {
   }
 }
 
-// OPTIMIZED: Global state management
+// OPTIMIZED: Global state management with loading tracker
 const state = new OptimizedMapState();
 window.isLinkClick = false;
+
+// ENHANCED: Loading state tracker
+const loadingTracker = {
+  states: {
+    mapInitialized: false,
+    locationDataLoaded: false,
+    markersAdded: false,
+    geoDataLoaded: false,
+    districtTagsLoaded: false,
+    controlsSetup: false
+  },
+  
+  markComplete(stateName) {
+    if (this.states.hasOwnProperty(stateName)) {
+      this.states[stateName] = true;
+      console.log(`✅ Loading: ${stateName} completed`);
+      this.checkAllComplete();
+    }
+  },
+  
+  checkAllComplete() {
+    const allComplete = Object.values(this.states).every(state => state === true);
+    if (allComplete) {
+      this.hideLoadingScreen();
+    } else {
+      const completed = Object.entries(this.states).filter(([_, complete]) => complete).length;
+      const total = Object.keys(this.states).length;
+      console.log(`🔄 Loading progress: ${completed}/${total} components ready`);
+    }
+  },
+  
+  hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-map-screen');
+    if (loadingScreen && loadingScreen.style.display !== 'none') {
+      loadingScreen.style.display = 'none';
+      console.log('🎉 All components loaded - hiding loading screen');
+    }
+  }
+};
 
 // OPTIMIZED: High-performance utilities
 const utils = {
@@ -817,6 +857,9 @@ function getLocationData() {
   const loadTime = performance.now() - startTime;
   state.performance.loadTimes.set('locationData', loadTime);
   console.log(`Location data loaded: ${totalLoaded} features in ${loadTime}ms`);
+  
+  // Mark loading step complete
+  loadingTracker.markComplete('locationDataLoaded');
 }
 
 // OPTIMIZED: Native markers with batched operations
@@ -903,6 +946,9 @@ function addNativeMarkers() {
   setupNativeMarkerClicks();
   
   state.performance.loadTimes.set('nativeMarkers', performance.now() - startTime);
+  
+  // Mark loading step complete
+  loadingTracker.markComplete('markersAdded');
 }
 
 // OPTIMIZED: District markers with batched operations  
@@ -1883,6 +1929,9 @@ function loadCombinedGeoData() {
         addNativeDistrictMarkers();
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
+        
+        // Mark loading step complete
+        loadingTracker.markComplete('geoDataLoaded');
       }, 100);
       
       state.performance.loadTimes.set('combinedGeoData', performance.now() - startTime);
@@ -1892,6 +1941,9 @@ function loadCombinedGeoData() {
       // Still update district markers in case some data was loaded
       addNativeDistrictMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
+      
+      // Mark as complete even with error to avoid infinite loading
+      loadingTracker.markComplete('geoDataLoaded');
     });
 }
 
@@ -2211,6 +2263,9 @@ function setupAreaKeyControls() {
   if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
     state.flags.areaControlsSetup = true;
     console.log('Area and marker controls setup completed');
+    
+    // Mark loading step complete
+    loadingTracker.markComplete('controlsSetup');
   }
 }
 
@@ -2234,7 +2289,11 @@ function loadDistrictTags() {
   if (state.flags.districtTagsLoaded) return;
   
   const districtTagCollection = $id('district-tag-collection');
-  if (!districtTagCollection) return;
+  if (!districtTagCollection) {
+    console.log('District tag collection not found - marking as complete');
+    loadingTracker.markComplete('districtTagsLoaded');
+    return;
+  }
   
   const districtTagItems = districtTagCollection.querySelectorAll('#district-tag-item');
   
@@ -2272,6 +2331,9 @@ function loadDistrictTags() {
   
   state.setTimer('districtTagsLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
   console.log(`Loaded ${newFeatures.length} district tags`);
+  
+  // Mark loading step complete
+  loadingTracker.markComplete('districtTagsLoaded');
 }
 
 // Generate locality checkboxes from map data
@@ -2545,13 +2607,8 @@ function init() {
   
   state.flags.mapInitialized = true;
   
-  // Hide loading screen
-  state.setTimer('hideLoading', () => {
-    const loadingScreen = document.getElementById('loading-map-screen');
-    if (loadingScreen) {
-      loadingScreen.style.display = 'none';
-    }
-  }, 600);
+  // Mark loading step complete
+  loadingTracker.markComplete('mapInitialized');
   
   // Initial filtering check
   state.setTimer('initialFiltering', () => {
@@ -2602,13 +2659,10 @@ map.on("load", () => {
     
   } catch (error) {
     console.error('Map initialization error:', error);
-    // Still hide loading screen on error
-    state.setTimer('errorHideLoading', () => {
-      const loadingScreen = document.getElementById('loading-map-screen');
-      if (loadingScreen) {
-        loadingScreen.style.display = 'none';
-      }
-    }, 2000);
+    // Mark all loading steps as complete to hide loading screen on error
+    Object.keys(loadingTracker.states).forEach(stateName => {
+      loadingTracker.markComplete(stateName);
+    });
   }
 });
 
@@ -2636,7 +2690,15 @@ window.addEventListener('load', () => {
   if (!state.flags.districtTagsLoaded) {
     [1200, 2500].forEach(delay => 
       state.setTimer(`districtTagsRetry-${delay}`, () => {
-        if (!state.flags.districtTagsLoaded) loadDistrictTags();
+        if (!state.flags.districtTagsLoaded) {
+          loadDistrictTags();
+          // Fallback: mark as complete even if no tags found
+          if (!loadingTracker.states.districtTagsLoaded) {
+            state.setTimer('districtTagsFallback', () => {
+              loadingTracker.markComplete('districtTagsLoaded');
+            }, delay + 1000);
+          }
+        }
       }, delay)
     );
   }
@@ -2644,7 +2706,15 @@ window.addEventListener('load', () => {
   if (!state.flags.areaControlsSetup) {
     [2500, 4000].forEach(delay => 
       state.setTimer(`areaControlsRetry-${delay}`, () => {
-        if (!state.flags.areaControlsSetup) setupAreaKeyControls();
+        if (!state.flags.areaControlsSetup) {
+          setupAreaKeyControls();
+          // Fallback: mark as complete even if setup seems incomplete
+          if (!loadingTracker.states.controlsSetup) {
+            state.setTimer('controlsFallback', () => {
+              loadingTracker.markComplete('controlsSetup');
+            }, delay + 1000);
+          }
+        }
       }, delay)
     );
   }
