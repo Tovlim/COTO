@@ -369,49 +369,6 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// Clean up empty facet checkboxes (those with facet count = 0) - runs only once
-function cleanupEmptyFacetCheckboxes() {
-  // Prevent multiple executions
-  if (cleanupEmptyFacetCheckboxes.hasRun) {
-    console.log('Cleanup already executed, skipping...');
-    return;
-  }
-  
-  console.log('Cleaning up empty facet checkboxes (facet count = 0)...');
-  
-  // Find all labels with the correct classes
-  const allLabels = document.querySelectorAll('label[fs-list-emptyfacet="hide"].w-checkbox.reporterwrap-copy');
-  const emptyFacetLabels = Array.from(allLabels).filter(label => {
-    const facetCountElement = label.querySelector('[fs-list-element="facet-count"]');
-    if (facetCountElement) {
-      const count = facetCountElement.textContent.trim();
-      return count === '0';
-    }
-    return false;
-  });
-  
-  console.log(`Found ${emptyFacetLabels.length} empty facet checkboxes to remove (out of ${allLabels.length} total labels)`);
-  
-  let removedCount = 0;
-  emptyFacetLabels.forEach(label => {
-    const localityName = label.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
-    const facetCount = label.querySelector('[fs-list-element="facet-count"]')?.textContent || '?';
-    console.log(`Removing empty facet checkbox for: ${localityName} (count: ${facetCount})`);
-    label.remove();
-    removedCount++;
-  });
-  
-  console.log(`Cleanup completed: Removed ${removedCount} empty facet checkboxes`);
-  
-  // Mark as executed
-  cleanupEmptyFacetCheckboxes.hasRun = true;
-  
-  // Invalidate DOM cache since we removed elements
-  if (removedCount > 0) {
-    domCache.markStale();
-  }
-}
-
 // Generate locality checkboxes from cms-filter-list data
 function generateLocalityCheckboxes() {
   const container = $id('locality-check-list');
@@ -468,9 +425,6 @@ function generateLocalityCheckboxes() {
     const label = checkbox.querySelector('#locality-checkbox');
     if (label) label.removeAttribute('id');
     
-    // Remove fs-list-emptyfacet attribute since these are data-driven, not empty facets
-    checkbox.removeAttribute('fs-list-emptyfacet');
-    
     // Update attributes - look for input with name="locality"
     const input = checkbox.querySelector('input[name="locality"]');
     if (input) {
@@ -499,6 +453,42 @@ function generateLocalityCheckboxes() {
   
   console.log(`Generated ${uniqueLocalityNames.length} locality checkboxes in #locality-check-list`);
   
+  // Wait 800ms then remove checkboxes with zero facet counts
+  state.setTimer('removeZeroFacetCheckboxes', () => {
+    console.log('Checking for zero facet count checkboxes to remove...');
+    
+    const container = $id('locality-check-list');
+    if (!container) return;
+    
+    const facetCountElements = container.querySelectorAll('[fs-list-element="facet-count"].test33');
+    let removedCount = 0;
+    
+    facetCountElements.forEach(facetElement => {
+      if (facetElement.textContent.trim() === '0') {
+        // Find the parent checkbox container to remove
+        let checkboxContainer = facetElement.closest('[checkbox-filter="locality"]');
+        
+        if (!checkboxContainer) {
+          // Fallback: look for parent form element or div that contains the checkbox
+          checkboxContainer = facetElement.closest('div') || facetElement.closest('label') || facetElement.closest('form');
+        }
+        
+        if (checkboxContainer && checkboxContainer.parentNode) {
+          console.log(`Removing checkbox with zero facet count: ${checkboxContainer.textContent.trim()}`);
+          checkboxContainer.parentNode.removeChild(checkboxContainer);
+          removedCount++;
+        }
+      }
+    });
+    
+    console.log(`Removed ${removedCount} checkboxes with zero facet counts`);
+    
+    // Invalidate DOM cache since we removed elements
+    if (removedCount > 0) {
+      domCache.markStale();
+    }
+  }, 800);
+  
   // Re-cache checkbox filter script if it exists
   if (window.checkboxFilterScript?.recacheElements) {
     state.setTimer('recacheCheckboxFilter', () => {
@@ -508,9 +498,6 @@ function generateLocalityCheckboxes() {
   
   // Check filtered elements after generating checkboxes
   state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Clean up empty facet checkboxes after 800ms delay - ONLY ONCE
-  state.setTimer('cleanupEmptyFacets', cleanupEmptyFacetCheckboxes, 800);
   
   // Invalidate DOM cache since we added new elements
   domCache.markStale();
@@ -954,8 +941,7 @@ window.rightSidebarUtilities = {
   getAvailableFilterLists,
   setupCheckboxFunctionality,
   setupCheckboxEvents,
-  generateLocalityCheckboxes,
-  cleanupEmptyFacetCheckboxes
+  generateLocalityCheckboxes
 };
 
 // Performance monitoring
