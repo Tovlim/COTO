@@ -411,11 +411,25 @@ function cleanupEmptyFacetCheckboxes() {
   
   console.log(`Attribute cleanup completed: Removed fs-list-emptyfacet from ${attributesRemovedCount} remaining checkboxes`);
   
+  // Remove data-indicator-setup="true" from remaining checkbox inputs
+  const remainingInputs = document.querySelectorAll('label.w-checkbox.reporterwrap-copy input[data-indicator-setup="true"]');
+  let indicatorAttributesRemovedCount = 0;
+  
+  remainingInputs.forEach(input => {
+    const parentLabel = input.closest('label');
+    const localityName = parentLabel?.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
+    input.removeAttribute('data-indicator-setup');
+    console.log(`Removed data-indicator-setup attribute from input: ${localityName}`);
+    indicatorAttributesRemovedCount++;
+  });
+  
+  console.log(`Input cleanup completed: Removed data-indicator-setup from ${indicatorAttributesRemovedCount} remaining checkbox inputs`);
+  
   // Mark as executed
   cleanupEmptyFacetCheckboxes.hasRun = true;
   
   // Invalidate DOM cache since we modified elements
-  if (removedCount > 0 || attributesRemovedCount > 0) {
+  if (removedCount > 0 || attributesRemovedCount > 0 || indicatorAttributesRemovedCount > 0) {
     domCache.markStale();
   }
 }
