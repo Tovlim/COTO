@@ -1,43 +1,61 @@
-// 🚀 OPTIMIZED Auto Load More + Lightbox Fix v5.0
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + Lightbox Fix v6.0
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
-// • Fixes lightbox grouping ONLY when items come into view
+// • Fixes lightbox grouping for ALL items (new, filtered, and existing)
 // • Integrates LazyLoad for images on new items  
 // • Supports WFU lightbox grouping with [wfu-lightbox-group] attributes
-// • Works with Finsweet list load v2 (2025)
+// • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
-// • Batch-level Webflow re-initialization for optimal performance
+// • COMPLETE re-processing when filtering changes
+// • Mobile-optimized timing and retry logic
+// • Enhanced Webflow re-initialization for mobile reliability
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
-// • LAZY PROCESSING: Only processes visible items
+// • SMART PROCESSING: Processes visible items + detects filtering changes
+// • Finsweet-coordinated event handling
 // • Attribute-based targeting for precision
-// • Single Webflow re-initialization per batch
+// • Mobile-aggressive Webflow re-initialization
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
-// • Debounced re-initialization for dynamic content
+// • Multiple re-initialization attempts for mobile
 //
 // 🔄 AUTO LOAD MORE:
 // • Automatically clicks load-more button when it becomes visible
 // • Preserves scroll position during loading
 // • Coordinates with lightbox processing for optimal performance
+//
+// 📱 MOBILE OPTIMIZATIONS:
+// • Enhanced timing for mobile browsers
+// • Multiple Webflow re-initialization attempts
+// • Aggressive retry logic for stubborn lightboxes
+// • Coordinated with Finsweet filtering events
 
-console.log('🚀 Optimized Auto Load More + Lightbox Fix Loading...');
+console.log('🚀 Enhanced Mobile-Optimized Auto Load More + Lightbox Fix Loading...');
 
 // Global state management
 let isLoadingMore = false;
 let lazyLoadInstance = null;
 let itemProcessingObserver = null;
 let loadMoreObserver = null;
+let filteringObserver = null;
 let processedItems = new WeakSet();
 let needsLightboxReInit = false;
 let reInitTimeout = null;
+let isCurrentlyFiltering = false;
+let lastFilteringState = false;
+let mobileRetryCount = 0;
 
 // Configuration
 const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
 const PROCESSING_CHUNK_SIZE = 1;
-const REINIT_DEBOUNCE_DELAY = 200; // Delay before re-initializing Webflow
+const REINIT_DEBOUNCE_DELAY = 200; // Base delay before re-initializing Webflow
+const MOBILE_REINIT_DELAYS = [300, 600, 1200]; // Mobile retry delays
+const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
+
+// Device detection
+const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 // Debounce function
 function debounce(func, wait) {
@@ -50,6 +68,28 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+// Enhanced filtering detection using proven methods from mapbox script
+function detectFiltering() {
+  // Primary method: Check for Finsweet's official filtering indicator
+  const hiddenTagParent = document.getElementById('hiddentagparent');
+  return !!hiddenTagParent;
+}
+
+// Check if filtering state has changed
+function checkFilteringStateChange() {
+  const currentlyFiltering = detectFiltering();
+  const hasChanged = currentlyFiltering !== lastFilteringState;
+  
+  if (hasChanged) {
+    console.log(`Filtering state changed: ${lastFilteringState} → ${currentlyFiltering}`);
+    lastFilteringState = currentlyFiltering;
+    isCurrentlyFiltering = currentlyFiltering;
+    return true;
+  }
+  
+  return false;
 }
 
 // Optimized lightbox grouping system based on attributes
@@ -76,30 +116,56 @@ function processLightboxGroups(item) {
   return hasProcessedGroups;
 }
 
-// Debounced Webflow re-initialization
+// Enhanced Webflow re-initialization with mobile-aggressive retry logic
 function scheduleWebflowReInit() {
   if (reInitTimeout) {
     clearTimeout(reInitTimeout);
   }
   
+  const baseDelay = isMobile ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
+  
   reInitTimeout = setTimeout(() => {
     if (needsLightboxReInit) {
-      try {
-        if (window.Webflow && window.Webflow.require) {
-          const lightboxModule = window.Webflow.require('lightbox');
-          if (lightboxModule && lightboxModule.ready) {
-            lightboxModule.ready();
-            console.log('✅ Webflow lightbox re-initialized');
-          }
-        }
-      } catch (e) {
-        console.error('Webflow re-init error:', e);
-      }
-      
-      needsLightboxReInit = false;
+      performWebflowReInit();
     }
     reInitTimeout = null;
-  }, REINIT_DEBOUNCE_DELAY);
+  }, baseDelay);
+}
+
+function performWebflowReInit(retryAttempt = 0) {
+  try {
+    if (window.Webflow && window.Webflow.require) {
+      const lightboxModule = window.Webflow.require('lightbox');
+      if (lightboxModule && lightboxModule.ready) {
+        lightboxModule.ready();
+        console.log(`✅ Webflow lightbox re-initialized (attempt ${retryAttempt + 1})`);
+        
+        // On mobile, perform additional re-initialization attempts
+        if (isMobile && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
+          setTimeout(() => {
+            console.log(`📱 Mobile: Additional Webflow re-init attempt ${retryAttempt + 2}`);
+            performWebflowReInit(retryAttempt + 1);
+          }, MOBILE_REINIT_DELAYS[retryAttempt]);
+        }
+        
+        needsLightboxReInit = false;
+        mobileRetryCount = 0;
+        return true;
+      }
+    }
+  } catch (e) {
+    console.error('Webflow re-init error:', e);
+  }
+  
+  // Mobile retry logic for failed attempts
+  if (isMobile && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
+    setTimeout(() => {
+      console.log(`📱 Mobile: Retrying Webflow re-init attempt ${retryAttempt + 2}`);
+      performWebflowReInit(retryAttempt + 1);
+    }, MOBILE_REINIT_DELAYS[retryAttempt]);
+  }
+  
+  return false;
 }
 
 // LazyLoad integration
@@ -142,10 +208,11 @@ function clickLoadMore(element) {
     window.scrollTo(0, currentScrollY);
   }, 100);
   
-  // Process any new items that were just added
+  // Process any new items that were just added (mobile-optimized timing)
+  const processDelay = isMobile ? 500 : 300;
   setTimeout(() => {
     processNewlyAddedItems();
-  }, 300);
+  }, processDelay);
   
   // Reset loading flag after delay
   setTimeout(() => {
@@ -288,6 +355,61 @@ function processNewlyAddedItems() {
   }
 }
 
+// Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
+function processFilteredItems() {
+  console.log('🔄 Processing items after filtering change...');
+  
+  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
+  const visibleItems = [];
+  const itemsToQueue = [];
+  
+  allItems.forEach(item => {
+    // Check if item is actually visible (not hidden by filtering)
+    let currentElement = item;
+    let isVisible = true;
+    
+    while (currentElement && currentElement !== document.body) {
+      const style = getComputedStyle(currentElement);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        isVisible = false;
+        break;
+      }
+      currentElement = currentElement.parentElement;
+    }
+    
+    if (isVisible) {
+      const rect = item.getBoundingClientRect();
+      const isInViewport = rect.top < window.innerHeight + 400;
+      
+      if (isInViewport) {
+        // Remove from processed items so it gets re-processed
+        processedItems.delete(item);
+        visibleItems.push(item);
+        processedItems.add(item);
+      } else {
+        // Queue for lazy processing
+        processedItems.delete(item);
+        itemsToQueue.push(item);
+      }
+    } else {
+      // Item is hidden by filtering - remove from processed items
+      processedItems.delete(item);
+    }
+  });
+  
+  console.log(`Found ${visibleItems.length} visible filtered items, ${itemsToQueue.length} queued`);
+  
+  // Process visible items immediately
+  if (visibleItems.length > 0) {
+    processItemsLazily(visibleItems);
+  }
+  
+  // Queue non-visible items
+  itemsToQueue.forEach(item => {
+    queueItemForLazyProcessing(item);
+  });
+}
+
 function processInitialVisibleItems() {
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
@@ -344,11 +466,71 @@ function processLazyOnlyItems() {
   }
 }
 
+// Enhanced filtering detection with proven methods
+function initFilteringDetection() {
+  // Method 1: Watch for hiddentagparent changes using MutationObserver
+  const tagParent = document.getElementById('tagparent');
+  if (tagParent) {
+    filteringObserver = new MutationObserver(() => {
+      if (checkFilteringStateChange()) {
+        // Debounce filtering response for mobile
+        const delay = isMobile ? FILTERING_DEBOUNCE_DELAY * 2 : FILTERING_DEBOUNCE_DELAY;
+        setTimeout(() => {
+          processFilteredItems();
+        }, delay);
+      }
+    });
+    
+    filteringObserver.observe(tagParent, {
+      childList: true,
+      subtree: true
+    });
+    
+    console.log('✅ Filtering detection initialized with MutationObserver');
+  } else {
+    console.log('⚠️ tagparent not found, using event-only detection');
+  }
+  
+  // Method 2: Listen to all Finsweet filtering events
+  const finsweetEvents = [
+    'fs-cmsfilter-filtered',
+    'fs-cmsfilter-change', 
+    'fs-cmsfilter-search',
+    'fs-cmsfilter-reset',
+    'fs-cmsfilter-pagination-page-changed'
+  ];
+  
+  finsweetEvents.forEach(eventType => {
+    document.addEventListener(eventType, () => {
+      console.log(`📡 Finsweet event detected: ${eventType}`);
+      
+      // Mobile-optimized timing for Finsweet events
+      const delay = isMobile ? 150 : 100;
+      setTimeout(() => {
+        if (checkFilteringStateChange()) {
+          processFilteredItems();
+        }
+      }, delay);
+    });
+  });
+  
+  console.log('✅ Finsweet event listeners initialized');
+  
+  // Method 3: Periodic filtering state check (fallback)
+  setInterval(() => {
+    if (checkFilteringStateChange()) {
+      console.log('🕐 Periodic check detected filtering change');
+      processFilteredItems();
+    }
+  }, 2000);
+}
+
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   initLazyLoad();
   initItemProcessingObserver();
   initLoadMoreObserver();
+  initFilteringDetection(); // New: Initialize filtering detection
   
   let pendingLightboxItems = new Set();
   let pendingLazyItems = new Set();
@@ -441,22 +623,40 @@ document.addEventListener('DOMContentLoaded', function() {
     subtree: true
   });
   
-  // Initial setup
+  // Initial setup with mobile-optimized timing
+  const initialDelay = isMobile ? 800 : 500;
   setTimeout(() => {
+    // Check initial filtering state
+    lastFilteringState = detectFiltering();
+    isCurrentlyFiltering = lastFilteringState;
+    console.log(`Initial filtering state: ${lastFilteringState}`);
+    
     processInitialVisibleItems();
     processLazyOnlyItems();
     observeLoadMoreButton();
     updateLazyLoad();
-  }, 500);
+  }, initialDelay);
+  
+  // Additional mobile initialization delay
+  if (isMobile) {
+    setTimeout(() => {
+      // Re-check filtering state and process if needed
+      if (checkFilteringStateChange()) {
+        console.log('📱 Mobile: Additional filtering check triggered');
+        processFilteredItems();
+      }
+    }, 1500);
+  }
   
   // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
     observer.disconnect();
     if (itemProcessingObserver) itemProcessingObserver.disconnect();
     if (loadMoreObserver) loadMoreObserver.disconnect();
+    if (filteringObserver) filteringObserver.disconnect();
     if (queueTimeout) clearTimeout(queueTimeout);
     if (reInitTimeout) clearTimeout(reInitTimeout);
   });
 });
 
-console.log('✅ Optimized Auto Load More + Lightbox Fix Ready!');
+console.log('✅ Enhanced Mobile-Optimized Auto Load More + Lightbox Fix Ready!');
