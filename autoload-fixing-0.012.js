@@ -134,22 +134,26 @@ function fixTabSystemEnhanced(item, itemSlug) {
   });
 }
 
-// Enhanced tab switching
+// Enhanced tab switching with proper attribute management
 function switchTabEnhanced(clickedTab, allTabLinks, allTabPanes, targetPane) {
+  // Deactivate all tabs in this container
   allTabLinks.forEach(tab => {
     tab.classList.remove('w--current');
     tab.setAttribute('aria-selected', 'false');
     tab.setAttribute('tabindex', '-1');
   });
   
+  // Hide all panes in this container
   allTabPanes.forEach(pane => {
     pane.classList.remove('w--tab-active');
   });
   
+  // Activate clicked tab
   clickedTab.classList.add('w--current');
   clickedTab.setAttribute('aria-selected', 'true');
   clickedTab.setAttribute('tabindex', '0');
   
+  // Show target pane
   if (targetPane) {
     targetPane.classList.add('w--tab-active');
   }
@@ -198,7 +202,7 @@ function fixLightboxEnhanced(item, itemSlug) {
   }, 200);
 }
 
-// Optimized toggle with global dummy tab reset
+// Optimized toggle with isolated item-level reset
 function addToggleFunctionality(item) {
   if (item.hasAttribute('data-toggle-processed')) return;
   
@@ -208,33 +212,50 @@ function addToggleFunctionality(item) {
   
   item.setAttribute('data-toggle-processed', 'true');
   
-  // Close function using global dummy tab
-  const closeAllTabs = () => {
+  // Close function that only affects THIS item's tabs
+  const closeAllTabsInItem = () => {
     const tabs = tabMenu.querySelectorAll('.w-tab-link:not(.dummy-tab-reset)');
     const panes = tabContent.querySelectorAll('.w-tab-pane:not(.dummy-tab-reset)');
     
-    tabs.forEach(tab => tab.classList.remove('w--current'));
-    panes.forEach(pane => pane.classList.remove('w--tab-active'));
+    tabs.forEach(tab => {
+      tab.classList.remove('w--current');
+      tab.setAttribute('aria-selected', 'false');
+      tab.setAttribute('tabindex', '-1');
+    });
     
-    // Click global dummy tab to reset Webflow's internal state
+    panes.forEach(pane => {
+      pane.classList.remove('w--tab-active');
+    });
+    
+    // Reset Webflow's internal state by clicking dummy tab (but don't let it affect other items)
     if (globalDummyTab) {
       setTimeout(() => {
+        // Temporarily disable the dummy tab's global reset to prevent affecting other items
+        const originalHandler = globalDummyTab.onclick;
+        globalDummyTab.onclick = null;
+        
+        // Click dummy to reset Webflow state
         globalDummyTab.click();
+        
+        // Restore original handler after a moment
+        setTimeout(() => {
+          globalDummyTab.onclick = originalHandler;
+        }, 50);
       }, 10);
     }
   };
   
-  // Enhanced toggle handler
+  // Enhanced toggle handler that works per item
   const createToggleHandler = () => {
     return (tab) => (e) => {
       const currentTab = e.currentTarget;
       const isActive = currentTab.classList.contains('w--current');
       
       if (isActive) {
-        // Clicking active tab - close it and reset state
+        // Clicking active tab - close it and reset state for this item only
         e.preventDefault();
         e.stopPropagation();
-        closeAllTabs();
+        closeAllTabsInItem();
       } else {
         // Normal tab click - let original handler work
         const originalHandler = currentTab._originalClickHandler;
@@ -245,7 +266,7 @@ function addToggleFunctionality(item) {
     };
   };
   
-  // Apply enhanced toggle to all tabs
+  // Apply enhanced toggle to all tabs in this item
   const tabs = tabMenu.querySelectorAll('.w-tab-link:not([data-toggle-enhanced]):not(.dummy-tab-reset)');
   const toggleHandler = createToggleHandler();
   
@@ -322,20 +343,21 @@ function ensureGlobalDummyTab() {
   // Store global reference
   globalDummyTab = dummyTab;
   
-  // Add click handler to dummy tab
+  // Add minimal click handler to dummy tab - just for Webflow state reset
   dummyTab.addEventListener('click', (e) => {
     e.preventDefault();
-    const allTabs = document.querySelectorAll('.w-tab-link');
-    const allPanes = document.querySelectorAll('.w-tab-pane');
+    // Only activate the dummy tab itself to reset Webflow's internal state
+    // Don't touch any other tabs - let individual items handle their own tab states
+    dummyTab.classList.add('w--current');
+    dummyTab.setAttribute('aria-selected', 'true');
+    dummyPane.classList.add('w--tab-active');
     
-    allTabs.forEach(tab => {
-      tab.classList.remove('w--current');
-      tab.setAttribute('aria-selected', 'false');
-    });
-    
-    allPanes.forEach(pane => {
-      pane.classList.remove('w--tab-active');
-    });
+    // Immediately deactivate the dummy tab since it's just for state reset
+    setTimeout(() => {
+      dummyTab.classList.remove('w--current');
+      dummyTab.setAttribute('aria-selected', 'false');
+      dummyPane.classList.remove('w--tab-active');
+    }, 1);
   });
 }
 
