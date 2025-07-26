@@ -1,9 +1,9 @@
-// 🚀 AUTO LOAD MORE + LazyLoad + Lightbox Fix v4.0
+// 🚀 COMBINED Auto Load More + Lightbox Fix v4.0
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
-// • Integrates LazyLoad for images on new items  
 // • Fixes broken lightboxes ONLY when items come into view
+// • Integrates LazyLoad for images on new items  
 // • Supports WFU lightbox grouping
 // • Works with Finsweet list load v2 (2025)
 // • IMMEDIATE processing of new load-more items
@@ -11,25 +11,23 @@
 // ⚡ PERFORMANCE OPTIMIZATIONS:
 // • LAZY PROCESSING: Only processes visible items
 // • Coordinated observers for maximum efficiency
+// • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
+// • Single mutation observer handles both systems
 //
 // 🔄 AUTO LOAD MORE:
 // • Automatically clicks load-more button when it becomes visible
 // • Preserves scroll position during loading
-// • Coordinates with LazyLoad for optimal performance
-//
-// 🖼️ LIGHTBOX FIX:
-// • Fixes broken lightboxes when items come into view
-// • Proper grouping per item for gallery functionality
+// • Coordinates with lightbox processing for optimal performance
 
-console.log('🚀 Auto Load More + LazyLoad Loading...');
+console.log('🚀 Combined Auto Load More + Lightbox Fix Loading...');
 
 // Global state management
 let isLoadingMore = false;
 let lazyLoadInstance = null;
-let loadMoreObserver = null;
 let itemProcessingObserver = null;
+let loadMoreObserver = null;
 let processedItems = new WeakSet();
 
 // Configuration
@@ -139,10 +137,9 @@ function clickLoadMore(element) {
     window.scrollTo(0, currentScrollY);
   }, 100);
   
-  // Update LazyLoad for any new items that were just added
+  // Process any new items that were just added
   setTimeout(() => {
-    updateLazyLoad();
-    console.log('Updated LazyLoad for new content');
+    processNewlyAddedItems();
   }, 300);
   
   // Reset loading flag after delay
@@ -175,7 +172,7 @@ function observeLoadMoreButton() {
   return false;
 }
 
-// ITEM PROCESSING SYSTEM FOR LIGHTBOXES
+// ITEM PROCESSING SYSTEM
 function initItemProcessingObserver() {
   itemProcessingObserver = new IntersectionObserver((entries) => {
     const itemsToProcess = [];
@@ -204,8 +201,11 @@ function initItemProcessingObserver() {
 }
 
 function queueItemForLazyProcessing(item) {
+  // Check if item has lightboxes or any content that needs processing
   const lightboxes = item.querySelectorAll('.w-lightbox');
-  if (lightboxes.length === 0) return;
+  const lazyElements = item.querySelectorAll('.lazy');
+  
+  if (lightboxes.length === 0 && lazyElements.length === 0) return;
   
   if (itemProcessingObserver && !processedItems.has(item)) {
     itemProcessingObserver.observe(item);
@@ -303,10 +303,32 @@ function processInitialVisibleItems() {
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   initLazyLoad();
+  initItemProcessingObserver();
   initLoadMoreObserver();
   
-  // Unified mutation observer for new load-more buttons
+  let pendingItems = new Set();
+  let queueTimeout = null;
+  
+  // Unified item queuing
+  const scheduleItemQueuing = () => {
+    if (queueTimeout) return;
+    
+    queueTimeout = setTimeout(() => {
+      if (pendingItems.size > 0) {
+        const itemsToQueue = Array.from(pendingItems);
+        pendingItems.clear();
+        
+        itemsToQueue.forEach(item => {
+          queueItemForLazyProcessing(item);
+        });
+      }
+      queueTimeout = null;
+    }, 100);
+  };
+  
+  // Unified mutation observer
   const observer = new MutationObserver((mutations) => {
+    let hasNewItems = false;
     let hasNewLoadMore = false;
     
     for (const mutation of mutations) {
@@ -315,11 +337,27 @@ document.addEventListener('DOMContentLoaded', function() {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
         
-        // Check for new load-more button
-        if (node.id === 'load-more' || (node.querySelector && node.querySelector('#load-more'))) {
-          hasNewLoadMore = true;
+        // Check for new items
+        if (node.hasAttribute?.('itemslug')) {
+          pendingItems.add(node);
+          hasNewItems = true;
+        } else if (node.querySelector) {
+          const childItems = node.querySelectorAll('[itemslug]');
+          for (const item of childItems) {
+            pendingItems.add(item);
+            hasNewItems = true;
+          }
+          
+          // Check for new load-more button
+          if (node.id === 'load-more' || node.querySelector('#load-more')) {
+            hasNewLoadMore = true;
+          }
         }
       }
+    }
+    
+    if (hasNewItems) {
+      scheduleItemQueuing();
     }
     
     if (hasNewLoadMore) {
@@ -327,11 +365,6 @@ document.addEventListener('DOMContentLoaded', function() {
         observeLoadMoreButton();
       }, 100);
     }
-    
-    // Update LazyLoad when new content is added
-    setTimeout(() => {
-      updateLazyLoad();
-    }, 200);
   });
   
   observer.observe(document.body, {
@@ -341,6 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initial setup
   setTimeout(() => {
+    processInitialVisibleItems();
     observeLoadMoreButton();
     updateLazyLoad();
   }, 500);
@@ -348,8 +382,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Cleanup on page unload
   window.addEventListener('beforeunload', () => {
     observer.disconnect();
+    if (itemProcessingObserver) itemProcessingObserver.disconnect();
     if (loadMoreObserver) loadMoreObserver.disconnect();
+    if (queueTimeout) clearTimeout(queueTimeout);
   });
 });
 
-console.log('✅ Auto Load More + LazyLoad Ready!');
+console.log('✅ Combined Auto Load More + Lightbox Fix Ready!');
