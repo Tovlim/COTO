@@ -369,7 +369,7 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
-// Clean up empty facet checkboxes (those with display: none) - runs only once
+// Clean up empty facet checkboxes (those with facet count = 0) - runs only once
 function cleanupEmptyFacetCheckboxes() {
   // Prevent multiple executions
   if (cleanupEmptyFacetCheckboxes.hasRun) {
@@ -377,13 +377,17 @@ function cleanupEmptyFacetCheckboxes() {
     return;
   }
   
-  console.log('Cleaning up empty facet checkboxes...');
+  console.log('Cleaning up empty facet checkboxes (facet count = 0)...');
   
-  // Very specific selector - only labels that have exactly "display: none;" in style
+  // Find all labels with the correct classes
   const allLabels = document.querySelectorAll('label[fs-list-emptyfacet="hide"].w-checkbox.reporterwrap-copy');
   const emptyFacetLabels = Array.from(allLabels).filter(label => {
-    const styleAttr = label.getAttribute('style') || '';
-    return styleAttr.includes('display: none');
+    const facetCountElement = label.querySelector('[fs-list-element="facet-count"]');
+    if (facetCountElement) {
+      const count = facetCountElement.textContent.trim();
+      return count === '0';
+    }
+    return false;
   });
   
   console.log(`Found ${emptyFacetLabels.length} empty facet checkboxes to remove (out of ${allLabels.length} total labels)`);
@@ -391,45 +395,19 @@ function cleanupEmptyFacetCheckboxes() {
   let removedCount = 0;
   emptyFacetLabels.forEach(label => {
     const localityName = label.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
-    console.log(`Removing empty facet checkbox for: ${localityName}`);
+    const facetCount = label.querySelector('[fs-list-element="facet-count"]')?.textContent || '?';
+    console.log(`Removing empty facet checkbox for: ${localityName} (count: ${facetCount})`);
     label.remove();
     removedCount++;
   });
   
   console.log(`Cleanup completed: Removed ${removedCount} empty facet checkboxes`);
   
-  // Remove fs-list-emptyfacet="hide" attribute from remaining checkboxes
-  const remainingLabels = document.querySelectorAll('label[fs-list-emptyfacet="hide"].w-checkbox.reporterwrap-copy');
-  let attributesRemovedCount = 0;
-  
-  remainingLabels.forEach(label => {
-    const localityName = label.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
-    label.removeAttribute('fs-list-emptyfacet');
-    console.log(`Removed fs-list-emptyfacet attribute from: ${localityName}`);
-    attributesRemovedCount++;
-  });
-  
-  console.log(`Attribute cleanup completed: Removed fs-list-emptyfacet from ${attributesRemovedCount} remaining checkboxes`);
-  
-  // Remove data-indicator-setup="true" from remaining checkbox inputs
-  const remainingInputs = document.querySelectorAll('label.w-checkbox.reporterwrap-copy input[data-indicator-setup="true"]');
-  let indicatorAttributesRemovedCount = 0;
-  
-  remainingInputs.forEach(input => {
-    const parentLabel = input.closest('label');
-    const localityName = parentLabel?.querySelector('span.test3.w-form-label')?.textContent || 'Unknown';
-    input.removeAttribute('data-indicator-setup');
-    console.log(`Removed data-indicator-setup attribute from input: ${localityName}`);
-    indicatorAttributesRemovedCount++;
-  });
-  
-  console.log(`Input cleanup completed: Removed data-indicator-setup from ${indicatorAttributesRemovedCount} remaining checkbox inputs`);
-  
   // Mark as executed
   cleanupEmptyFacetCheckboxes.hasRun = true;
   
-  // Invalidate DOM cache since we modified elements
-  if (removedCount > 0 || attributesRemovedCount > 0 || indicatorAttributesRemovedCount > 0) {
+  // Invalidate DOM cache since we removed elements
+  if (removedCount > 0) {
     domCache.markStale();
   }
 }
@@ -489,6 +467,9 @@ function generateLocalityCheckboxes() {
     checkbox.removeAttribute('id');
     const label = checkbox.querySelector('#locality-checkbox');
     if (label) label.removeAttribute('id');
+    
+    // Remove fs-list-emptyfacet attribute since these are data-driven, not empty facets
+    checkbox.removeAttribute('fs-list-emptyfacet');
     
     // Update attributes - look for input with name="locality"
     const input = checkbox.querySelector('input[name="locality"]');
