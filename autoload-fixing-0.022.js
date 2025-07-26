@@ -54,8 +54,8 @@ const REINIT_DEBOUNCE_DELAY = 200; // Base delay before re-initializing Webflow
 const MOBILE_REINIT_DELAYS = [300, 600, 1200]; // Mobile retry delays
 const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
 
-// Device detection
-const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+// Device detection (reuse existing isMobile if available, otherwise create it)
+const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
 // Debounce function
 function debounce(func, wait) {
@@ -122,7 +122,7 @@ function scheduleWebflowReInit() {
     clearTimeout(reInitTimeout);
   }
   
-  const baseDelay = isMobile ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
+  const baseDelay = isMobileDevice ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
   
   reInitTimeout = setTimeout(() => {
     if (needsLightboxReInit) {
@@ -141,7 +141,7 @@ function performWebflowReInit(retryAttempt = 0) {
         console.log(`✅ Webflow lightbox re-initialized (attempt ${retryAttempt + 1})`);
         
         // On mobile, perform additional re-initialization attempts
-        if (isMobile && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
+        if (isMobileDevice && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
           setTimeout(() => {
             console.log(`📱 Mobile: Additional Webflow re-init attempt ${retryAttempt + 2}`);
             performWebflowReInit(retryAttempt + 1);
@@ -158,7 +158,7 @@ function performWebflowReInit(retryAttempt = 0) {
   }
   
   // Mobile retry logic for failed attempts
-  if (isMobile && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
+  if (isMobileDevice && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
     setTimeout(() => {
       console.log(`📱 Mobile: Retrying Webflow re-init attempt ${retryAttempt + 2}`);
       performWebflowReInit(retryAttempt + 1);
@@ -209,7 +209,7 @@ function clickLoadMore(element) {
   }, 100);
   
   // Process any new items that were just added (mobile-optimized timing)
-  const processDelay = isMobile ? 500 : 300;
+  const processDelay = isMobileDevice ? 500 : 300;
   setTimeout(() => {
     processNewlyAddedItems();
   }, processDelay);
@@ -474,7 +474,7 @@ function initFilteringDetection() {
     filteringObserver = new MutationObserver(() => {
       if (checkFilteringStateChange()) {
         // Debounce filtering response for mobile
-        const delay = isMobile ? FILTERING_DEBOUNCE_DELAY * 2 : FILTERING_DEBOUNCE_DELAY;
+        const delay = isMobileDevice ? FILTERING_DEBOUNCE_DELAY * 2 : FILTERING_DEBOUNCE_DELAY;
         setTimeout(() => {
           processFilteredItems();
         }, delay);
@@ -505,7 +505,7 @@ function initFilteringDetection() {
       console.log(`📡 Finsweet event detected: ${eventType}`);
       
       // Mobile-optimized timing for Finsweet events
-      const delay = isMobile ? 150 : 100;
+      const delay = isMobileDevice ? 150 : 100;
       setTimeout(() => {
         if (checkFilteringStateChange()) {
           processFilteredItems();
@@ -624,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   // Initial setup with mobile-optimized timing
-  const initialDelay = isMobile ? 800 : 500;
+  const initialDelay = isMobileDevice ? 800 : 500;
   setTimeout(() => {
     // Check initial filtering state
     lastFilteringState = detectFiltering();
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }, initialDelay);
   
   // Additional mobile initialization delay
-  if (isMobile) {
+  if (isMobileDevice) {
     setTimeout(() => {
       // Re-check filtering state and process if needed
       if (checkFilteringStateChange()) {
