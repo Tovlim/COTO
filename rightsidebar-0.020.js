@@ -453,7 +453,7 @@ function generateLocalityCheckboxes() {
   
   console.log(`Generated ${uniqueLocalityNames.length} locality checkboxes in #locality-check-list`);
   
-  // Wait 800ms then remove checkboxes with zero facet counts
+  // Wait longer (2000ms) for facet counts to fully calculate, then remove zero count checkboxes
   state.setTimer('removeZeroFacetCheckboxes', () => {
     console.log('Checking for zero facet count checkboxes to remove...');
     
@@ -461,33 +461,52 @@ function generateLocalityCheckboxes() {
     if (!container) return;
     
     const facetCountElements = container.querySelectorAll('[fs-list-element="facet-count"].test33');
+    console.log(`Found ${facetCountElements.length} facet count elements to check`);
+    
     let removedCount = 0;
+    let checkedCount = 0;
     
     facetCountElements.forEach(facetElement => {
-      if (facetElement.textContent.trim() === '0') {
+      const facetText = facetElement.textContent.trim();
+      checkedCount++;
+      
+      console.log(`Facet element ${checkedCount}: text content = "${facetText}"`);
+      
+      // Only remove if the text is exactly "0"
+      if (facetText === '0') {
         // Find the parent checkbox container to remove
         let checkboxContainer = facetElement.closest('[checkbox-filter="locality"]');
         
         if (!checkboxContainer) {
-          // Fallback: look for parent form element or div that contains the checkbox
-          checkboxContainer = facetElement.closest('div') || facetElement.closest('label') || facetElement.closest('form');
+          // Fallback: look for parent that contains an input with name="locality"
+          let current = facetElement.parentElement;
+          while (current && current !== container) {
+            if (current.querySelector('input[name="locality"]')) {
+              checkboxContainer = current;
+              break;
+            }
+            current = current.parentElement;
+          }
         }
         
         if (checkboxContainer && checkboxContainer.parentNode) {
-          console.log(`Removing checkbox with zero facet count: ${checkboxContainer.textContent.trim()}`);
+          const checkboxName = checkboxContainer.querySelector('input[name="locality"]')?.getAttribute('fs-list-value') || 'unknown';
+          console.log(`Removing checkbox with zero facet count: "${checkboxName}"`);
           checkboxContainer.parentNode.removeChild(checkboxContainer);
           removedCount++;
+        } else {
+          console.warn('Could not find checkbox container to remove for zero facet count element');
         }
       }
     });
     
-    console.log(`Removed ${removedCount} checkboxes with zero facet counts`);
+    console.log(`Checked ${checkedCount} facet elements, removed ${removedCount} checkboxes with zero facet counts`);
     
     // Invalidate DOM cache since we removed elements
     if (removedCount > 0) {
       domCache.markStale();
     }
-  }, 800);
+  }, 2000); // Increased to 2000ms to give facet counts more time to calculate
   
   // Re-cache checkbox filter script if it exists
   if (window.checkboxFilterScript?.recacheElements) {
