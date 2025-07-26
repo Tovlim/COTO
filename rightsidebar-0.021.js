@@ -506,7 +506,7 @@ function generateLocalityCheckboxes() {
     if (removedCount > 0) {
       domCache.markStale();
     }
-  }, 2000); // Increased to 2000ms to give facet counts more time to calculate
+  }, 800); // Wait 800ms for facet counts to calculate
   
   // Re-cache checkbox filter script if it exists
   if (window.checkboxFilterScript?.recacheElements) {
