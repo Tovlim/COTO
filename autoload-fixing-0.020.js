@@ -1,27 +1,29 @@
-// 🚀 COMBINED Auto Load More + Lightbox Fix v4.0
+// 🚀 OPTIMIZED Auto Load More + Lightbox Fix v5.0
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
-// • Fixes broken lightboxes ONLY when items come into view
+// • Fixes lightbox grouping ONLY when items come into view
 // • Integrates LazyLoad for images on new items  
-// • Supports WFU lightbox grouping
+// • Supports WFU lightbox grouping with [wfu-lightbox-group] attributes
 // • Works with Finsweet list load v2 (2025)
 // • IMMEDIATE processing of new load-more items
+// • Batch-level Webflow re-initialization for optimal performance
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
 // • LAZY PROCESSING: Only processes visible items
-// • Coordinated observers for maximum efficiency
+// • Attribute-based targeting for precision
+// • Single Webflow re-initialization per batch
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
-// • Single mutation observer handles both systems
+// • Debounced re-initialization for dynamic content
 //
 // 🔄 AUTO LOAD MORE:
 // • Automatically clicks load-more button when it becomes visible
 // • Preserves scroll position during loading
 // • Coordinates with lightbox processing for optimal performance
 
-console.log('🚀 Combined Auto Load More + Lightbox Fix Loading...');
+console.log('🚀 Optimized Auto Load More + Lightbox Fix Loading...');
 
 // Global state management
 let isLoadingMore = false;
@@ -29,10 +31,13 @@ let lazyLoadInstance = null;
 let itemProcessingObserver = null;
 let loadMoreObserver = null;
 let processedItems = new WeakSet();
+let needsLightboxReInit = false;
+let reInitTimeout = null;
 
 // Configuration
 const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
 const PROCESSING_CHUNK_SIZE = 1;
+const REINIT_DEBOUNCE_DELAY = 200; // Delay before re-initializing Webflow
 
 // Debounce function
 function debounce(func, wait) {
@@ -47,54 +52,54 @@ function debounce(func, wait) {
   };
 }
 
-// Get item slug
-function getItemSlug(item) {
-  return item.getAttribute('itemslug') || 
-         item.querySelector('[tab]')?.getAttribute('tab') || 
-         `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-}
-
-// Enhanced lightbox system
-function fixLightboxEnhanced(item, itemSlug) {
-  const lightboxElements = item.querySelectorAll('.w-lightbox');
+// Optimized lightbox grouping system based on attributes
+function processLightboxGroups(item) {
+  // Check if this item has lightbox group attribute
+  const groupAttribute = item.getAttribute('wfu-lightbox-group');
+  if (!groupAttribute) return false;
   
-  lightboxElements.forEach((lightbox, index) => {
-    if (!lightbox.hasAttribute('aria-label')) {
-      lightbox.setAttribute('aria-label', 'open lightbox');
-      lightbox.setAttribute('aria-haspopup', 'dialog');
-    }
-    
-    const jsonScript = lightbox.querySelector('script.w-json');
-    if (jsonScript) {
-      try {
-        const config = JSON.parse(jsonScript.textContent);
-        if (config.group === 'EventImages' || !config.group) {
-          config.group = itemSlug;
-          jsonScript.textContent = JSON.stringify(config);
-        }
-      } catch (e) {
-        console.error('Lightbox JSON error:', e);
-      }
+  let hasProcessedGroups = false;
+  
+  // Find all script elements within this item
+  const scripts = item.querySelectorAll('script.w-json');
+  scripts.forEach((script) => {
+    try {
+      let json = JSON.parse(script.textContent);
+      json.group = groupAttribute;
+      script.textContent = JSON.stringify(json);
+      hasProcessedGroups = true;
+    } catch (e) {
+      console.error('Lightbox JSON error:', e);
     }
   });
   
-  setTimeout(() => {
-    if (window.Webflow && window.Webflow.require) {
+  return hasProcessedGroups;
+}
+
+// Debounced Webflow re-initialization
+function scheduleWebflowReInit() {
+  if (reInitTimeout) {
+    clearTimeout(reInitTimeout);
+  }
+  
+  reInitTimeout = setTimeout(() => {
+    if (needsLightboxReInit) {
       try {
-        const lightboxModule = window.Webflow.require('lightbox');
-        if (lightboxModule) {
-          if (lightboxModule.init) lightboxModule.init();
-          if (lightboxModule.ready) lightboxModule.ready();
+        if (window.Webflow && window.Webflow.require) {
+          const lightboxModule = window.Webflow.require('lightbox');
+          if (lightboxModule && lightboxModule.ready) {
+            lightboxModule.ready();
+            console.log('✅ Webflow lightbox re-initialized');
+          }
         }
       } catch (e) {
-        console.error('Lightbox re-init error:', e);
+        console.error('Webflow re-init error:', e);
       }
+      
+      needsLightboxReInit = false;
     }
-    
-    if (window.Webflow && window.Webflow.ready) {
-      window.Webflow.ready();
-    }
-  }, 200);
+    reInitTimeout = null;
+  }, REINIT_DEBOUNCE_DELAY);
 }
 
 // LazyLoad integration
@@ -201,11 +206,11 @@ function initItemProcessingObserver() {
 }
 
 function queueItemForLazyProcessing(item) {
-  // Check if item has lightboxes or any content that needs processing
-  const lightboxes = item.querySelectorAll('.w-lightbox');
+  // Check if item has lightbox groups or lazy elements that need processing
+  const hasLightboxGroup = item.hasAttribute('wfu-lightbox-group');
   const lazyElements = item.querySelectorAll('.lazy');
   
-  if (lightboxes.length === 0 && lazyElements.length === 0) return;
+  if (!hasLightboxGroup && lazyElements.length === 0) return;
   
   if (itemProcessingObserver && !processedItems.has(item)) {
     itemProcessingObserver.observe(item);
@@ -218,6 +223,10 @@ function processItemsLazily(items) {
   const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
     if (itemsToProcess.length === 0) {
       updateLazyLoad();
+      // Schedule Webflow re-init if needed
+      if (needsLightboxReInit) {
+        scheduleWebflowReInit();
+      }
       return;
     }
     
@@ -225,10 +234,11 @@ function processItemsLazily(items) {
     
     chunk.forEach(item => {
       try {
-        const itemSlug = getItemSlug(item);
-        
-        // Fix lightboxes
-        fixLightboxEnhanced(item, itemSlug);
+        // Process lightbox groups
+        const processed = processLightboxGroups(item);
+        if (processed) {
+          needsLightboxReInit = true;
+        }
         
       } catch (error) {
         console.error('Processing error:', error);
@@ -239,7 +249,13 @@ function processItemsLazily(items) {
     if (itemsToProcess.length > 0) {
       requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
     } else {
-      setTimeout(updateLazyLoad, 100);
+      setTimeout(() => {
+        updateLazyLoad();
+        // Schedule Webflow re-init if needed
+        if (needsLightboxReInit) {
+          scheduleWebflowReInit();
+        }
+      }, 100);
     }
   };
   
@@ -248,7 +264,7 @@ function processItemsLazily(items) {
 
 // Process items that were just added by load-more
 function processNewlyAddedItems() {
-  const allItems = document.querySelectorAll('[itemslug]');
+  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const newItems = [];
   
   allItems.forEach(item => {
@@ -267,13 +283,13 @@ function processNewlyAddedItems() {
   });
   
   if (newItems.length > 0) {
-    console.log(`Processing ${newItems.length} newly loaded items`);
+    console.log(`Processing ${newItems.length} newly loaded lightbox items`);
     processItemsLazily(newItems);
   }
 }
 
 function processInitialVisibleItems() {
-  const allItems = document.querySelectorAll('[itemslug]');
+  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
   const itemsToQueue = [];
   
@@ -300,13 +316,42 @@ function processInitialVisibleItems() {
   });
 }
 
+// Process any items with lazy images that don't have lightbox groups
+function processLazyOnlyItems() {
+  const lazyItems = document.querySelectorAll('[itemslug]');
+  const itemsNeedingLazy = [];
+  
+  lazyItems.forEach(item => {
+    if (!processedItems.has(item)) {
+      const lazyElements = item.querySelectorAll('.lazy');
+      if (lazyElements.length > 0) {
+        const rect = item.getBoundingClientRect();
+        const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+        
+        if (isVisible) {
+          itemsNeedingLazy.push(item);
+          processedItems.add(item);
+        } else {
+          queueItemForLazyProcessing(item);
+        }
+      }
+    }
+  });
+  
+  // Just update LazyLoad for these items (no lightbox processing needed)
+  if (itemsNeedingLazy.length > 0) {
+    setTimeout(updateLazyLoad, 100);
+  }
+}
+
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   initLazyLoad();
   initItemProcessingObserver();
   initLoadMoreObserver();
   
-  let pendingItems = new Set();
+  let pendingLightboxItems = new Set();
+  let pendingLazyItems = new Set();
   let queueTimeout = null;
   
   // Unified item queuing
@@ -314,14 +359,26 @@ document.addEventListener('DOMContentLoaded', function() {
     if (queueTimeout) return;
     
     queueTimeout = setTimeout(() => {
-      if (pendingItems.size > 0) {
-        const itemsToQueue = Array.from(pendingItems);
-        pendingItems.clear();
+      // Process lightbox items
+      if (pendingLightboxItems.size > 0) {
+        const itemsToQueue = Array.from(pendingLightboxItems);
+        pendingLightboxItems.clear();
         
         itemsToQueue.forEach(item => {
           queueItemForLazyProcessing(item);
         });
       }
+      
+      // Process lazy-only items
+      if (pendingLazyItems.size > 0) {
+        const itemsToQueue = Array.from(pendingLazyItems);
+        pendingLazyItems.clear();
+        
+        itemsToQueue.forEach(item => {
+          queueItemForLazyProcessing(item);
+        });
+      }
+      
       queueTimeout = null;
     }, 100);
   };
@@ -337,15 +394,27 @@ document.addEventListener('DOMContentLoaded', function() {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) continue;
         
-        // Check for new items
-        if (node.hasAttribute?.('itemslug')) {
-          pendingItems.add(node);
+        // Check for new lightbox group items
+        if (node.hasAttribute?.('wfu-lightbox-group')) {
+          pendingLightboxItems.add(node);
           hasNewItems = true;
         } else if (node.querySelector) {
-          const childItems = node.querySelectorAll('[itemslug]');
-          for (const item of childItems) {
-            pendingItems.add(item);
+          const lightboxItems = node.querySelectorAll('[wfu-lightbox-group]');
+          for (const item of lightboxItems) {
+            pendingLightboxItems.add(item);
             hasNewItems = true;
+          }
+          
+          // Check for lazy-only items
+          const lazyItems = node.querySelectorAll('[itemslug]');
+          for (const item of lazyItems) {
+            if (!item.hasAttribute('wfu-lightbox-group')) {
+              const lazyElements = item.querySelectorAll('.lazy');
+              if (lazyElements.length > 0) {
+                pendingLazyItems.add(item);
+                hasNewItems = true;
+              }
+            }
           }
           
           // Check for new load-more button
@@ -375,6 +444,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initial setup
   setTimeout(() => {
     processInitialVisibleItems();
+    processLazyOnlyItems();
     observeLoadMoreButton();
     updateLazyLoad();
   }, 500);
@@ -385,7 +455,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (itemProcessingObserver) itemProcessingObserver.disconnect();
     if (loadMoreObserver) loadMoreObserver.disconnect();
     if (queueTimeout) clearTimeout(queueTimeout);
+    if (reInitTimeout) clearTimeout(reInitTimeout);
   });
 });
 
-console.log('✅ Combined Auto Load More + Lightbox Fix Ready!');
+console.log('✅ Optimized Auto Load More + Lightbox Fix Ready!');
