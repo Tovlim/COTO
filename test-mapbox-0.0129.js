@@ -1523,10 +1523,13 @@ function setupControls() {
     }
   });
   
-  // OPTIMIZED: Sidebar controls with event delegation
+  // OPTIMIZED: Sidebar controls - Fixed Right Sidebar Logic
   const setupSidebarControls = (selector, sidebarSide, eventType = 'click') => {
     const elements = $(selector);
     elements.forEach(element => {
+      // Skip if already setup to prevent duplicate handlers
+      if (element.dataset.sidebarSetup === 'true') return;
+      
       const handler = () => {
         const sidebar = $id(`${sidebarSide}Sidebar`);
         if (!sidebar) return;
@@ -1534,12 +1537,13 @@ function setupControls() {
         const openRightSidebar = element.getAttribute('open-right-sidebar');
         const openSecondLeftSidebar = element.getAttribute('open-second-left-sidebar');
         
-        // Handle Right sidebar specifically
+        // Handle Right sidebar specifically with working logic from your script
         if (sidebarSide === 'Right') {
           if (openRightSidebar === 'open-only') {
             toggleSidebar('Right', true);
           } else if (openRightSidebar === 'true') {
-            toggleSidebar('Right', !sidebar.classList.contains('is-show'));
+            const currentlyShowing = sidebar.classList.contains('is-show');
+            toggleSidebar('Right', !currentlyShowing);
           }
         }
         // Handle SecondLeft sidebar specifically  
@@ -1572,6 +1576,8 @@ function setupControls() {
           handler();
         });
       }
+      
+      element.dataset.sidebarSetup = 'true';
     });
   };
   
