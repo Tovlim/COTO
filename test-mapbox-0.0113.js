@@ -41,6 +41,10 @@ setTimeout(() => {
     console.warn('⚠️ Autocomplete timeout - marking as complete');
     loadingTracker.markComplete('autocompleteReady');
   }
+  if (!loadingTracker.states.backToTopReady) {
+    console.warn('⚠️ Back-to-top timeout - marking as complete');
+    loadingTracker.markComplete('backToTopReady');
+  }
 }, 12000);
 
 // OPTIMIZED: Comprehensive DOM Element Cache
@@ -393,7 +397,8 @@ const loadingTracker = {
     tabSwitcherSetup: false,
     eventsSetup: false,
     uiPositioned: false,
-    autocompleteReady: false
+    autocompleteReady: false,
+    backToTopReady: false
   },
   
   markComplete(stateName) {
@@ -430,6 +435,16 @@ const loadingTracker = {
     } else if (!this.states.autocompleteReady) {
       // Check again in a bit
       setTimeout(() => this.checkAutocompleteReady(), 500);
+    }
+  },
+  
+  // Helper to setup back-to-top functionality
+  setupBackToTop() {
+    if (backToTopManager.init()) {
+      this.markComplete('backToTopReady');
+    } else {
+      // Try again in a bit
+      setTimeout(() => this.setupBackToTop(), 500);
     }
   }
 };
@@ -2518,76 +2533,92 @@ const checkAndToggleFilteredElements = () => {
   const hiddenTagParent = document.getElementById('hiddentagparent');
   const shouldShow = !!hiddenTagParent;
   
+  // Auto-scroll to top when filtering becomes active
+  if (shouldShow && !window.wasFilteringActive) {
+    scrollToTop();
+    window.wasFilteringActive = true;
+  } else if (!shouldShow) {
+    window.wasFilteringActive = false;
+  }
+  
   toggleShowWhenFilteredElements(shouldShow);
-  
-  // Also update back-to-top button visibility
-  updateBackToTopVisibility();
-  
   return shouldShow;
 };
 
-// OPTIMIZED: Back-to-top functionality
-function setupBackToTop() {
-  const scrollWrap = $id('scroll-wrap');
-  const jumpButton = $id('jump-to-top');
+// ENHANCED: Back to top functionality
+const backToTopManager = {
+  button: null,
+  scrollContainer: null,
+  isVisible: false,
   
-  if (!scrollWrap || !jumpButton) {
-    console.warn('Back-to-top: Missing elements (scroll-wrap or jump-to-top)');
-    return;
-  }
-  
-  // Scroll threshold
-  const SCROLL_THRESHOLD = 150;
-  
-  // Update button visibility based on scroll position and filtering
-  const updateVisibility = () => {
-    const scrollTop = scrollWrap.scrollTop;
-    const isScrolled = scrollTop >= SCROLL_THRESHOLD;
-    const isFiltering = !!document.getElementById('hiddentagparent');
+  init() {
+    this.button = document.getElementById('jump-to-top');
+    this.scrollContainer = document.getElementById('scroll-wrap');
     
-    // Show button if scrolled down OR if filtering (but always hide when at top)
-    const shouldShow = scrollTop > 0 && (isScrolled || isFiltering);
-    
-    if (shouldShow) {
-      jumpButton.style.display = 'block';
-    } else {
-      jumpButton.style.display = 'none';
+    if (!this.button || !this.scrollContainer) {
+      console.warn('Back-to-top elements not found:', {
+        button: !!this.button,
+        scrollContainer: !!this.scrollContainer
+      });
+      return false;
     }
-  };
-  
-  // Add scroll listener to scroll-wrap div
-  eventManager.add(scrollWrap, 'scroll', updateVisibility);
-  
-  // Add click handler to jump button
-  eventManager.add(jumpButton, 'click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
     
-    // Scroll to top instantly (no animation)
-    scrollWrap.scrollTop = 0;
-  });
+    this.setupScrollListener();
+    this.setupClickHandler();
+    
+    // Initial state check
+    this.checkScrollPosition();
+    
+    console.log('Back-to-top functionality initialized');
+    return true;
+  },
   
-  console.log('Back-to-top functionality initialized');
-}
+  setupScrollListener() {
+    this.scrollContainer.addEventListener('scroll', () => {
+      this.checkScrollPosition();
+    });
+  },
+  
+  setupClickHandler() {
+    this.button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.scrollToTop();
+    });
+  },
+  
+  checkScrollPosition() {
+    const scrollTop = this.scrollContainer.scrollTop;
+    const shouldShow = scrollTop > 150;
+    
+    if (shouldShow && !this.isVisible) {
+      this.showButton();
+    } else if (!shouldShow && this.isVisible) {
+      this.hideButton();
+    }
+  },
+  
+  showButton() {
+    this.button.style.display = 'flex';
+    this.isVisible = true;
+  },
+  
+  hideButton() {
+    this.button.style.display = 'none';
+    this.isVisible = false;
+  },
+  
+  scrollToTop() {
+    if (this.scrollContainer) {
+      this.scrollContainer.scrollTop = 0;
+    }
+  }
+};
 
-// Helper function to update back-to-top visibility (called from filtering detection)
-function updateBackToTopVisibility() {
-  const scrollWrap = $id('scroll-wrap');
-  const jumpButton = $id('jump-to-top');
-  
-  if (!scrollWrap || !jumpButton) return;
-  
-  const scrollTop = scrollWrap.scrollTop;
-  const isScrolled = scrollTop >= 150;
-  const isFiltering = !!document.getElementById('hiddentagparent');
-  
-  // Show button if scrolled down OR if filtering (but always hide when at top)
-  const shouldShow = scrollTop > 0 && (isScrolled || isFiltering);
-  
-  if (shouldShow) {
-    jumpButton.style.display = 'block';
-  } else {
-    jumpButton.style.display = 'none';
+// Global scroll to top function for filtering integration
+function scrollToTop() {
+  if (backToTopManager.scrollContainer) {
+    backToTopManager.scrollContainer.scrollTop = 0;
   }
 }
 
@@ -2706,9 +2737,6 @@ function init() {
   // Generate locality checkboxes early
   state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
   
-  // Setup back-to-top functionality
-  state.setTimer('setupBackToTop', setupBackToTop, 200);
-  
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
   
@@ -2799,9 +2827,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupTabSwitcher();
   
-  // Setup back-to-top as early as possible
-  setTimeout(setupBackToTop, 100);
-  
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
     // Check if tab switcher is ready early
@@ -2825,9 +2850,6 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
-  
-  // Fallback setup for back-to-top
-  setTimeout(setupBackToTop, 200);
   
   state.setTimer('loadFallbackInit', () => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
@@ -2907,6 +2929,11 @@ window.addEventListener('load', () => {
   state.setTimer('checkAutocompleteLater', () => {
     loadingTracker.checkAutocompleteReady();
   }, 3000);
+  
+  // Setup back-to-top functionality
+  state.setTimer('setupBackToTop', () => {
+    loadingTracker.setupBackToTop();
+  }, 1500);
 });
 
 // FIXED: Enhanced tag monitoring initialization (immediate start)
