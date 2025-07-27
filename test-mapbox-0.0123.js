@@ -1373,7 +1373,6 @@ const handleFilterUpdate = eventManager.debounce(() => {
 function setupBackToTopButton() {
   const button = $id('jump-to-top');
   const scrollContainer = $id('scroll-wrap');
-  const hiddenTagParent = $id('hiddentagparent');
   
   if (!button || !scrollContainer) {
     return;
@@ -1433,36 +1432,32 @@ function setupBackToTopButton() {
     scrollToTop();
   });
   
-  // Watch for changes in #hiddentagparent > #tag and auto-scroll to top
-  if (hiddenTagParent) {
-    let lastTagCount = hiddenTagParent.querySelectorAll('#tag').length;
-    
+  // Watch for changes in #tagparent and auto-scroll to top
+  const tagParent = $id('tagparent');
+  if (tagParent) {
     const tagObserver = new MutationObserver((mutations) => {
-      let tagCountChanged = false;
+      let hasChanges = false;
       
       mutations.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-          const currentTagCount = hiddenTagParent.querySelectorAll('#tag').length;
-          if (currentTagCount !== lastTagCount) {
-            tagCountChanged = true;
-            lastTagCount = currentTagCount;
-          }
+        if (mutation.type === 'childList' || mutation.type === 'attributes') {
+          hasChanges = true;
         }
       });
       
-      if (tagCountChanged) {
+      if (hasChanges) {
         scrollToTop();
       }
     });
     
-    // Observe changes in hiddentagparent
-    tagObserver.observe(hiddenTagParent, {
+    // Observe changes in tagparent
+    tagObserver.observe(tagParent, {
       childList: true,
-      subtree: true
+      subtree: true,
+      attributes: true
     });
     
     // Store observer for cleanup
-    hiddenTagParent._tagObserver = tagObserver;
+    tagParent._tagObserver = tagObserver;
   }
   
   // Initial visibility check
@@ -2892,9 +2887,9 @@ window.addEventListener('beforeunload', () => {
   }
   
   // Clean up back to top tag observer
-  const hiddenTagParent = $id('hiddentagparent');
-  if (hiddenTagParent && hiddenTagParent._tagObserver) {
-    hiddenTagParent._tagObserver.disconnect();
+  const tagParent = $id('tagparent');
+  if (tagParent && tagParent._tagObserver) {
+    tagParent._tagObserver.disconnect();
   }
   
   // Clean up map resources
