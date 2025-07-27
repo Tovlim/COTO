@@ -1534,9 +1534,9 @@ function setupControls() {
         const openRightSidebar = element.getAttribute('open-right-sidebar');
         const openSecondLeftSidebar = element.getAttribute('open-second-left-sidebar');
         
-        if (openRightSidebar === 'open-only') {
+        if (openRightSidebar === 'open-only' || openRightSidebar === 'true') {
           toggleSidebar(sidebarSide, true);
-        } else if (openSecondLeftSidebar === 'open-only') {
+        } else if (openSecondLeftSidebar === 'open-only' || openSecondLeftSidebar === 'true') {
           toggleSidebar(sidebarSide, true);
         } else {
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
