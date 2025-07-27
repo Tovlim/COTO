@@ -42,7 +42,7 @@ setTimeout(() => {
     loadingTracker.markComplete('autocompleteReady');
   }
   if (!loadingTracker.states.backToTopReady) {
-    console.warn('⚠️ Back-to-top timeout - marking as complete');
+    console.warn('⚠️ Back to top timeout - marking as complete');
     loadingTracker.markComplete('backToTopReady');
   }
 }, 12000);
@@ -380,6 +380,134 @@ class OptimizedMapState {
   }
 }
 
+// OPTIMIZED: Back to Top Button Management
+class BackToTopManager {
+  constructor() {
+    this.button = null;
+    this.scrollContainer = null;
+    this.threshold = 100;
+    this.isVisible = false;
+    this.resizeObserver = null;
+    
+    this.init();
+  }
+  
+  init() {
+    this.button = document.getElementById('jump-to-top');
+    this.scrollContainer = document.getElementById('scroll-wrap');
+    
+    if (!this.button || !this.scrollContainer) {
+      console.log('Back to top: Required elements not found');
+      return;
+    }
+    
+    this.setupButton();
+    this.setupScrollListener();
+    this.setupResizeObserver();
+    this.updateButtonVisibility(); // Initial check
+    
+    console.log('Back to top button initialized');
+  }
+  
+  setupButton() {
+    // Ensure button starts hidden
+    this.button.style.opacity = '0';
+    this.button.style.display = 'none';
+    this.button.style.pointerEvents = 'none';
+    
+    // Add click handler
+    this.button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.scrollToTop();
+    });
+  }
+  
+  setupScrollListener() {
+    this.scrollContainer.addEventListener('scroll', () => {
+      this.updateButtonVisibility();
+    });
+  }
+  
+  setupResizeObserver() {
+    if (!window.ResizeObserver) return;
+    
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // When container size changes, scroll to top
+        this.scrollToTop();
+        console.log('Scroll container resized - scrolling to top');
+      }
+    });
+    
+    this.resizeObserver.observe(this.scrollContainer);
+  }
+  
+  updateButtonVisibility() {
+    const scrollTop = this.scrollContainer.scrollTop;
+    const shouldShow = scrollTop > this.threshold;
+    
+    if (shouldShow && !this.isVisible) {
+      this.showButton();
+    } else if (!shouldShow && this.isVisible) {
+      this.hideButton();
+    }
+    
+    // Update opacity based on scroll position when visible
+    if (this.isVisible) {
+      this.updateOpacity(scrollTop);
+    }
+  }
+  
+  showButton() {
+    this.isVisible = true;
+    this.button.style.display = 'flex';
+    this.button.style.pointerEvents = 'auto';
+    
+    // Start opacity animation
+    this.updateOpacity(this.scrollContainer.scrollTop);
+  }
+  
+  hideButton() {
+    this.isVisible = false;
+    this.button.style.opacity = '0';
+    this.button.style.display = 'none';
+    this.button.style.pointerEvents = 'none';
+  }
+  
+  updateOpacity(scrollTop) {
+    if (!this.isVisible) return;
+    
+    // Calculate opacity based on scroll position
+    // Fade in from threshold to threshold + 200px for smooth transition
+    const fadeRange = 200;
+    const fadeProgress = Math.min((scrollTop - this.threshold) / fadeRange, 1);
+    const opacity = Math.max(0.1, fadeProgress); // Minimum opacity of 0.1 when showing
+    
+    this.button.style.opacity = opacity.toString();
+  }
+  
+  scrollToTop() {
+    // Instant scroll to top (no smooth scrolling)
+    this.scrollContainer.scrollTop = 0;
+    
+    // Immediately update button visibility
+    this.updateButtonVisibility();
+  }
+  
+  destroy() {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+    
+    if (this.button) {
+      this.button.removeEventListener('click', this.scrollToTop);
+    }
+    
+    console.log('Back to top button destroyed');
+  }
+}
+
 // OPTIMIZED: Global state management with loading tracker
 const state = new OptimizedMapState();
 window.isLinkClick = false;
@@ -435,16 +563,6 @@ const loadingTracker = {
     } else if (!this.states.autocompleteReady) {
       // Check again in a bit
       setTimeout(() => this.checkAutocompleteReady(), 500);
-    }
-  },
-  
-  // Helper to setup back-to-top functionality
-  setupBackToTop() {
-    if (backToTopManager.init()) {
-      this.markComplete('backToTopReady');
-    } else {
-      // Try again in a bit
-      setTimeout(() => this.setupBackToTop(), 500);
     }
   }
 };
@@ -2533,94 +2651,9 @@ const checkAndToggleFilteredElements = () => {
   const hiddenTagParent = document.getElementById('hiddentagparent');
   const shouldShow = !!hiddenTagParent;
   
-  // Auto-scroll to top when filtering becomes active
-  if (shouldShow && !window.wasFilteringActive) {
-    scrollToTop();
-    window.wasFilteringActive = true;
-  } else if (!shouldShow) {
-    window.wasFilteringActive = false;
-  }
-  
   toggleShowWhenFilteredElements(shouldShow);
   return shouldShow;
 };
-
-// ENHANCED: Back to top functionality
-const backToTopManager = {
-  button: null,
-  scrollContainer: null,
-  isVisible: false,
-  
-  init() {
-    this.button = document.getElementById('jump-to-top');
-    this.scrollContainer = document.getElementById('scroll-wrap');
-    
-    if (!this.button || !this.scrollContainer) {
-      console.warn('Back-to-top elements not found:', {
-        button: !!this.button,
-        scrollContainer: !!this.scrollContainer
-      });
-      return false;
-    }
-    
-    this.setupScrollListener();
-    this.setupClickHandler();
-    
-    // Initial state check
-    this.checkScrollPosition();
-    
-    console.log('Back-to-top functionality initialized');
-    return true;
-  },
-  
-  setupScrollListener() {
-    this.scrollContainer.addEventListener('scroll', () => {
-      this.checkScrollPosition();
-    });
-  },
-  
-  setupClickHandler() {
-    this.button.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.scrollToTop();
-    });
-  },
-  
-  checkScrollPosition() {
-    const scrollTop = this.scrollContainer.scrollTop;
-    const shouldShow = scrollTop > 150;
-    
-    if (shouldShow && !this.isVisible) {
-      this.showButton();
-    } else if (!shouldShow && this.isVisible) {
-      this.hideButton();
-    }
-  },
-  
-  showButton() {
-    this.button.style.display = 'flex';
-    this.isVisible = true;
-  },
-  
-  hideButton() {
-    this.button.style.display = 'none';
-    this.isVisible = false;
-  },
-  
-  scrollToTop() {
-    if (this.scrollContainer) {
-      this.scrollContainer.scrollTop = 0;
-    }
-  }
-};
-
-// Global scroll to top function for filtering integration
-function scrollToTop() {
-  if (backToTopManager.scrollContainer) {
-    backToTopManager.scrollContainer.scrollTop = 0;
-  }
-}
 
 // FIXED: Enhanced tag monitoring with proper cleanup and no recursion
 const monitorTags = (() => {
@@ -2827,6 +2860,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupTabSwitcher();
   
+  // Initialize back to top button
+  state.setTimer('initBackToTop', () => {
+    window.backToTopManager = new BackToTopManager();
+    loadingTracker.markComplete('backToTopReady');
+  }, 500);
+  
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
     // Check if tab switcher is ready early
@@ -2850,6 +2889,14 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
+  
+  // Initialize back to top if not already done
+  if (!window.backToTopManager) {
+    state.setTimer('fallbackBackToTop', () => {
+      window.backToTopManager = new BackToTopManager();
+      loadingTracker.markComplete('backToTopReady');
+    }, 100);
+  }
   
   state.setTimer('loadFallbackInit', () => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
@@ -2929,11 +2976,6 @@ window.addEventListener('load', () => {
   state.setTimer('checkAutocompleteLater', () => {
     loadingTracker.checkAutocompleteReady();
   }, 3000);
-  
-  // Setup back-to-top functionality
-  state.setTimer('setupBackToTop', () => {
-    loadingTracker.setupBackToTop();
-  }, 1500);
 });
 
 // FIXED: Enhanced tag monitoring initialization (immediate start)
@@ -2962,7 +3004,8 @@ window.mapUtilities = {
   utils,
   mapLayers,
   checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-  toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+  toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
+  backToTopManager: () => window.backToTopManager // Access to back to top functionality
 };
 
 // OPTIMIZED: Performance monitoring and cleanup
@@ -2991,6 +3034,11 @@ window.addEventListener('beforeunload', () => {
   // Clean up all managed resources
   eventManager.cleanup();
   state.cleanup();
+  
+  // Clean up back to top manager
+  if (window.backToTopManager) {
+    window.backToTopManager.destroy();
+  }
   
   // Clean up mutation observers
   const tagParent = $id('tagparent');
