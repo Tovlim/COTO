@@ -2519,8 +2519,77 @@ const checkAndToggleFilteredElements = () => {
   const shouldShow = !!hiddenTagParent;
   
   toggleShowWhenFilteredElements(shouldShow);
+  
+  // Also update back-to-top button visibility
+  updateBackToTopVisibility();
+  
   return shouldShow;
 };
+
+// OPTIMIZED: Back-to-top functionality
+function setupBackToTop() {
+  const scrollWrap = $id('scroll-wrap');
+  const jumpButton = $id('jump-to-top');
+  
+  if (!scrollWrap || !jumpButton) {
+    console.warn('Back-to-top: Missing elements (scroll-wrap or jump-to-top)');
+    return;
+  }
+  
+  // Scroll threshold
+  const SCROLL_THRESHOLD = 150;
+  
+  // Update button visibility based on scroll position and filtering
+  const updateVisibility = () => {
+    const scrollTop = scrollWrap.scrollTop;
+    const isScrolled = scrollTop >= SCROLL_THRESHOLD;
+    const isFiltering = !!document.getElementById('hiddentagparent');
+    
+    // Show button if scrolled down OR if filtering (but always hide when at top)
+    const shouldShow = scrollTop > 0 && (isScrolled || isFiltering);
+    
+    if (shouldShow) {
+      jumpButton.style.display = 'block';
+    } else {
+      jumpButton.style.display = 'none';
+    }
+  };
+  
+  // Add scroll listener to scroll-wrap div
+  eventManager.add(scrollWrap, 'scroll', updateVisibility);
+  
+  // Add click handler to jump button
+  eventManager.add(jumpButton, 'click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Scroll to top instantly (no animation)
+    scrollWrap.scrollTop = 0;
+  });
+  
+  console.log('Back-to-top functionality initialized');
+}
+
+// Helper function to update back-to-top visibility (called from filtering detection)
+function updateBackToTopVisibility() {
+  const scrollWrap = $id('scroll-wrap');
+  const jumpButton = $id('jump-to-top');
+  
+  if (!scrollWrap || !jumpButton) return;
+  
+  const scrollTop = scrollWrap.scrollTop;
+  const isScrolled = scrollTop >= 150;
+  const isFiltering = !!document.getElementById('hiddentagparent');
+  
+  // Show button if scrolled down OR if filtering (but always hide when at top)
+  const shouldShow = scrollTop > 0 && (isScrolled || isFiltering);
+  
+  if (shouldShow) {
+    jumpButton.style.display = 'block';
+  } else {
+    jumpButton.style.display = 'none';
+  }
+}
 
 // FIXED: Enhanced tag monitoring with proper cleanup and no recursion
 const monitorTags = (() => {
@@ -2637,6 +2706,9 @@ function init() {
   // Generate locality checkboxes early
   state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
   
+  // Setup back-to-top functionality
+  state.setTimer('setupBackToTop', setupBackToTop, 200);
+  
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
   
@@ -2727,6 +2799,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupTabSwitcher();
   
+  // Setup back-to-top as early as possible
+  setTimeout(setupBackToTop, 100);
+  
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
     // Check if tab switcher is ready early
@@ -2750,6 +2825,9 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
+  
+  // Fallback setup for back-to-top
+  setTimeout(setupBackToTop, 200);
   
   state.setTimer('loadFallbackInit', () => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
