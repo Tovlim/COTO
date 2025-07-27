@@ -1534,11 +1534,13 @@ function setupControls() {
         const openRightSidebar = element.getAttribute('open-right-sidebar');
         const openSecondLeftSidebar = element.getAttribute('open-second-left-sidebar');
         
-        if (openRightSidebar === 'open-only' || openRightSidebar === 'true') {
+        // Handle different sidebar behaviors based on the actual sidebar being controlled
+        if (sidebarSide === 'Right' && openRightSidebar === 'open-only') {
           toggleSidebar(sidebarSide, true);
-        } else if (openSecondLeftSidebar === 'open-only' || openSecondLeftSidebar === 'true') {
+        } else if (sidebarSide === 'SecondLeft' && openSecondLeftSidebar === 'open-only') {
           toggleSidebar(sidebarSide, true);
         } else {
+          // Toggle behavior for "true" values and other cases
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
         }
         
