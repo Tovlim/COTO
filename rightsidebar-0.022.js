@@ -369,6 +369,120 @@ function setupCheckboxEvents(checkboxContainer) {
   });
 }
 
+// OPTIMIZED: Back to top button functionality
+function setupBackToTopButton() {
+  const button = $id('jump-to-top');
+  const scrollContainer = $id('scroll-wrap');
+  
+  if (!button || !scrollContainer) {
+    return;
+  }
+  
+  console.log('Setting up back to top button functionality...');
+  
+  // Hide scrollbar for scroll-wrap while keeping functionality
+  utils.setStyles(scrollContainer, {
+    scrollbarWidth: 'none', // Firefox
+    msOverflowStyle: 'none' // Internet Explorer and Edge
+  });
+  
+  // Add webkit scrollbar hiding styles
+  const style = document.createElement('style');
+  style.textContent = `
+    #scroll-wrap::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Edge */
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Initialize button state
+  button.style.opacity = '0';
+  button.style.display = 'flex';
+  button.style.pointerEvents = 'none';
+  
+  const scrollThreshold = 100;
+  let isVisible = false;
+  
+  // Update button visibility and opacity based on scroll position
+  const updateButtonVisibility = () => {
+    const scrollTop = scrollContainer.scrollTop;
+    const shouldShow = scrollTop > scrollThreshold;
+    
+    if (shouldShow && !isVisible) {
+      // Show button
+      isVisible = true;
+      button.style.display = 'flex';
+      button.style.pointerEvents = 'auto';
+      
+      // Animate opacity based on scroll distance
+      const opacity = Math.min(1, (scrollTop - scrollThreshold) / 100);
+      button.style.opacity = opacity.toString();
+      
+    } else if (!shouldShow && isVisible) {
+      // Hide button
+      isVisible = false;
+      button.style.opacity = '0';
+      button.style.pointerEvents = 'none';
+      
+    } else if (shouldShow && isVisible) {
+      // Update opacity while scrolling
+      const opacity = Math.min(1, (scrollTop - scrollThreshold) / 100);
+      button.style.opacity = opacity.toString();
+    }
+  };
+  
+  // Scroll to top instantly
+  const scrollToTop = () => {
+    scrollContainer.scrollTo({
+      top: 0,
+      behavior: 'auto' // Instant scroll
+    });
+  };
+  
+  // Add scroll event listener
+  eventManager.add(scrollContainer, 'scroll', updateButtonVisibility);
+  
+  // Add click event listener
+  eventManager.add(button, 'click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    scrollToTop();
+  });
+  
+  // Watch for changes in #tagparent and auto-scroll to top
+  const tagParent = $id('tagparent');
+  if (tagParent) {
+    const tagObserver = new MutationObserver((mutations) => {
+      let hasChanges = false;
+      
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList' || mutation.type === 'attributes') {
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges) {
+        scrollToTop();
+      }
+    });
+    
+    // Observe changes in tagparent
+    tagObserver.observe(tagParent, {
+      childList: true,
+      subtree: true,
+      attributes: true
+    });
+    
+    // Store observer for cleanup
+    tagParent._tagObserver = tagObserver;
+  }
+  
+  // Initial visibility check
+  updateButtonVisibility();
+  
+  console.log('Back to top button setup completed');
+}
+
 // Generate locality checkboxes from cms-filter-list data
 function generateLocalityCheckboxes() {
   const container = $id('locality-check-list');
@@ -773,6 +887,7 @@ function setupControls() {
   setupSidebarControls('[open-right-sidebar="true"], [open-right-sidebar="open-only"]');
   
   setupTabSwitcher();
+  setupBackToTopButton();
 }
 
 // Right sidebar setup with performance optimization
@@ -917,11 +1032,13 @@ function init() {
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupTabSwitcher();
+  setupBackToTopButton();
 });
 
 window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
+  setupBackToTopButton();
   init();
   
   // Check filtered elements after page is fully loaded
@@ -960,7 +1077,8 @@ window.rightSidebarUtilities = {
   getAvailableFilterLists,
   setupCheckboxFunctionality,
   setupCheckboxEvents,
-  generateLocalityCheckboxes
+  generateLocalityCheckboxes,
+  setupBackToTopButton
 };
 
 // Performance monitoring
@@ -988,6 +1106,11 @@ window.addEventListener('beforeunload', () => {
   const tagParent = $id('tagparent');
   if (tagParent && tagParent._mutationObserver) {
     tagParent._mutationObserver.disconnect();
+  }
+  
+  // Clean up back to top tag observer  
+  if (tagParent && tagParent._tagObserver) {
+    tagParent._tagObserver.disconnect();
   }
   
   // Clean up custom cleanup functions
