@@ -1378,6 +1378,21 @@ function setupBackToTopButton() {
     return;
   }
   
+  // Hide scrollbar for scroll-wrap while keeping functionality
+  utils.setStyles(scrollContainer, {
+    scrollbarWidth: 'none', // Firefox
+    msOverflowStyle: 'none' // Internet Explorer and Edge
+  });
+  
+  // Add webkit scrollbar hiding styles
+  const style = document.createElement('style');
+  style.textContent = `
+    #scroll-wrap::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Edge */
+    }
+  `;
+  document.head.appendChild(style);
+  
   // Initialize button state
   button.style.opacity = '0';
   button.style.display = 'flex';
