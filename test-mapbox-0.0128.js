@@ -1534,13 +1534,24 @@ function setupControls() {
         const openRightSidebar = element.getAttribute('open-right-sidebar');
         const openSecondLeftSidebar = element.getAttribute('open-second-left-sidebar');
         
-        // Handle different sidebar behaviors based on the actual sidebar being controlled
-        if (sidebarSide === 'Right' && openRightSidebar === 'open-only') {
-          toggleSidebar(sidebarSide, true);
-        } else if (sidebarSide === 'SecondLeft' && openSecondLeftSidebar === 'open-only') {
-          toggleSidebar(sidebarSide, true);
-        } else {
-          // Toggle behavior for "true" values and other cases
+        // Handle Right sidebar specifically
+        if (sidebarSide === 'Right') {
+          if (openRightSidebar === 'open-only') {
+            toggleSidebar('Right', true);
+          } else if (openRightSidebar === 'true') {
+            toggleSidebar('Right', !sidebar.classList.contains('is-show'));
+          }
+        }
+        // Handle SecondLeft sidebar specifically  
+        else if (sidebarSide === 'SecondLeft') {
+          if (openSecondLeftSidebar === 'open-only') {
+            toggleSidebar('SecondLeft', true);
+          } else if (openSecondLeftSidebar === 'true') {
+            toggleSidebar('SecondLeft', !sidebar.classList.contains('is-show'));
+          }
+        }
+        // Handle Left sidebar and other cases
+        else {
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
         }
         
