@@ -2886,8 +2886,7 @@ window.addEventListener('beforeunload', () => {
     tagParent._mutationObserver.disconnect();
   }
   
-  // Clean up back to top tag observer
-  const tagParent = $id('tagparent');
+  // Clean up back to top tag observer  
   if (tagParent && tagParent._tagObserver) {
     tagParent._tagObserver.disconnect();
   }
