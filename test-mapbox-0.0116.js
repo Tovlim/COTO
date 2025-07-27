@@ -41,9 +41,9 @@ setTimeout(() => {
     console.warn('⚠️ Autocomplete timeout - marking as complete');
     loadingTracker.markComplete('autocompleteReady');
   }
-  if (!loadingTracker.states.backToTopReady) {
-    console.warn('⚠️ Back to top timeout - marking as complete');
-    loadingTracker.markComplete('backToTopReady');
+  if (!loadingTracker.states.backToTopSetup) {
+    console.warn('⚠️ Back to top setup timeout - marking as complete');
+    loadingTracker.markComplete('backToTopSetup');
   }
 }, 12000);
 
@@ -380,134 +380,6 @@ class OptimizedMapState {
   }
 }
 
-// OPTIMIZED: Back to Top Button Management
-class BackToTopManager {
-  constructor() {
-    this.button = null;
-    this.scrollContainer = null;
-    this.threshold = 100;
-    this.isVisible = false;
-    this.resizeObserver = null;
-    
-    this.init();
-  }
-  
-  init() {
-    this.button = document.getElementById('jump-to-top');
-    this.scrollContainer = document.getElementById('scroll-wrap');
-    
-    if (!this.button || !this.scrollContainer) {
-      console.log('Back to top: Required elements not found');
-      return;
-    }
-    
-    this.setupButton();
-    this.setupScrollListener();
-    this.setupResizeObserver();
-    this.updateButtonVisibility(); // Initial check
-    
-    console.log('Back to top button initialized');
-  }
-  
-  setupButton() {
-    // Ensure button starts hidden
-    this.button.style.opacity = '0';
-    this.button.style.display = 'none';
-    this.button.style.pointerEvents = 'none';
-    
-    // Add click handler
-    this.button.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.scrollToTop();
-    });
-  }
-  
-  setupScrollListener() {
-    this.scrollContainer.addEventListener('scroll', () => {
-      this.updateButtonVisibility();
-    });
-  }
-  
-  setupResizeObserver() {
-    if (!window.ResizeObserver) return;
-    
-    this.resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        // When container size changes, scroll to top
-        this.scrollToTop();
-        console.log('Scroll container resized - scrolling to top');
-      }
-    });
-    
-    this.resizeObserver.observe(this.scrollContainer);
-  }
-  
-  updateButtonVisibility() {
-    const scrollTop = this.scrollContainer.scrollTop;
-    const shouldShow = scrollTop > this.threshold;
-    
-    if (shouldShow && !this.isVisible) {
-      this.showButton();
-    } else if (!shouldShow && this.isVisible) {
-      this.hideButton();
-    }
-    
-    // Update opacity based on scroll position when visible
-    if (this.isVisible) {
-      this.updateOpacity(scrollTop);
-    }
-  }
-  
-  showButton() {
-    this.isVisible = true;
-    this.button.style.display = 'flex';
-    this.button.style.pointerEvents = 'auto';
-    
-    // Start opacity animation
-    this.updateOpacity(this.scrollContainer.scrollTop);
-  }
-  
-  hideButton() {
-    this.isVisible = false;
-    this.button.style.opacity = '0';
-    this.button.style.display = 'none';
-    this.button.style.pointerEvents = 'none';
-  }
-  
-  updateOpacity(scrollTop) {
-    if (!this.isVisible) return;
-    
-    // Calculate opacity based on scroll position
-    // Fade in from threshold to threshold + 200px for smooth transition
-    const fadeRange = 200;
-    const fadeProgress = Math.min((scrollTop - this.threshold) / fadeRange, 1);
-    const opacity = Math.max(0.1, fadeProgress); // Minimum opacity of 0.1 when showing
-    
-    this.button.style.opacity = opacity.toString();
-  }
-  
-  scrollToTop() {
-    // Instant scroll to top (no smooth scrolling)
-    this.scrollContainer.scrollTop = 0;
-    
-    // Immediately update button visibility
-    this.updateButtonVisibility();
-  }
-  
-  destroy() {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-    }
-    
-    if (this.button) {
-      this.button.removeEventListener('click', this.scrollToTop);
-    }
-    
-    console.log('Back to top button destroyed');
-  }
-}
-
 // OPTIMIZED: Global state management with loading tracker
 const state = new OptimizedMapState();
 window.isLinkClick = false;
@@ -526,7 +398,7 @@ const loadingTracker = {
     eventsSetup: false,
     uiPositioned: false,
     autocompleteReady: false,
-    backToTopReady: false
+    backToTopSetup: false
   },
   
   markComplete(stateName) {
@@ -1566,6 +1438,114 @@ const handleFilterUpdate = eventManager.debounce(() => {
   }, 1000);
 }, 150, 'filterUpdate');
 
+// OPTIMIZED: Back to top button functionality
+function setupBackToTopButton() {
+  const button = $id('jump-to-top');
+  const scrollContainer = $id('scroll-wrap');
+  const hiddenTagParent = $id('hiddentagparent');
+  
+  if (!button || !scrollContainer) {
+    console.log('Back to top button or scroll container not found');
+    return;
+  }
+  
+  // Initialize button state
+  button.style.opacity = '0';
+  button.style.display = 'flex';
+  button.style.pointerEvents = 'none';
+  
+  const scrollThreshold = 100;
+  let isVisible = false;
+  
+  // Update button visibility and opacity based on scroll position
+  const updateButtonVisibility = () => {
+    const scrollTop = scrollContainer.scrollTop;
+    const shouldShow = scrollTop > scrollThreshold;
+    
+    if (shouldShow && !isVisible) {
+      // Show button
+      isVisible = true;
+      button.style.display = 'flex';
+      button.style.pointerEvents = 'auto';
+      
+      // Animate opacity based on scroll distance
+      const opacity = Math.min(1, (scrollTop - scrollThreshold) / 100);
+      button.style.opacity = opacity.toString();
+      
+    } else if (!shouldShow && isVisible) {
+      // Hide button
+      isVisible = false;
+      button.style.opacity = '0';
+      button.style.pointerEvents = 'none';
+      
+    } else if (shouldShow && isVisible) {
+      // Update opacity while scrolling
+      const opacity = Math.min(1, (scrollTop - scrollThreshold) / 100);
+      button.style.opacity = opacity.toString();
+    }
+  };
+  
+  // Scroll to top instantly
+  const scrollToTop = () => {
+    scrollContainer.scrollTo({
+      top: 0,
+      behavior: 'auto' // Instant scroll
+    });
+  };
+  
+  // Add scroll event listener
+  eventManager.add(scrollContainer, 'scroll', updateButtonVisibility);
+  
+  // Add click event listener
+  eventManager.add(button, 'click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    scrollToTop();
+  });
+  
+  // Watch for changes in #hiddentagparent > #tag and auto-scroll to top
+  if (hiddenTagParent) {
+    let lastTagCount = hiddenTagParent.querySelectorAll('#tag').length;
+    
+    const tagObserver = new MutationObserver((mutations) => {
+      let tagCountChanged = false;
+      
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          const currentTagCount = hiddenTagParent.querySelectorAll('#tag').length;
+          if (currentTagCount !== lastTagCount) {
+            tagCountChanged = true;
+            lastTagCount = currentTagCount;
+          }
+        }
+      });
+      
+      if (tagCountChanged) {
+        console.log('Tag count changed - scrolling to top');
+        scrollToTop();
+      }
+    });
+    
+    // Observe changes in hiddentagparent
+    tagObserver.observe(hiddenTagParent, {
+      childList: true,
+      subtree: true
+    });
+    
+    // Store observer for cleanup
+    hiddenTagParent._tagObserver = tagObserver;
+    console.log('Back to top: Tag count observer setup');
+  }
+  
+  // Initial visibility check
+  updateButtonVisibility();
+  
+  console.log('Back to top button setup completed');
+  
+  // Mark UI loading step complete
+  loadingTracker.markComplete('backToTopSetup');
+}
+
 // Custom tab switcher
 function setupTabSwitcher() {
   const tabTriggers = $('[open-tab]');
@@ -1668,6 +1648,7 @@ function setupControls() {
   
   setupTabSwitcher();
   setupAreaKeyControls();
+  setupBackToTopButton();
 }
 
 // OPTIMIZED: Sidebar setup with better performance and cleaner management
@@ -2859,12 +2840,7 @@ map.on("load", () => {
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupTabSwitcher();
-  
-  // Initialize back to top button
-  state.setTimer('initBackToTop', () => {
-    window.backToTopManager = new BackToTopManager();
-    loadingTracker.markComplete('backToTopReady');
-  }, 500);
+  setupBackToTopButton();
   
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
@@ -2883,20 +2859,22 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingTracker.markComplete('uiPositioned');
       }
     }
+    
+    // Check if back to top is ready early
+    if (!loadingTracker.states.backToTopSetup) {
+      const button = $id('jump-to-top');
+      const scrollContainer = $id('scroll-wrap');
+      if (button && scrollContainer) {
+        loadingTracker.markComplete('backToTopSetup');
+      }
+    }
   }, 2000);
 });
 
 window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
-  
-  // Initialize back to top if not already done
-  if (!window.backToTopManager) {
-    state.setTimer('fallbackBackToTop', () => {
-      window.backToTopManager = new BackToTopManager();
-      loadingTracker.markComplete('backToTopReady');
-    }, 100);
-  }
+  setupBackToTopButton();
   
   state.setTimer('loadFallbackInit', () => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
@@ -3004,8 +2982,7 @@ window.mapUtilities = {
   utils,
   mapLayers,
   checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-  toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
-  backToTopManager: () => window.backToTopManager // Access to back to top functionality
+  toggleShowWhenFilteredElements // FIXED: Export the toggle function too
 };
 
 // OPTIMIZED: Performance monitoring and cleanup
@@ -3035,15 +3012,16 @@ window.addEventListener('beforeunload', () => {
   eventManager.cleanup();
   state.cleanup();
   
-  // Clean up back to top manager
-  if (window.backToTopManager) {
-    window.backToTopManager.destroy();
-  }
-  
   // Clean up mutation observers
   const tagParent = $id('tagparent');
   if (tagParent && tagParent._mutationObserver) {
     tagParent._mutationObserver.disconnect();
+  }
+  
+  // Clean up back to top tag observer
+  const hiddenTagParent = $id('hiddentagparent');
+  if (hiddenTagParent && hiddenTagParent._tagObserver) {
+    hiddenTagParent._tagObserver.disconnect();
   }
   
   // Clean up map resources
