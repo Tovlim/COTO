@@ -10,14 +10,38 @@ if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
-// Fallback: Hide loading screen after max 15 seconds regardless
+// Fallback: Hide loading screen after max 20 seconds regardless
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
   if (loadingScreen && loadingScreen.style.display !== 'none') {
     console.warn('⚠️ Loading timeout - forcing loading screen to hide');
     loadingScreen.style.display = 'none';
   }
-}, 15000);
+}, 20000);
+
+// Additional fallback: Mark any incomplete UI states as complete after reasonable delay
+setTimeout(() => {
+  if (!loadingTracker.states.sidebarSetup) {
+    console.warn('⚠️ Sidebar setup timeout - marking as complete');
+    loadingTracker.markComplete('sidebarSetup');
+  }
+  if (!loadingTracker.states.tabSwitcherSetup) {
+    console.warn('⚠️ Tab switcher timeout - marking as complete');
+    loadingTracker.markComplete('tabSwitcherSetup');
+  }
+  if (!loadingTracker.states.eventsSetup) {
+    console.warn('⚠️ Events setup timeout - marking as complete');
+    loadingTracker.markComplete('eventsSetup');
+  }
+  if (!loadingTracker.states.uiPositioned) {
+    console.warn('⚠️ UI positioning timeout - marking as complete');
+    loadingTracker.markComplete('uiPositioned');
+  }
+  if (!loadingTracker.states.autocompleteReady) {
+    console.warn('⚠️ Autocomplete timeout - marking as complete');
+    loadingTracker.markComplete('autocompleteReady');
+  }
+}, 12000);
 
 // OPTIMIZED: Comprehensive DOM Element Cache
 class OptimizedDOMCache {
@@ -364,7 +388,12 @@ const loadingTracker = {
     markersAdded: false,
     geoDataLoaded: false,
     districtTagsLoaded: false,
-    controlsSetup: false
+    controlsSetup: false,
+    sidebarSetup: false,
+    tabSwitcherSetup: false,
+    eventsSetup: false,
+    uiPositioned: false,
+    autocompleteReady: false
   },
   
   markComplete(stateName) {
@@ -390,7 +419,17 @@ const loadingTracker = {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen && loadingScreen.style.display !== 'none') {
       loadingScreen.style.display = 'none';
-      console.log('🎉 All components loaded - hiding loading screen');
+      console.log('🎉 All components (including UI) loaded - hiding loading screen');
+    }
+  },
+  
+  // Helper to check if autocomplete is ready
+  checkAutocompleteReady() {
+    if (window.integratedAutocomplete && !this.states.autocompleteReady) {
+      this.markComplete('autocompleteReady');
+    } else if (!this.states.autocompleteReady) {
+      // Check again in a bit
+      setTimeout(() => this.checkAutocompleteReady(), 500);
     }
   }
 };
@@ -1418,6 +1457,11 @@ function setupTabSwitcher() {
     
     trigger.dataset.tabSwitcherSetup = 'true';
   });
+  
+  // Mark UI loading step complete
+  if (!loadingTracker.states.tabSwitcherSetup) {
+    loadingTracker.markComplete('tabSwitcherSetup');
+  }
 }
 
 // OPTIMIZED: Consolidated controls with event delegation where possible
@@ -1628,6 +1672,9 @@ function setupSidebars() {
     if (leftReady && secondLeftReady && rightReady) {
       setupInitialMargins();
       state.setTimer('setupControls', setupControls, 50);
+      
+      // Mark UI loading step complete
+      loadingTracker.markComplete('sidebarSetup');
       return;
     }
     
@@ -1637,6 +1684,9 @@ function setupSidebars() {
     } else {
       setupInitialMargins();
       state.setTimer('setupControls', setupControls, 50);
+      
+      // Mark UI loading step complete even if some sidebars missing
+      loadingTracker.markComplete('sidebarSetup');
     }
   };
   
@@ -1781,6 +1831,9 @@ function setupEvents() {
       }
     });
   });
+  
+  // Mark UI loading step complete
+  loadingTracker.markComplete('eventsSetup');
 }
 
 // OPTIMIZED: Smart dropdown listeners with better timing
@@ -2637,6 +2690,9 @@ state.setTimer('controlPositioning', () => {
       zIndex: '10'
     });
   }
+  
+  // Mark UI loading step complete
+  loadingTracker.markComplete('uiPositioned');
 }, 300);
 
 // OPTIMIZED: Map load event handler with parallel operations
@@ -2670,6 +2726,25 @@ map.on("load", () => {
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupTabSwitcher();
+  
+  // Early UI readiness checks
+  state.setTimer('earlyUICheck', () => {
+    // Check if tab switcher is ready early
+    if (!loadingTracker.states.tabSwitcherSetup && $('[open-tab]').length > 0) {
+      const hasSetupTabs = $('[open-tab]').some(tab => tab.dataset.tabSwitcherSetup === 'true');
+      if (hasSetupTabs) {
+        loadingTracker.markComplete('tabSwitcherSetup');
+      }
+    }
+    
+    // Check if controls are positioned early
+    if (!loadingTracker.states.uiPositioned) {
+      const ctrl = $1('.mapboxgl-ctrl-top-right');
+      if (ctrl && ctrl.style.top) {
+        loadingTracker.markComplete('uiPositioned');
+      }
+    }
+  }, 2000);
 });
 
 window.addEventListener('load', () => {
@@ -2744,10 +2819,29 @@ window.addEventListener('load', () => {
       }
     }, 500);
   }
+  
+  // Check autocomplete readiness
+  state.setTimer('checkAutocomplete', () => {
+    loadingTracker.checkAutocompleteReady();
+  }, 1000);
+  
+  // Additional autocomplete check after longer delay
+  state.setTimer('checkAutocompleteLater', () => {
+    loadingTracker.checkAutocompleteReady();
+  }, 3000);
 });
 
 // FIXED: Enhanced tag monitoring initialization (immediate start)
-state.setTimer('initMonitorTags', monitorTags, 100);
+state.setTimer('initMonitorTags', () => {
+  monitorTags();
+  
+  // Mark monitoring as part of events setup
+  state.setTimer('monitoringCheck', () => {
+    if (!loadingTracker.states.eventsSetup) {
+      loadingTracker.markComplete('eventsSetup');
+    }
+  }, 1000);
+}, 100);
 
 // FIXED: Additional check after page is fully loaded
 window.addEventListener('load', () => {
