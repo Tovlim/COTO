@@ -1,4 +1,4 @@
-// HEAVILY OPTIMIZED Mapbox Script - Performance Enhanced 2025
+// HEAVILY OPTIMIZED Mapbox Script - Production Version 2025
 // Major optimizations: DOM caching, event cleanup, map batching, smart initialization
 
 // Detect mobile for better map experience
@@ -14,7 +14,6 @@ if (loadingScreen) {
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
   if (loadingScreen && loadingScreen.style.display !== 'none') {
-    console.warn('⚠️ Loading timeout - forcing loading screen to hide');
     loadingScreen.style.display = 'none';
   }
 }, 20000);
@@ -22,27 +21,21 @@ setTimeout(() => {
 // Additional fallback: Mark any incomplete UI states as complete after reasonable delay
 setTimeout(() => {
   if (!loadingTracker.states.sidebarSetup) {
-    console.warn('⚠️ Sidebar setup timeout - marking as complete');
     loadingTracker.markComplete('sidebarSetup');
   }
   if (!loadingTracker.states.tabSwitcherSetup) {
-    console.warn('⚠️ Tab switcher timeout - marking as complete');
     loadingTracker.markComplete('tabSwitcherSetup');
   }
   if (!loadingTracker.states.eventsSetup) {
-    console.warn('⚠️ Events setup timeout - marking as complete');
     loadingTracker.markComplete('eventsSetup');
   }
   if (!loadingTracker.states.uiPositioned) {
-    console.warn('⚠️ UI positioning timeout - marking as complete');
     loadingTracker.markComplete('uiPositioned');
   }
   if (!loadingTracker.states.autocompleteReady) {
-    console.warn('⚠️ Autocomplete timeout - marking as complete');
     loadingTracker.markComplete('autocompleteReady');
   }
   if (!loadingTracker.states.backToTopSetup) {
-    console.warn('⚠️ Back to top setup timeout - marking as complete');
     loadingTracker.markComplete('backToTopSetup');
   }
 }, 12000);
@@ -215,17 +208,6 @@ class OptimizedEventManager {
     this.listeners.clear();
     this.delegatedListeners.clear();
     this.debounceTimers.clear();
-    
-    console.log('Event manager cleaned up');
-  }
-  
-  // Get stats for debugging
-  getStats() {
-    return {
-      trackedListeners: Array.from(this.listeners.values()).reduce((sum, arr) => sum + arr.length, 0),
-      delegatedListeners: Array.from(this.delegatedListeners.values()).reduce((sum, arr) => sum + arr.length, 0),
-      activeTimers: this.debounceTimers.size
-    };
   }
 }
 
@@ -329,24 +311,10 @@ class OptimizedMapState {
       skipNextReframe: false
     }, {
       set: (target, property, value) => {
-        const changed = target[property] !== value;
         target[property] = value;
-        if (changed && property === 'mapInitialized' && value) {
-          this.onMapInitialized();
-        }
         return true;
       }
     });
-    
-    // Performance tracking
-    this.performance = {
-      initStartTime: performance.now(),
-      loadTimes: new Map()
-    };
-  }
-  
-  onMapInitialized() {
-    console.log(`Map initialized in ${performance.now() - this.performance.initStartTime}ms`);
   }
   
   setTimer(id, callback, delay) {
@@ -369,14 +337,6 @@ class OptimizedMapState {
   cleanup() {
     this.timers.forEach(timer => clearTimeout(timer));
     this.timers.clear();
-  }
-  
-  getPerformanceStats() {
-    return {
-      totalInitTime: performance.now() - this.performance.initStartTime,
-      loadTimes: Object.fromEntries(this.performance.loadTimes),
-      activeTimers: this.timers.size
-    };
   }
 }
 
@@ -404,7 +364,6 @@ const loadingTracker = {
   markComplete(stateName) {
     if (this.states.hasOwnProperty(stateName)) {
       this.states[stateName] = true;
-      console.log(`✅ Loading: ${stateName} completed`);
       this.checkAllComplete();
     }
   },
@@ -413,10 +372,6 @@ const loadingTracker = {
     const allComplete = Object.values(this.states).every(state => state === true);
     if (allComplete) {
       this.hideLoadingScreen();
-    } else {
-      const completed = Object.entries(this.states).filter(([_, complete]) => complete).length;
-      const total = Object.keys(this.states).length;
-      console.log(`🔄 Loading progress: ${completed}/${total} components ready`);
     }
   },
   
@@ -424,7 +379,6 @@ const loadingTracker = {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen && loadingScreen.style.display !== 'none') {
       loadingScreen.style.display = 'none';
-      console.log('🎉 All components (including UI) loaded - hiding loading screen');
     }
   },
   
@@ -521,7 +475,7 @@ class OptimizedMapLayers {
       try {
         operation();
       } catch (error) {
-        console.warn('Batch operation failed:', error);
+        // Silent error handling in production
       }
     });
     
@@ -578,12 +532,10 @@ class OptimizedMapLayers {
               this.layerCache.delete(layerId); // Invalidate cache
             }
           } catch (e) {
-            console.warn(`Failed to reorder layer ${layerId}:`, e);
+            // Silent error handling in production
           }
         }
       });
-      
-      console.log('Layer order optimized');
     }
   }
   
@@ -696,8 +648,6 @@ const toggleShowWhenFilteredElements = show => {
     element.style.opacity = show ? '1' : '0';
     element.style.pointerEvents = show ? 'auto' : 'none';
   });
-  
-  console.log(`Filtered elements ${show ? 'shown' : 'hidden'}: ${elements.length} elements`);
 };
 
 // OPTIMIZED: Checkbox selection functions with batched operations
@@ -819,14 +769,12 @@ const getAvailableFilterLists = (() => {
 
 // OPTIMIZED: Location data extraction with preprocessing and caching
 function getLocationData() {
-  const startTime = performance.now();
   state.locationData.features = [];
   
   const lists = getAvailableFilterLists();
   let totalLoaded = 0;
   
   if (lists.length === 0) {
-    console.warn('No filter lists found');
     return;
   }
   
@@ -898,10 +846,6 @@ function getLocationData() {
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
   
-  const loadTime = performance.now() - startTime;
-  state.performance.loadTimes.set('locationData', loadTime);
-  console.log(`Location data loaded: ${totalLoaded} features in ${loadTime}ms`);
-  
   // Mark loading step complete
   loadingTracker.markComplete('locationDataLoaded');
 }
@@ -909,8 +853,6 @@ function getLocationData() {
 // OPTIMIZED: Native markers with batched operations
 function addNativeMarkers() {
   if (!state.locationData.features.length) return;
-  
-  const startTime = performance.now();
   
   // Batch add source and layers
   mapLayers.addToBatch(() => {
@@ -989,8 +931,6 @@ function addNativeMarkers() {
   
   setupNativeMarkerClicks();
   
-  state.performance.loadTimes.set('nativeMarkers', performance.now() - startTime);
-  
   // Mark loading step complete
   loadingTracker.markComplete('markersAdded');
 }
@@ -998,8 +938,6 @@ function addNativeMarkers() {
 // OPTIMIZED: District markers with batched operations  
 function addNativeDistrictMarkers() {
   if (!state.allDistrictFeatures.length) return;
-  
-  const startTime = performance.now();
   
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('districts-source')) {
@@ -1057,8 +995,6 @@ function addNativeDistrictMarkers() {
   });
   
   setupDistrictMarkerClicks();
-  
-  state.performance.loadTimes.set('districtMarkers', performance.now() - startTime);
 }
 
 // OPTIMIZED: Event setup with proper management and delegation
@@ -1319,11 +1255,8 @@ function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
   if (state.flags.skipNextReframe) {
-    console.log('Skipping reframe due to boundary zoom');
     return;
   }
-  
-  const startTime = performance.now();
   
   // Helper function to check if element is truly visible (cached)
   const visibilityCache = new Map();
@@ -1422,8 +1355,6 @@ function applyFilterToMarkers() {
       });
     }
   }
-  
-  state.performance.loadTimes.set('filterApplication', performance.now() - startTime);
 }
 
 // OPTIMIZED: Debounced filter update with smart timing
@@ -1445,7 +1376,6 @@ function setupBackToTopButton() {
   const hiddenTagParent = $id('hiddentagparent');
   
   if (!button || !scrollContainer) {
-    console.log('Back to top button or scroll container not found');
     return;
   }
   
@@ -1521,7 +1451,6 @@ function setupBackToTopButton() {
       });
       
       if (tagCountChanged) {
-        console.log('Tag count changed - scrolling to top');
         scrollToTop();
       }
     });
@@ -1534,13 +1463,10 @@ function setupBackToTopButton() {
     
     // Store observer for cleanup
     hiddenTagParent._tagObserver = tagObserver;
-    console.log('Back to top: Tag count observer setup');
   }
   
   // Initial visibility check
   updateButtonVisibility();
-  
-  console.log('Back to top button setup completed');
   
   // Mark UI loading step complete
   loadingTracker.markComplete('backToTopSetup');
@@ -2047,9 +1973,6 @@ function setupDropdownListeners() {
 
 // OPTIMIZED: Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  const startTime = performance.now();
-  console.log('Loading combined GeoJSON data...');
-  
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
     .then(response => {
       if (!response.ok) {
@@ -2058,8 +1981,6 @@ function loadCombinedGeoData() {
       return response.json();
     })
     .then(combinedData => {
-      console.log('Combined GeoJSON data loaded successfully');
-      
       // Batch separate districts and areas
       const districts = [];
       const areas = [];
@@ -2071,8 +1992,6 @@ function loadCombinedGeoData() {
           areas.push(feature);
         }
       });
-      
-      console.log(`Found ${districts.length} districts and ${areas.length} areas`);
       
       // Batch process districts
       mapLayers.addToBatch(() => {
@@ -2092,7 +2011,6 @@ function loadCombinedGeoData() {
       
       // Update district markers after processing
       state.setTimer('updateDistrictMarkers', () => {
-        console.log('All combined data processed, updating district markers');
         addNativeDistrictMarkers();
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
@@ -2100,11 +2018,8 @@ function loadCombinedGeoData() {
         // Mark loading step complete
         loadingTracker.markComplete('geoDataLoaded');
       }, 100);
-      
-      state.performance.loadTimes.set('combinedGeoData', performance.now() - startTime);
     })
     .catch(error => {
-      console.error('Error loading combined GeoJSON data:', error);
       // Still update district markers in case some data was loaded
       addNativeDistrictMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
@@ -2373,33 +2288,6 @@ function setupAreaKeyControls() {
           const allLayers = map.getStyle().layers;
           allLayers.forEach(layer => {
             if (layer.id.includes('-fill')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-              map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
-            }
-            if (layer.id.includes('-border')) {
-              map.setPaintProperty(layer.id, 'line-color', '#6e3500');
-              map.setPaintProperty(layer.id, 'line-opacity', 0.6);
-            }
-          });
-        } else if (control.type === 'locality') {
-          if (mapLayers.hasLayer('locality-clusters')) {
-            map.setPaintProperty('locality-clusters', 'text-halo-color', '#a49c00');
-          }
-          if (mapLayers.hasLayer('locality-points')) {
-            map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
-          }
-        }
-      };
-      
-      const mouseLeaveHandler = () => {
-        if (control.type === 'district') {
-          if (mapLayers.hasLayer('district-points')) {
-            map.setPaintProperty('district-points', 'text-halo-color', '#6e3500');
-          }
-          
-          const allLayers = map.getStyle().layers;
-          allLayers.forEach(layer => {
-            if (layer.id.includes('-fill')) {
               map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
               map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
             }
@@ -2429,7 +2317,6 @@ function setupAreaKeyControls() {
   // Mark as complete if we got most controls
   if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
     state.flags.areaControlsSetup = true;
-    console.log('Area and marker controls setup completed');
     
     // Mark loading step complete
     loadingTracker.markComplete('controlsSetup');
@@ -2457,7 +2344,6 @@ function loadDistrictTags() {
   
   const districtTagCollection = $id('district-tag-collection');
   if (!districtTagCollection) {
-    console.log('District tag collection not found - marking as complete');
     loadingTracker.markComplete('districtTagsLoaded');
     return;
   }
@@ -2497,7 +2383,6 @@ function loadDistrictTags() {
   addNativeDistrictMarkers();
   
   state.setTimer('districtTagsLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
-  console.log(`Loaded ${newFeatures.length} district tags`);
   
   // Mark loading step complete
   loadingTracker.markComplete('districtTagsLoaded');
@@ -2507,13 +2392,11 @@ function loadDistrictTags() {
 function generateLocalityCheckboxes() {
   const container = $id('locality-check-list');
   if (!container) {
-    console.log('Locality checkbox container not found');
     return;
   }
   
   const template = container.querySelector('[checkbox-filter="locality"]');
   if (!template) {
-    console.log('Locality checkbox template not found');
     return;
   }
   
@@ -2521,7 +2404,6 @@ function generateLocalityCheckboxes() {
   const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
   
   if (localityNames.length === 0) {
-    console.log('No locality names found in map data');
     return;
   }
   
@@ -2551,8 +2433,6 @@ function generateLocalityCheckboxes() {
   });
   
   container.appendChild(fragment);
-  
-  console.log(`Generated ${localityNames.length} locality checkboxes`);
   
   // Re-cache checkbox filter script if it exists
   if (window.checkboxFilterScript?.recacheElements) {
@@ -2644,7 +2524,6 @@ const monitorTags = (() => {
   return () => {
     // Prevent multiple setups
     if (isSetup) {
-      console.log('Enhanced tag monitoring: Already setup, skipping');
       return;
     }
     
@@ -2657,7 +2536,6 @@ const monitorTags = (() => {
       // Clean up existing observer if it exists
       if (tagParent._mutationObserver) {
         tagParent._mutationObserver.disconnect();
-        console.log('Enhanced tag monitoring: Cleaned up existing observer');
       }
       
       const observer = new MutationObserver(() => {
@@ -2668,9 +2546,6 @@ const monitorTags = (() => {
       
       // Store observer for cleanup
       tagParent._mutationObserver = observer;
-      console.log('Enhanced tag monitoring: MutationObserver setup on tagparent');
-    } else {
-      console.log('Enhanced tag monitoring: tagparent not found, using polling fallback');
     }
     
     // Additional monitoring: Watch for checkbox changes
@@ -2715,7 +2590,6 @@ const monitorTags = (() => {
     
     // Mark as setup
     isSetup = true;
-    console.log('Enhanced tag monitoring: Setup completed');
     
     // Cleanup function (can be called to reset)
     const cleanup = () => {
@@ -2731,7 +2605,6 @@ const monitorTags = (() => {
       }
       
       isSetup = false;
-      console.log('Enhanced tag monitoring: Cleanup completed');
     };
     
     // Store cleanup function for external access
@@ -2741,8 +2614,6 @@ const monitorTags = (() => {
 
 // OPTIMIZED: Smart initialization with parallel loading
 function init() {
-  const startTime = performance.now();
-  
   // Core initialization (parallel where possible)
   getLocationData();
   addNativeMarkers();
@@ -2790,8 +2661,6 @@ function init() {
     // FIXED: Always check filtered elements on initial load
     checkAndToggleFilteredElements();
   }, 300);
-  
-  console.log(`Map initialization completed in ${performance.now() - startTime}ms`);
 }
 
 // OPTIMIZED: Control positioning with better timing
@@ -2812,7 +2681,6 @@ state.setTimer('controlPositioning', () => {
 // OPTIMIZED: Map load event handler with parallel operations
 map.on("load", () => {
   try {
-    console.log('Map loaded, initializing components...');
     init();
     
     // Load combined data
@@ -2828,7 +2696,6 @@ map.on("load", () => {
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
     
   } catch (error) {
-    console.error('Map initialization error:', error);
     // Mark all loading steps as complete to hide loading screen on error
     Object.keys(loadingTracker.states).forEach(stateName => {
       loadingTracker.markComplete(stateName);
@@ -2881,7 +2748,7 @@ window.addEventListener('load', () => {
       try { 
         init(); 
       } catch (error) { 
-        console.warn('Fallback init failed:', error);
+        // Silent error handling in production
       }
     }
   }, 100);
@@ -2985,29 +2852,8 @@ window.mapUtilities = {
   toggleShowWhenFilteredElements // FIXED: Export the toggle function too
 };
 
-// OPTIMIZED: Performance monitoring and cleanup
-window.getMapPerformanceStats = () => {
-  return {
-    ...state.getPerformanceStats(),
-    domCache: {
-      cached: domCache.cache.size,
-      selectors: domCache.selectorCache.size,
-      lists: domCache.listCache.size
-    },
-    events: eventManager.getStats(),
-    layers: {
-      cachedLayers: mapLayers.layerCache.size,
-      cachedSources: mapLayers.sourceCache.size,
-      pendingBatch: mapLayers.pendingBatch,
-      batchSize: mapLayers.batchOperations.length
-    }
-  };
-};
-
 // OPTIMIZED: Cleanup on page unload (prevent memory leaks)
 window.addEventListener('beforeunload', () => {
-  console.log('Cleaning up map resources...');
-  
   // Clean up all managed resources
   eventManager.cleanup();
   state.cleanup();
@@ -3028,13 +2874,31 @@ window.addEventListener('beforeunload', () => {
   if (map) {
     map.remove();
   }
-  
-  console.log('Map cleanup completed');
-});
-
-// OPTIMIZED: Performance-focused console logging (only in debug mode)
-if (window.location.search.includes('debug=true')) {
-  console.log('🚀 Optimized Mapbox Script Loaded');
-  console.log('Performance monitoring available via window.getMapPerformanceStats()');
-  console.log('Shared utilities available via window.mapUtilities');
-}
+}); 'fill-color', '#6e3500');
+              map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
+            }
+            if (layer.id.includes('-border')) {
+              map.setPaintProperty(layer.id, 'line-color', '#6e3500');
+              map.setPaintProperty(layer.id, 'line-opacity', 0.6);
+            }
+          });
+        } else if (control.type === 'locality') {
+          if (mapLayers.hasLayer('locality-clusters')) {
+            map.setPaintProperty('locality-clusters', 'text-halo-color', '#a49c00');
+          }
+          if (mapLayers.hasLayer('locality-points')) {
+            map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
+          }
+        }
+      };
+      
+      const mouseLeaveHandler = () => {
+        if (control.type === 'district') {
+          if (mapLayers.hasLayer('district-points')) {
+            map.setPaintProperty('district-points', 'text-halo-color', '#6e3500');
+          }
+          
+          const allLayers = map.getStyle().layers;
+          allLayers.forEach(layer => {
+            if (layer.id.includes('-fill')) {
+              map.setPaintProperty(layer.id,
