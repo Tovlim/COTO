@@ -453,8 +453,17 @@ function processNewlyAddedItems() {
   console.log(`🔍 Found ${allItems.length} total items with wfu-lightbox-group`);
   
   allItems.forEach((item, index) => {
-    if (!processedItems.has(item)) {
-      console.log(`🔍 Processing new item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
+    // FORCE PROCESSING: Skip the WeakSet check for debugging
+    const alreadyProcessed = processedItems.has(item);
+    
+    // Check if item actually has FancyBox attributes (real processing check)
+    const hasDataFancybox = item.querySelector('[data-fancybox]');
+    const needsProcessing = !hasDataFancybox;
+    
+    console.log(`🔍 Item ${index + 1} (${item.getAttribute('wfu-lightbox-group')}): processed=${alreadyProcessed}, hasDataFancybox=${!!hasDataFancybox}, needsProcessing=${needsProcessing}`);
+    
+    if (needsProcessing) {
+      console.log(`🔧 FORCE PROCESSING item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
       
       // On mobile, process all new items immediately to avoid viewport detection issues
       if (isMobileDevice) {
@@ -475,7 +484,7 @@ function processNewlyAddedItems() {
         }
       }
     } else {
-      console.log(`⏭️ Skipping already processed item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
+      console.log(`⏭️ Skipping item ${index + 1}: already has FancyBox attributes`);
     }
   });
   
