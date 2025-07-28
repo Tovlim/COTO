@@ -736,16 +736,16 @@ document.addEventListener('DOMContentLoaded', function() {
       updateLazyLoad();
     }, initialDelay);
     
-    // Additional mobile initialization delay
-    if (isMobileDevice) {
-      setTimeout(() => {
-        // Re-check filtering state and process if needed
-        if (checkFilteringStateChange()) {
-          console.log('📱 Mobile: Additional filtering check triggered');
-          processFilteredItems();
-        }
-      }, 1500);
-    }
+    // Additional mobile initialization delay - DISABLED for debugging
+    // if (isMobileDevice) {
+    //   setTimeout(() => {
+    //     // Re-check filtering state and process if needed
+    //     if (checkFilteringStateChange()) {
+    //       console.log('📱 Mobile: Additional filtering check triggered');
+    //       processFilteredItems();
+    //     }
+    //   }, 1500);
+    // }
     
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
