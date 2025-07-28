@@ -99,88 +99,66 @@ function processFancyBoxGroups(item) {
   if (!groupAttribute) return false;
   
   let hasProcessedGroups = false;
+  let firstImageLink = null;
   
-  // Find all lightbox links (both regular and "first" triggers)
+  // First pass: Find and process all lightbox images (including the first one)
   const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
-  
-  // First pass: Process regular lightbox images
-  const regularLinks = Array.from(allLightboxLinks).filter(link => {
-    const attr = link.getAttribute('lightbox-image');
-    return attr === 'true' || attr === 'first-image';
-  });
-  
-  regularLinks.forEach((linkElement) => {
+  allLightboxLinks.forEach((linkElement) => {
+    const lightboxImageValue = linkElement.getAttribute('lightbox-image');
+    
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
       return; // Skip this hidden link
     }
     
-    const img = linkElement.querySelector('img');
-    if (img) {
-      // Set FancyBox data attribute for grouping
-      linkElement.setAttribute('data-fancybox', groupAttribute);
-      
-      // Set href to the full-size image (from img src)
-      const fullSizeImageUrl = img.getAttribute('src');
-      if (fullSizeImageUrl) {
-        linkElement.setAttribute('href', fullSizeImageUrl);
-      }
-      
-      // Add any additional FancyBox attributes if needed
-      linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
-      
-      hasProcessedGroups = true;
-    }
-  });
-  
-  // Second pass: Process "first" trigger links
-  const firstTriggerLinks = Array.from(allLightboxLinks).filter(link => 
-    link.getAttribute('lightbox-image') === 'first'
-  );
-  
-  firstTriggerLinks.forEach((triggerLink) => {
-    // Skip links that are hidden
-    const computedStyle = getComputedStyle(triggerLink);
-    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      return; // Skip this hidden link
-    }
-    
-    // Find the first image in this group
-    const firstImageLink = item.querySelector('a[lightbox-image="first-image"]');
-    if (firstImageLink) {
-      const firstImg = firstImageLink.querySelector('img');
-      if (firstImg) {
+    // Process links with lightbox-image="true" or lightbox-image="first"
+    if (lightboxImageValue === 'true' || lightboxImageValue === 'first') {
+      const img = linkElement.querySelector('img');
+      if (img) {
         // Set FancyBox data attribute for grouping
-        triggerLink.setAttribute('data-fancybox', groupAttribute);
+        linkElement.setAttribute('data-fancybox', groupAttribute);
         
-        // Use the first image's src as the href
-        const firstImageUrl = firstImg.getAttribute('src');
-        if (firstImageUrl) {
-          triggerLink.setAttribute('href', firstImageUrl);
+        // Set href to the full-size image (from img src)
+        const fullSizeImageUrl = img.getAttribute('src');
+        if (fullSizeImageUrl) {
+          linkElement.setAttribute('href', fullSizeImageUrl);
         }
         
-        // Use the first image's caption
-        triggerLink.setAttribute('data-caption', firstImg.getAttribute('alt') || '');
+        // Add any additional FancyBox attributes if needed
+        linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
+        
+        // Remember the first image link for the opener
+        if (lightboxImageValue === 'first') {
+          firstImageLink = linkElement;
+        }
         
         hasProcessedGroups = true;
       }
-    } else {
-      // Fallback: if no first-image found, use the first regular lightbox image
-      const fallbackFirstLink = regularLinks.find(link => {
-        const computedStyle = getComputedStyle(link);
-        return computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
+    }
+  });
+  
+  // Second pass: Process opener links
+  const openerLinks = item.querySelectorAll('a[lightbox-image="open"]');
+  openerLinks.forEach((openerLink) => {
+    // Skip hidden opener links
+    const computedStyle = getComputedStyle(openerLink);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return;
+    }
+    
+    // If we found a first image, make the opener trigger it
+    if (firstImageLink) {
+      openerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Trigger click on the first image to open the gallery
+        firstImageLink.click();
       });
       
-      if (fallbackFirstLink) {
-        const fallbackImg = fallbackFirstLink.querySelector('img');
-        if (fallbackImg) {
-          triggerLink.setAttribute('data-fancybox', groupAttribute);
-          triggerLink.setAttribute('href', fallbackImg.getAttribute('src'));
-          triggerLink.setAttribute('data-caption', fallbackImg.getAttribute('alt') || '');
-          hasProcessedGroups = true;
-        }
-      }
+      // Optional: Add visual indication that this is clickable
+      openerLink.style.cursor = 'pointer';
+      
+      hasProcessedGroups = true;
     }
   });
   
