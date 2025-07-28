@@ -103,6 +103,12 @@ function processFancyBoxGroups(item) {
   // Find only links that are marked for lightbox with lightbox-image="true"
   const lightboxLinks = item.querySelectorAll('a[lightbox-image="true"]');
   lightboxLinks.forEach((linkElement) => {
+    // Skip links that are hidden
+    const computedStyle = getComputedStyle(linkElement);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return; // Skip this hidden link
+    }
+    
     const img = linkElement.querySelector('img');
     if (img) {
       // Set FancyBox data attribute for grouping
