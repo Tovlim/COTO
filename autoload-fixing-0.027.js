@@ -100,9 +100,16 @@ function processFancyBoxGroups(item) {
   
   let hasProcessedGroups = false;
   
-  // Find only links that are marked for lightbox with lightbox-image="true"
-  const lightboxLinks = item.querySelectorAll('a[lightbox-image="true"]');
-  lightboxLinks.forEach((linkElement) => {
+  // Find all lightbox links (both regular and "first" triggers)
+  const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
+  
+  // First pass: Process regular lightbox images
+  const regularLinks = Array.from(allLightboxLinks).filter(link => {
+    const attr = link.getAttribute('lightbox-image');
+    return attr === 'true' || attr === 'first-image';
+  });
+  
+  regularLinks.forEach((linkElement) => {
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
@@ -124,6 +131,56 @@ function processFancyBoxGroups(item) {
       linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
       
       hasProcessedGroups = true;
+    }
+  });
+  
+  // Second pass: Process "first" trigger links
+  const firstTriggerLinks = Array.from(allLightboxLinks).filter(link => 
+    link.getAttribute('lightbox-image') === 'first'
+  );
+  
+  firstTriggerLinks.forEach((triggerLink) => {
+    // Skip links that are hidden
+    const computedStyle = getComputedStyle(triggerLink);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return; // Skip this hidden link
+    }
+    
+    // Find the first image in this group
+    const firstImageLink = item.querySelector('a[lightbox-image="first-image"]');
+    if (firstImageLink) {
+      const firstImg = firstImageLink.querySelector('img');
+      if (firstImg) {
+        // Set FancyBox data attribute for grouping
+        triggerLink.setAttribute('data-fancybox', groupAttribute);
+        
+        // Use the first image's src as the href
+        const firstImageUrl = firstImg.getAttribute('src');
+        if (firstImageUrl) {
+          triggerLink.setAttribute('href', firstImageUrl);
+        }
+        
+        // Use the first image's caption
+        triggerLink.setAttribute('data-caption', firstImg.getAttribute('alt') || '');
+        
+        hasProcessedGroups = true;
+      }
+    } else {
+      // Fallback: if no first-image found, use the first regular lightbox image
+      const fallbackFirstLink = regularLinks.find(link => {
+        const computedStyle = getComputedStyle(link);
+        return computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden';
+      });
+      
+      if (fallbackFirstLink) {
+        const fallbackImg = fallbackFirstLink.querySelector('img');
+        if (fallbackImg) {
+          triggerLink.setAttribute('data-fancybox', groupAttribute);
+          triggerLink.setAttribute('href', fallbackImg.getAttribute('src'));
+          triggerLink.setAttribute('data-caption', fallbackImg.getAttribute('alt') || '');
+          hasProcessedGroups = true;
+        }
+      }
     }
   });
   
