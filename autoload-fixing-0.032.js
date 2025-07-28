@@ -426,21 +426,28 @@ function processNewlyAddedItems() {
   
   allItems.forEach(item => {
     if (!processedItems.has(item)) {
-      const rect = item.getBoundingClientRect();
-      const isVisible = rect.top < window.innerHeight + 400; // Slightly larger buffer
-      
-      if (isVisible) {
+      // On mobile, process all new items immediately to avoid viewport detection issues
+      if (isMobileDevice) {
         newItems.push(item);
         processedItems.add(item);
       } else {
-        // Queue non-visible items for lazy processing
-        queueItemForLazyProcessing(item);
+        // On desktop, use viewport detection as before
+        const rect = item.getBoundingClientRect();
+        const isVisible = rect.top < window.innerHeight + 400; // Slightly larger buffer
+        
+        if (isVisible) {
+          newItems.push(item);
+          processedItems.add(item);
+        } else {
+          // Queue non-visible items for lazy processing
+          queueItemForLazyProcessing(item);
+        }
       }
     }
   });
   
   if (newItems.length > 0) {
-    console.log(`Processing ${newItems.length} newly loaded FancyBox items`);
+    console.log(`Processing ${newItems.length} newly loaded FancyBox items (mobile: all new items, desktop: visible only)`);
     processItemsLazily(newItems);
   }
 }
