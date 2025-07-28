@@ -506,26 +506,36 @@ function processInitialVisibleItems() {
   const itemsToQueue = [];
   
   allItems.forEach(item => {
-    const rect = item.getBoundingClientRect();
-    const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-    
-    if (isVisible) {
+    // On mobile, process all items immediately to avoid viewport detection issues
+    if (isMobileDevice) {
       visibleItems.push(item);
       processedItems.add(item);
     } else {
-      itemsToQueue.push(item);
+      // On desktop, use viewport detection as before
+      const rect = item.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+      
+      if (isVisible) {
+        visibleItems.push(item);
+        processedItems.add(item);
+      } else {
+        itemsToQueue.push(item);
+      }
     }
   });
   
   // Process visible items immediately
   if (visibleItems.length > 0) {
+    console.log(`Processing ${visibleItems.length} initial items (mobile: all items, desktop: visible only)`);
     processItemsLazily(visibleItems);
   }
   
-  // Queue non-visible items
-  itemsToQueue.forEach(item => {
-    queueItemForLazyProcessing(item);
-  });
+  // Queue non-visible items (desktop only)
+  if (!isMobileDevice) {
+    itemsToQueue.forEach(item => {
+      queueItemForLazyProcessing(item);
+    });
+  }
 }
 
 // Process any items with lazy images that don't have lightbox groups
