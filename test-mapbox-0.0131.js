@@ -285,6 +285,208 @@ class MapResetControl {
   }
 }
 
+// Custom Map Fullscreen Control
+class MapFullscreenControl {
+  constructor() {
+    this._isFullscreen = false;
+    this._isMobile = this._detectMobile();
+    this._isIOS = this._detectIOS();
+    this._supportsFullscreen = this._checkFullscreenSupport();
+  }
+  
+  _detectMobile() {
+    return window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+  
+  _detectIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  
+  _checkFullscreenSupport() {
+    return !!(
+      document.fullscreenEnabled ||
+      document.webkitFullscreenEnabled ||
+      document.mozFullScreenEnabled ||
+      document.msFullscreenEnabled
+    );
+  }
+  
+  _getFullscreenElement() {
+    return document.fullscreenElement ||
+           document.webkitFullscreenElement ||
+           document.mozFullScreenElement ||
+           document.msFullscreenElement;
+  }
+  
+  _requestFullscreen() {
+    const element = document.documentElement;
+    
+    if (element.requestFullscreen) {
+      return element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      return element.webkitRequestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+      return element.mozRequestFullScreen();
+    } else if (element.msRequestFullscreen) {
+      return element.msRequestFullscreen();
+    }
+    
+    return Promise.reject(new Error('Fullscreen not supported'));
+  }
+  
+  _exitFullscreen() {
+    if (document.exitFullscreen) {
+      return document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      return document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      return document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      return document.msExitFullscreen();
+    }
+    
+    return Promise.reject(new Error('Exit fullscreen not supported'));
+  }
+  
+  _handleIOSFullscreen() {
+    if (!this._isFullscreen) {
+      // Enter iOS "fullscreen" mode
+      const viewport = document.querySelector('meta[name=viewport]');
+      if (viewport) {
+        this._originalViewport = viewport.getAttribute('content');
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
+      }
+      
+      // Hide Safari UI
+      window.scrollTo(0, 1);
+      setTimeout(() => window.scrollTo(0, 0), 100);
+      
+      // Add fullscreen styling
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      
+      this._isFullscreen = true;
+    } else {
+      // Exit iOS "fullscreen" mode
+      const viewport = document.querySelector('meta[name=viewport]');
+      if (viewport && this._originalViewport) {
+        viewport.setAttribute('content', this._originalViewport);
+      }
+      
+      // Restore body styling
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      
+      this._isFullscreen = false;
+    }
+    
+    this._updateButtonState();
+  }
+  
+  _handleStandardFullscreen() {
+    if (!this._getFullscreenElement()) {
+      this._requestFullscreen().catch(error => {
+        console.warn('Could not enter fullscreen:', error);
+      });
+    } else {
+      this._exitFullscreen().catch(error => {
+        console.warn('Could not exit fullscreen:', error);
+      });
+    }
+  }
+  
+  _updateButtonState() {
+    const isCurrentlyFullscreen = this._isIOS ? this._isFullscreen : !!this._getFullscreenElement();
+    this._button.title = isCurrentlyFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
+    this._button.setAttribute('aria-label', isCurrentlyFullscreen ? 'Exit fullscreen' : 'Enter fullscreen');
+    
+    // Icon stays the same (⛶) but we could add visual state changes here if needed
+    this._button.style.opacity = isCurrentlyFullscreen ? '0.8' : '1';
+  }
+  
+  onAdd(map) {
+    this._map = map;
+    
+    // Hide button if fullscreen not supported and not iOS mobile
+    if (!this._supportsFullscreen && !this._isIOS) {
+      return document.createElement('div'); // Return empty div
+    }
+    
+    this._container = document.createElement('div');
+    this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+    
+    this._button = document.createElement('button');
+    this._button.className = 'mapboxgl-ctrl-icon';
+    this._button.type = 'button';
+    this._button.title = 'Enter fullscreen';
+    this._button.setAttribute('aria-label', 'Enter fullscreen');
+    
+    // Add fullscreen icon styling
+    this._button.style.cssText = `
+      background: none;
+      border: none;
+      color: #404040;
+      font-size: 18px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    `;
+    this._button.textContent = '⛶';
+    
+    this._button.addEventListener('click', () => {
+      if (this._isIOS && this._isMobile) {
+        this._handleIOSFullscreen();
+      } else {
+        this._handleStandardFullscreen();
+      }
+    });
+    
+    // Listen for fullscreen changes (for non-iOS)
+    if (!this._isIOS) {
+      const fullscreenChangeHandler = () => {
+        this._updateButtonState();
+      };
+      
+      ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(event => {
+        document.addEventListener(event, fullscreenChangeHandler);
+      });
+      
+      // Store handler for cleanup
+      this._fullscreenChangeHandler = fullscreenChangeHandler;
+    }
+    
+    this._container.appendChild(this._button);
+    return this._container;
+  }
+  
+  onRemove() {
+    // Cleanup fullscreen change listeners
+    if (this._fullscreenChangeHandler) {
+      ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(event => {
+        document.removeEventListener(event, this._fullscreenChangeHandler);
+      });
+    }
+    
+    // If we're in iOS fullscreen mode, exit it
+    if (this._isIOS && this._isFullscreen) {
+      this._handleIOSFullscreen();
+    }
+    
+    if (this._container && this._container.parentNode) {
+      this._container.parentNode.removeChild(this._container);
+    }
+    this._map = undefined;
+  }
+}
+
+// Add the custom fullscreen control (positioned above other controls)
+map.addControl(new MapFullscreenControl(), 'top-right');
+
 // Add the custom reset control
 map.addControl(new MapResetControl(), 'top-right');
 
@@ -1377,21 +1579,6 @@ function setupBackToTopButton() {
   if (!button || !scrollContainer) {
     return;
   }
-  
-  // Hide scrollbar for scroll-wrap while keeping functionality
-  utils.setStyles(scrollContainer, {
-    scrollbarWidth: 'none', // Firefox
-    msOverflowStyle: 'none' // Internet Explorer and Edge
-  });
-  
-  // Add webkit scrollbar hiding styles
-  const style = document.createElement('style');
-  style.textContent = `
-    #scroll-wrap::-webkit-scrollbar {
-      display: none; /* Chrome, Safari, Edge */
-    }
-  `;
-  document.head.appendChild(style);
   
   // Initialize button state
   button.style.opacity = '0';
@@ -2923,6 +3110,19 @@ window.addEventListener('beforeunload', () => {
   // Clean up back to top tag observer  
   if (tagParent && tagParent._tagObserver) {
     tagParent._tagObserver.disconnect();
+  }
+  
+  // Exit fullscreen if active
+  if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
   }
   
   // Clean up map resources
