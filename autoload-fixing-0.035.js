@@ -96,19 +96,28 @@ function checkFilteringStateChange() {
 function processFancyBoxGroups(item) {
   // Check if this item has lightbox group attribute
   const groupAttribute = item.getAttribute('wfu-lightbox-group');
-  if (!groupAttribute) return false;
+  if (!groupAttribute) {
+    console.log(`❌ No wfu-lightbox-group found on item`);
+    return false;
+  }
+  
+  console.log(`🔧 Processing FancyBox group: ${groupAttribute}`);
   
   let hasProcessedGroups = false;
   let firstImageLink = null;
   
   // First pass: Find and process all lightbox images (including the first one)
   const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
-  allLightboxLinks.forEach((linkElement) => {
+  console.log(`🔍 Found ${allLightboxLinks.length} lightbox links in group ${groupAttribute}`);
+  
+  allLightboxLinks.forEach((linkElement, linkIndex) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
+    console.log(`🔗 Processing link ${linkIndex + 1} with lightbox-image="${lightboxImageValue}"`);
     
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      console.log(`⏭️ Skipping hidden link ${linkIndex + 1}`);
       return; // Skip this hidden link
     }
     
@@ -123,6 +132,9 @@ function processFancyBoxGroups(item) {
         const fullSizeImageUrl = img.getAttribute('src');
         if (fullSizeImageUrl) {
           linkElement.setAttribute('href', fullSizeImageUrl);
+          console.log(`✅ Set href for link ${linkIndex + 1}: ${fullSizeImageUrl.substring(0, 50)}...`);
+        } else {
+          console.log(`❌ No src found for img in link ${linkIndex + 1}`);
         }
         
         // Add any additional FancyBox attributes if needed
@@ -131,19 +143,28 @@ function processFancyBoxGroups(item) {
         // Remember the first image link for the opener
         if (lightboxImageValue === 'first') {
           firstImageLink = linkElement;
+          console.log(`🎯 Marked as first image link`);
         }
         
         hasProcessedGroups = true;
+        console.log(`✅ Successfully processed link ${linkIndex + 1} for FancyBox`);
+      } else {
+        console.log(`❌ No img found in link ${linkIndex + 1}`);
       }
+    } else {
+      console.log(`⏭️ Skipping link ${linkIndex + 1} - not marked for lightbox`);
     }
   });
   
   // Second pass: Process opener links
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"]');
-  openerLinks.forEach((openerLink) => {
+  console.log(`🔍 Found ${openerLinks.length} opener links in group ${groupAttribute}`);
+  
+  openerLinks.forEach((openerLink, openerIndex) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      console.log(`⏭️ Skipping hidden opener ${openerIndex + 1}`);
       return;
     }
     
@@ -151,6 +172,7 @@ function processFancyBoxGroups(item) {
     if (firstImageLink) {
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
+        console.log(`🎬 Opener clicked, triggering first image`);
         // Trigger click on the first image to open the gallery
         firstImageLink.click();
       });
@@ -159,9 +181,13 @@ function processFancyBoxGroups(item) {
       openerLink.style.cursor = 'pointer';
       
       hasProcessedGroups = true;
+      console.log(`✅ Successfully set up opener ${openerIndex + 1}`);
+    } else {
+      console.log(`❌ No first image found for opener ${openerIndex + 1}`);
     }
   });
   
+  console.log(`📊 Group ${groupAttribute} processing complete. Success: ${hasProcessedGroups}`);
   return hasProcessedGroups;
 }
 
@@ -424,12 +450,17 @@ function processNewlyAddedItems() {
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const newItems = [];
   
-  allItems.forEach(item => {
+  console.log(`🔍 Found ${allItems.length} total items with wfu-lightbox-group`);
+  
+  allItems.forEach((item, index) => {
     if (!processedItems.has(item)) {
+      console.log(`🔍 Processing new item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
+      
       // On mobile, process all new items immediately to avoid viewport detection issues
       if (isMobileDevice) {
         newItems.push(item);
         processedItems.add(item);
+        console.log(`✅ Added item ${index + 1} to processing queue`);
       } else {
         // On desktop, use viewport detection as before
         const rect = item.getBoundingClientRect();
@@ -443,13 +474,49 @@ function processNewlyAddedItems() {
           queueItemForLazyProcessing(item);
         }
       }
+    } else {
+      console.log(`⏭️ Skipping already processed item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
     }
   });
   
   if (newItems.length > 0) {
-    console.log(`Processing ${newItems.length} newly loaded FancyBox items (mobile: all new items, desktop: visible only)`);
-    processItemsLazily(newItems);
+    console.log(`🚀 Processing ${newItems.length} newly loaded FancyBox items (mobile: all new items, desktop: visible only)`);
+    // Process all items in one batch instead of chunked processing
+    processItemsBatch(newItems);
   }
+}
+
+// Simplified batch processing for debugging
+function processItemsBatch(items) {
+  if (!items?.length) return;
+  
+  console.log(`📦 Batch processing ${items.length} items`);
+  
+  items.forEach((item, index) => {
+    try {
+      console.log(`🔧 Processing item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
+      
+      // Process FancyBox groups
+      const processed = processFancyBoxGroups(item);
+      if (processed) {
+        console.log(`✅ Successfully processed item ${index + 1}`);
+        needsFancyBoxReInit = true;
+      } else {
+        console.log(`❌ Failed to process item ${index + 1}`);
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error processing item ${index + 1}:`, error);
+    }
+  });
+  
+  // Update LazyLoad and schedule FancyBox re-init
+  setTimeout(() => {
+    updateLazyLoad();
+    if (needsFancyBoxReInit) {
+      scheduleFancyBoxReInit();
+    }
+  }, 100);
 }
 
 // Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
