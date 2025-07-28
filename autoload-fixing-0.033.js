@@ -475,18 +475,27 @@ function processFilteredItems() {
     }
     
     if (isVisible) {
-      const rect = item.getBoundingClientRect();
-      const isInViewport = rect.top < window.innerHeight + 400;
-      
-      if (isInViewport) {
+      // On mobile, process all visible filtered items immediately
+      if (isMobileDevice) {
         // Remove from processed items so it gets re-processed
         processedItems.delete(item);
         visibleItems.push(item);
         processedItems.add(item);
       } else {
-        // Queue for lazy processing
-        processedItems.delete(item);
-        itemsToQueue.push(item);
+        // On desktop, use viewport detection as before
+        const rect = item.getBoundingClientRect();
+        const isInViewport = rect.top < window.innerHeight + 400;
+        
+        if (isInViewport) {
+          // Remove from processed items so it gets re-processed
+          processedItems.delete(item);
+          visibleItems.push(item);
+          processedItems.add(item);
+        } else {
+          // Queue for lazy processing
+          processedItems.delete(item);
+          itemsToQueue.push(item);
+        }
       }
     } else {
       // Item is hidden by filtering - remove from processed items
@@ -494,17 +503,19 @@ function processFilteredItems() {
     }
   });
   
-  console.log(`Found ${visibleItems.length} visible filtered items, ${itemsToQueue.length} queued`);
+  console.log(`Found ${visibleItems.length} visible filtered items, ${itemsToQueue.length} queued (mobile: all visible, desktop: viewport-based)`);
   
   // Process visible items immediately
   if (visibleItems.length > 0) {
     processItemsLazily(visibleItems);
   }
   
-  // Queue non-visible items
-  itemsToQueue.forEach(item => {
-    queueItemForLazyProcessing(item);
-  });
+  // Queue non-visible items (desktop only)
+  if (!isMobileDevice) {
+    itemsToQueue.forEach(item => {
+      queueItemForLazyProcessing(item);
+    });
+  }
 }
 
 function processInitialVisibleItems() {
