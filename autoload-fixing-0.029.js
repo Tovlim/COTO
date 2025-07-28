@@ -184,6 +184,22 @@ function scheduleFancyBoxReInit() {
 function performFancyBoxReInit(retryAttempt = 0) {
   try {
     if (window.Fancybox) {
+      // Check if FancyBox is already working before re-initializing
+      const existingFancyboxElements = document.querySelectorAll('[data-fancybox]');
+      if (existingFancyboxElements.length > 0 && retryAttempt > 0) {
+        // On mobile retries, only re-init if there are actually new elements that need binding
+        const unboundElements = Array.from(existingFancyboxElements).filter(el => {
+          // Check if this element already has FancyBox events bound
+          return !el.hasAttribute('data-fancybox-bound');
+        });
+        
+        if (unboundElements.length === 0) {
+          console.log(`📱 Mobile: Skipping re-init attempt ${retryAttempt + 1} - no new elements`);
+          needsFancyBoxReInit = false;
+          return true;
+        }
+      }
+      
       // FancyBox 6 initialization with thumbnails
       Fancybox.bind('[data-fancybox]', {
         // Enable thumbnails
@@ -208,14 +224,19 @@ function performFancyBoxReInit(retryAttempt = 0) {
         }
       });
       
+      // Mark elements as bound to prevent unnecessary re-binding
+      existingFancyboxElements.forEach(el => {
+        el.setAttribute('data-fancybox-bound', 'true');
+      });
+      
       console.log(`✅ FancyBox 6 re-initialized with thumbnails (attempt ${retryAttempt + 1})`);
       
-      // On mobile, perform additional re-initialization attempts
-      if (isMobileDevice && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
+      // On mobile, only do ONE additional re-initialization attempt instead of multiple
+      if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
         setTimeout(() => {
-          console.log(`📱 Mobile: Additional FancyBox re-init attempt ${retryAttempt + 2}`);
-          performFancyBoxReInit(retryAttempt + 1);
-        }, MOBILE_REINIT_DELAYS[retryAttempt]);
+          console.log(`📱 Mobile: Final FancyBox re-init attempt`);
+          performFancyBoxReInit(1);
+        }, MOBILE_REINIT_DELAYS[0]);
       }
       
       needsFancyBoxReInit = false;
@@ -226,12 +247,12 @@ function performFancyBoxReInit(retryAttempt = 0) {
     console.error('FancyBox re-init error:', e);
   }
   
-  // Mobile retry logic for failed attempts
-  if (isMobileDevice && retryAttempt < MOBILE_REINIT_DELAYS.length - 1) {
+  // Only retry once on mobile if the first attempt failed
+  if (isMobileDevice && retryAttempt === 0) {
     setTimeout(() => {
-      console.log(`📱 Mobile: Retrying FancyBox re-init attempt ${retryAttempt + 2}`);
-      performFancyBoxReInit(retryAttempt + 1);
-    }, MOBILE_REINIT_DELAYS[retryAttempt]);
+      console.log(`📱 Mobile: Retrying FancyBox re-init due to error`);
+      performFancyBoxReInit(1);
+    }, MOBILE_REINIT_DELAYS[0]);
   }
   
   return false;
