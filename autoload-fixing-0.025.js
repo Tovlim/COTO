@@ -100,11 +100,11 @@ function processFancyBoxGroups(item) {
   
   let hasProcessedGroups = false;
   
-  // Find all link elements within this item that contain images
-  const imageLinks = item.querySelectorAll('a img');
-  imageLinks.forEach((img) => {
-    const linkElement = img.closest('a');
-    if (linkElement) {
+  // Find only links that are marked for lightbox with lightbox-image="true"
+  const lightboxLinks = item.querySelectorAll('a[lightbox-image="true"]');
+  lightboxLinks.forEach((linkElement) => {
+    const img = linkElement.querySelector('img');
+    if (img) {
       // Set FancyBox data attribute for grouping
       linkElement.setAttribute('data-fancybox', groupAttribute);
       
