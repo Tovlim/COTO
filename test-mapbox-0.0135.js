@@ -221,7 +221,7 @@ if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.c
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/nitaihardy/cmdevdvum013y01quaexr4dek",
+  style: "mapbox://styles/nitaihardy/cmdp7uglm00f401r17bpdgk4z",
   center: [35.22, 31.85],
   zoom: isMobile ? 7.5 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
@@ -235,6 +235,12 @@ map.addControl(new mapboxgl.NavigationControl({
   showZoom: true,      // Show zoom in/out buttons
   visualizePitch: false // Hide pitch visualization
 }), 'top-right');
+
+// Add scale control showing both kilometers and miles in bottom right
+map.addControl(new mapboxgl.ScaleControl({
+  maxWidth: 100,
+  unit: 'both' // Shows both metric (km/m) and imperial (miles/ft)
+}), 'bottom-right');
 
 // Custom Map Reset Control
 class MapResetControl {
