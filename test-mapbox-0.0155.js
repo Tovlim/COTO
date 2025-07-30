@@ -588,7 +588,14 @@ const toggleSidebar = (side, show = null) => {
         if (otherSide !== side) {
           const otherSidebar = $id(`${otherSide}Sidebar`);
           if (otherSidebar && otherSidebar.classList.contains('is-show')) {
-            toggleSidebar(otherSide, false);
+            // Manually close without recursive calls
+            otherSidebar.classList.remove('is-show');
+            const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
+            if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
+            const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
+            const otherWidth = parseInt(getComputedStyle(otherSidebar).width) || 300;
+            otherSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
+            otherSidebar.style.pointerEvents = '';
           }
         }
       });
@@ -598,7 +605,14 @@ const toggleSidebar = (side, show = null) => {
       const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
       const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
       if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
-        toggleSidebar(otherLeftSide, false);
+        // Manually close without recursive calls
+        otherLeftSidebar.classList.remove('is-show');
+        const otherArrowIcon = $1(`[arrow-icon="${otherLeftSide === 'SecondLeft' ? 'secondleft' : otherLeftSide.toLowerCase()}"]`);
+        if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
+        const otherJsMarginProperty = otherLeftSide === 'SecondLeft' ? 'marginLeft' : `margin${otherLeftSide}`;
+        const otherWidth = parseInt(getComputedStyle(otherLeftSidebar).width) || 300;
+        otherLeftSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
+        otherLeftSidebar.style.pointerEvents = '';
       }
     }
   } else {
@@ -610,7 +624,13 @@ const toggleSidebar = (side, show = null) => {
         if (otherSide !== side) {
           const otherSidebar = $id(`${otherSide}Sidebar`);
           if (otherSidebar && otherSidebar.classList.contains('is-show')) {
-            toggleSidebar(otherSide, false);
+            // Manually close without recursive calls
+            otherSidebar.classList.remove('is-show');
+            const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
+            if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
+            const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
+            otherSidebar.style[otherJsMarginProperty] = '';
+            otherSidebar.style.pointerEvents = '';
           }
         }
       });
