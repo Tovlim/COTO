@@ -2798,18 +2798,35 @@ function addFallbackScale() {
 
 // Setup scale control function
 function setupScaleControl() {
+  // Check if a scale control already exists
+  const existingScale = document.querySelector('.mapboxgl-ctrl-scale');
+  if (existingScale) {
+    return; // Don't add another scale if one already exists
+  }
+  
   // Check if dual scale control is available
   if (typeof DualScaleControl !== 'undefined') {
     try {
       const dualScale = new DualScaleControl({
-        maxWidth: 120
+        maxWidth: 120,
+        imperial: true,
+        metric: true
       });
       map.addControl(dualScale, 'bottom-right');
       
       // Make scale control unclickable and style it properly
       setTimeout(() => {
         const scaleElements = document.querySelectorAll('.mapboxgl-ctrl-scale');
-        scaleElements.forEach(scaleElement => {
+        // Only style the first scale control to avoid duplicates
+        if (scaleElements.length > 1) {
+          // Remove extra scale controls if multiple exist
+          for (let i = 1; i < scaleElements.length; i++) {
+            scaleElements[i].remove();
+          }
+        }
+        
+        const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
+        if (scaleElement) {
           scaleElement.style.pointerEvents = 'none';
           scaleElement.style.userSelect = 'none';
           scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
@@ -2817,16 +2834,33 @@ function setupScaleControl() {
           scaleElement.style.padding = '2px 4px';
           scaleElement.style.fontSize = '11px';
           scaleElement.style.fontWeight = '500';
-        });
-      }, 100);
+        }
+      }, 200);
       return;
     } catch (error) {
       // Fall through to regular scale control
     }
   }
   
-  // Fallback to regular scale control
-  addFallbackScale();
+  // Fallback to regular scale control with both units
+  const metricScale = new mapboxgl.ScaleControl({
+    maxWidth: 120,
+    unit: 'both' // Show both metric and imperial
+  });
+  map.addControl(metricScale, 'bottom-right');
+  
+  setTimeout(() => {
+    const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
+    if (scaleElement) {
+      scaleElement.style.pointerEvents = 'none';
+      scaleElement.style.userSelect = 'none';
+      scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+      scaleElement.style.borderRadius = '3px';
+      scaleElement.style.padding = '2px 4px';
+      scaleElement.style.fontSize = '11px';
+      scaleElement.style.fontWeight = '500';
+    }
+  }, 100);
 }
 
 // OPTIMIZED: DOM ready handlers
