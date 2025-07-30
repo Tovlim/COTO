@@ -232,7 +232,7 @@ const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmdp8fjw100ex01s83b2d6jzf",
   center: isMobile ? [34.85, 31.7] : [35.22, 31.85], // Mobile: both West Bank & Gaza, Desktop: West Bank focused
-  zoom: isMobile ? 6.8 : 8.33,
+  zoom: isMobile ? 7.1 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
@@ -278,7 +278,7 @@ class MapResetControl {
       // Reset to default position (responsive for mobile/desktop)
       this._map.flyTo({
         center: isMobile ? [34.85, 31.7] : [35.22, 31.85],
-        zoom: isMobile ? 6.8 : 8.33,
+        zoom: isMobile ? 7.1 : 8.33,
         duration: 1000,
         essential: true
       });
@@ -936,8 +936,8 @@ function addNativeMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            isMobile ? 6.8 : 8.5, 0,
-            isMobile ? 7.8 : 9.5, 1
+            isMobile ? 7.1 : 8.5, 0,
+            isMobile ? 8.1 : 9.5, 1
           ]
         }
       });
@@ -1366,7 +1366,7 @@ function applyFilterToMarkers() {
     if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
       map.flyTo({
         center: isMobile ? [34.85, 31.7] : [35.22, 31.85], 
-        zoom: isMobile ? 6.8 : 8.33, 
+        zoom: isMobile ? 7.1 : 8.33, 
         duration: animationDuration, 
         essential: true
       });
