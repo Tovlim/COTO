@@ -245,12 +245,13 @@ map.addControl(new mapboxgl.NavigationControl({
   visualizePitch: false // Hide pitch visualization
 }), 'top-right');
 
-// Add scale control to bottom-right corner (unclickable)
+// Add scale control to bottom-right (desktop) or bottom-left (mobile)
 const scaleControl = new mapboxgl.ScaleControl({
   maxWidth: 100,
   unit: 'metric'
 });
-map.addControl(scaleControl, 'bottom-right');
+const scalePosition = window.innerWidth <= 478 ? 'bottom-left' : 'bottom-right';
+map.addControl(scaleControl, scalePosition);
 
 // Custom Map Reset Control
 class MapResetControl {
