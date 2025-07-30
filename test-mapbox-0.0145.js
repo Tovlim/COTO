@@ -214,25 +214,15 @@ class OptimizedEventManager {
 // OPTIMIZED: Global event manager
 const eventManager = new OptimizedEventManager();
 
-// Initialize Mapbox with RTL support
+// Initialize Mapbox
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
+if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
 
-// Enhanced RTL support for Arabic, Hebrew, Persian, and Urdu
-const rtlLanguages = ['ar', 'he', 'fa', 'ur'];
-if (rtlLanguages.includes(lang)) {
-  mapboxgl.setRTLTextPlugin(
-    "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js",
-    (error) => {
-      if (error) {
-        // Silent error handling in production - fallback gracefully
-        return;
-      }
-      // RTL plugin loaded successfully
-    },
-    true // Lazy load the plugin
-  );
-}
+// Load the dual scale control library
+const script = document.createElement('script');
+script.src = 'https://unpkg.com/mapbox-gl-dual-scale-control@0.1.2/dist/mapbox-gl-dual-scale-control.min.js';
+document.head.appendChild(script);
 
 const map = new mapboxgl.Map({
   container: "map",
@@ -2773,6 +2763,9 @@ map.on("load", () => {
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
     
+    // Setup scale control
+    setupScaleControl();
+    
   } catch (error) {
     // Mark all loading steps as complete to hide loading screen on error
     Object.keys(loadingTracker.states).forEach(stateName => {
@@ -2780,6 +2773,61 @@ map.on("load", () => {
     });
   }
 });
+
+// Fallback scale control function
+function addFallbackScale() {
+  const metricScale = new mapboxgl.ScaleControl({
+    maxWidth: 120,
+    unit: 'metric'
+  });
+  map.addControl(metricScale, 'bottom-right');
+  
+  setTimeout(() => {
+    const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
+    if (scaleElement) {
+      scaleElement.style.pointerEvents = 'none';
+      scaleElement.style.userSelect = 'none';
+      scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+      scaleElement.style.borderRadius = '3px';
+      scaleElement.style.padding = '2px 4px';
+      scaleElement.style.fontSize = '11px';
+      scaleElement.style.fontWeight = '500';
+    }
+  }, 100);
+}
+
+// Setup scale control function
+function setupScaleControl() {
+  // Check if dual scale control is available
+  if (typeof DualScaleControl !== 'undefined') {
+    try {
+      const dualScale = new DualScaleControl({
+        maxWidth: 120
+      });
+      map.addControl(dualScale, 'bottom-right');
+      
+      // Make scale control unclickable and style it properly
+      setTimeout(() => {
+        const scaleElements = document.querySelectorAll('.mapboxgl-ctrl-scale');
+        scaleElements.forEach(scaleElement => {
+          scaleElement.style.pointerEvents = 'none';
+          scaleElement.style.userSelect = 'none';
+          scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+          scaleElement.style.borderRadius = '3px';
+          scaleElement.style.padding = '2px 4px';
+          scaleElement.style.fontSize = '11px';
+          scaleElement.style.fontWeight = '500';
+        });
+      }, 100);
+      return;
+    } catch (error) {
+      // Fall through to regular scale control
+    }
+  }
+  
+  // Fallback to regular scale control
+  addFallbackScale();
+}
 
 // OPTIMIZED: DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
