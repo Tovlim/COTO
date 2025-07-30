@@ -566,79 +566,113 @@ class OptimizedMapLayers {
 // OPTIMIZED: Global layer manager
 const mapLayers = new OptimizedMapLayers(map);
 
-// Toggle sidebar with improved logic for multiple sidebars and responsive behavior
+// OPTIMIZED: Sidebar element and arrow icon caching
+const sidebarCache = {
+  elements: new Map(),
+  arrows: new Map(),
+  widths: new Map(),
+  
+  getSidebar(side) {
+    if (!this.elements.has(side)) {
+      this.elements.set(side, $id(`${side}Sidebar`));
+    }
+    return this.elements.get(side);
+  },
+  
+  getArrow(side) {
+    if (!this.arrows.has(side)) {
+      const arrowKey = side === 'SecondLeft' ? 'secondleft' : side.toLowerCase();
+      this.arrows.set(side, $1(`[arrow-icon="${arrowKey}"]`));
+    }
+    return this.arrows.get(side);
+  },
+  
+  getWidth(side) {
+    if (!this.widths.has(side)) {
+      const sidebar = this.getSidebar(side);
+      if (sidebar) {
+        this.widths.set(side, parseInt(getComputedStyle(sidebar).width) || 300);
+      }
+    }
+    return this.widths.get(side) || 300;
+  },
+  
+  getMarginProperty(side) {
+    return side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
+  },
+  
+  invalidate() {
+    this.elements.clear();
+    this.arrows.clear();
+    this.widths.clear();
+  }
+};
+
+// OPTIMIZED: Helper function to close a sidebar without recursion
+const closeSidebar = (side) => {
+  const sidebar = sidebarCache.getSidebar(side);
+  if (!sidebar || !sidebar.classList.contains('is-show')) return;
+  
+  // Remove the show class
+  sidebar.classList.remove('is-show');
+  
+  // Reset arrow icon
+  const arrowIcon = sidebarCache.getArrow(side);
+  if (arrowIcon) arrowIcon.style.transform = 'rotateY(0deg)';
+  
+  // Handle margin based on screen size
+  const jsMarginProperty = sidebarCache.getMarginProperty(side);
+  if (window.innerWidth > 478) {
+    const width = sidebarCache.getWidth(side);
+    sidebar.style[jsMarginProperty] = `-${width + 1}px`;
+  } else {
+    sidebar.style[jsMarginProperty] = '';
+  }
+  
+  // Reset pointer events
+  sidebar.style.pointerEvents = '';
+};
+
+// OPTIMIZED: Toggle sidebar with improved caching and helper functions
 const toggleSidebar = (side, show = null) => {
-  const sidebar = $id(`${side}Sidebar`);
+  const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar) return;
   
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
   sidebar.classList.toggle('is-show', isShowing);
   
-  const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-  // Use correct JavaScript property names for style manipulation
-  const jsMarginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
+  const jsMarginProperty = sidebarCache.getMarginProperty(side);
+  const arrowIcon = sidebarCache.getArrow(side);
   
   if (window.innerWidth > 478) {
-    sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${currentWidth + 1}px`;
+    const width = sidebarCache.getWidth(side);
+    sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${width + 1}px`;
     
-    // On devices 991px and down: close ALL other sidebars when opening any sidebar
-    if (isShowing && window.innerWidth <= 991) {
-      const allSides = ['Left', 'SecondLeft', 'Right'];
-      allSides.forEach(otherSide => {
-        if (otherSide !== side) {
-          const otherSidebar = $id(`${otherSide}Sidebar`);
-          if (otherSidebar && otherSidebar.classList.contains('is-show')) {
-            // Manually close without recursive calls
-            otherSidebar.classList.remove('is-show');
-            const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
-            if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
-            const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
-            const otherWidth = parseInt(getComputedStyle(otherSidebar).width) || 300;
-            otherSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
-            otherSidebar.style.pointerEvents = '';
-          }
-        }
-      });
-    }
-    // On desktop (>991px): only close other left sidebars when opening a left sidebar
-    else if (isShowing && window.innerWidth > 991 && (side === 'Left' || side === 'SecondLeft')) {
-      const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
-      const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
-      if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
-        // Manually close without recursive calls
-        otherLeftSidebar.classList.remove('is-show');
-        const otherArrowIcon = $1(`[arrow-icon="${otherLeftSide === 'SecondLeft' ? 'secondleft' : otherLeftSide.toLowerCase()}"]`);
-        if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
-        const otherJsMarginProperty = otherLeftSide === 'SecondLeft' ? 'marginLeft' : `margin${otherLeftSide}`;
-        const otherWidth = parseInt(getComputedStyle(otherLeftSidebar).width) || 300;
-        otherLeftSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
-        otherLeftSidebar.style.pointerEvents = '';
+    // Close other sidebars based on screen size
+    if (isShowing) {
+      if (window.innerWidth <= 991) {
+        // Close ALL other sidebars on devices 991px and down
+        ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
+          if (otherSide !== side) closeSidebar(otherSide);
+        });
+      } else if (side === 'Left' || side === 'SecondLeft') {
+        // On desktop (>991px): only close other left sidebars when opening a left sidebar
+        const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
+        closeSidebar(otherLeftSide);
       }
     }
   } else {
     // Mobile (478px and down): use margin behavior and close all other sidebars
     sidebar.style[jsMarginProperty] = isShowing ? '0' : '';
     if (isShowing) {
-      const allSides = ['Left', 'SecondLeft', 'Right'];
-      allSides.forEach(otherSide => {
-        if (otherSide !== side) {
-          const otherSidebar = $id(`${otherSide}Sidebar`);
-          if (otherSidebar && otherSidebar.classList.contains('is-show')) {
-            // Manually close without recursive calls
-            otherSidebar.classList.remove('is-show');
-            const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
-            if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
-            const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
-            otherSidebar.style[otherJsMarginProperty] = '';
-            otherSidebar.style.pointerEvents = '';
-          }
-        }
+      ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
+        if (otherSide !== side) closeSidebar(otherSide);
       });
     }
   }
   
+  // Set pointer events and arrow icon for the current sidebar
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
-  const arrowIcon = $1(`[arrow-icon="${side === 'SecondLeft' ? 'secondleft' : side.toLowerCase()}"]`);
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
 
@@ -1645,7 +1679,7 @@ function setupSidebars() {
   let zIndex = 1000;
   
   const setupSidebarElement = (side) => {
-    const sidebar = $id(`${side}Sidebar`);
+    const sidebar = sidebarCache.getSidebar(side);
     const tab = $id(`${side}SideTab`);
     const close = $id(`${side}SidebarClose`);
     
@@ -1676,7 +1710,7 @@ function setupSidebars() {
       const allSides = ['Left', 'SecondLeft', 'Right'];
       allSides.forEach(otherSide => {
         if (otherSide !== side) {
-          const otherSidebar = $id(`${otherSide}Sidebar`);
+          const otherSidebar = sidebarCache.getSidebar(otherSide);
           const otherTab = $id(`${otherSide}SideTab`);
           
           if (otherSidebar) otherSidebar.style.zIndex = newZ - 1;
@@ -1688,75 +1722,7 @@ function setupSidebars() {
       });
     };
 
-    const toggle = show => {
-      if (show) bringToFront();
-      sidebar.classList.toggle('is-show', show);
-      
-      const arrowIcon = $1(`[arrow-icon="${side === 'SecondLeft' ? 'secondleft' : side.toLowerCase()}"]`);
-      if (arrowIcon) arrowIcon.style.transform = show ? 'rotateY(180deg)' : 'rotateY(0deg)';
-      
-      if (window.innerWidth > 478) {
-        const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-        const jsMarginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
-        sidebar.style[jsMarginProperty] = show ? '0' : `-${currentWidth + 1}px`;
-        
-        // On devices 991px and down: close ALL other sidebars when opening any sidebar
-        if (show && window.innerWidth <= 991) {
-          const allSides = ['Left', 'SecondLeft', 'Right'];
-          allSides.forEach(otherSide => {
-            if (otherSide !== side) {
-              const otherSidebar = $id(`${otherSide}Sidebar`);
-              if (otherSidebar && otherSidebar.classList.contains('is-show')) {
-                otherSidebar.classList.remove('is-show');
-                const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
-                if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
-                const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
-                const otherWidth = parseInt(getComputedStyle(otherSidebar).width) || 300;
-                otherSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
-                otherSidebar.style.pointerEvents = '';
-              }
-            }
-          });
-        }
-        // On desktop (>991px): only close other left sidebars when opening a left sidebar
-        else if (show && window.innerWidth > 991 && (side === 'Left' || side === 'SecondLeft')) {
-          const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
-          const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
-          if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
-            otherLeftSidebar.classList.remove('is-show');
-            const otherArrowIcon = $1(`[arrow-icon="${otherLeftSide === 'SecondLeft' ? 'secondleft' : otherLeftSide.toLowerCase()}"]`);
-            if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
-            const otherJsMarginProperty = otherLeftSide === 'SecondLeft' ? 'marginLeft' : `margin${otherLeftSide}`;
-            const otherWidth = parseInt(getComputedStyle(otherLeftSidebar).width) || 300;
-            otherLeftSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
-            otherLeftSidebar.style.pointerEvents = '';
-          }
-        }
-      } else {
-        // Mobile (478px and down): use margin behavior and close all other sidebars
-        const jsMarginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
-        sidebar.style[jsMarginProperty] = show ? '0' : '';
-        if (show) {
-          const allSides = ['Left', 'SecondLeft', 'Right'];
-          allSides.forEach(otherSide => {
-            if (otherSide !== side) {
-              const otherSidebar = $id(`${otherSide}Sidebar`);
-              if (otherSidebar && otherSidebar.classList.contains('is-show')) {
-                otherSidebar.classList.remove('is-show');
-                const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
-                if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
-                const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
-                otherSidebar.style[otherJsMarginProperty] = '';
-                otherSidebar.style.pointerEvents = '';
-              }
-            }
-          });
-        }
-      }
-      
-      sidebar.style.pointerEvents = show ? 'auto' : '';
-    };
-    
+    // Use the main toggleSidebar function instead of internal logic
     if (!sidebar.dataset.clickSetup) {
       eventManager.add(sidebar, 'click', () => {
         if (sidebar.classList.contains('is-show')) bringToFront();
@@ -1768,7 +1734,7 @@ function setupSidebars() {
       eventManager.add(tab, 'click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggle(!sidebar.classList.contains('is-show'));
+        toggleSidebar(side, !sidebar.classList.contains('is-show'));
       });
       tab.dataset.setupComplete = 'true';
     }
@@ -1777,7 +1743,7 @@ function setupSidebars() {
       eventManager.add(close, 'click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggle(false);
+        toggleSidebar(side, false);
       });
       close.dataset.setupComplete = 'true';
     }
@@ -1816,11 +1782,11 @@ function setupSidebars() {
     if (window.innerWidth <= 478) return;
     
     ['Left', 'SecondLeft', 'Right'].forEach(side => {
-      const sidebar = $id(`${side}Sidebar`);
+      const sidebar = sidebarCache.getSidebar(side);
       if (sidebar && !sidebar.classList.contains('is-show')) {
-        const currentWidth = parseInt(getComputedStyle(sidebar).width) || 300;
-        const jsMarginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
-        sidebar.style[jsMarginProperty] = `-${currentWidth + 1}px`;
+        const width = sidebarCache.getWidth(side);
+        const jsMarginProperty = sidebarCache.getMarginProperty(side);
+        sidebar.style[jsMarginProperty] = `-${width + 1}px`;
       }
     });
   };
@@ -2965,6 +2931,9 @@ window.mapUtilities = {
   state,
   utils,
   mapLayers,
+  sidebarCache,
+  toggleSidebar,
+  closeSidebar,
   checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
   toggleShowWhenFilteredElements // FIXED: Export the toggle function too
 };
@@ -2974,6 +2943,7 @@ window.addEventListener('beforeunload', () => {
   // Clean up all managed resources
   eventManager.cleanup();
   state.cleanup();
+  sidebarCache.invalidate();
   
   // Clean up mutation observers
   const tagParent = $id('tagparent');
