@@ -238,10 +238,15 @@ map.addControl(new mapboxgl.NavigationControl({
 
 // Add dual scale control (kilometers and miles)
 if (typeof MapboxGLDualScaleControl !== 'undefined') {
-  map.addControl(new MapboxGLDualScaleControl({
-    maxWidth: 100,
-    unit: 'dual' // Shows both metric and imperial
-  }), 'bottom-left');
+  try {
+    map.addControl(new MapboxGLDualScaleControl(), 'bottom-left');
+  } catch (error) {
+    // Fallback if there's an error with dual scale
+    map.addControl(new mapboxgl.ScaleControl({
+      maxWidth: 100,
+      unit: 'metric'
+    }), 'bottom-left');
+  }
 } else {
   // Fallback to standard scale control if dual scale library not loaded
   map.addControl(new mapboxgl.ScaleControl({
