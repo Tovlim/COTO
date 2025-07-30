@@ -214,10 +214,25 @@ class OptimizedEventManager {
 // OPTIMIZED: Global event manager
 const eventManager = new OptimizedEventManager();
 
-// Initialize Mapbox
+// Initialize Mapbox with RTL support
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
-if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
+
+// Enhanced RTL support for Arabic, Hebrew, Persian, and Urdu
+const rtlLanguages = ['ar', 'he', 'fa', 'ur'];
+if (rtlLanguages.includes(lang)) {
+  mapboxgl.setRTLTextPlugin(
+    "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js",
+    (error) => {
+      if (error) {
+        // Silent error handling in production - fallback gracefully
+        return;
+      }
+      // RTL plugin loaded successfully
+    },
+    true // Lazy load the plugin
+  );
+}
 
 const map = new mapboxgl.Map({
   container: "map",
