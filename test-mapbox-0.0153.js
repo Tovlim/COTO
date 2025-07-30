@@ -566,7 +566,7 @@ class OptimizedMapLayers {
 // OPTIMIZED: Global layer manager
 const mapLayers = new OptimizedMapLayers(map);
 
-// Toggle sidebar with improved logic for multiple left sidebars
+// Toggle sidebar with improved logic for multiple sidebars and responsive behavior
 const toggleSidebar = (side, show = null) => {
   const sidebar = $id(`${side}Sidebar`);
   if (!sidebar) return;
@@ -581,8 +581,20 @@ const toggleSidebar = (side, show = null) => {
   if (window.innerWidth > 478) {
     sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${currentWidth + 1}px`;
     
-    // Close other left sidebars when opening a left sidebar
-    if (isShowing && (side === 'Left' || side === 'SecondLeft')) {
+    // On devices 991px and down: close ALL other sidebars when opening any sidebar
+    if (isShowing && window.innerWidth <= 991) {
+      const allSides = ['Left', 'SecondLeft', 'Right'];
+      allSides.forEach(otherSide => {
+        if (otherSide !== side) {
+          const otherSidebar = $id(`${otherSide}Sidebar`);
+          if (otherSidebar && otherSidebar.classList.contains('is-show')) {
+            toggleSidebar(otherSide, false);
+          }
+        }
+      });
+    }
+    // On desktop (>991px): only close other left sidebars when opening a left sidebar
+    else if (isShowing && window.innerWidth > 991 && (side === 'Left' || side === 'SecondLeft')) {
       const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
       const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
       if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
@@ -590,9 +602,9 @@ const toggleSidebar = (side, show = null) => {
       }
     }
   } else {
+    // Mobile (478px and down): use margin behavior and close all other sidebars
     sidebar.style[jsMarginProperty] = isShowing ? '0' : '';
     if (isShowing) {
-      // On mobile, close ALL other sidebars
       const allSides = ['Left', 'SecondLeft', 'Right'];
       allSides.forEach(otherSide => {
         if (otherSide !== side) {
@@ -1668,8 +1680,26 @@ function setupSidebars() {
         const jsMarginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
         sidebar.style[jsMarginProperty] = show ? '0' : `-${currentWidth + 1}px`;
         
-        // Close other left sidebars when opening a left sidebar
-        if (show && (side === 'Left' || side === 'SecondLeft')) {
+        // On devices 991px and down: close ALL other sidebars when opening any sidebar
+        if (show && window.innerWidth <= 991) {
+          const allSides = ['Left', 'SecondLeft', 'Right'];
+          allSides.forEach(otherSide => {
+            if (otherSide !== side) {
+              const otherSidebar = $id(`${otherSide}Sidebar`);
+              if (otherSidebar && otherSidebar.classList.contains('is-show')) {
+                otherSidebar.classList.remove('is-show');
+                const otherArrowIcon = $1(`[arrow-icon="${otherSide === 'SecondLeft' ? 'secondleft' : otherSide.toLowerCase()}"]`);
+                if (otherArrowIcon) otherArrowIcon.style.transform = 'rotateY(0deg)';
+                const otherJsMarginProperty = otherSide === 'SecondLeft' ? 'marginLeft' : `margin${otherSide}`;
+                const otherWidth = parseInt(getComputedStyle(otherSidebar).width) || 300;
+                otherSidebar.style[otherJsMarginProperty] = `-${otherWidth + 1}px`;
+                otherSidebar.style.pointerEvents = '';
+              }
+            }
+          });
+        }
+        // On desktop (>991px): only close other left sidebars when opening a left sidebar
+        else if (show && window.innerWidth > 991 && (side === 'Left' || side === 'SecondLeft')) {
           const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
           const otherLeftSidebar = $id(`${otherLeftSide}Sidebar`);
           if (otherLeftSidebar && otherLeftSidebar.classList.contains('is-show')) {
@@ -1683,6 +1713,7 @@ function setupSidebars() {
           }
         }
       } else {
+        // Mobile (478px and down): use margin behavior and close all other sidebars
         const jsMarginProperty = side === 'SecondLeft' ? 'marginLeft' : `margin${side}`;
         sidebar.style[jsMarginProperty] = show ? '0' : '';
         if (show) {
@@ -1781,12 +1812,12 @@ function setupSidebars() {
 function setupEvents() {
   const eventHandlers = [
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      if (window.innerWidth > 478) {
+      if (window.innerWidth > 991) {
         state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
       }
     }},
     {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      if (window.innerWidth > 478) {
+      if (window.innerWidth > 991) {
         state.setTimer('autoSecondSidebar', () => toggleSidebar('SecondLeft', true), 50);
       }
     }},
@@ -2513,7 +2544,7 @@ function setupCheckboxEvents(checkboxContainer) {
   autoSidebarElements.forEach(element => {
     ['change', 'input'].forEach(eventType => {
       eventManager.add(element, eventType, () => {
-        if (window.innerWidth > 478) {
+        if (window.innerWidth > 991) {
           state.setTimer('checkboxAutoSidebar', () => toggleSidebar('Left', true), 50);
         }
       });
