@@ -214,17 +214,26 @@ class OptimizedEventManager {
 // OPTIMIZED: Global event manager
 const eventManager = new OptimizedEventManager();
 
-// Initialize Mapbox
+// Initialize Mapbox with enhanced RTL support
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
-if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
+
+// Enhanced RTL text support for multiple languages
+const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'yi'];
+if (rtlLanguages.includes(lang)) {
+  mapboxgl.setRTLTextPlugin(
+    "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js",
+    null,
+    true // Lazy load the plugin
+  );
+}
 
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmdp8fjw100ex01s83b2d6jzf",
   center: [35.22, 31.85],
   zoom: isMobile ? 7.5 : 8.33,
-  language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
+  language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
@@ -236,24 +245,12 @@ map.addControl(new mapboxgl.NavigationControl({
   visualizePitch: false // Hide pitch visualization
 }), 'top-right');
 
-// Add dual scale control (kilometers and miles)
-if (typeof MapboxGLDualScaleControl !== 'undefined') {
-  try {
-    map.addControl(new MapboxGLDualScaleControl(), 'bottom-left');
-  } catch (error) {
-    // Fallback if there's an error with dual scale
-    map.addControl(new mapboxgl.ScaleControl({
-      maxWidth: 100,
-      unit: 'metric'
-    }), 'bottom-left');
-  }
-} else {
-  // Fallback to standard scale control if dual scale library not loaded
-  map.addControl(new mapboxgl.ScaleControl({
-    maxWidth: 100,
-    unit: 'metric'
-  }), 'bottom-left');
-}
+// Add scale control to bottom-right corner (unclickable)
+const scaleControl = new mapboxgl.ScaleControl({
+  maxWidth: 100,
+  unit: 'metric'
+});
+map.addControl(scaleControl, 'bottom-right');
 
 // Custom Map Reset Control
 class MapResetControl {
@@ -2741,6 +2738,14 @@ state.setTimer('controlPositioning', () => {
 // OPTIMIZED: Map load event handler with parallel operations
 map.on("load", () => {
   try {
+    // Make scale control unclickable
+    const scaleContainer = document.querySelector('.mapboxgl-ctrl-scale');
+    if (scaleContainer) {
+      scaleContainer.style.pointerEvents = 'none';
+      scaleContainer.style.userSelect = 'none';
+      scaleContainer.style.cursor = 'default';
+    }
+    
     init();
     
     // Load combined data
