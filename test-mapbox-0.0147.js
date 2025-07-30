@@ -219,11 +219,6 @@ const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
 if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js");
 
-// Load the dual scale control library
-const script = document.createElement('script');
-script.src = 'https://unpkg.com/mapbox-gl-dual-scale-control@0.1.2/dist/mapbox-gl-dual-scale-control.min.js';
-document.head.appendChild(script);
-
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmdp8fjw100ex01s83b2d6jzf",
@@ -241,27 +236,19 @@ map.addControl(new mapboxgl.NavigationControl({
   visualizePitch: false // Hide pitch visualization
 }), 'top-right');
 
-// Add scale control showing both kilometers and miles in bottom right
-const scaleControl = new mapboxgl.ScaleControl({
-  maxWidth: 120,
-  unit: 'both' // Shows both metric (km/m) and imperial (miles/ft)
-});
-map.addControl(scaleControl, 'bottom-right');
-
-// Make scale control unclickable and ensure it shows both units
-map.on('load', () => {
-  // Style the scale control to be unclickable and ensure proper display
-  const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
-  if (scaleElement) {
-    scaleElement.style.pointerEvents = 'none';
-    scaleElement.style.userSelect = 'none';
-    scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-    scaleElement.style.borderRadius = '3px';
-    scaleElement.style.padding = '2px 4px';
-    scaleElement.style.fontSize = '11px';
-    scaleElement.style.fontWeight = '500';
-  }
-});
+// Add dual scale control (kilometers and miles)
+if (typeof MapboxGLDualScaleControl !== 'undefined') {
+  map.addControl(new MapboxGLDualScaleControl({
+    maxWidth: 100,
+    unit: 'dual' // Shows both metric and imperial
+  }), 'bottom-left');
+} else {
+  // Fallback to standard scale control if dual scale library not loaded
+  map.addControl(new mapboxgl.ScaleControl({
+    maxWidth: 100,
+    unit: 'metric'
+  }), 'bottom-left');
+}
 
 // Custom Map Reset Control
 class MapResetControl {
@@ -2763,9 +2750,6 @@ map.on("load", () => {
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
     
-    // Setup scale control
-    setupScaleControl();
-    
   } catch (error) {
     // Mark all loading steps as complete to hide loading screen on error
     Object.keys(loadingTracker.states).forEach(stateName => {
@@ -2773,95 +2757,6 @@ map.on("load", () => {
     });
   }
 });
-
-// Fallback scale control function
-function addFallbackScale() {
-  const metricScale = new mapboxgl.ScaleControl({
-    maxWidth: 120,
-    unit: 'metric'
-  });
-  map.addControl(metricScale, 'bottom-right');
-  
-  setTimeout(() => {
-    const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
-    if (scaleElement) {
-      scaleElement.style.pointerEvents = 'none';
-      scaleElement.style.userSelect = 'none';
-      scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-      scaleElement.style.borderRadius = '3px';
-      scaleElement.style.padding = '2px 4px';
-      scaleElement.style.fontSize = '11px';
-      scaleElement.style.fontWeight = '500';
-    }
-  }, 100);
-}
-
-// Setup scale control function
-function setupScaleControl() {
-  // Check if a scale control already exists
-  const existingScale = document.querySelector('.mapboxgl-ctrl-scale');
-  if (existingScale) {
-    return; // Don't add another scale if one already exists
-  }
-  
-  // Check if dual scale control is available
-  if (typeof DualScaleControl !== 'undefined') {
-    try {
-      const dualScale = new DualScaleControl({
-        maxWidth: 120,
-        imperial: true,
-        metric: true
-      });
-      map.addControl(dualScale, 'bottom-right');
-      
-      // Make scale control unclickable and style it properly
-      setTimeout(() => {
-        const scaleElements = document.querySelectorAll('.mapboxgl-ctrl-scale');
-        // Only style the first scale control to avoid duplicates
-        if (scaleElements.length > 1) {
-          // Remove extra scale controls if multiple exist
-          for (let i = 1; i < scaleElements.length; i++) {
-            scaleElements[i].remove();
-          }
-        }
-        
-        const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
-        if (scaleElement) {
-          scaleElement.style.pointerEvents = 'none';
-          scaleElement.style.userSelect = 'none';
-          scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-          scaleElement.style.borderRadius = '3px';
-          scaleElement.style.padding = '2px 4px';
-          scaleElement.style.fontSize = '11px';
-          scaleElement.style.fontWeight = '500';
-        }
-      }, 200);
-      return;
-    } catch (error) {
-      // Fall through to regular scale control
-    }
-  }
-  
-  // Fallback to regular scale control with both units
-  const metricScale = new mapboxgl.ScaleControl({
-    maxWidth: 120,
-    unit: 'both' // Show both metric and imperial
-  });
-  map.addControl(metricScale, 'bottom-right');
-  
-  setTimeout(() => {
-    const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
-    if (scaleElement) {
-      scaleElement.style.pointerEvents = 'none';
-      scaleElement.style.userSelect = 'none';
-      scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-      scaleElement.style.borderRadius = '3px';
-      scaleElement.style.padding = '2px 4px';
-      scaleElement.style.fontSize = '11px';
-      scaleElement.style.fontWeight = '500';
-    }
-  }, 100);
-}
 
 // OPTIMIZED: DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
