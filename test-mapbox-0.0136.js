@@ -221,7 +221,7 @@ if (['ar', 'he'].includes(lang)) mapboxgl.setRTLTextPlugin("https://api.mapbox.c
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/nitaihardy/cmdp7uglm00f401r17bpdgk4z",
+  style: "mapbox://styles/nitaihardy/cmdp8fjw100ex01s83b2d6jzf",
   center: [35.22, 31.85],
   zoom: isMobile ? 7.5 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he'].includes(lang) ? lang : 'en'
@@ -237,10 +237,26 @@ map.addControl(new mapboxgl.NavigationControl({
 }), 'top-right');
 
 // Add scale control showing both kilometers and miles in bottom right
-map.addControl(new mapboxgl.ScaleControl({
-  maxWidth: 100,
+const scaleControl = new mapboxgl.ScaleControl({
+  maxWidth: 120,
   unit: 'both' // Shows both metric (km/m) and imperial (miles/ft)
-}), 'bottom-right');
+});
+map.addControl(scaleControl, 'bottom-right');
+
+// Make scale control unclickable and ensure it shows both units
+map.on('load', () => {
+  // Style the scale control to be unclickable and ensure proper display
+  const scaleElement = document.querySelector('.mapboxgl-ctrl-scale');
+  if (scaleElement) {
+    scaleElement.style.pointerEvents = 'none';
+    scaleElement.style.userSelect = 'none';
+    scaleElement.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+    scaleElement.style.borderRadius = '3px';
+    scaleElement.style.padding = '2px 4px';
+    scaleElement.style.fontSize = '11px';
+    scaleElement.style.fontWeight = '500';
+  }
+});
 
 // Custom Map Reset Control
 class MapResetControl {
