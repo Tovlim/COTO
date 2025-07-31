@@ -30,6 +30,7 @@ class RealTimeVisibilityAutocomplete {
         // Event management
         this.eventHandlers = new Map();
         this.debounceTimers = new Map();
+        this.recentlySelected = false;
         
         // Integration detection
         this.isMapboxIntegration = typeof window.isMarkerClick !== 'undefined';
@@ -126,7 +127,10 @@ class RealTimeVisibilityAutocomplete {
         if (value.length === 0) {
             this.hideDropdown();
         } else {
-            this.showVisibleTerms();
+            // Small delay to prevent dropdown from reappearing immediately after selection
+            if (!this.recentlySelected) {
+                this.showVisibleTerms();
+            }
         }
     }
     
@@ -138,14 +142,28 @@ class RealTimeVisibilityAutocomplete {
     }
     
     handleDropdownClick(e) {
-        if (e.target.classList.contains('list-term')) {
+        // Check if click is on list-term or its child elements
+        const listTerm = e.target.closest('.list-term');
+        if (listTerm) {
             e.preventDefault();
             e.stopPropagation();
             
-            const term = e.target.getAttribute('data-term');
-            const type = e.target.getAttribute('data-type');
+            const term = listTerm.getAttribute('data-term');
+            const type = listTerm.getAttribute('data-type');
             
-            this.selectTerm(term, type);
+            // Set flag to prevent dropdown from reappearing
+            this.recentlySelected = true;
+            setTimeout(() => {
+                this.recentlySelected = false;
+            }, 300);
+            
+            // Hide dropdown immediately
+            this.hideDropdown();
+            
+            // Then trigger the selection
+            setTimeout(() => {
+                this.selectTerm(term, type);
+            }, 50);
         }
     }
     
@@ -207,7 +225,17 @@ class RealTimeVisibilityAutocomplete {
                     e.preventDefault();
                     const term = currentActive.getAttribute('data-term');
                     const type = currentActive.getAttribute('data-type') || 'locality';
-                    this.selectTerm(term, type);
+                    
+                    // Set flag to prevent dropdown from reappearing
+                    this.recentlySelected = true;
+                    setTimeout(() => {
+                        this.recentlySelected = false;
+                    }, 300);
+                    
+                    this.hideDropdown(); // Hide immediately
+                    setTimeout(() => {
+                        this.selectTerm(term, type);
+                    }, 50);
                 }
                 break;
             case 'Escape':
@@ -350,6 +378,8 @@ class RealTimeVisibilityAutocomplete {
         this.updateDropdownContent(sortedDistricts, sortedLocalities);
         this.updatePositioning();
         this.elements.wrapper.style.display = 'block';
+        this.elements.wrapper.style.visibility = 'visible';
+        this.elements.wrapper.style.opacity = '1';
     }
     
     smartSort(items, searchTerm) {
@@ -491,20 +521,23 @@ class RealTimeVisibilityAutocomplete {
     
     hideDropdown() {
         this.elements.wrapper.style.display = 'none';
+        this.elements.wrapper.style.visibility = 'hidden';
+        this.elements.wrapper.style.opacity = '0';
         this.elements.list.querySelectorAll('.list-term.active')
             .forEach(item => item.classList.remove('active'));
     }
     
     selectTerm(term, type = 'locality') {
+        // First hide the dropdown
+        this.hideDropdown();
+        
         if (type === 'district') {
             // For districts/regions: Put text in input
             this.elements.input.value = term;
-            this.hideDropdown();
             this.triggerDistrictSelection(term);
         } else {
             // For localities: Put text in input and trigger filtering
             this.elements.input.value = term;
-            this.hideDropdown();
             this.triggerLocalitySelection(term);
         }
         
@@ -563,28 +596,33 @@ class RealTimeVisibilityAutocomplete {
                     // Fly to bounds FIRST with smooth animation
                     window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
                     
-                    // After animation completes, then select checkbox and show UI
+                    // Cascade actions during the flight animation
+                    // Immediately highlight the boundary (0ms)
+                    window.highlightBoundary(districtName);
+                    
+                    // Select checkbox shortly after starting (200ms)
                     setTimeout(() => {
-                        // Highlight the boundary
-                        window.highlightBoundary(districtName);
-                        
-                        // Select district checkbox (clears all other checkboxes)
                         if (typeof window.selectDistrictCheckbox === 'function') {
                             window.selectDistrictCheckbox(districtName);
                         }
-                        
-                        // Show filtered elements
+                    }, 200);
+                    
+                    // Show filtered elements (400ms)
+                    setTimeout(() => {
                         if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
                             window.mapUtilities.toggleShowWhenFilteredElements(true);
                         }
-                        
-                        // Open left sidebar
+                    }, 400);
+                    
+                    // Open left sidebar (600ms)
+                    setTimeout(() => {
                         if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
                             window.mapUtilities.toggleSidebar('Left', true);
                         }
-                        
-                        cleanupFlags();
-                    }, 1100);
+                    }, 600);
+                    
+                    // Cleanup after animation completes
+                    setTimeout(cleanupFlags, 1200);
                     
                     return; // Exit early - we successfully zoomed to boundary
                 }
@@ -681,9 +719,9 @@ class RealTimeVisibilityAutocomplete {
                 essential: true
             });
             
-            // After animation completes, then select checkbox and show UI
+            // Cascade actions during the flight animation
+            // Highlight the specific locality early (100ms)
             setTimeout(() => {
-                // Highlight only this specific locality
                 if (window.mapUtilities && window.mapUtilities.state) {
                     const updatedFeatures = window.mapUtilities.state.allLocalityFeatures.map(feature => ({
                         ...feature,
@@ -701,27 +739,34 @@ class RealTimeVisibilityAutocomplete {
                         });
                     }
                 }
-                
-                // Select locality checkbox (clears all other checkboxes)
+            }, 100);
+            
+            // Select locality checkbox (300ms)
+            setTimeout(() => {
                 if (typeof window.selectLocalityCheckbox === 'function') {
                     window.selectLocalityCheckbox(localityName);
                 }
-                
-                // Show filtered elements
+            }, 300);
+            
+            // Show filtered elements (500ms)
+            setTimeout(() => {
                 if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
-                
-                // Open left sidebar
+            }, 500);
+            
+            // Open left sidebar (700ms)
+            setTimeout(() => {
                 if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
                 // Trigger search events for Finsweet
                 this.triggerSearchEvents();
-                
-                cleanupFlags();
-            }, 1100);
+            }, 700);
+            
+            // Cleanup after animation completes
+            setTimeout(cleanupFlags, 1200);
         } else {
             // Fallback if coordinates not found
             // Select locality checkbox (clears all other checkboxes)
@@ -1635,6 +1680,22 @@ function selectDistrictCheckbox(districtName) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
+      
+      // Add event listener to remove boundary highlight when unchecked
+      if (!targetCheckbox.dataset.highlightListener) {
+        targetCheckbox.addEventListener('change', (e) => {
+          if (!e.target.checked) {
+            // Remove boundary highlight
+            removeBoundaryHighlight();
+            // Clear hidden-list-search when district is unchecked
+            const hiddenListSearch = document.getElementById('hidden-list-search');
+            if (hiddenListSearch) {
+              hiddenListSearch.value = '';
+            }
+          }
+        });
+        targetCheckbox.dataset.highlightListener = 'true';
+      }
     }
   });
 }
@@ -1895,7 +1956,7 @@ function addNativeMarkers() {
           'text-halo-color': [
             'case',
             ['boolean', ['get', 'isFiltered'], false],
-            '#7e7800', // Green halo for filtered localities
+            '#cc2711', // Red halo for filtered localities
             '#7e7800'  // Green halo for unfiltered localities
           ],
           'text-halo-width': [
@@ -3469,6 +3530,9 @@ function generateLocalityCheckboxes() {
     }, 100);
   }
   
+  // Setup checkbox listeners for the newly generated checkboxes
+  state.setTimer('setupNewCheckboxListeners', setupAllCheckboxListeners, 150);
+  
   // FIXED: Check filtered elements after generating checkboxes
   state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
   
@@ -3494,6 +3558,45 @@ function setupCheckboxEvents(checkboxContainer) {
   const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
   filterElements.forEach(element => {
     eventManager.add(element, 'change', () => state.setTimer('checkboxFilter', handleFilterUpdate, 50));
+  });
+  
+  // Add highlight removal listeners to all checkboxes
+  const allCheckboxes = checkboxContainer.querySelectorAll('input[type="checkbox"][fs-list-value]');
+  allCheckboxes.forEach(checkbox => {
+    if (!checkbox.dataset.highlightListener) {
+      checkbox.addEventListener('change', (e) => {
+        if (!e.target.checked) {
+          const checkboxType = checkbox.closest('[checkbox-filter="district"]') ? 'district' : 'locality';
+          
+          if (checkboxType === 'district') {
+            // Remove boundary highlight
+            removeBoundaryHighlight();
+            // Clear hidden-list-search when district is unchecked
+            const hiddenListSearch = document.getElementById('hidden-list-search');
+            if (hiddenListSearch) {
+              hiddenListSearch.value = '';
+            }
+          } else {
+            // Clear locality highlights
+            const updatedFeatures = state.allLocalityFeatures.map(feature => ({
+              ...feature,
+              properties: {
+                ...feature.properties,
+                isFiltered: false
+              }
+            }));
+            
+            if (mapLayers.hasSource('localities-source')) {
+              map.getSource('localities-source').setData({
+                type: "FeatureCollection",
+                features: updatedFeatures
+              });
+            }
+          }
+        }
+      });
+      checkbox.dataset.highlightListener = 'true';
+    }
   });
   
   // Handle activate-filter-indicator functionality
@@ -3650,6 +3753,9 @@ function init() {
   // Generate locality checkboxes early
   state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
   
+  // Setup checkbox highlight removal listeners
+  state.setTimer('setupCheckboxListeners', setupAllCheckboxListeners, 400);
+  
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
   
@@ -3689,6 +3795,47 @@ function init() {
     // FIXED: Always check filtered elements on initial load
     checkAndToggleFilteredElements();
   }, 300);
+}
+
+// Setup checkbox listeners for highlight removal
+function setupAllCheckboxListeners() {
+  const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"][fs-list-value]');
+  allCheckboxes.forEach(checkbox => {
+    if (!checkbox.dataset.highlightListener) {
+      checkbox.addEventListener('change', (e) => {
+        if (!e.target.checked) {
+          const checkboxType = checkbox.closest('[checkbox-filter="district"]') ? 'district' : 'locality';
+          
+          if (checkboxType === 'district') {
+            // Remove boundary highlight
+            removeBoundaryHighlight();
+            // Clear hidden-list-search when district is unchecked
+            const hiddenListSearch = document.getElementById('hidden-list-search');
+            if (hiddenListSearch) {
+              hiddenListSearch.value = '';
+            }
+          } else {
+            // Clear locality highlights
+            const updatedFeatures = state.allLocalityFeatures.map(feature => ({
+              ...feature,
+              properties: {
+                ...feature.properties,
+                isFiltered: false
+              }
+            }));
+            
+            if (mapLayers.hasSource('localities-source')) {
+              map.getSource('localities-source').setData({
+                type: "FeatureCollection",
+                features: updatedFeatures
+              });
+            }
+          }
+        }
+      });
+      checkbox.dataset.highlightListener = 'true';
+    }
+  });
 }
 
 // OPTIMIZED: Control positioning with better timing
@@ -3778,6 +3925,9 @@ window.addEventListener('load', () => {
   setupSidebars();
   setupTabSwitcher();
   setupBackToTopButton();
+  
+  // Setup checkbox listeners on load as well
+  state.setTimer('loadCheckboxListeners', setupAllCheckboxListeners, 500);
   
   state.setTimer('loadFallbackInit', () => {
     if (!state.allLocalityFeatures.length && map.loaded()) {
@@ -3900,7 +4050,8 @@ window.mapUtilities = {
   toggleSidebar,
   closeSidebar,
   checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-  toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+  toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
+  setupAllCheckboxListeners // Export checkbox listener setup function
 };
 
 // ========================
