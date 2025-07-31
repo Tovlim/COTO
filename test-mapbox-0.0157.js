@@ -1274,6 +1274,7 @@ const checkFiltering = (() => {
 
 const checkFilterInstanceFiltering = () => checkFiltering('Filter');
 
+// FIXED: Enhanced filtering detection that works with zero-result searches
 const checkMapMarkersFiltering = (() => {
   let lastCheck = 0;
   let lastResult = false;
@@ -1296,6 +1297,14 @@ const checkMapMarkersFiltering = (() => {
     }
     
     if (checkFiltering('mapmarkers')) {
+      lastResult = true;
+      lastCheck = now;
+      return true;
+    }
+    
+    // FIXED: Check if search box has content (indicates active search/filtering)
+    const searchInput = document.getElementById('refresh-on-enter');
+    if (searchInput && searchInput.value.trim().length > 0) {
       lastResult = true;
       lastCheck = now;
       return true;
@@ -1327,7 +1336,9 @@ const checkMapMarkersFiltering = (() => {
       totalVisible += visibleFilteredLat.length;
     });
     
-    lastResult = totalVisible > 0 && totalVisible < totalElements;
+    // FIXED: Filtering is active if we have elements and visible count is different from total
+    // This covers both "some results" and "zero results" scenarios
+    lastResult = totalElements > 0 && totalVisible < totalElements;
     lastCheck = now;
     return lastResult;
   };
