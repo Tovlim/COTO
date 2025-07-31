@@ -455,6 +455,8 @@ class RealTimeVisibilityAutocomplete {
     }
     
     triggerDistrictSelection(districtName) {
+        console.log('Autocomplete: Triggering district selection for:', districtName);
+        
         // Clear any existing interaction locks immediately
         window.isMarkerClick = false;
         if (window.mapUtilities && window.mapUtilities.state) {
@@ -490,33 +492,64 @@ class RealTimeVisibilityAutocomplete {
             }
         };
         
-        // Try to zoom to district boundary first (like district marker click)
+        // Try to zoom to district boundary first - with better detection logic
         const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+        console.log('Autocomplete: Looking for boundary source:', boundarySourceId);
         
-        // Check if boundary exists and zoom to it
-        if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
+        // More robust boundary detection
+        let boundaryFound = false;
+        if (window.map && typeof window.map.getSource === 'function') {
             const source = window.map.getSource(boundarySourceId);
-            if (source && source._data && typeof window.highlightBoundary === 'function') {
-                // Highlight the boundary
+            console.log('Autocomplete: Boundary source found:', !!source);
+            if (source && source._data) {
+                console.log('Autocomplete: Source has data:', !!source._data);
+                boundaryFound = true;
+            }
+        }
+        
+        if (boundaryFound) {
+            console.log('Autocomplete: Attempting boundary zoom for:', districtName);
+            
+            // Highlight the boundary if function exists
+            if (typeof window.highlightBoundary === 'function') {
                 window.highlightBoundary(districtName);
-                
-                // Calculate and fit bounds
-                const bounds = new window.mapboxgl.LngLatBounds();
-                const addCoords = coords => {
-                    if (Array.isArray(coords) && coords.length > 0) {
-                        if (typeof coords[0] === 'number') bounds.extend(coords);
-                        else coords.forEach(addCoords);
+                console.log('Autocomplete: Boundary highlighted');
+            } else {
+                console.log('Autocomplete: highlightBoundary function not found');
+            }
+            
+            // Calculate and fit bounds directly
+            const source = window.map.getSource(boundarySourceId);
+            const bounds = new window.mapboxgl.LngLatBounds();
+            
+            const addCoords = coords => {
+                if (Array.isArray(coords) && coords.length > 0) {
+                    if (typeof coords[0] === 'number') {
+                        bounds.extend(coords);
+                    } else {
+                        coords.forEach(addCoords);
                     }
-                };
+                }
+            };
+            
+            if (source._data && source._data.features) {
+                source._data.features.forEach(feature => {
+                    if (feature.geometry && feature.geometry.coordinates) {
+                        addCoords(feature.geometry.coordinates);
+                    }
+                });
                 
-                source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+                // Fit bounds to the boundary
                 window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+                console.log('Autocomplete: Map bounds fitted to boundary');
                 
                 // Clean up flags after boundary zoom animation
                 setTimeout(cleanupFlags, 1200);
                 return; // Exit early - we successfully zoomed to boundary
             }
         }
+        
+        console.log('Autocomplete: No boundary found, falling back to marker filtering');
         
         // Fallback: If no boundary found, use regular district filtering with map reframing
         setTimeout(() => {
@@ -526,15 +559,18 @@ class RealTimeVisibilityAutocomplete {
                 state.flags.isRefreshButtonAction = true;
                 
                 if (typeof window.applyFilterToMarkers === 'function') {
+                    console.log('Autocomplete: Applying fallback filter to markers');
                     window.applyFilterToMarkers();
                     
                     // Clean up after fallback reframing
                     setTimeout(cleanupFlags, 1000);
                 } else {
+                    console.log('Autocomplete: applyFilterToMarkers function not found');
                     // Clean up if no applyFilterToMarkers function
                     setTimeout(cleanupFlags, 500);
                 }
             } else {
+                console.log('Autocomplete: mapUtilities not available');
                 // Clean up if no mapUtilities
                 setTimeout(cleanupFlags, 500);
             }
