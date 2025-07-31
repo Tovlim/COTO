@@ -970,7 +970,7 @@ function addNativeMarkers() {
         }
       });
       
-      // Add individual locality points layer
+      // Add individual locality points layer with conditional highlighting
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
@@ -996,7 +996,12 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#7e7800',
+          'text-halo-color': [
+            'case',
+            ['boolean', ['get', 'isFiltered'], false],
+            '#a49c00', // Highlighted color for filtered localities
+            '#7e7800'  // Normal color for unfiltered localities
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -1344,7 +1349,7 @@ const checkMapMarkersFiltering = (() => {
   };
 })();
 
-// OPTIMIZED: Filter application with smart batching and caching
+// OPTIMIZED: Filter application with smart batching, caching, and highlighting
 function applyFilterToMarkers() {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
@@ -1384,39 +1389,64 @@ function applyFilterToMarkers() {
     
     const listLat = Array.from(listContainer.querySelectorAll('.data-places-latitudes-filter'));
     const listLon = Array.from(listContainer.querySelectorAll('.data-places-longitudes-filter'));
+    const listNames = Array.from(listContainer.querySelectorAll('.data-places-names-filter'));
     
-    allData.push(...listLat.map((el, i) => ({ lat: el, lon: listLon[i] })));
+    allData.push(...listLat.map((el, i) => ({ lat: el, lon: listLon[i], name: listNames[i] })));
     
-    const visiblePairs = listLat.map((latEl, i) => ({ lat: latEl, lon: listLon[i] }))
+    const visiblePairs = listLat.map((latEl, i) => ({ lat: latEl, lon: listLon[i], name: listNames[i] }))
       .filter(pair => isElementVisible(pair.lat));
     visibleData.push(...visiblePairs);
   });
   
   let visibleCoordinates = [];
+  let visibleLocalityNames = new Set();
   
   if (visibleData.length > 0 && visibleData.length < allData.length) {
-    // Filtering is active - batch coordinate extraction
+    // Filtering is active - batch coordinate extraction and collect visible locality names
     visibleCoordinates = visibleData
       .map(pair => {
         const lat = parseFloat(pair.lat?.textContent.trim());
         const lon = parseFloat(pair.lon?.textContent.trim());
-        return (!isNaN(lat) && !isNaN(lon)) ? [lon, lat] : null;
+        const name = pair.name?.textContent.trim();
+        
+        if (!isNaN(lat) && !isNaN(lon) && name) {
+          visibleLocalityNames.add(name);
+          return [lon, lat];
+        }
+        return null;
       })
       .filter(coord => coord !== null);
     
-    // Keep all markers visible
+    // Update locality features with highlighting information
+    const updatedFeatures = state.allLocalityFeatures.map(feature => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        isFiltered: visibleLocalityNames.has(feature.properties.name)
+      }
+    }));
+    
+    // Update the map source with highlighted features
     if (mapLayers.hasSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: state.allLocalityFeatures
+        features: updatedFeatures
       });
     }
   } else if (visibleData.length === allData.length) {
-    // No filtering - show all features
+    // No filtering - show all features without highlighting
+    const updatedFeatures = state.allLocalityFeatures.map(feature => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        isFiltered: false
+      }
+    }));
+    
     if (mapLayers.hasSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: state.allLocalityFeatures
+        features: updatedFeatures
       });
     }
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
