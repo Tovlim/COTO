@@ -368,23 +368,15 @@ class RealTimeVisibilityAutocomplete {
         if (districts.length > 0) {
             districts.forEach(district => {
                 const li = document.createElement('li');
-                li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="district-label">District</span></a>`;
+                li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="term-label">Region</span></a>`;
                 fragment.appendChild(li);
             });
-            
-            // Add separator if we have both districts and localities
-            if (localities.length > 0) {
-                const separator = document.createElement('li');
-                separator.innerHTML = '<div class="autocomplete-separator"></div>';
-                separator.style.cssText = 'border-bottom: 1px solid #e0e0e0; margin: 4px 0; pointer-events: none;';
-                fragment.appendChild(separator);
-            }
         }
         
-        // Add localities
+        // Add localities (with styling)
         localities.forEach(locality => {
             const li = document.createElement('li');
-            li.innerHTML = `<a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality)}" data-type="locality">${this.escapeHtml(locality)}</a>`;
+            li.innerHTML = `<a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality)}" data-type="locality">${this.escapeHtml(locality)} <span class="term-label">Locality</span></a>`;
             fragment.appendChild(li);
         });
         
@@ -486,33 +478,48 @@ class RealTimeVisibilityAutocomplete {
         const style = document.createElement('style');
         style.id = 'autocomplete-district-styles';
         style.textContent = `
+            .list-term.district-term,
+            .list-term.locality-term {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 12px;
+            }
+            
             .list-term.district-term {
                 font-weight: 600;
                 color: #6e3500;
                 background-color: #fdf6f0;
                 border-left: 3px solid #6e3500;
-                padding-left: 8px;
             }
             .list-term.district-term:hover {
                 background-color: #f5e6d3;
             }
-            .district-label {
-                font-size: 0.75em;
-                color: #8f4500;
-                font-weight: normal;
-                margin-left: 8px;
-                opacity: 0.8;
-            }
+            
             .list-term.locality-term {
+                font-weight: 500;
                 color: #7e7800;
+                background-color: #fffef5;
+                border-left: 3px solid #7e7800;
             }
             .list-term.locality-term:hover {
-                background-color: #fffef5;
+                background-color: #f9f8e6;
             }
-            .autocomplete-separator {
-                height: 1px;
-                background-color: #e0e0e0;
-                margin: 4px 8px;
+            
+            .term-label {
+                font-size: 0.75em;
+                font-weight: normal;
+                opacity: 0.8;
+                margin-left: 8px;
+                flex-shrink: 0;
+            }
+            
+            .list-term.district-term .term-label {
+                color: #8f4500;
+            }
+            
+            .list-term.locality-term .term-label {
+                color: #a49c00;
             }
         `;
         document.head.appendChild(style);
