@@ -442,8 +442,8 @@ class RealTimeVisibilityAutocomplete {
             // Trigger district selection (like clicking a district marker)
             this.triggerDistrictSelection(term);
         } else {
-            // Trigger locality selection (current behavior)
-            this.triggerSearchEvents();
+            // Trigger locality selection (like clicking a locality marker)
+            this.triggerLocalitySelection(term);
         }
         
         if (this.isMapboxIntegration && window.isMarkerClick) return;
@@ -451,22 +451,120 @@ class RealTimeVisibilityAutocomplete {
     }
     
     triggerDistrictSelection(districtName) {
-        // Trigger district checkbox selection (like clicking district marker)
-        if (window.mapUtilities && window.mapUtilities.selectDistrictCheckbox) {
-            window.mapUtilities.selectDistrictCheckbox(districtName);
-        } else if (window.selectDistrictCheckbox) {
+        // Set marker click flag to prevent conflicts
+        window.isMarkerClick = true;
+        
+        // Select district checkbox (clears all other checkboxes)
+        if (window.mapUtilities && typeof window.mapUtilities.selectDistrictCheckbox === 'function') {
+            // Use the mapbox script's function that's available via mapUtilities
+            window.selectDistrictCheckbox(districtName);
+        } else if (typeof window.selectDistrictCheckbox === 'function') {
+            // Fallback to global function
             window.selectDistrictCheckbox(districtName);
         }
         
         // Show filtered elements
-        if (window.mapUtilities && window.mapUtilities.toggleShowWhenFilteredElements) {
+        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
             window.mapUtilities.toggleShowWhenFilteredElements(true);
         }
         
-        // Open left sidebar if available
-        if (window.mapUtilities && window.mapUtilities.toggleSidebar) {
+        // Open left sidebar
+        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
             window.mapUtilities.toggleSidebar('Left', true);
         }
+        
+        // Trigger map reframing after a short delay
+        setTimeout(() => {
+            if (window.mapUtilities && window.mapUtilities.state) {
+                const state = window.mapUtilities.state;
+                state.flags.forceFilteredReframe = true;
+                state.flags.isRefreshButtonAction = true;
+                
+                // Call applyFilterToMarkers if available
+                if (typeof window.applyFilterToMarkers === 'function') {
+                    window.applyFilterToMarkers();
+                    
+                    // Clean up flags after reframing
+                    setTimeout(() => {
+                        state.flags.forceFilteredReframe = false;
+                        state.flags.isRefreshButtonAction = false;
+                        window.isMarkerClick = false;
+                    }, 1000);
+                } else {
+                    // Fallback cleanup
+                    setTimeout(() => {
+                        state.flags.forceFilteredReframe = false;
+                        state.flags.isRefreshButtonAction = false;
+                        window.isMarkerClick = false;
+                    }, 1000);
+                }
+            } else {
+                // Fallback cleanup
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                }, 1000);
+            }
+        }, 100);
+        
+        // Trigger search events for Finsweet
+        this.triggerSearchEvents();
+    }
+    
+    triggerLocalitySelection(localityName) {
+        // Set marker click flag to prevent conflicts
+        window.isMarkerClick = true;
+        
+        // Select locality checkbox (clears all other checkboxes)
+        if (window.mapUtilities && typeof window.mapUtilities.selectLocalityCheckbox === 'function') {
+            // Use the mapbox script's function that's available via mapUtilities
+            window.selectLocalityCheckbox(localityName);
+        } else if (typeof window.selectLocalityCheckbox === 'function') {
+            // Fallback to global function
+            window.selectLocalityCheckbox(localityName);
+        }
+        
+        // Show filtered elements
+        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+            window.mapUtilities.toggleShowWhenFilteredElements(true);
+        }
+        
+        // Open left sidebar
+        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+            window.mapUtilities.toggleSidebar('Left', true);
+        }
+        
+        // Trigger map reframing after a short delay
+        setTimeout(() => {
+            if (window.mapUtilities && window.mapUtilities.state) {
+                const state = window.mapUtilities.state;
+                state.flags.forceFilteredReframe = true;
+                state.flags.isRefreshButtonAction = true;
+                
+                // Call applyFilterToMarkers if available
+                if (typeof window.applyFilterToMarkers === 'function') {
+                    window.applyFilterToMarkers();
+                    
+                    // Clean up flags after reframing
+                    setTimeout(() => {
+                        state.flags.forceFilteredReframe = false;
+                        state.flags.isRefreshButtonAction = false;
+                        window.isMarkerClick = false;
+                    }, 1000);
+                } else {
+                    // Fallback cleanup
+                    setTimeout(() => {
+                        state.flags.forceFilteredReframe = false;
+                        state.flags.isRefreshButtonAction = false;
+                        window.isMarkerClick = false;
+                    }, 1000);
+                }
+            } else {
+                // Fallback cleanup
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                }, 1000);
+            }
+        }, 100);
         
         // Trigger search events for Finsweet
         this.triggerSearchEvents();
