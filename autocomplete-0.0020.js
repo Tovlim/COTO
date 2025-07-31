@@ -455,13 +455,14 @@ class RealTimeVisibilityAutocomplete {
     }
     
     triggerDistrictSelection(districtName) {
-        // Set marker click flag to prevent conflicts
-        window.isMarkerClick = true;
-        
-        // Also clear any mapbox marker interaction locks
+        // Clear any existing interaction locks immediately
+        window.isMarkerClick = false;
         if (window.mapUtilities && window.mapUtilities.state) {
             window.mapUtilities.state.markerInteractionLock = false;
         }
+        
+        // Set a special flag to indicate this is from autocomplete, not a marker click
+        window.isAutocompleteClick = true;
         
         // Select district checkbox (clears all other checkboxes)
         if (typeof window.selectDistrictCheckbox === 'function') {
@@ -481,6 +482,7 @@ class RealTimeVisibilityAutocomplete {
         // Always ensure cleanup happens regardless of which path we take
         const cleanupFlags = () => {
             window.isMarkerClick = false;
+            window.isAutocompleteClick = false;
             if (window.mapUtilities && window.mapUtilities.state) {
                 window.mapUtilities.state.markerInteractionLock = false;
                 window.mapUtilities.state.flags.forceFilteredReframe = false;
@@ -489,32 +491,30 @@ class RealTimeVisibilityAutocomplete {
         };
         
         // Try to zoom to district boundary first (like district marker click)
-        if (window.mapUtilities && window.mapUtilities.state && typeof window.highlightBoundary === 'function') {
-            const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-            
-            // Check if boundary exists and zoom to it
-            if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
-                const source = window.map.getSource(boundarySourceId);
-                if (source && source._data) {
-                    // Highlight the boundary
-                    window.highlightBoundary(districtName);
-                    
-                    // Calculate and fit bounds
-                    const bounds = new window.mapboxgl.LngLatBounds();
-                    const addCoords = coords => {
-                        if (Array.isArray(coords) && coords.length > 0) {
-                            if (typeof coords[0] === 'number') bounds.extend(coords);
-                            else coords.forEach(addCoords);
-                        }
-                    };
-                    
-                    source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-                    window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-                    
-                    // Clean up flags after boundary zoom animation
-                    setTimeout(cleanupFlags, 1200);
-                    return; // Exit early - we successfully zoomed to boundary
-                }
+        const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+        
+        // Check if boundary exists and zoom to it
+        if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
+            const source = window.map.getSource(boundarySourceId);
+            if (source && source._data && typeof window.highlightBoundary === 'function') {
+                // Highlight the boundary
+                window.highlightBoundary(districtName);
+                
+                // Calculate and fit bounds
+                const bounds = new window.mapboxgl.LngLatBounds();
+                const addCoords = coords => {
+                    if (Array.isArray(coords) && coords.length > 0) {
+                        if (typeof coords[0] === 'number') bounds.extend(coords);
+                        else coords.forEach(addCoords);
+                    }
+                };
+                
+                source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+                window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+                
+                // Clean up flags after boundary zoom animation
+                setTimeout(cleanupFlags, 1200);
+                return; // Exit early - we successfully zoomed to boundary
             }
         }
         
@@ -542,13 +542,14 @@ class RealTimeVisibilityAutocomplete {
     }
     
     triggerLocalitySelection(localityName) {
-        // Set marker click flag to prevent conflicts
-        window.isMarkerClick = true;
-        
-        // Also clear any mapbox marker interaction locks
+        // Clear any existing interaction locks immediately
+        window.isMarkerClick = false;
         if (window.mapUtilities && window.mapUtilities.state) {
             window.mapUtilities.state.markerInteractionLock = false;
         }
+        
+        // Set a special flag to indicate this is from autocomplete, not a marker click
+        window.isAutocompleteClick = true;
         
         // Select locality checkbox (clears all other checkboxes)
         if (typeof window.selectLocalityCheckbox === 'function') {
@@ -568,6 +569,7 @@ class RealTimeVisibilityAutocomplete {
         // Always ensure cleanup happens
         const cleanupFlags = () => {
             window.isMarkerClick = false;
+            window.isAutocompleteClick = false;
             if (window.mapUtilities && window.mapUtilities.state) {
                 window.mapUtilities.state.markerInteractionLock = false;
                 window.mapUtilities.state.flags.forceFilteredReframe = false;
