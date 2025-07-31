@@ -1350,7 +1350,7 @@ const checkMapMarkersFiltering = (() => {
 })();
 
 // OPTIMIZED: Filter application with smart batching, caching, and highlighting
-function applyFilterToMarkers() {
+function applyFilterToMarkers(shouldReframe = true) {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
   if (state.flags.skipNextReframe) {
@@ -1452,31 +1452,34 @@ function applyFilterToMarkers() {
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
   }
   
-  const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
-  
-  if (visibleCoordinates.length > 0) {
-    const bounds = new mapboxgl.LngLatBounds();
-    visibleCoordinates.forEach(coord => bounds.extend(coord));
+  // Only reframe the map if shouldReframe is true
+  if (shouldReframe) {
+    const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
     
-    map.fitBounds(bounds, {
-      padding: {
-        top: window.innerHeight * 0.15, 
-        bottom: window.innerHeight * 0.15, 
-        left: window.innerWidth * 0.15, 
-        right: window.innerWidth * 0.15
-      },
-      maxZoom: 13,
-      duration: animationDuration,
-      essential: true
-    });
-  } else {
-    if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
-      map.flyTo({
-        center: isMobile ? [34.85, 31.7] : [35.22, 31.85], 
-        zoom: isMobile ? 7.1 : 8.33, 
-        duration: animationDuration, 
+    if (visibleCoordinates.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      visibleCoordinates.forEach(coord => bounds.extend(coord));
+      
+      map.fitBounds(bounds, {
+        padding: {
+          top: window.innerHeight * 0.15, 
+          bottom: window.innerHeight * 0.15, 
+          left: window.innerWidth * 0.15, 
+          right: window.innerWidth * 0.15
+        },
+        maxZoom: 13,
+        duration: animationDuration,
         essential: true
       });
+    } else {
+      if (!state.flags.isInitialLoad || !checkMapMarkersFiltering()) {
+        map.flyTo({
+          center: isMobile ? [34.85, 31.7] : [35.22, 31.85], 
+          zoom: isMobile ? 7.1 : 8.33, 
+          duration: animationDuration, 
+          essential: true
+        });
+      }
     }
   }
 }
@@ -1868,10 +1871,10 @@ function setupEvents() {
   // OPTIMIZED: Consolidated apply-map-filter setup with event delegation
   const filterElements = $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button');
   filterElements.forEach(element => {
-    // For #refresh-on-enter, only keypress (Enter) events to prevent reframing while typing
+    // For #refresh-on-enter, handle input (highlighting only) and keypress (full reframing) differently
     let events;
     if (element.id === 'refresh-on-enter') {
-      events = ['keypress']; // Only Enter key, no input events
+      events = ['keypress', 'input'];
     } else if (element.getAttribute('apply-map-filter') === 'true') {
       events = ['click', 'keypress', 'input'];
     } else {
@@ -1883,6 +1886,33 @@ function setupEvents() {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
+        // For #refresh-on-enter input events, only update highlighting (no reframing)
+        if (element.id === 'refresh-on-enter' && eventType === 'input') {
+          state.setTimer('highlightOnly', () => {
+            applyFilterToMarkers(false); // false = no reframing, only highlighting
+          }, 100);
+          return;
+        }
+        
+        // For #refresh-on-enter Enter key and #refreshDiv click - do exactly the same thing
+        if ((element.id === 'refresh-on-enter' && eventType === 'keypress') || 
+            (element.id === 'refreshDiv' && eventType === 'click')) {
+          e.preventDefault();
+          
+          state.flags.forceFilteredReframe = true;
+          state.flags.isRefreshButtonAction = true;
+          
+          state.setTimer('applyFilter', () => {
+            applyFilterToMarkers(true); // true = full reframing (same as Enter)
+            state.setTimer('applyFilterCleanup', () => {
+              state.flags.forceFilteredReframe = false;
+              state.flags.isRefreshButtonAction = false;
+            }, 1000);
+          }, 50);
+          return;
+        }
+        
+        // Handle all other filter elements
         e.preventDefault();
         
         state.flags.forceFilteredReframe = true;
@@ -1891,7 +1921,7 @@ function setupEvents() {
         const delay = eventType === 'input' ? 200 : 50;
         
         state.setTimer('applyFilter', () => {
-          applyFilterToMarkers();
+          applyFilterToMarkers(true); // true = full reframing
           state.setTimer('applyFilterCleanup', () => {
             state.flags.forceFilteredReframe = false;
             state.flags.isRefreshButtonAction = false;
