@@ -999,7 +999,7 @@ function addNativeMarkers() {
           'text-halo-color': [
             'case',
             ['boolean', ['get', 'isFiltered'], false],
-            '#a49c00', // Highlighted color for filtered localities
+            '#e93119', // Highlighted color for filtered localities
             '#7e7800'  // Normal color for unfiltered localities
           ],
           'text-halo-width': 2,
@@ -1868,10 +1868,10 @@ function setupEvents() {
   // OPTIMIZED: Consolidated apply-map-filter setup with event delegation
   const filterElements = $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button');
   filterElements.forEach(element => {
-    // For #refresh-on-enter, exclude 'click' events to prevent reframing on click
+    // For #refresh-on-enter, only keypress (Enter) events to prevent reframing while typing
     let events;
     if (element.id === 'refresh-on-enter') {
-      events = ['keypress', 'input'];
+      events = ['keypress']; // Only Enter key, no input events
     } else if (element.getAttribute('apply-map-filter') === 'true') {
       events = ['click', 'keypress', 'input'];
     } else {
