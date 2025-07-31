@@ -1,5 +1,731 @@
-// HEAVILY OPTIMIZED Mapbox Script - Production Version 2025
-// Major optimizations: DOM caching, event cleanup, map batching, smart initialization
+// COMBINED MAPBOX & AUTOCOMPLETE SCRIPT - Production Version 2025
+// Includes: Map functionality, Real-time visibility autocomplete, Finsweet integration
+
+// ========================
+// AUTOCOMPLETE CLASS DEFINITION
+// ========================
+
+class RealTimeVisibilityAutocomplete {
+    constructor(options = {}) {
+        this.elementIds = {
+            inputId: options.inputId || "refresh-on-enter",
+            listId: options.listId || "search-terms",
+            wrapperId: options.wrapperId || "searchTermsWrapper",
+            clearId: options.clearId || "searchclear"
+        };
+        
+        // Cache DOM elements
+        this.elements = {
+            input: document.getElementById(this.elementIds.inputId),
+            list: document.getElementById(this.elementIds.listId),
+            wrapper: document.getElementById(this.elementIds.wrapperId),
+            clear: document.getElementById(this.elementIds.clearId)
+        };
+        
+        // Configuration
+        this.targetCollection = options.targetCollection || "cms-filter-list-4";
+        this.dataField = options.dataField || "names";
+        this.debounceDelay = options.debounceDelay || 100;
+        
+        // Event management
+        this.eventHandlers = new Map();
+        this.debounceTimers = new Map();
+        
+        // Integration detection
+        this.isMapboxIntegration = typeof window.isMarkerClick !== 'undefined';
+        
+        if (this.elements.input && this.elements.list && this.elements.wrapper) {
+            this.init();
+        }
+    }
+    
+    init() {
+        this.applyStyles();
+        this.setupEventListeners();
+        this.hideDropdown();
+        console.log('Real-time visibility autocomplete initialized');
+    }
+    
+    applyStyles() {
+        this.elements.input.setAttribute('autocomplete', 'off');
+        this.elements.input.setAttribute('spellcheck', 'false');
+        
+        const wrapperStyles = {
+            position: 'fixed',
+            zIndex: '999999',
+            display: 'none',
+            visibility: 'visible',
+            opacity: '1',
+            transform: 'none',
+            minWidth: '200px',
+            maxWidth: '400px',
+            overflow: 'hidden',
+            overflowY: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+        };
+        
+        Object.assign(this.elements.wrapper.style, wrapperStyles);
+        
+        // Hide scrollbar
+        if (!document.querySelector(`#${this.elementIds.wrapperId}-scrollbar-style`)) {
+            const style = document.createElement('style');
+            style.id = `${this.elementIds.wrapperId}-scrollbar-style`;
+            style.textContent = `#${this.elementIds.wrapperId}::-webkit-scrollbar { display: none; }`;
+            document.head.appendChild(style);
+        }
+    }
+    
+    setupEventListeners() {
+        const debouncedInput = this.createDebouncer(
+            (e) => this.handleInput(e), 
+            this.debounceDelay,
+            'input'
+        );
+        
+        this.attachEventHandler('input', 'input', debouncedInput);
+        this.attachEventHandler('input', 'keyup', debouncedInput);
+        this.attachEventHandler('input', 'focus', () => this.handleFocus());
+        this.attachEventHandler('input', 'keydown', (e) => this.handleKeydown(e));
+        this.attachEventHandler('list', 'click', (e) => this.handleDropdownClick(e));
+        this.attachEventHandler('document', 'click', (e) => this.handleOutsideClick(e));
+        
+        if (this.elements.clear) {
+            this.attachEventHandler('clear', 'click', () => this.handleClear());
+        }
+    }
+    
+    attachEventHandler(elementKey, eventType, handler) {
+        const element = elementKey === 'document' ? document : this.elements[elementKey];
+        if (!element) return;
+        
+        element.addEventListener(eventType, handler);
+        
+        const handlerKey = `${elementKey}-${eventType}`;
+        this.eventHandlers.set(handlerKey, { element, eventType, handler });
+    }
+    
+    createDebouncer(func, delay, timerId) {
+        return (...args) => {
+            const existingTimer = this.debounceTimers.get(timerId);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+            }
+            
+            const timer = setTimeout(() => {
+                this.debounceTimers.delete(timerId);
+                func.apply(this, args);
+            }, delay);
+            
+            this.debounceTimers.set(timerId, timer);
+        };
+    }
+    
+    handleInput(e) {
+        const value = this.elements.input.value.trim();
+        if (value.length === 0) {
+            this.hideDropdown();
+        } else {
+            this.showVisibleTerms();
+        }
+    }
+    
+    handleFocus() {
+        const value = this.elements.input.value.trim();
+        if (value.length > 0) {
+            this.showVisibleTerms();
+        }
+    }
+    
+    handleDropdownClick(e) {
+        if (e.target.classList.contains('list-term')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const term = e.target.getAttribute('data-term');
+            const type = e.target.getAttribute('data-type');
+            
+            this.selectTerm(term, type);
+        }
+    }
+    
+    handleClear() {
+        if (this.elements.input.value) {
+            this.elements.input.value = '';
+            this.hideDropdown();
+            this.triggerSearchEvents();
+            this.elements.input.focus();
+        }
+    }
+    
+    handleOutsideClick(e) {
+        if (!this.elements.input.contains(e.target) && 
+            !this.elements.wrapper.contains(e.target) && 
+            e.target !== this.elements.clear) {
+            this.hideDropdown();
+        }
+    }
+    
+    handleKeydown(e) {
+        if (this.elements.wrapper.style.display === 'none') return;
+        
+        const visibleItems = this.getDropdownItems();
+        const currentActive = this.elements.list.querySelector('.list-term.active');
+        let activeIndex = currentActive ? visibleItems.indexOf(currentActive) : -1;
+        
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                this.setActiveItem(visibleItems, Math.min(activeIndex + 1, visibleItems.length - 1));
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                this.setActiveItem(visibleItems, Math.max(activeIndex - 1, 0));
+                break;
+            case 'Enter':
+                if (currentActive) {
+                    e.preventDefault();
+                    const term = currentActive.getAttribute('data-term');
+                    const type = currentActive.getAttribute('data-type') || 'locality';
+                    this.selectTerm(term, type);
+                }
+                break;
+            case 'Escape':
+                this.hideDropdown();
+                this.elements.input.blur();
+                break;
+        }
+    }
+    
+    getDropdownItems() {
+        return Array.from(this.elements.list.querySelectorAll('.list-term'));
+    }
+    
+    setActiveItem(items, index) {
+        requestAnimationFrame(() => {
+            items.forEach(item => item.classList.remove('active'));
+            if (items[index]) {
+                items[index].classList.add('active');
+                items[index].scrollIntoView({ block: 'nearest' });
+            }
+        });
+    }
+    
+    // CORE: Get currently visible terms from Finsweet-filtered collection
+    getCurrentlyVisibleTerms() {
+        const startTime = performance.now();
+        const visibleDistricts = new Set();
+        const visibleLocalities = new Set();
+        
+        try {
+            // Target specific collection with fallback
+            const container = this.getFilterContainer();
+            if (!container) {
+                console.warn('No filter container found');
+                return [];
+            }
+            
+            // Get all locality and district elements
+            const localityElements = container.querySelectorAll('.data-places-names-filter');
+            const districtElements = container.querySelectorAll('.data-places-district-filter');
+            
+            // Check locality visibility and collect visible ones
+            localityElements.forEach(element => {
+                if (this.isElementVisible(element)) {
+                    const term = element.textContent.trim();
+                    if (term && term.length > 0) {
+                        visibleLocalities.add(term);
+                    }
+                }
+            });
+            
+            // Check district visibility and collect visible ones
+            districtElements.forEach(element => {
+                if (this.isElementVisible(element)) {
+                    const term = element.textContent.trim();
+                    if (term && term.length > 0) {
+                        visibleDistricts.add(term);
+                    }
+                }
+            });
+            
+            // Combine results: districts first, then localities
+            const sortedDistricts = [...visibleDistricts].sort();
+            const sortedLocalities = [...visibleLocalities].sort();
+            const combinedTerms = [...sortedDistricts, ...sortedLocalities];
+            
+            console.log(`Found ${sortedDistricts.length} districts and ${sortedLocalities.length} localities in ${performance.now() - startTime}ms`);
+            return combinedTerms;
+            
+        } catch (error) {
+            console.error('Error getting visible terms:', error);
+            return [];
+        }
+    }
+    
+    getFilterContainer() {
+        // Try target collection first
+        let container = document.getElementById(this.targetCollection);
+        if (container) return container;
+        
+        // Fallback to dynamic detection
+        const maxCheck = 20;
+        for (let i = 1; i <= maxCheck; i++) {
+            const listId = `cms-filter-list-${i}`;
+            container = document.getElementById(listId);
+            if (container) {
+                console.log(`Using fallback container: ${listId}`);
+                return container;
+            }
+        }
+        
+        return null;
+    }
+    
+    getDataSelectors() {
+        const selectors = [];
+        
+        if (this.dataField === "names" || this.dataField === "both") {
+            selectors.push('.data-places-names-filter');
+        }
+        if (this.dataField === "districts" || this.dataField === "both") {
+            selectors.push('.data-places-district-filter');
+        }
+        
+        return selectors;
+    }
+    
+    isElementVisible(element) {
+        // Check if element or any parent has display: none
+        let current = element;
+        while (current && current !== document) {
+            const style = window.getComputedStyle(current);
+            if (style.display === 'none') {
+                return false;
+            }
+            current = current.parentElement;
+        }
+        return true;
+    }
+    
+    // CORE: Show dropdown with currently visible terms
+    showVisibleTerms() {
+        const visibleDistricts = this.getCurrentlyVisibleDistricts();
+        const visibleLocalities = this.getCurrentlyVisibleLocalities();
+        
+        if (visibleDistricts.length === 0 && visibleLocalities.length === 0) {
+            this.hideDropdown();
+            return;
+        }
+        
+        this.updateDropdownContent(visibleDistricts, visibleLocalities);
+        this.updatePositioning();
+        this.elements.wrapper.style.display = 'block';
+    }
+    
+    getCurrentlyVisibleDistricts() {
+        const container = this.getFilterContainer();
+        if (!container) return [];
+        
+        const visibleDistricts = new Set();
+        const districtElements = container.querySelectorAll('.data-places-district-filter');
+        
+        districtElements.forEach(element => {
+            if (this.isElementVisible(element)) {
+                const term = element.textContent.trim();
+                if (term && term.length > 0) {
+                    visibleDistricts.add(term);
+                }
+            }
+        });
+        
+        return [...visibleDistricts].sort();
+    }
+    
+    getCurrentlyVisibleLocalities() {
+        const container = this.getFilterContainer();
+        if (!container) return [];
+        
+        const visibleLocalities = new Set();
+        const localityElements = container.querySelectorAll('.data-places-names-filter');
+        
+        localityElements.forEach(element => {
+            if (this.isElementVisible(element)) {
+                const term = element.textContent.trim();
+                if (term && term.length > 0) {
+                    visibleLocalities.add(term);
+                }
+            }
+        });
+        
+        return [...visibleLocalities].sort();
+    }
+    
+    updateDropdownContent(districts, localities) {
+        // Clear existing content
+        this.elements.list.innerHTML = '';
+        
+        // Create new dropdown items
+        const fragment = document.createDocumentFragment();
+        
+        // Add districts first (with special styling)
+        if (districts.length > 0) {
+            districts.forEach(district => {
+                const li = document.createElement('li');
+                li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="term-label">Region</span></a>`;
+                fragment.appendChild(li);
+            });
+        }
+        
+        // Add localities (with styling)
+        localities.forEach(locality => {
+            const li = document.createElement('li');
+            li.innerHTML = `<a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality)}" data-type="locality">${this.escapeHtml(locality)} <span class="term-label">Locality</span></a>`;
+            fragment.appendChild(li);
+        });
+        
+        this.elements.list.appendChild(fragment);
+        
+        // Add CSS for district styling if not already added
+        this.addDistrictStyling();
+    }
+    
+    updatePositioning() {
+        const inputRect = this.elements.input.getBoundingClientRect();
+        const wrapperElement = this.findWrapperElement();
+        const wrapperRect = wrapperElement ? wrapperElement.getBoundingClientRect() : inputRect;
+        
+        Object.assign(this.elements.wrapper.style, {
+            top: (inputRect.bottom + window.scrollY + 4) + 'px',
+            left: wrapperRect.left + 'px',
+            width: wrapperRect.width + 'px'
+        });
+    }
+    
+    findWrapperElement() {
+        // Try to find input wrapper element
+        let wrapperElement = document.getElementById('refresh-on-enter-wrapper');
+        
+        if (!wrapperElement) {
+            let parent = this.elements.input.parentElement;
+            while (parent && parent !== document.body) {
+                const className = parent.className.toLowerCase();
+                if (className.includes('wrapper') || className.includes('container')) {
+                    wrapperElement = parent;
+                    break;
+                }
+                parent = parent.parentElement;
+            }
+        }
+        
+        return wrapperElement;
+    }
+    
+    escapeHtml(text) {
+        const escapeMap = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+        return text.replace(/[&<>"']/g, match => escapeMap[match]);
+    }
+    
+    hideDropdown() {
+        this.elements.wrapper.style.display = 'none';
+        this.elements.list.querySelectorAll('.list-term.active')
+            .forEach(item => item.classList.remove('active'));
+    }
+    
+    selectTerm(term, type = 'locality') {
+        if (type === 'district') {
+            // For districts/regions: Don't put text in input, go directly to boundary zoom
+            this.hideDropdown();
+            this.triggerDistrictSelection(term);
+        } else {
+            // For localities: Put text in input and trigger filtering
+            this.elements.input.value = term;
+            this.hideDropdown();
+            this.triggerLocalitySelection(term);
+        }
+        
+        // Focus the input after a short delay (but don't block the interaction)
+        setTimeout(() => {
+            if (!this.isMapboxIntegration || !window.isMarkerClick) {
+                this.elements.input.focus();
+            }
+        }, 50);
+    }
+    
+    triggerDistrictSelection(districtName) {
+        // Set marker click flag to prevent conflicts
+        window.isMarkerClick = true;
+        
+        // Also clear any mapbox marker interaction locks
+        if (window.mapUtilities && window.mapUtilities.state) {
+            window.mapUtilities.state.markerInteractionLock = false;
+        }
+        
+        // Select district checkbox (clears all other checkboxes)
+        if (typeof window.selectDistrictCheckbox === 'function') {
+            window.selectDistrictCheckbox(districtName);
+        }
+        
+        // Show filtered elements
+        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+            window.mapUtilities.toggleShowWhenFilteredElements(true);
+        }
+        
+        // Open left sidebar
+        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+            window.mapUtilities.toggleSidebar('Left', true);
+        }
+        
+        // Always ensure cleanup happens regardless of which path we take
+        const cleanupFlags = () => {
+            window.isMarkerClick = false;
+            if (window.mapUtilities && window.mapUtilities.state) {
+                window.mapUtilities.state.markerInteractionLock = false;
+                window.mapUtilities.state.flags.forceFilteredReframe = false;
+                window.mapUtilities.state.flags.isRefreshButtonAction = false;
+            }
+        };
+        
+        // Try to zoom to district boundary first (like district marker click)
+        if (window.mapUtilities && window.mapUtilities.state && typeof window.highlightBoundary === 'function') {
+            const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+            
+            // Check if boundary exists and zoom to it
+            if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
+                const source = window.map.getSource(boundarySourceId);
+                if (source && source._data) {
+                    // Highlight the boundary
+                    window.highlightBoundary(districtName);
+                    
+                    // Calculate and fit bounds
+                    const bounds = new window.mapboxgl.LngLatBounds();
+                    const addCoords = coords => {
+                        if (Array.isArray(coords) && coords.length > 0) {
+                            if (typeof coords[0] === 'number') bounds.extend(coords);
+                            else coords.forEach(addCoords);
+                        }
+                    };
+                    
+                    source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+                    window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+                    
+                    // Clean up flags after boundary zoom animation
+                    setTimeout(cleanupFlags, 1200);
+                    return; // Exit early - we successfully zoomed to boundary
+                }
+            }
+        }
+        
+        // Fallback: If no boundary found, use regular district filtering with map reframing
+        setTimeout(() => {
+            if (window.mapUtilities && window.mapUtilities.state) {
+                const state = window.mapUtilities.state;
+                state.flags.forceFilteredReframe = true;
+                state.flags.isRefreshButtonAction = true;
+                
+                if (typeof window.applyFilterToMarkers === 'function') {
+                    window.applyFilterToMarkers();
+                    
+                    // Clean up after fallback reframing
+                    setTimeout(cleanupFlags, 1000);
+                } else {
+                    // Clean up if no applyFilterToMarkers function
+                    setTimeout(cleanupFlags, 500);
+                }
+            } else {
+                // Clean up if no mapUtilities
+                setTimeout(cleanupFlags, 500);
+            }
+        }, 100);
+    }
+    
+    triggerLocalitySelection(localityName) {
+        // Set marker click flag to prevent conflicts
+        window.isMarkerClick = true;
+        
+        // Also clear any mapbox marker interaction locks
+        if (window.mapUtilities && window.mapUtilities.state) {
+            window.mapUtilities.state.markerInteractionLock = false;
+        }
+        
+        // Select locality checkbox (clears all other checkboxes)
+        if (typeof window.selectLocalityCheckbox === 'function') {
+            window.selectLocalityCheckbox(localityName);
+        }
+        
+        // Show filtered elements
+        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+            window.mapUtilities.toggleShowWhenFilteredElements(true);
+        }
+        
+        // Open left sidebar
+        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+            window.mapUtilities.toggleSidebar('Left', true);
+        }
+        
+        // Always ensure cleanup happens
+        const cleanupFlags = () => {
+            window.isMarkerClick = false;
+            if (window.mapUtilities && window.mapUtilities.state) {
+                window.mapUtilities.state.markerInteractionLock = false;
+                window.mapUtilities.state.flags.forceFilteredReframe = false;
+                window.mapUtilities.state.flags.isRefreshButtonAction = false;
+            }
+        };
+        
+        // Trigger map reframing for locality selection
+        setTimeout(() => {
+            if (window.mapUtilities && window.mapUtilities.state) {
+                const state = window.mapUtilities.state;
+                state.flags.forceFilteredReframe = true;
+                state.flags.isRefreshButtonAction = true;
+                
+                if (typeof window.applyFilterToMarkers === 'function') {
+                    window.applyFilterToMarkers();
+                    
+                    // Clean up after locality reframing
+                    setTimeout(cleanupFlags, 1000);
+                } else {
+                    // Clean up if no applyFilterToMarkers function
+                    setTimeout(cleanupFlags, 500);
+                }
+            } else {
+                // Clean up if no mapUtilities
+                setTimeout(cleanupFlags, 500);
+            }
+        }, 100);
+        
+        // Trigger search events for Finsweet
+        this.triggerSearchEvents();
+    }
+    
+    addDistrictStyling() {
+        if (document.querySelector('#autocomplete-district-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'autocomplete-district-styles';
+        style.textContent = `
+            .list-term.district-term,
+            .list-term.locality-term {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 12px;
+            }
+            
+            .list-term.district-term {
+                font-weight: 600;
+                color: #6e3500;
+                background-color: #fdf6f0;
+                border-left: 3px solid #6e3500;
+            }
+            .list-term.district-term:hover {
+                background-color: #f5e6d3;
+            }
+            
+            .list-term.locality-term {
+                font-weight: 500;
+                color: #7e7800;
+                background-color: #fffef5;
+                border-left: 3px solid #7e7800;
+            }
+            .list-term.locality-term:hover {
+                background-color: #f9f8e6;
+            }
+            
+            .term-label {
+                font-size: 0.75em;
+                font-weight: normal;
+                opacity: 0.8;
+                margin-left: 8px;
+                flex-shrink: 0;
+            }
+            
+            .list-term.district-term .term-label {
+                color: #8f4500;
+            }
+            
+            .list-term.locality-term .term-label {
+                color: #a49c00;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    triggerSearchEvents() {
+        const events = ['input', 'change', 'keyup'];
+        events.forEach(eventType => {
+            this.elements.input.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+        });
+        
+        const form = this.elements.input.closest('form');
+        if (form) {
+            form.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+        }
+        
+        // Trigger Finsweet events
+        if (window.fsAttributes?.cmsfilter) {
+            setTimeout(() => {
+                window.fsAttributes.cmsfilter.reload();
+                ['fs-cmsfilter-change', 'fs-cmsfilter-search'].forEach(type => {
+                    document.dispatchEvent(new CustomEvent(type, {
+                        bubbles: true,
+                        detail: { value: this.elements.input.value }
+                    }));
+                });
+            }, 25);
+        }
+    }
+    
+    // Manual refresh if needed
+    refresh() {
+        console.log('Refreshing autocomplete...');
+        const value = this.elements.input.value.trim();
+        if (value.length > 0) {
+            this.showVisibleTerms();
+        }
+    }
+    
+    destroy() {
+        console.log('Cleaning up autocomplete...');
+        
+        // Clear timers
+        this.debounceTimers.forEach(timer => clearTimeout(timer));
+        this.debounceTimers.clear();
+        
+        // Remove event listeners
+        this.eventHandlers.forEach(({ element, eventType, handler }) => {
+            element.removeEventListener(eventType, handler);
+        });
+        this.eventHandlers.clear();
+        
+        console.log('Autocomplete cleanup completed');
+    }
+    
+    getStats() {
+        const visibleDistricts = this.getCurrentlyVisibleDistricts();
+        const visibleLocalities = this.getCurrentlyVisibleLocalities();
+        return {
+            visibleDistricts: visibleDistricts.length,
+            visibleLocalities: visibleLocalities.length,
+            totalVisible: visibleDistricts.length + visibleLocalities.length,
+            targetContainer: this.targetCollection,
+            dataField: this.dataField,
+            eventHandlers: this.eventHandlers.size,
+            activeTimers: this.debounceTimers.size
+        };
+    }
+}
+
+// ========================
+// MAIN MAP SCRIPT
+// ========================
 
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -2994,6 +3720,18 @@ window.addEventListener('load', () => {
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
 });
 
+// ========================
+// GLOBAL EXPORTS & UTILITIES
+// ========================
+
+// Make functions available globally for autocomplete integration
+window.selectDistrictCheckbox = selectDistrictCheckbox;
+window.selectLocalityCheckbox = selectLocalityCheckbox;
+window.applyFilterToMarkers = applyFilterToMarkers;
+window.highlightBoundary = highlightBoundary;
+window.map = map;
+window.mapboxgl = mapboxgl;
+
 // OPTIMIZED: Shared utilities for other scripts (integration optimization)
 window.mapUtilities = {
   getAvailableFilterLists,
@@ -3009,8 +3747,79 @@ window.mapUtilities = {
   toggleShowWhenFilteredElements // FIXED: Export the toggle function too
 };
 
+// ========================
+// AUTOCOMPLETE INITIALIZATION
+// ========================
+
+// Initialize the autocomplete
+function initRealTimeAutocomplete() {
+    // Prevent multiple instances
+    if (window.integratedAutocomplete) {
+        console.log('Real-time autocomplete already initialized');
+        return;
+    }
+    
+    const initDelay = window.fsAttributes ? 300 : 100;
+    
+    setTimeout(() => {
+        // Double-check before creating
+        if (window.integratedAutocomplete) {
+            return;
+        }
+        
+        window.integratedAutocomplete = new RealTimeVisibilityAutocomplete({
+            inputId: "refresh-on-enter",
+            listId: "search-terms", 
+            wrapperId: "searchTermsWrapper",
+            clearId: "searchclear",
+            targetCollection: "cms-filter-list-4",
+            dataField: "both", // Now showing both districts and localities
+            debounceDelay: 100
+        });
+        
+        // Global functions
+        window.refreshAutocomplete = () => {
+            if (window.integratedAutocomplete) {
+                window.integratedAutocomplete.refresh();
+            }
+        };
+        
+        window.getAutocompleteStats = () => {
+            if (window.integratedAutocomplete) {
+                return window.integratedAutocomplete.getStats();
+            }
+        };
+        
+        console.log('Real-time visibility autocomplete initialized successfully');
+        
+    }, initDelay);
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRealTimeAutocomplete);
+} else {
+    initRealTimeAutocomplete();
+}
+
+// Backup initialization
+window.addEventListener('load', () => {
+    if (!window.integratedAutocomplete) {
+        initRealTimeAutocomplete();
+    }
+});
+
+// ========================
+// CLEANUP
+// ========================
+
 // OPTIMIZED: Cleanup on page unload (prevent memory leaks)
 window.addEventListener('beforeunload', () => {
+  // Clean up autocomplete
+  if (window.integratedAutocomplete) {
+    window.integratedAutocomplete.destroy();
+  }
+  
   // Clean up all managed resources
   eventManager.cleanup();
   state.cleanup();
