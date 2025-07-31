@@ -443,7 +443,7 @@ class RealTimeVisibilityAutocomplete {
 // Initialize the autocomplete
 function initRealTimeAutocomplete() {
     // Prevent multiple instances
-    if (window.realTimeAutocomplete) {
+    if (window.integratedAutocomplete) {
         console.log('Real-time autocomplete already initialized');
         return;
     }
@@ -452,11 +452,11 @@ function initRealTimeAutocomplete() {
     
     setTimeout(() => {
         // Double-check before creating
-        if (window.realTimeAutocomplete) {
+        if (window.integratedAutocomplete) {
             return;
         }
         
-        window.realTimeAutocomplete = new RealTimeVisibilityAutocomplete({
+        window.integratedAutocomplete = new RealTimeVisibilityAutocomplete({
             inputId: "refresh-on-enter",
             listId: "search-terms", 
             wrapperId: "searchTermsWrapper",
@@ -468,14 +468,14 @@ function initRealTimeAutocomplete() {
         
         // Global functions
         window.refreshAutocomplete = () => {
-            if (window.realTimeAutocomplete) {
-                window.realTimeAutocomplete.refresh();
+            if (window.integratedAutocomplete) {
+                window.integratedAutocomplete.refresh();
             }
         };
         
         window.getAutocompleteStats = () => {
-            if (window.realTimeAutocomplete) {
-                return window.realTimeAutocomplete.getStats();
+            if (window.integratedAutocomplete) {
+                return window.integratedAutocomplete.getStats();
             }
         };
         
@@ -493,7 +493,7 @@ if (document.readyState === 'loading') {
 
 // Backup initialization
 window.addEventListener('load', () => {
-    if (!window.realTimeAutocomplete) {
+    if (!window.integratedAutocomplete) {
         initRealTimeAutocomplete();
     }
 });
