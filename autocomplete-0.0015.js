@@ -137,7 +137,11 @@ class RealTimeVisibilityAutocomplete {
         if (e.target.classList.contains('list-term')) {
             e.preventDefault();
             e.stopPropagation();
-            this.selectTerm(e.target.getAttribute('data-term'));
+            
+            const term = e.target.getAttribute('data-term');
+            const type = e.target.getAttribute('data-type');
+            
+            this.selectTerm(term, type);
         }
     }
     
@@ -177,7 +181,9 @@ class RealTimeVisibilityAutocomplete {
             case 'Enter':
                 if (currentActive) {
                     e.preventDefault();
-                    this.selectTerm(currentActive.getAttribute('data-term'));
+                    const term = currentActive.getAttribute('data-term');
+                    const type = currentActive.getAttribute('data-type') || 'locality';
+                    this.selectTerm(term, type);
                 }
                 break;
             case 'Escape':
@@ -204,7 +210,8 @@ class RealTimeVisibilityAutocomplete {
     // CORE: Get currently visible terms from Finsweet-filtered collection
     getCurrentlyVisibleTerms() {
         const startTime = performance.now();
-        const visibleTerms = [];
+        const visibleDistricts = new Set();
+        const visibleLocalities = new Set();
         
         try {
             // Target specific collection with fallback
@@ -214,31 +221,37 @@ class RealTimeVisibilityAutocomplete {
                 return [];
             }
             
-            // Build selectors based on data field
-            const selectors = this.getDataSelectors();
-            if (selectors.length === 0) {
-                console.warn('No valid selectors for data field:', this.dataField);
-                return [];
-            }
+            // Get all locality and district elements
+            const localityElements = container.querySelectorAll('.data-places-names-filter');
+            const districtElements = container.querySelectorAll('.data-places-district-filter');
             
-            // Find all elements matching our selectors
-            const elements = container.querySelectorAll(selectors.join(', '));
-            
-            // Check each element's visibility (not filtered out by Finsweet)
-            elements.forEach(element => {
+            // Check locality visibility and collect visible ones
+            localityElements.forEach(element => {
                 if (this.isElementVisible(element)) {
                     const term = element.textContent.trim();
                     if (term && term.length > 0) {
-                        visibleTerms.push(term);
+                        visibleLocalities.add(term);
                     }
                 }
             });
             
-            // Remove duplicates and sort
-            const uniqueTerms = [...new Set(visibleTerms)].sort();
+            // Check district visibility and collect visible ones
+            districtElements.forEach(element => {
+                if (this.isElementVisible(element)) {
+                    const term = element.textContent.trim();
+                    if (term && term.length > 0) {
+                        visibleDistricts.add(term);
+                    }
+                }
+            });
             
-            console.log(`Found ${uniqueTerms.length} visible terms in ${performance.now() - startTime}ms`);
-            return uniqueTerms;
+            // Combine results: districts first, then localities
+            const sortedDistricts = [...visibleDistricts].sort();
+            const sortedLocalities = [...visibleLocalities].sort();
+            const combinedTerms = [...sortedDistricts, ...sortedLocalities];
+            
+            console.log(`Found ${sortedDistricts.length} districts and ${sortedLocalities.length} localities in ${performance.now() - startTime}ms`);
+            return combinedTerms;
             
         } catch (error) {
             console.error('Error getting visible terms:', error);
@@ -293,32 +306,92 @@ class RealTimeVisibilityAutocomplete {
     
     // CORE: Show dropdown with currently visible terms
     showVisibleTerms() {
-        const visibleTerms = this.getCurrentlyVisibleTerms();
+        const visibleDistricts = this.getCurrentlyVisibleDistricts();
+        const visibleLocalities = this.getCurrentlyVisibleLocalities();
         
-        if (visibleTerms.length === 0) {
+        if (visibleDistricts.length === 0 && visibleLocalities.length === 0) {
             this.hideDropdown();
             return;
         }
         
-        this.updateDropdownContent(visibleTerms);
+        this.updateDropdownContent(visibleDistricts, visibleLocalities);
         this.updatePositioning();
         this.elements.wrapper.style.display = 'block';
     }
     
-    updateDropdownContent(terms) {
+    getCurrentlyVisibleDistricts() {
+        const container = this.getFilterContainer();
+        if (!container) return [];
+        
+        const visibleDistricts = new Set();
+        const districtElements = container.querySelectorAll('.data-places-district-filter');
+        
+        districtElements.forEach(element => {
+            if (this.isElementVisible(element)) {
+                const term = element.textContent.trim();
+                if (term && term.length > 0) {
+                    visibleDistricts.add(term);
+                }
+            }
+        });
+        
+        return [...visibleDistricts].sort();
+    }
+    
+    getCurrentlyVisibleLocalities() {
+        const container = this.getFilterContainer();
+        if (!container) return [];
+        
+        const visibleLocalities = new Set();
+        const localityElements = container.querySelectorAll('.data-places-names-filter');
+        
+        localityElements.forEach(element => {
+            if (this.isElementVisible(element)) {
+                const term = element.textContent.trim();
+                if (term && term.length > 0) {
+                    visibleLocalities.add(term);
+                }
+            }
+        });
+        
+        return [...visibleLocalities].sort();
+    }
+    
+    updateDropdownContent(districts, localities) {
         // Clear existing content
         this.elements.list.innerHTML = '';
         
         // Create new dropdown items
         const fragment = document.createDocumentFragment();
         
-        terms.forEach(term => {
+        // Add districts first (with special styling)
+        if (districts.length > 0) {
+            districts.forEach(district => {
+                const li = document.createElement('li');
+                li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="district-label">District</span></a>`;
+                fragment.appendChild(li);
+            });
+            
+            // Add separator if we have both districts and localities
+            if (localities.length > 0) {
+                const separator = document.createElement('li');
+                separator.innerHTML = '<div class="autocomplete-separator"></div>';
+                separator.style.cssText = 'border-bottom: 1px solid #e0e0e0; margin: 4px 0; pointer-events: none;';
+                fragment.appendChild(separator);
+            }
+        }
+        
+        // Add localities
+        localities.forEach(locality => {
             const li = document.createElement('li');
-            li.innerHTML = `<a href="#" class="list-term" data-term="${this.escapeHtml(term)}">${this.escapeHtml(term)}</a>`;
+            li.innerHTML = `<a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality)}" data-type="locality">${this.escapeHtml(locality)}</a>`;
             fragment.appendChild(li);
         });
         
         this.elements.list.appendChild(fragment);
+        
+        // Add CSS for district styling if not already added
+        this.addDistrictStyling();
     }
     
     updatePositioning() {
@@ -369,13 +442,80 @@ class RealTimeVisibilityAutocomplete {
             .forEach(item => item.classList.remove('active'));
     }
     
-    selectTerm(term) {
+    selectTerm(term, type = 'locality') {
         this.elements.input.value = term;
         this.hideDropdown();
-        this.triggerSearchEvents();
+        
+        if (type === 'district') {
+            // Trigger district selection (like clicking a district marker)
+            this.triggerDistrictSelection(term);
+        } else {
+            // Trigger locality selection (current behavior)
+            this.triggerSearchEvents();
+        }
         
         if (this.isMapboxIntegration && window.isMarkerClick) return;
         setTimeout(() => this.elements.input.focus(), 50);
+    }
+    
+    triggerDistrictSelection(districtName) {
+        // Trigger district checkbox selection (like clicking district marker)
+        if (window.mapUtilities && window.mapUtilities.selectDistrictCheckbox) {
+            window.mapUtilities.selectDistrictCheckbox(districtName);
+        } else if (window.selectDistrictCheckbox) {
+            window.selectDistrictCheckbox(districtName);
+        }
+        
+        // Show filtered elements
+        if (window.mapUtilities && window.mapUtilities.toggleShowWhenFilteredElements) {
+            window.mapUtilities.toggleShowWhenFilteredElements(true);
+        }
+        
+        // Open left sidebar if available
+        if (window.mapUtilities && window.mapUtilities.toggleSidebar) {
+            window.mapUtilities.toggleSidebar('Left', true);
+        }
+        
+        // Trigger search events for Finsweet
+        this.triggerSearchEvents();
+    }
+    
+    addDistrictStyling() {
+        if (document.querySelector('#autocomplete-district-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'autocomplete-district-styles';
+        style.textContent = `
+            .list-term.district-term {
+                font-weight: 600;
+                color: #6e3500;
+                background-color: #fdf6f0;
+                border-left: 3px solid #6e3500;
+                padding-left: 8px;
+            }
+            .list-term.district-term:hover {
+                background-color: #f5e6d3;
+            }
+            .district-label {
+                font-size: 0.75em;
+                color: #8f4500;
+                font-weight: normal;
+                margin-left: 8px;
+                opacity: 0.8;
+            }
+            .list-term.locality-term {
+                color: #7e7800;
+            }
+            .list-term.locality-term:hover {
+                background-color: #fffef5;
+            }
+            .autocomplete-separator {
+                height: 1px;
+                background-color: #e0e0e0;
+                margin: 4px 8px;
+            }
+        `;
+        document.head.appendChild(style);
     }
     
     triggerSearchEvents() {
@@ -429,9 +569,12 @@ class RealTimeVisibilityAutocomplete {
     }
     
     getStats() {
-        const visibleTerms = this.getCurrentlyVisibleTerms();
+        const visibleDistricts = this.getCurrentlyVisibleDistricts();
+        const visibleLocalities = this.getCurrentlyVisibleLocalities();
         return {
-            visibleTerms: visibleTerms.length,
+            visibleDistricts: visibleDistricts.length,
+            visibleLocalities: visibleLocalities.length,
+            totalVisible: visibleDistricts.length + visibleLocalities.length,
             targetContainer: this.targetCollection,
             dataField: this.dataField,
             eventHandlers: this.eventHandlers.size,
@@ -462,7 +605,7 @@ function initRealTimeAutocomplete() {
             wrapperId: "searchTermsWrapper",
             clearId: "searchclear",
             targetCollection: "cms-filter-list-4",
-            dataField: "names", // or "districts" or "both"
+            dataField: "both", // Now showing both districts and localities
             debounceDelay: 100
         });
         
