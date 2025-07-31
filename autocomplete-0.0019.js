@@ -446,13 +446,22 @@ class RealTimeVisibilityAutocomplete {
             this.triggerLocalitySelection(term);
         }
         
-        if (this.isMapboxIntegration && window.isMarkerClick) return;
-        setTimeout(() => this.elements.input.focus(), 50);
+        // Focus the input after a short delay (but don't block the interaction)
+        setTimeout(() => {
+            if (!this.isMapboxIntegration || !window.isMarkerClick) {
+                this.elements.input.focus();
+            }
+        }, 50);
     }
     
     triggerDistrictSelection(districtName) {
         // Set marker click flag to prevent conflicts
         window.isMarkerClick = true;
+        
+        // Also clear any mapbox marker interaction locks
+        if (window.mapUtilities && window.mapUtilities.state) {
+            window.mapUtilities.state.markerInteractionLock = false;
+        }
         
         // Select district checkbox (clears all other checkboxes)
         if (typeof window.selectDistrictCheckbox === 'function') {
@@ -468,6 +477,16 @@ class RealTimeVisibilityAutocomplete {
         if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
             window.mapUtilities.toggleSidebar('Left', true);
         }
+        
+        // Always ensure cleanup happens regardless of which path we take
+        const cleanupFlags = () => {
+            window.isMarkerClick = false;
+            if (window.mapUtilities && window.mapUtilities.state) {
+                window.mapUtilities.state.markerInteractionLock = false;
+                window.mapUtilities.state.flags.forceFilteredReframe = false;
+                window.mapUtilities.state.flags.isRefreshButtonAction = false;
+            }
+        };
         
         // Try to zoom to district boundary first (like district marker click)
         if (window.mapUtilities && window.mapUtilities.state && typeof window.highlightBoundary === 'function') {
@@ -492,10 +511,8 @@ class RealTimeVisibilityAutocomplete {
                     source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
                     window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
                     
-                    // Clean up flags after animation
-                    setTimeout(() => {
-                        window.isMarkerClick = false;
-                    }, 1200);
+                    // Clean up flags after boundary zoom animation
+                    setTimeout(cleanupFlags, 1200);
                     return; // Exit early - we successfully zoomed to boundary
                 }
             }
@@ -511,22 +528,15 @@ class RealTimeVisibilityAutocomplete {
                 if (typeof window.applyFilterToMarkers === 'function') {
                     window.applyFilterToMarkers();
                     
-                    setTimeout(() => {
-                        state.flags.forceFilteredReframe = false;
-                        state.flags.isRefreshButtonAction = false;
-                        window.isMarkerClick = false;
-                    }, 1000);
+                    // Clean up after fallback reframing
+                    setTimeout(cleanupFlags, 1000);
                 } else {
-                    setTimeout(() => {
-                        state.flags.forceFilteredReframe = false;
-                        state.flags.isRefreshButtonAction = false;
-                        window.isMarkerClick = false;
-                    }, 1000);
+                    // Clean up if no applyFilterToMarkers function
+                    setTimeout(cleanupFlags, 500);
                 }
             } else {
-                setTimeout(() => {
-                    window.isMarkerClick = false;
-                }, 1000);
+                // Clean up if no mapUtilities
+                setTimeout(cleanupFlags, 500);
             }
         }, 100);
     }
@@ -535,12 +545,13 @@ class RealTimeVisibilityAutocomplete {
         // Set marker click flag to prevent conflicts
         window.isMarkerClick = true;
         
+        // Also clear any mapbox marker interaction locks
+        if (window.mapUtilities && window.mapUtilities.state) {
+            window.mapUtilities.state.markerInteractionLock = false;
+        }
+        
         // Select locality checkbox (clears all other checkboxes)
-        if (window.mapUtilities && typeof window.mapUtilities.selectLocalityCheckbox === 'function') {
-            // Use the mapbox script's function that's available via mapUtilities
-            window.selectLocalityCheckbox(localityName);
-        } else if (typeof window.selectLocalityCheckbox === 'function') {
-            // Fallback to global function
+        if (typeof window.selectLocalityCheckbox === 'function') {
             window.selectLocalityCheckbox(localityName);
         }
         
@@ -554,36 +565,35 @@ class RealTimeVisibilityAutocomplete {
             window.mapUtilities.toggleSidebar('Left', true);
         }
         
-        // Trigger map reframing after a short delay
+        // Always ensure cleanup happens
+        const cleanupFlags = () => {
+            window.isMarkerClick = false;
+            if (window.mapUtilities && window.mapUtilities.state) {
+                window.mapUtilities.state.markerInteractionLock = false;
+                window.mapUtilities.state.flags.forceFilteredReframe = false;
+                window.mapUtilities.state.flags.isRefreshButtonAction = false;
+            }
+        };
+        
+        // Trigger map reframing for locality selection
         setTimeout(() => {
             if (window.mapUtilities && window.mapUtilities.state) {
                 const state = window.mapUtilities.state;
                 state.flags.forceFilteredReframe = true;
                 state.flags.isRefreshButtonAction = true;
                 
-                // Call applyFilterToMarkers if available
                 if (typeof window.applyFilterToMarkers === 'function') {
                     window.applyFilterToMarkers();
                     
-                    // Clean up flags after reframing
-                    setTimeout(() => {
-                        state.flags.forceFilteredReframe = false;
-                        state.flags.isRefreshButtonAction = false;
-                        window.isMarkerClick = false;
-                    }, 1000);
+                    // Clean up after locality reframing
+                    setTimeout(cleanupFlags, 1000);
                 } else {
-                    // Fallback cleanup
-                    setTimeout(() => {
-                        state.flags.forceFilteredReframe = false;
-                        state.flags.isRefreshButtonAction = false;
-                        window.isMarkerClick = false;
-                    }, 1000);
+                    // Clean up if no applyFilterToMarkers function
+                    setTimeout(cleanupFlags, 500);
                 }
             } else {
-                // Fallback cleanup
-                setTimeout(() => {
-                    window.isMarkerClick = false;
-                }, 1000);
+                // Clean up if no mapUtilities
+                setTimeout(cleanupFlags, 500);
             }
         }, 100);
         
