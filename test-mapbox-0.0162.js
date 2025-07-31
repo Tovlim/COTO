@@ -154,6 +154,26 @@ class RealTimeVisibilityAutocomplete {
             this.elements.input.value = '';
             this.hideDropdown();
             this.triggerSearchEvents();
+            
+            // Clear highlights on the map
+            if (window.mapUtilities && window.mapUtilities.state && window.mapUtilities.state.allLocalityFeatures) {
+                const updatedFeatures = window.mapUtilities.state.allLocalityFeatures.map(feature => ({
+                    ...feature,
+                    properties: {
+                        ...feature.properties,
+                        isFiltered: false
+                    }
+                }));
+                
+                // Update the map source without highlighting
+                if (window.map && window.map.getSource('localities-source')) {
+                    window.map.getSource('localities-source').setData({
+                        type: "FeatureCollection",
+                        features: updatedFeatures
+                    });
+                }
+            }
+            
             this.elements.input.focus();
         }
     }
@@ -318,9 +338,46 @@ class RealTimeVisibilityAutocomplete {
             return;
         }
         
-        this.updateDropdownContent(visibleDistricts, visibleLocalities);
+        // Smart sorting based on search input
+        const searchTerm = this.elements.input.value.trim().toLowerCase();
+        
+        // Sort districts
+        const sortedDistricts = this.smartSort(visibleDistricts, searchTerm);
+        
+        // Sort localities
+        const sortedLocalities = this.smartSort(visibleLocalities, searchTerm);
+        
+        this.updateDropdownContent(sortedDistricts, sortedLocalities);
         this.updatePositioning();
         this.elements.wrapper.style.display = 'block';
+    }
+    
+    smartSort(items, searchTerm) {
+        if (!searchTerm) return items.sort();
+        
+        return items.sort((a, b) => {
+            const aLower = a.toLowerCase();
+            const bLower = b.toLowerCase();
+            
+            // Priority 1: Exact match
+            if (aLower === searchTerm && bLower !== searchTerm) return -1;
+            if (bLower === searchTerm && aLower !== searchTerm) return 1;
+            
+            // Priority 2: Starts with search term
+            const aStarts = aLower.startsWith(searchTerm);
+            const bStarts = bLower.startsWith(searchTerm);
+            if (aStarts && !bStarts) return -1;
+            if (bStarts && !aStarts) return 1;
+            
+            // Priority 3: Contains search term
+            const aContains = aLower.includes(searchTerm);
+            const bContains = bLower.includes(searchTerm);
+            if (aContains && !bContains) return -1;
+            if (bContains && !aContains) return 1;
+            
+            // Priority 4: Alphabetical
+            return a.localeCompare(b);
+        });
     }
     
     getCurrentlyVisibleDistricts() {
@@ -440,7 +497,8 @@ class RealTimeVisibilityAutocomplete {
     
     selectTerm(term, type = 'locality') {
         if (type === 'district') {
-            // For districts/regions: Don't put text in input, go directly to boundary zoom
+            // For districts/regions: Put text in input
+            this.elements.input.value = term;
             this.hideDropdown();
             this.triggerDistrictSelection(term);
         } else {
@@ -467,19 +525,10 @@ class RealTimeVisibilityAutocomplete {
             window.mapUtilities.state.markerInteractionLock = false;
         }
         
-        // Select district checkbox (clears all other checkboxes)
-        if (typeof window.selectDistrictCheckbox === 'function') {
-            window.selectDistrictCheckbox(districtName);
-        }
-        
-        // Show filtered elements
-        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
-            window.mapUtilities.toggleShowWhenFilteredElements(true);
-        }
-        
-        // Open left sidebar
-        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
-            window.mapUtilities.toggleSidebar('Left', true);
+        // Clear hidden-list-search
+        const hiddenListSearch = document.getElementById('hidden-list-search');
+        if (hiddenListSearch) {
+            hiddenListSearch.value = '';
         }
         
         // Always ensure cleanup happens regardless of which path we take
@@ -492,7 +541,7 @@ class RealTimeVisibilityAutocomplete {
             }
         };
         
-        // Try to zoom to district boundary first (like district marker click)
+        // Try to zoom to district boundary first
         if (window.mapUtilities && window.mapUtilities.state && typeof window.highlightBoundary === 'function') {
             const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
             
@@ -500,9 +549,6 @@ class RealTimeVisibilityAutocomplete {
             if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
                 const source = window.map.getSource(boundarySourceId);
                 if (source && source._data) {
-                    // Highlight the boundary
-                    window.highlightBoundary(districtName);
-                    
                     // Calculate and fit bounds
                     const bounds = new window.mapboxgl.LngLatBounds();
                     const addCoords = coords => {
@@ -513,17 +559,62 @@ class RealTimeVisibilityAutocomplete {
                     };
                     
                     source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+                    
+                    // Fly to bounds FIRST with smooth animation
                     window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
                     
-                    // Clean up flags after boundary zoom animation
-                    setTimeout(cleanupFlags, 1200);
+                    // After animation completes, then select checkbox and show UI
+                    setTimeout(() => {
+                        // Highlight the boundary
+                        window.highlightBoundary(districtName);
+                        
+                        // Select district checkbox (clears all other checkboxes)
+                        if (typeof window.selectDistrictCheckbox === 'function') {
+                            window.selectDistrictCheckbox(districtName);
+                        }
+                        
+                        // Show filtered elements
+                        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+                            window.mapUtilities.toggleShowWhenFilteredElements(true);
+                        }
+                        
+                        // Open left sidebar
+                        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                            window.mapUtilities.toggleSidebar('Left', true);
+                        }
+                        
+                        cleanupFlags();
+                    }, 1100);
+                    
                     return; // Exit early - we successfully zoomed to boundary
                 }
             }
         }
         
-        // Fallback: If no boundary found, use regular district filtering with map reframing
+        // Fallback: If no boundary found, use hidden-list-search for filtering
+        if (hiddenListSearch) {
+            hiddenListSearch.value = districtName;
+            // Trigger change event on hidden-list-search
+            hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
         setTimeout(() => {
+            // Select district checkbox (clears all other checkboxes)
+            if (typeof window.selectDistrictCheckbox === 'function') {
+                window.selectDistrictCheckbox(districtName);
+            }
+            
+            // Show filtered elements
+            if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+                window.mapUtilities.toggleShowWhenFilteredElements(true);
+            }
+            
+            // Open left sidebar
+            if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                window.mapUtilities.toggleSidebar('Left', true);
+            }
+            
             if (window.mapUtilities && window.mapUtilities.state) {
                 const state = window.mapUtilities.state;
                 state.flags.forceFilteredReframe = true;
@@ -554,19 +645,10 @@ class RealTimeVisibilityAutocomplete {
             window.mapUtilities.state.markerInteractionLock = false;
         }
         
-        // Select locality checkbox (clears all other checkboxes)
-        if (typeof window.selectLocalityCheckbox === 'function') {
-            window.selectLocalityCheckbox(localityName);
-        }
-        
-        // Show filtered elements
-        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
-            window.mapUtilities.toggleShowWhenFilteredElements(true);
-        }
-        
-        // Open left sidebar
-        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
-            window.mapUtilities.toggleSidebar('Left', true);
+        // Clear hidden-list-search
+        const hiddenListSearch = document.getElementById('hidden-list-search');
+        if (hiddenListSearch) {
+            hiddenListSearch.value = '';
         }
         
         // Always ensure cleanup happens
@@ -579,30 +661,89 @@ class RealTimeVisibilityAutocomplete {
             }
         };
         
-        // Trigger map reframing for locality selection
-        setTimeout(() => {
-            if (window.mapUtilities && window.mapUtilities.state) {
-                const state = window.mapUtilities.state;
-                state.flags.forceFilteredReframe = true;
-                state.flags.isRefreshButtonAction = true;
-                
-                if (typeof window.applyFilterToMarkers === 'function') {
-                    window.applyFilterToMarkers();
-                    
-                    // Clean up after locality reframing
-                    setTimeout(cleanupFlags, 1000);
-                } else {
-                    // Clean up if no applyFilterToMarkers function
-                    setTimeout(cleanupFlags, 500);
-                }
-            } else {
-                // Clean up if no mapUtilities
-                setTimeout(cleanupFlags, 500);
+        // Find the locality's coordinates
+        let localityCoords = null;
+        if (window.mapUtilities && window.mapUtilities.state && window.mapUtilities.state.allLocalityFeatures) {
+            const feature = window.mapUtilities.state.allLocalityFeatures.find(
+                f => f.properties.name === localityName
+            );
+            if (feature) {
+                localityCoords = feature.geometry.coordinates;
             }
-        }, 100);
+        }
         
-        // Trigger search events for Finsweet
-        this.triggerSearchEvents();
+        if (localityCoords) {
+            // Fly to the locality coordinates FIRST
+            window.map.flyTo({
+                center: localityCoords,
+                zoom: 13, // Zoom in to show the locality clearly
+                duration: 1000,
+                essential: true
+            });
+            
+            // After animation completes, then select checkbox and show UI
+            setTimeout(() => {
+                // Highlight only this specific locality
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    const updatedFeatures = window.mapUtilities.state.allLocalityFeatures.map(feature => ({
+                        ...feature,
+                        properties: {
+                            ...feature.properties,
+                            isFiltered: feature.properties.name === localityName
+                        }
+                    }));
+                    
+                    // Update the map source with highlighted feature
+                    if (window.map && window.map.getSource('localities-source')) {
+                        window.map.getSource('localities-source').setData({
+                            type: "FeatureCollection",
+                            features: updatedFeatures
+                        });
+                    }
+                }
+                
+                // Select locality checkbox (clears all other checkboxes)
+                if (typeof window.selectLocalityCheckbox === 'function') {
+                    window.selectLocalityCheckbox(localityName);
+                }
+                
+                // Show filtered elements
+                if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+                    window.mapUtilities.toggleShowWhenFilteredElements(true);
+                }
+                
+                // Open left sidebar
+                if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                    window.mapUtilities.toggleSidebar('Left', true);
+                }
+                
+                // Trigger search events for Finsweet
+                this.triggerSearchEvents();
+                
+                cleanupFlags();
+            }, 1100);
+        } else {
+            // Fallback if coordinates not found
+            // Select locality checkbox (clears all other checkboxes)
+            if (typeof window.selectLocalityCheckbox === 'function') {
+                window.selectLocalityCheckbox(localityName);
+            }
+            
+            // Show filtered elements
+            if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+                window.mapUtilities.toggleShowWhenFilteredElements(true);
+            }
+            
+            // Open left sidebar
+            if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                window.mapUtilities.toggleSidebar('Left', true);
+            }
+            
+            // Trigger search events for Finsweet
+            this.triggerSearchEvents();
+            
+            setTimeout(cleanupFlags, 500);
+        }
     }
     
     addDistrictStyling() {
@@ -1532,6 +1673,30 @@ function selectLocalityCheckbox(localityName) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
+      
+      // Add event listener to clear highlights when unchecked
+      if (!targetCheckbox.dataset.highlightListener) {
+        targetCheckbox.addEventListener('change', (e) => {
+          if (!e.target.checked) {
+            // Clear highlights when unchecked
+            const updatedFeatures = state.allLocalityFeatures.map(feature => ({
+              ...feature,
+              properties: {
+                ...feature.properties,
+                isFiltered: false
+              }
+            }));
+            
+            if (mapLayers.hasSource('localities-source')) {
+              map.getSource('localities-source').setData({
+                type: "FeatureCollection",
+                features: updatedFeatures
+              });
+            }
+          }
+        });
+        targetCheckbox.dataset.highlightListener = 'true';
+      }
     }
   });
 }
@@ -1721,14 +1886,24 @@ function addNativeMarkers() {
           'text-anchor': 'top'
         },
         paint: {
-          'text-color': '#ffffff',
+          'text-color': [
+            'case',
+            ['boolean', ['get', 'isFiltered'], false],
+            '#ffffff', // White text for filtered localities
+            '#ffffff'  // White text for unfiltered localities
+          ],
           'text-halo-color': [
             'case',
             ['boolean', ['get', 'isFiltered'], false],
-            '#e93119', // Highlighted color for filtered localities
-            '#7e7800'  // Normal color for unfiltered localities
+            '#7e7800', // Green halo for filtered localities
+            '#7e7800'  // Green halo for unfiltered localities
           ],
-          'text-halo-width': 2,
+          'text-halo-width': [
+            'case',
+            ['boolean', ['get', 'isFiltered'], false],
+            3, // Thicker halo for filtered localities
+            2  // Normal halo for unfiltered localities
+          ],
           'text-opacity': [
             'interpolate',
             ['linear'],
@@ -1840,6 +2015,12 @@ function setupNativeMarkerClicks() {
     state.lastClickTime = currentTime;
     window.isMarkerClick = true;
     
+    // Clear hidden-list-search
+    const hiddenListSearch = document.getElementById('hidden-list-search');
+    if (hiddenListSearch) {
+      hiddenListSearch.value = '';
+    }
+    
     removeBoundaryHighlight();
     selectLocalityCheckbox(locality);
     toggleShowWhenFilteredElements(true);
@@ -1895,6 +2076,12 @@ function setupDistrictMarkerClicks() {
     state.lastClickTime = currentTime;
     window.isMarkerClick = true;
     
+    // Clear hidden-list-search
+    const hiddenListSearch = document.getElementById('hidden-list-search');
+    if (hiddenListSearch) {
+      hiddenListSearch.value = '';
+    }
+    
     selectDistrictCheckbox(districtName);
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
@@ -1917,7 +2104,12 @@ function setupDistrictMarkerClicks() {
         map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
       } else {
         removeBoundaryHighlight();
-        selectDistrictInDropdown(districtName);
+        // Use hidden-list-search instead of dropdown
+        if (hiddenListSearch) {
+          hiddenListSearch.value = districtName;
+          hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+          hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         state.setTimer('districtFallback', () => {
           state.flags.forceFilteredReframe = true;
           state.flags.isRefreshButtonAction = true;
@@ -1930,7 +2122,12 @@ function setupDistrictMarkerClicks() {
       }
     } else {
       removeBoundaryHighlight();
-      selectDistrictInDropdown(districtName);
+      // Use hidden-list-search instead of dropdown
+      if (hiddenListSearch) {
+        hiddenListSearch.value = districtName;
+        hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+        hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       
       state.setTimer('districtTagBased', () => {
         state.flags.forceFilteredReframe = true;
@@ -2159,6 +2356,9 @@ function applyFilterToMarkers(shouldReframe = true) {
         features: updatedFeatures
       });
     }
+    
+    // Update cluster styling based on whether they contain filtered features
+    updateClusterHighlighting();
   } else if (visibleData.length === allData.length) {
     // No filtering - show all features without highlighting
     const updatedFeatures = state.allLocalityFeatures.map(feature => ({
@@ -2176,6 +2376,9 @@ function applyFilterToMarkers(shouldReframe = true) {
       });
     }
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
+    
+    // Reset cluster styling
+    resetClusterHighlighting();
   }
   
   // Only reframe the map if shouldReframe is true
@@ -2208,6 +2411,41 @@ function applyFilterToMarkers(shouldReframe = true) {
       }
     }
   }
+}
+
+// Function to update cluster highlighting based on contained features
+function updateClusterHighlighting() {
+  if (!mapLayers.hasLayer('locality-clusters')) return;
+  
+  // Get all clusters on the current view
+  const features = map.queryRenderedFeatures({ layers: ['locality-clusters'] });
+  
+  features.forEach(cluster => {
+    const clusterId = cluster.properties.cluster_id;
+    const source = map.getSource('localities-source');
+    
+    // Get all points in this cluster
+    source.getClusterLeaves(clusterId, Infinity, 0, (err, leaves) => {
+      if (err) return;
+      
+      // Check if any of the leaves are filtered
+      const hasFilteredFeature = leaves.some(leaf => leaf.properties.isFiltered);
+      
+      // Update cluster paint properties based on whether it contains filtered features
+      if (hasFilteredFeature) {
+        // This is a bit tricky since we can't style individual clusters
+        // We'll need to use a different approach
+      }
+    });
+  });
+}
+
+// Function to reset cluster highlighting
+function resetClusterHighlighting() {
+  if (!mapLayers.hasLayer('locality-clusters')) return;
+  
+  // Reset to default cluster styling
+  map.setPaintProperty('locality-clusters', 'text-halo-width', 2);
 }
 
 // OPTIMIZED: Debounced filter update with smart timing
@@ -2614,9 +2852,13 @@ function setupEvents() {
         
         // For #refresh-on-enter input events, only update highlighting (no reframing)
         if (element.id === 'refresh-on-enter' && eventType === 'input') {
-          state.setTimer('highlightOnly', () => {
-            applyFilterToMarkers(false); // false = no reframing, only highlighting
-          }, 100);
+          // Clear hidden-list-search when typing in refresh-on-enter
+          const hiddenListSearch = document.getElementById('hidden-list-search');
+          if (hiddenListSearch) {
+            hiddenListSearch.value = '';
+          }
+          
+          // Don't do any highlighting or filtering on typing
           return;
         }
         
@@ -2721,99 +2963,13 @@ function setupEvents() {
   loadingTracker.markComplete('eventsSetup');
 }
 
-// OPTIMIZED: Smart dropdown listeners with better timing
+// OPTIMIZED: Smart dropdown listeners with better timing (DEPRECATED - dropdown removed)
 function setupDropdownListeners() {
   if (state.flags.dropdownListenersSetup) return;
   state.flags.dropdownListenersSetup = true;
   
-  const districtSelectElements = $('[districtselect]');
-  districtSelectElements.forEach(element => {
-    eventManager.add(element, 'click', (e) => {
-      if (window.isMarkerClick) return;
-      
-      state.setTimer('dropdownClick', () => {
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        
-        state.setTimer('dropdownApplyFilter', () => {
-          applyFilterToMarkers();
-          state.setTimer('dropdownCleanup', () => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, 150);
-      }, 100);
-    });
-  });
-  
-  const selectField5 = $id('select-field-5');
-  if (selectField5) {
-    eventManager.add(selectField5, 'change', (e) => {
-      if (window.isMarkerClick) return;
-      
-      const selectedDistrict = e.target.value;
-      
-      // Check if this district has boundaries
-      const districtWithBoundary = state.allDistrictFeatures.find(
-        f => f.properties.name === selectedDistrict && f.properties.source === 'boundary'
-      );
-      
-      if (districtWithBoundary && selectedDistrict) {
-        // District has boundaries - zoom to boundary extents without filtering
-        const boundarySourceId = `${selectedDistrict.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-        const source = map.getSource(boundarySourceId);
-        
-        if (source && source._data) {
-          // Set flag to prevent automatic reframing by filtering system
-          state.flags.skipNextReframe = true;
-          
-          const bounds = new mapboxgl.LngLatBounds();
-          const addCoords = coords => {
-            if (Array.isArray(coords) && coords.length > 0) {
-              if (typeof coords[0] === 'number') bounds.extend(coords);
-              else coords.forEach(addCoords);
-            }
-          };
-          
-          source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-          
-          // Clear flag after animation completes
-          state.setTimer('skipReframeCleanup', () => {
-            state.flags.skipNextReframe = false;
-          }, 1200);
-        } else {
-          // Fallback to regular filtering if boundary source not found
-          state.setTimer('boundaryFallback', () => {
-            state.flags.forceFilteredReframe = true;
-            state.flags.isRefreshButtonAction = true;
-            
-            state.setTimer('boundaryFallbackApply', () => {
-              applyFilterToMarkers();
-              state.setTimer('boundaryFallbackCleanup', () => {
-                state.flags.forceFilteredReframe = false;
-                state.flags.isRefreshButtonAction = false;
-              }, 1000);
-            }, 150);
-          }, 100);
-        }
-      } else {
-        // District without boundaries - use current behavior (zoom to filtered localities)
-        state.setTimer('noBoundaryDistrict', () => {
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
-          
-          state.setTimer('noBoundaryApply', () => {
-            applyFilterToMarkers();
-            state.setTimer('noBoundaryCleanup', () => {
-              state.flags.forceFilteredReframe = false;
-              state.flags.isRefreshButtonAction = false;
-            }, 1000);
-          }, 150);
-        }, 100);
-      }
-    });
-  }
+  // This function is kept for compatibility but no longer does anything
+  // since the dropdown (#select-field-5) has been removed
 }
 
 // OPTIMIZED: Combined GeoJSON loading with better performance
@@ -3195,15 +3351,15 @@ function setupAreaKeyControls() {
   }
 }
 
-// Function to select district in dropdown
-function selectDistrictInDropdown(districtName) {
-  const selectField = $id('select-field-5');
-  if (!selectField) return;
+// Function to select district in hidden-list-search (replaced dropdown functionality)
+function selectDistrictInHiddenSearch(districtName) {
+  const hiddenListSearch = $id('hidden-list-search');
+  if (!hiddenListSearch) return;
   
-  selectField.value = districtName;
-  utils.triggerEvent(selectField, ['change', 'input']);
+  hiddenListSearch.value = districtName;
+  utils.triggerEvent(hiddenListSearch, ['change', 'input']);
   
-  const form = selectField.closest('form');
+  const form = hiddenListSearch.closest('form');
   if (form) {
     form.dispatchEvent(new Event('change', {bubbles: true}));
     form.dispatchEvent(new Event('input', {bubbles: true}));
