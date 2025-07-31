@@ -435,14 +435,14 @@ class RealTimeVisibilityAutocomplete {
     }
     
     selectTerm(term, type = 'locality') {
-        this.elements.input.value = term;
-        this.hideDropdown();
-        
         if (type === 'district') {
-            // Trigger district selection (like clicking a district marker)
+            // For districts/regions: Don't put text in input, go directly to boundary zoom
+            this.hideDropdown();
             this.triggerDistrictSelection(term);
         } else {
-            // Trigger locality selection (like clicking a locality marker)
+            // For localities: Put text in input and trigger filtering
+            this.elements.input.value = term;
+            this.hideDropdown();
             this.triggerLocalitySelection(term);
         }
         
@@ -455,11 +455,7 @@ class RealTimeVisibilityAutocomplete {
         window.isMarkerClick = true;
         
         // Select district checkbox (clears all other checkboxes)
-        if (window.mapUtilities && typeof window.mapUtilities.selectDistrictCheckbox === 'function') {
-            // Use the mapbox script's function that's available via mapUtilities
-            window.selectDistrictCheckbox(districtName);
-        } else if (typeof window.selectDistrictCheckbox === 'function') {
-            // Fallback to global function
+        if (typeof window.selectDistrictCheckbox === 'function') {
             window.selectDistrictCheckbox(districtName);
         }
         
@@ -473,25 +469,54 @@ class RealTimeVisibilityAutocomplete {
             window.mapUtilities.toggleSidebar('Left', true);
         }
         
-        // Trigger map reframing after a short delay
+        // Try to zoom to district boundary first (like district marker click)
+        if (window.mapUtilities && window.mapUtilities.state && typeof window.highlightBoundary === 'function') {
+            const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+            
+            // Check if boundary exists and zoom to it
+            if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
+                const source = window.map.getSource(boundarySourceId);
+                if (source && source._data) {
+                    // Highlight the boundary
+                    window.highlightBoundary(districtName);
+                    
+                    // Calculate and fit bounds
+                    const bounds = new window.mapboxgl.LngLatBounds();
+                    const addCoords = coords => {
+                        if (Array.isArray(coords) && coords.length > 0) {
+                            if (typeof coords[0] === 'number') bounds.extend(coords);
+                            else coords.forEach(addCoords);
+                        }
+                    };
+                    
+                    source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+                    window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+                    
+                    // Clean up flags after animation
+                    setTimeout(() => {
+                        window.isMarkerClick = false;
+                    }, 1200);
+                    return; // Exit early - we successfully zoomed to boundary
+                }
+            }
+        }
+        
+        // Fallback: If no boundary found, use regular district filtering with map reframing
         setTimeout(() => {
             if (window.mapUtilities && window.mapUtilities.state) {
                 const state = window.mapUtilities.state;
                 state.flags.forceFilteredReframe = true;
                 state.flags.isRefreshButtonAction = true;
                 
-                // Call applyFilterToMarkers if available
                 if (typeof window.applyFilterToMarkers === 'function') {
                     window.applyFilterToMarkers();
                     
-                    // Clean up flags after reframing
                     setTimeout(() => {
                         state.flags.forceFilteredReframe = false;
                         state.flags.isRefreshButtonAction = false;
                         window.isMarkerClick = false;
                     }, 1000);
                 } else {
-                    // Fallback cleanup
                     setTimeout(() => {
                         state.flags.forceFilteredReframe = false;
                         state.flags.isRefreshButtonAction = false;
@@ -499,15 +524,11 @@ class RealTimeVisibilityAutocomplete {
                     }, 1000);
                 }
             } else {
-                // Fallback cleanup
                 setTimeout(() => {
                     window.isMarkerClick = false;
                 }, 1000);
             }
         }, 100);
-        
-        // Trigger search events for Finsweet
-        this.triggerSearchEvents();
     }
     
     triggerLocalitySelection(localityName) {
