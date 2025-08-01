@@ -3695,15 +3695,6 @@ function setupAllCheckboxListeners() {
             if (hiddenListSearch) {
               hiddenListSearch.value = '';
             }
-          }
-        }
-      });
-      checkbox.dataset.highlightListener = 'true';
-    }
-  });
-} {
-              hiddenListSearch.value = '';
-            }
           } else {
             // Clear locality highlights
             const updatedFeatures = state.allLocalityFeatures.map(feature => ({
