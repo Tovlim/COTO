@@ -1133,6 +1133,18 @@ class OptimizedEventManager {
 // OPTIMIZED: Global event manager
 const eventManager = new OptimizedEventManager();
 
+// OPTIMIZED: Debounced filter update with smart timing
+const handleFilterUpdate = eventManager.debounce(() => {
+  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
+  if (state.flags.skipNextReframe) return;
+  
+  state.flags.isRefreshButtonAction = true;
+  applyFilterToMarkers();
+  state.setTimer('filterCleanup', () => {
+    state.flags.isRefreshButtonAction = false;
+  }, 1000);
+}, 150, 'filterUpdate');
+  
 // Initialize Mapbox with enhanced RTL support
 const lang = navigator.language.split('-')[0];
 mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWRzNGIxemIwMHVsMm1zaWp3aDl2Y3RsIn0.l_GLzIUCO84SF5_4TcmF3g";
@@ -2430,18 +2442,6 @@ function applyFilterToMarkers(shouldReframe = true) {
     }
   }
 }
-
-// OPTIMIZED: Debounced filter update with smart timing
-const handleFilterUpdate = eventManager.debounce(() => {
-  if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
-  if (state.flags.skipNextReframe) return;
-  
-  state.flags.isRefreshButtonAction = true;
-  applyFilterToMarkers();
-  state.setTimer('filterCleanup', () => {
-    state.flags.isRefreshButtonAction = false;
-  }, 1000);
-}, 150, 'filterUpdate');
 
 // OPTIMIZED: Back to top button functionality
 function setupBackToTopButton() {
