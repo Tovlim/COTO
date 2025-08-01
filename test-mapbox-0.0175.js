@@ -86,6 +86,7 @@ class RealTimeVisibilityAutocomplete {
         this.attachEventHandler('input', 'input', debouncedInput);
         this.attachEventHandler('input', 'keyup', debouncedInput);
         this.attachEventHandler('input', 'focus', () => this.handleFocus());
+        this.attachEventHandler('input', 'blur', () => this.handleBlur());
         this.attachEventHandler('input', 'keydown', (e) => this.handleKeydown(e));
         this.attachEventHandler('list', 'click', (e) => this.handleDropdownClick(e));
         this.attachEventHandler('document', 'click', (e) => this.handleOutsideClick(e));
@@ -122,19 +123,33 @@ class RealTimeVisibilityAutocomplete {
     }
     
     handleInput(e) {
-        const value = this.elements.input.value.trim();
-        if (value.length === 0) {
-            this.hideDropdown();
-        } else {
+        // Always show dropdown on input if focused
+        if (document.activeElement === this.elements.input) {
             this.showVisibleTerms();
         }
     }
     
     handleFocus() {
-        const value = this.elements.input.value.trim();
-        if (value.length > 0) {
-            this.showVisibleTerms();
+        // Clear #hidden-list-search when focusing on #refresh-on-enter
+        const hiddenListSearch = document.getElementById('hidden-list-search');
+        if (hiddenListSearch) {
+            hiddenListSearch.value = '';
+            // Trigger change events on hidden-list-search
+            hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
         }
+        
+        // Always show dropdown on focus
+        this.showVisibleTerms();
+    }
+    
+    handleBlur() {
+        // Hide dropdown on blur with a small delay to allow clicks
+        setTimeout(() => {
+            if (!this.elements.wrapper.matches(':hover')) {
+                this.hideDropdown();
+            }
+        }, 200);
     }
     
     handleDropdownClick(e) {
@@ -313,6 +328,7 @@ class RealTimeVisibilityAutocomplete {
         const visibleDistricts = this.getCurrentlyVisibleDistricts();
         const visibleLocalities = this.getCurrentlyVisibleLocalities();
         
+        // Always show dropdown if there are any terms (even if input is empty)
         if (visibleDistricts.length === 0 && visibleLocalities.length === 0) {
             this.hideDropdown();
             return;
@@ -361,16 +377,52 @@ class RealTimeVisibilityAutocomplete {
         return [...visibleLocalities].sort();
     }
     
+    sortTermsByRelevance(terms, searchText) {
+        if (!searchText) return terms;
+        
+        const search = searchText.toLowerCase();
+        
+        // Separate terms that start with search text from those that don't
+        const startsWithSearch = [];
+        const containsSearch = [];
+        const others = [];
+        
+        terms.forEach(term => {
+            const termLower = term.toLowerCase();
+            if (termLower.startsWith(search)) {
+                startsWithSearch.push(term);
+            } else if (termLower.includes(search)) {
+                containsSearch.push(term);
+            } else {
+                others.push(term);
+            }
+        });
+        
+        // Sort each group alphabetically and combine
+        return [
+            ...startsWithSearch.sort(),
+            ...containsSearch.sort(),
+            ...others.sort()
+        ];
+    }
+    
     updateDropdownContent(districts, localities) {
         // Clear existing content
         this.elements.list.innerHTML = '';
+        
+        // Get search text for sorting
+        const searchText = this.elements.input.value.trim();
+        
+        // Sort districts and localities by relevance
+        const sortedDistricts = this.sortTermsByRelevance(districts, searchText);
+        const sortedLocalities = this.sortTermsByRelevance(localities, searchText);
         
         // Create new dropdown items
         const fragment = document.createDocumentFragment();
         
         // Add districts first (with special styling)
-        if (districts.length > 0) {
-            districts.forEach(district => {
+        if (sortedDistricts.length > 0) {
+            sortedDistricts.forEach(district => {
                 const li = document.createElement('li');
                 li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="term-label">Region</span></a>`;
                 fragment.appendChild(li);
@@ -378,7 +430,7 @@ class RealTimeVisibilityAutocomplete {
         }
         
         // Add localities (with styling)
-        localities.forEach(locality => {
+        sortedLocalities.forEach(locality => {
             const li = document.createElement('li');
             li.innerHTML = `<a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality)}" data-type="locality">${this.escapeHtml(locality)} <span class="term-label">Locality</span></a>`;
             fragment.appendChild(li);
@@ -440,11 +492,12 @@ class RealTimeVisibilityAutocomplete {
     
     selectTerm(term, type = 'locality') {
         if (type === 'district') {
-            // For districts/regions: Don't put text in input, go directly to boundary zoom
+            // For districts/regions: Put text in input (FIX #4)
+            this.elements.input.value = term;
             this.hideDropdown();
             this.triggerDistrictSelection(term);
         } else {
-            // For localities: Put text in input and trigger filtering
+            // For localities: Put text in input and trigger selection
             this.elements.input.value = term;
             this.hideDropdown();
             this.triggerLocalitySelection(term);
@@ -491,6 +544,46 @@ class RealTimeVisibilityAutocomplete {
                 window.mapUtilities.state.flags.isRefreshButtonAction = false;
             }
         };
+        
+        // Check if this is a district without boundaries (needs hidden-list-search)
+        const districtFeature = window.mapUtilities?.state?.allDistrictFeatures?.find(f => 
+            f.properties.name === districtName
+        );
+        
+        if (districtFeature && districtFeature.properties.source === 'tag') {
+            // District without boundary - paste to hidden-list-search
+            const hiddenListSearch = document.getElementById('hidden-list-search');
+            if (hiddenListSearch) {
+                hiddenListSearch.value = districtName;
+                // Trigger events on hidden-list-search
+                hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            
+            // Still trigger filtering and sidebar
+            setTimeout(() => {
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    const state = window.mapUtilities.state;
+                    state.flags.forceFilteredReframe = true;
+                    state.flags.isRefreshButtonAction = true;
+                    
+                    if (typeof window.applyFilterToMarkers === 'function') {
+                        window.applyFilterToMarkers();
+                        
+                        // Clean up after reframing
+                        setTimeout(cleanupFlags, 1000);
+                    } else {
+                        // Clean up if no applyFilterToMarkers function
+                        setTimeout(cleanupFlags, 500);
+                    }
+                } else {
+                    // Clean up if no mapUtilities
+                    setTimeout(cleanupFlags, 500);
+                }
+            }, 100);
+            
+            return;
+        }
         
         // Try to zoom to district boundary first (like district marker click)
         if (window.mapUtilities && window.mapUtilities.state && typeof window.highlightBoundary === 'function') {
@@ -579,27 +672,27 @@ class RealTimeVisibilityAutocomplete {
             }
         };
         
-        // Trigger map reframing for locality selection
-        setTimeout(() => {
-            if (window.mapUtilities && window.mapUtilities.state) {
-                const state = window.mapUtilities.state;
-                state.flags.forceFilteredReframe = true;
-                state.flags.isRefreshButtonAction = true;
-                
-                if (typeof window.applyFilterToMarkers === 'function') {
-                    window.applyFilterToMarkers();
-                    
-                    // Clean up after locality reframing
-                    setTimeout(cleanupFlags, 1000);
-                } else {
-                    // Clean up if no applyFilterToMarkers function
-                    setTimeout(cleanupFlags, 500);
-                }
-            } else {
-                // Clean up if no mapUtilities
-                setTimeout(cleanupFlags, 500);
-            }
-        }, 100);
+        // FIX #3: Fly to locality's coordinates instead of reframing to all filtered
+        // Find the locality's coordinates
+        const localityFeature = window.mapUtilities?.state?.allLocalityFeatures?.find(f => 
+            f.properties.name === localityName
+        );
+        
+        if (localityFeature && window.map) {
+            // Fly to the specific locality at zoom 13.5
+            window.map.flyTo({
+                center: localityFeature.geometry.coordinates,
+                zoom: 13.5,
+                duration: 1000,
+                essential: true
+            });
+            
+            // Clean up after fly animation
+            setTimeout(cleanupFlags, 1200);
+        } else {
+            // Fallback: If locality not found, just clean up
+            setTimeout(cleanupFlags, 500);
+        }
         
         // Trigger search events for Finsweet
         this.triggerSearchEvents();
@@ -686,8 +779,8 @@ class RealTimeVisibilityAutocomplete {
     // Manual refresh if needed
     refresh() {
         console.log('Refreshing autocomplete...');
-        const value = this.elements.input.value.trim();
-        if (value.length > 0) {
+        // Always refresh if focused
+        if (document.activeElement === this.elements.input) {
             this.showVisibleTerms();
         }
     }
@@ -1696,7 +1789,7 @@ function addNativeMarkers() {
         }
       });
       
-      // Add individual locality points layer with conditional highlighting
+      // Add individual locality points layer WITHOUT highlighting (FIX #2)
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
@@ -1722,12 +1815,7 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': [
-            'case',
-            ['boolean', ['get', 'isFiltered'], false],
-            '#e93119', // Highlighted color for filtered localities
-            '#7e7800'  // Normal color for unfiltered localities
-          ],
+          'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -1845,6 +1933,14 @@ function setupNativeMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
+    // FIX #3: Fly to specific locality instead of reframing
+    map.flyTo({
+      center: feature.geometry.coordinates,
+      zoom: 13.5,
+      duration: 1000,
+      essential: true
+    });
+    
     state.setTimer('markerCleanup', () => {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
@@ -1917,7 +2013,6 @@ function setupDistrictMarkerClicks() {
         map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
       } else {
         removeBoundaryHighlight();
-        selectDistrictInDropdown(districtName);
         state.setTimer('districtFallback', () => {
           state.flags.forceFilteredReframe = true;
           state.flags.isRefreshButtonAction = true;
@@ -1929,8 +2024,15 @@ function setupDistrictMarkerClicks() {
         }, 200);
       }
     } else {
+      // District without boundary - paste to hidden-list-search
       removeBoundaryHighlight();
-      selectDistrictInDropdown(districtName);
+      
+      const hiddenListSearch = document.getElementById('hidden-list-search');
+      if (hiddenListSearch) {
+        hiddenListSearch.value = districtName;
+        hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+        hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       
       state.setTimer('districtTagBased', () => {
         state.flags.forceFilteredReframe = true;
@@ -2041,6 +2143,14 @@ const checkMapMarkersFiltering = (() => {
       return true;
     }
     
+    // Check hidden-list-search too
+    const hiddenListSearch = document.getElementById('hidden-list-search');
+    if (hiddenListSearch && hiddenListSearch.value.trim().length > 0) {
+      lastResult = true;
+      lastCheck = now;
+      return true;
+    }
+    
     // Optimized filtering check across all lists
     const lists = getAvailableFilterLists();
     let totalElements = 0;
@@ -2075,7 +2185,7 @@ const checkMapMarkersFiltering = (() => {
   };
 })();
 
-// OPTIMIZED: Filter application with smart batching, caching, and highlighting
+// OPTIMIZED: Filter application WITHOUT highlighting (FIX #2)
 function applyFilterToMarkers(shouldReframe = true) {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
@@ -2125,54 +2235,34 @@ function applyFilterToMarkers(shouldReframe = true) {
   });
   
   let visibleCoordinates = [];
-  let visibleLocalityNames = new Set();
   
   if (visibleData.length > 0 && visibleData.length < allData.length) {
-    // Filtering is active - batch coordinate extraction and collect visible locality names
+    // Filtering is active - batch coordinate extraction (NO HIGHLIGHTING)
     visibleCoordinates = visibleData
       .map(pair => {
         const lat = parseFloat(pair.lat?.textContent.trim());
         const lon = parseFloat(pair.lon?.textContent.trim());
-        const name = pair.name?.textContent.trim();
         
-        if (!isNaN(lat) && !isNaN(lon) && name) {
-          visibleLocalityNames.add(name);
+        if (!isNaN(lat) && !isNaN(lon)) {
           return [lon, lat];
         }
         return null;
       })
       .filter(coord => coord !== null);
     
-    // Update locality features with highlighting information
-    const updatedFeatures = state.allLocalityFeatures.map(feature => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        isFiltered: visibleLocalityNames.has(feature.properties.name)
-      }
-    }));
-    
-    // Update the map source with highlighted features
+    // Update the map source WITHOUT highlighting
     if (mapLayers.hasSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: updatedFeatures
+        features: state.allLocalityFeatures // Show all features without highlighting
       });
     }
   } else if (visibleData.length === allData.length) {
-    // No filtering - show all features without highlighting
-    const updatedFeatures = state.allLocalityFeatures.map(feature => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        isFiltered: false
-      }
-    }));
-    
+    // No filtering - show all features
     if (mapLayers.hasSource('localities-source')) {
       map.getSource('localities-source').setData({
         type: "FeatureCollection",
-        features: updatedFeatures
+        features: state.allLocalityFeatures
       });
     }
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
@@ -2597,7 +2687,7 @@ function setupEvents() {
   // OPTIMIZED: Consolidated apply-map-filter setup with event delegation
   const filterElements = $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button');
   filterElements.forEach(element => {
-    // For #refresh-on-enter, handle input (highlighting only) and keypress (full reframing) differently
+    // For #refresh-on-enter, handle input (no reframing) and keypress (full reframing) differently
     let events;
     if (element.id === 'refresh-on-enter') {
       events = ['keypress', 'input'];
@@ -2612,10 +2702,10 @@ function setupEvents() {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
-        // For #refresh-on-enter input events, only update highlighting (no reframing)
+        // For #refresh-on-enter input events, update map source but no reframing
         if (element.id === 'refresh-on-enter' && eventType === 'input') {
-          state.setTimer('highlightOnly', () => {
-            applyFilterToMarkers(false); // false = no reframing, only highlighting
+          state.setTimer('updateMapOnly', () => {
+            applyFilterToMarkers(false); // false = no reframing
           }, 100);
           return;
         }
@@ -2745,75 +2835,6 @@ function setupDropdownListeners() {
       }, 100);
     });
   });
-  
-  const selectField5 = $id('select-field-5');
-  if (selectField5) {
-    eventManager.add(selectField5, 'change', (e) => {
-      if (window.isMarkerClick) return;
-      
-      const selectedDistrict = e.target.value;
-      
-      // Check if this district has boundaries
-      const districtWithBoundary = state.allDistrictFeatures.find(
-        f => f.properties.name === selectedDistrict && f.properties.source === 'boundary'
-      );
-      
-      if (districtWithBoundary && selectedDistrict) {
-        // District has boundaries - zoom to boundary extents without filtering
-        const boundarySourceId = `${selectedDistrict.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-        const source = map.getSource(boundarySourceId);
-        
-        if (source && source._data) {
-          // Set flag to prevent automatic reframing by filtering system
-          state.flags.skipNextReframe = true;
-          
-          const bounds = new mapboxgl.LngLatBounds();
-          const addCoords = coords => {
-            if (Array.isArray(coords) && coords.length > 0) {
-              if (typeof coords[0] === 'number') bounds.extend(coords);
-              else coords.forEach(addCoords);
-            }
-          };
-          
-          source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-          map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-          
-          // Clear flag after animation completes
-          state.setTimer('skipReframeCleanup', () => {
-            state.flags.skipNextReframe = false;
-          }, 1200);
-        } else {
-          // Fallback to regular filtering if boundary source not found
-          state.setTimer('boundaryFallback', () => {
-            state.flags.forceFilteredReframe = true;
-            state.flags.isRefreshButtonAction = true;
-            
-            state.setTimer('boundaryFallbackApply', () => {
-              applyFilterToMarkers();
-              state.setTimer('boundaryFallbackCleanup', () => {
-                state.flags.forceFilteredReframe = false;
-                state.flags.isRefreshButtonAction = false;
-              }, 1000);
-            }, 150);
-          }, 100);
-        }
-      } else {
-        // District without boundaries - use current behavior (zoom to filtered localities)
-        state.setTimer('noBoundaryDistrict', () => {
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
-          
-          state.setTimer('noBoundaryApply', () => {
-            applyFilterToMarkers();
-            state.setTimer('noBoundaryCleanup', () => {
-              state.flags.forceFilteredReframe = false;
-              state.flags.isRefreshButtonAction = false;
-            }, 1000);
-          }, 150);
-        }, 100);
-      }
-    });
-  }
 }
 
 // OPTIMIZED: Combined GeoJSON loading with better performance
@@ -3079,7 +3100,7 @@ function setupAreaKeyControls() {
     areaSetupCount++;
   });
   
-  // Setup marker controls with direct DOM listeners
+  // Setup marker controls with direct DOM listeners (keeping highlighting for toggle key)
   markerControls.forEach(control => {
     const checkbox = $id(control.keyId);
     if (!checkbox) return;
@@ -3123,7 +3144,7 @@ function setupAreaKeyControls() {
     
     const wrapperDiv = $id(control.wrapId);
     if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
-      // Use direct DOM event listeners for marker control hovers
+      // Use direct DOM event listeners for marker control hovers (keeping highlighting)
       const mouseEnterHandler = () => {
         if (control.type === 'district') {
           if (mapLayers.hasLayer('district-points')) {
@@ -3192,21 +3213,6 @@ function setupAreaKeyControls() {
     
     // Mark loading step complete
     loadingTracker.markComplete('controlsSetup');
-  }
-}
-
-// Function to select district in dropdown
-function selectDistrictInDropdown(districtName) {
-  const selectField = $id('select-field-5');
-  if (!selectField) return;
-  
-  selectField.value = districtName;
-  utils.triggerEvent(selectField, ['change', 'input']);
-  
-  const form = selectField.closest('form');
-  if (form) {
-    form.dispatchEvent(new Event('change', {bubbles: true}));
-    form.dispatchEvent(new Event('input', {bubbles: true}));
   }
 }
 
