@@ -2679,13 +2679,10 @@ function setupEvents() {
   });
   
   // OPTIMIZED: Consolidated apply-map-filter setup with event delegation
-  const filterElements = $('[apply-map-filter="true"], #refreshDiv, #refresh-on-enter, .filterrefresh, #filter-button');
+  const filterElements = $('[apply-map-filter="true"], .filterrefresh, #filter-button');
   filterElements.forEach(element => {
-    // For #refresh-on-enter, handle input (no reframing) and keypress (full reframing) differently
     let events;
-    if (element.id === 'refresh-on-enter') {
-      events = ['keypress', 'input'];
-    } else if (element.getAttribute('apply-map-filter') === 'true') {
+    if (element.getAttribute('apply-map-filter') === 'true') {
       events = ['click', 'keypress', 'input'];
     } else {
       events = ['click'];
@@ -2696,33 +2693,7 @@ function setupEvents() {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
-        // For #refresh-on-enter input events, update map source but no reframing
-        if (element.id === 'refresh-on-enter' && eventType === 'input') {
-          state.setTimer('updateMapOnly', () => {
-            applyFilterToMarkers(false); // false = no reframing
-          }, 100);
-          return;
-        }
-        
-        // For #refresh-on-enter Enter key and #refreshDiv click - do exactly the same thing
-        if ((element.id === 'refresh-on-enter' && eventType === 'keypress') || 
-            (element.id === 'refreshDiv' && eventType === 'click')) {
-          e.preventDefault();
-          
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
-          
-          state.setTimer('applyFilter', () => {
-            applyFilterToMarkers(true); // true = full reframing (same as Enter)
-            state.setTimer('applyFilterCleanup', () => {
-              state.flags.forceFilteredReframe = false;
-              state.flags.isRefreshButtonAction = false;
-            }, 1000);
-          }, 50);
-          return;
-        }
-        
-        // Handle all other filter elements
+        // Handle all filter elements
         e.preventDefault();
         
         state.flags.forceFilteredReframe = true;
