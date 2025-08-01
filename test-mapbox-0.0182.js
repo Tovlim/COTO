@@ -417,12 +417,15 @@ class RealTimeVisibilityAutocomplete {
         const sortedDistricts = this.sortTermsByRelevance(districts, searchText);
         const sortedLocalities = this.sortTermsByRelevance(localities, searchText);
         
+        // Limit districts to max 3
+        const limitedDistricts = sortedDistricts.slice(0, 3);
+        
         // Create new dropdown items
         const fragment = document.createDocumentFragment();
         
-        // Add districts first (with special styling)
-        if (sortedDistricts.length > 0) {
-            sortedDistricts.forEach(district => {
+        // Add districts first (max 3, with special styling)
+        if (limitedDistricts.length > 0) {
+            limitedDistricts.forEach(district => {
                 const li = document.createElement('li');
                 li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="term-label">Region</span></a>`;
                 fragment.appendChild(li);
