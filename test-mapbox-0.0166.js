@@ -1276,6 +1276,7 @@ class OptimizedMapState {
     this.lastClickTime = 0;
     this.markerInteractionLock = false;
     this.highlightedBoundary = null;
+    this.isSwitchingDistricts = false;
     
     this.flags = new Proxy({
       isInitialLoad: true,
@@ -1705,6 +1706,9 @@ function selectDistrictCheckbox(districtName) {
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   
+  // Set flag to indicate we're switching districts
+  state.isSwitchingDistricts = true;
+  
   // Batch checkbox operations
   requestAnimationFrame(() => {
     // Clear all checkboxes first (batch operation)
@@ -1739,7 +1743,7 @@ function selectDistrictCheckbox(districtName) {
       // Add event listener to remove boundary highlight when unchecked
       if (!targetCheckbox.dataset.highlightListener) {
         targetCheckbox.addEventListener('change', (e) => {
-          if (!e.target.checked) {
+          if (!e.target.checked && !state.isSwitchingDistricts) {
             // Remove boundary highlight
             removeBoundaryHighlight();
             // Clear hidden-list-search when district is unchecked
@@ -1752,12 +1756,20 @@ function selectDistrictCheckbox(districtName) {
         targetCheckbox.dataset.highlightListener = 'true';
       }
     }
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      state.isSwitchingDistricts = false;
+    }, 500);
   });
 }
 
 function selectLocalityCheckbox(localityName) {
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
+  
+  // Set flag to indicate we're switching (to prevent boundary removal)
+  state.isSwitchingDistricts = true;
   
   // Batch checkbox operations
   requestAnimationFrame(() => {
@@ -1793,7 +1805,7 @@ function selectLocalityCheckbox(localityName) {
       // Add event listener to clear highlights when unchecked
       if (!targetCheckbox.dataset.highlightListener) {
         targetCheckbox.addEventListener('change', (e) => {
-          if (!e.target.checked) {
+          if (!e.target.checked && !state.isSwitchingDistricts) {
             // Clear highlights when unchecked
             const updatedFeatures = state.allLocalityFeatures.map(feature => ({
               ...feature,
@@ -1814,6 +1826,11 @@ function selectLocalityCheckbox(localityName) {
         targetCheckbox.dataset.highlightListener = 'true';
       }
     }
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      state.isSwitchingDistricts = false;
+    }, 500);
   });
 }
 
@@ -3865,7 +3882,7 @@ function setupAllCheckboxListeners() {
   allCheckboxes.forEach(checkbox => {
     if (!checkbox.dataset.highlightListener) {
       checkbox.addEventListener('change', (e) => {
-        if (!e.target.checked) {
+        if (!e.target.checked && !state.isSwitchingDistricts) {
           const checkboxType = checkbox.closest('[checkbox-filter="district"]') ? 'district' : 'locality';
           
           if (checkboxType === 'district') {
