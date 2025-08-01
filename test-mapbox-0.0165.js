@@ -31,6 +31,7 @@ class RealTimeVisibilityAutocomplete {
         this.eventHandlers = new Map();
         this.debounceTimers = new Map();
         this.recentlySelected = false;
+        this.isSelecting = false;
         
         // Integration detection
         this.isMapboxIntegration = typeof window.isMarkerClick !== 'undefined';
@@ -63,7 +64,8 @@ class RealTimeVisibilityAutocomplete {
             overflow: 'hidden',
             overflowY: 'auto',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
+            msOverflowStyle: 'none',
+            pointerEvents: 'none'
         };
         
         Object.assign(this.elements.wrapper.style, wrapperStyles);
@@ -87,8 +89,10 @@ class RealTimeVisibilityAutocomplete {
         this.attachEventHandler('input', 'input', debouncedInput);
         this.attachEventHandler('input', 'keyup', debouncedInput);
         this.attachEventHandler('input', 'focus', () => this.handleFocus());
+        this.attachEventHandler('input', 'click', () => this.handleFocus());
         this.attachEventHandler('input', 'keydown', (e) => this.handleKeydown(e));
         this.attachEventHandler('list', 'click', (e) => this.handleDropdownClick(e));
+        this.attachEventHandler('wrapper', 'click', (e) => this.handleDropdownClick(e));
         this.attachEventHandler('document', 'click', (e) => this.handleOutsideClick(e));
         
         if (this.elements.clear) {
@@ -123,20 +127,20 @@ class RealTimeVisibilityAutocomplete {
     }
     
     handleInput(e) {
-        const value = this.elements.input.value.trim();
-        if (value.length === 0) {
-            this.hideDropdown();
-        } else {
-            // Small delay to prevent dropdown from reappearing immediately after selection
-            if (!this.recentlySelected) {
-                this.showVisibleTerms();
-            }
+        // Don't process if we're in the middle of selecting
+        if (this.isSelecting || this.recentlySelected) {
+            return;
         }
+        
+        const value = this.elements.input.value.trim();
+        // Show dropdown for any input (including empty)
+        this.showVisibleTerms();
     }
     
     handleFocus() {
-        const value = this.elements.input.value.trim();
-        if (value.length > 0) {
+        // Don't show dropdown if we're in the middle of selecting or recently selected
+        if (!this.isSelecting && !this.recentlySelected) {
+            // Always show dropdown on focus, even if no text
             this.showVisibleTerms();
         }
     }
@@ -151,18 +155,24 @@ class RealTimeVisibilityAutocomplete {
             const term = listTerm.getAttribute('data-term');
             const type = listTerm.getAttribute('data-type');
             
-            // Set flag to prevent dropdown from reappearing
+            // Set flags to prevent dropdown from reappearing
+            this.isSelecting = true;
             this.recentlySelected = true;
-            setTimeout(() => {
-                this.recentlySelected = false;
-            }, 300);
             
-            // Hide dropdown immediately
+            // Force hide dropdown multiple times to ensure it's really hidden
             this.hideDropdown();
+            this.elements.wrapper.style.display = 'none';
+            this.elements.wrapper.style.visibility = 'hidden';
             
             // Then trigger the selection
             setTimeout(() => {
                 this.selectTerm(term, type);
+                
+                // Reset flags after a delay
+                setTimeout(() => {
+                    this.isSelecting = false;
+                    this.recentlySelected = false;
+                }, 800);
             }, 50);
         }
     }
@@ -170,7 +180,6 @@ class RealTimeVisibilityAutocomplete {
     handleClear() {
         if (this.elements.input.value) {
             this.elements.input.value = '';
-            this.hideDropdown();
             this.triggerSearchEvents();
             
             // Clear highlights on the map
@@ -193,13 +202,16 @@ class RealTimeVisibilityAutocomplete {
             }
             
             this.elements.input.focus();
+            // Show dropdown with all options after clearing
+            this.showVisibleTerms();
         }
     }
     
     handleOutsideClick(e) {
         if (!this.elements.input.contains(e.target) && 
             !this.elements.wrapper.contains(e.target) && 
-            e.target !== this.elements.clear) {
+            e.target !== this.elements.clear &&
+            !this.isSelecting) {
             this.hideDropdown();
         }
     }
@@ -226,19 +238,25 @@ class RealTimeVisibilityAutocomplete {
                     const term = currentActive.getAttribute('data-term');
                     const type = currentActive.getAttribute('data-type') || 'locality';
                     
-                    // Set flag to prevent dropdown from reappearing
+                    // Set flags to prevent dropdown from reappearing
+                    this.isSelecting = true;
                     this.recentlySelected = true;
-                    setTimeout(() => {
-                        this.recentlySelected = false;
-                    }, 300);
                     
                     this.hideDropdown(); // Hide immediately
                     setTimeout(() => {
                         this.selectTerm(term, type);
+                        
+                        // Reset flags after a delay
+                        setTimeout(() => {
+                            this.isSelecting = false;
+                            this.recentlySelected = false;
+                        }, 800);
                     }, 50);
                 }
                 break;
             case 'Escape':
+                this.isSelecting = false;
+                this.recentlySelected = false;
                 this.hideDropdown();
                 this.elements.input.blur();
                 break;
@@ -380,10 +398,11 @@ class RealTimeVisibilityAutocomplete {
         this.elements.wrapper.style.display = 'block';
         this.elements.wrapper.style.visibility = 'visible';
         this.elements.wrapper.style.opacity = '1';
+        this.elements.wrapper.style.pointerEvents = 'auto';
     }
     
     smartSort(items, searchTerm) {
-        if (!searchTerm) return items.sort();
+        if (!searchTerm || searchTerm.length === 0) return items.sort();
         
         return items.sort((a, b) => {
             const aLower = a.toLowerCase();
@@ -523,13 +542,19 @@ class RealTimeVisibilityAutocomplete {
         this.elements.wrapper.style.display = 'none';
         this.elements.wrapper.style.visibility = 'hidden';
         this.elements.wrapper.style.opacity = '0';
+        this.elements.wrapper.style.pointerEvents = 'none';
         this.elements.list.querySelectorAll('.list-term.active')
             .forEach(item => item.classList.remove('active'));
     }
     
     selectTerm(term, type = 'locality') {
-        // First hide the dropdown
-        this.hideDropdown();
+        // First hide the dropdown forcefully
+        this.elements.wrapper.style.display = 'none';
+        this.elements.wrapper.style.visibility = 'hidden';
+        this.elements.wrapper.style.opacity = '0';
+        
+        // Set selecting flag to prevent reopening
+        this.isSelecting = true;
         
         if (type === 'district') {
             // For districts/regions: Put text in input
@@ -540,6 +565,12 @@ class RealTimeVisibilityAutocomplete {
             this.elements.input.value = term;
             this.triggerLocalitySelection(term);
         }
+        
+        // Keep dropdown hidden and reset flag after delay
+        setTimeout(() => {
+            this.hideDropdown();
+            this.isSelecting = false;
+        }, 1000);
         
         // Focus the input after a short delay (but don't block the interaction)
         setTimeout(() => {
@@ -562,6 +593,11 @@ class RealTimeVisibilityAutocomplete {
         const hiddenListSearch = document.getElementById('hidden-list-search');
         if (hiddenListSearch) {
             hiddenListSearch.value = '';
+        }
+        
+        // Also remove any boundary highlights when selecting a locality
+        if (window.removeBoundaryHighlight) {
+            window.removeBoundaryHighlight();
         }
         
         // Always ensure cleanup happens regardless of which path we take
@@ -596,10 +632,10 @@ class RealTimeVisibilityAutocomplete {
                     // Fly to bounds FIRST with smooth animation
                     window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
                     
-                    // Cascade actions during the flight animation
-                    // Immediately highlight the boundary (0ms)
+                    // Immediately highlight the new boundary (handles removal of old boundary internally)
                     window.highlightBoundary(districtName);
                     
+                    // Cascade actions during the flight animation
                     // Select checkbox shortly after starting (200ms)
                     setTimeout(() => {
                         if (typeof window.selectDistrictCheckbox === 'function') {
@@ -662,10 +698,18 @@ class RealTimeVisibilityAutocomplete {
                     window.applyFilterToMarkers();
                     
                     // Clean up after fallback reframing
-                    setTimeout(cleanupFlags, 1000);
+                    setTimeout(() => {
+                        cleanupFlags();
+                        // Force hide dropdown again just in case
+                        this.hideDropdown();
+                    }, 1000);
                 } else {
                     // Clean up if no applyFilterToMarkers function
-                    setTimeout(cleanupFlags, 500);
+                    setTimeout(() => {
+                cleanupFlags();
+                // Force hide dropdown again just in case
+                this.hideDropdown();
+            }, 500);
                 }
             } else {
                 // Clean up if no mapUtilities
@@ -766,7 +810,11 @@ class RealTimeVisibilityAutocomplete {
             }, 700);
             
             // Cleanup after animation completes
-            setTimeout(cleanupFlags, 1200);
+            setTimeout(() => {
+                cleanupFlags();
+                // Force hide dropdown again just in case
+                this.hideDropdown();
+            }, 1200);
         } else {
             // Fallback if coordinates not found
             // Select locality checkbox (clears all other checkboxes)
@@ -1128,7 +1176,7 @@ const eventManager = new OptimizedEventManager();
 
 // Initialize Mapbox with enhanced RTL support
 const lang = navigator.language.split('-')[0];
-mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
+mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWRzNGIxemIwMHVsMm1zaWp3aDl2Y3RsIn0.l_GLzIUCO84SF5_4TcmF3g";
 
 // Enhanced RTL text support for multiple languages
 const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'yi'];
@@ -1590,20 +1638,29 @@ const toggleSidebar = (side, show = null) => {
 
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(districtName) {
-  // Remove any existing highlight first
-  removeBoundaryHighlight();
+  // Always remove any existing highlight first to ensure clean state
+  if (state.highlightedBoundary && state.highlightedBoundary !== districtName) {
+    const oldBoundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
+    const oldBoundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
+    
+    if (mapLayers.hasLayer(oldBoundaryFillId) && mapLayers.hasLayer(oldBoundaryBorderId)) {
+      // Reset old boundary to default state
+      map.setPaintProperty(oldBoundaryFillId, 'fill-color', '#1a1b1e');
+      map.setPaintProperty(oldBoundaryFillId, 'fill-opacity', 0.15);
+      map.setPaintProperty(oldBoundaryBorderId, 'line-color', '#888888');
+      map.setPaintProperty(oldBoundaryBorderId, 'line-opacity', 0.4);
+    }
+  }
   
   const boundaryFillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   const boundaryBorderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
   if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
-    // Batch boundary highlighting operations
-    mapLayers.addToBatch(() => {
-      map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
-      map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
-    });
+    // Set paint properties directly without batching for immediate effect
+    map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
+    map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
+    map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
+    map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     
     // Track the highlighted boundary
     state.highlightedBoundary = districtName;
@@ -1617,13 +1674,11 @@ function removeBoundaryHighlight() {
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
     
     if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
-      // Batch boundary reset operations
-      mapLayers.addToBatch(() => {
-        map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
-        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
-        map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
-        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
-      });
+      // Reset properties directly without batching for immediate effect
+      map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
+      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
+      map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
+      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
     }
     
     state.highlightedBoundary = null;
@@ -2082,7 +2137,9 @@ function setupNativeMarkerClicks() {
       hiddenListSearch.value = '';
     }
     
+    // Always remove boundary highlights when clicking a locality
     removeBoundaryHighlight();
+    
     selectLocalityCheckbox(locality);
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
@@ -2153,6 +2210,7 @@ function setupDistrictMarkerClicks() {
       const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
       const source = map.getSource(boundarySourceId);
       if (source && source._data) {
+        // Calculate and fit bounds
         const bounds = new mapboxgl.LngLatBounds();
         const addCoords = coords => {
           if (Array.isArray(coords) && coords.length > 0) {
@@ -2163,9 +2221,11 @@ function setupDistrictMarkerClicks() {
         
         source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
         map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+        
+        // Highlight boundary after fitting bounds
+        highlightBoundary(districtName);
       } else {
-        removeBoundaryHighlight();
-        // Use hidden-list-search instead of dropdown
+        // No boundary - use hidden search
         if (hiddenListSearch) {
           hiddenListSearch.value = districtName;
           hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
@@ -3575,6 +3635,8 @@ function setupCheckboxEvents(checkboxContainer) {
             const hiddenListSearch = document.getElementById('hidden-list-search');
             if (hiddenListSearch) {
               hiddenListSearch.value = '';
+              hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+              hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
             }
           } else {
             // Clear locality highlights
@@ -4035,6 +4097,7 @@ window.selectDistrictCheckbox = selectDistrictCheckbox;
 window.selectLocalityCheckbox = selectLocalityCheckbox;
 window.applyFilterToMarkers = applyFilterToMarkers;
 window.highlightBoundary = highlightBoundary;
+window.removeBoundaryHighlight = removeBoundaryHighlight;
 window.map = map;
 window.mapboxgl = mapboxgl;
 
