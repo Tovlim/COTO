@@ -1933,13 +1933,7 @@ function setupNativeMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // FIX #3: Fly to specific locality instead of reframing
-    map.flyTo({
-      center: feature.geometry.coordinates,
-      zoom: 13.5,
-      duration: 1000,
-      essential: true
-    });
+    // No flying/reframing when clicking map markers - user already sees where it is
     
     state.setTimer('markerCleanup', () => {
       window.isMarkerClick = false;
