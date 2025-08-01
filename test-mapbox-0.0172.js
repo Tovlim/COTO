@@ -942,7 +942,7 @@ const eventManager = new OptimizedEventManager();
 
 // Initialize Mapbox with enhanced RTL support
 const lang = navigator.language.split('-')[0];
-mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWE0d2F2cHcwYTYxMnFzNmJtanFhZzltIn0.diooYfncR44nF0Y8E1jvbw";
+mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWRzNGIxemIwMHVsMm1zaWp3aDl2Y3RsIn0.l_GLzIUCO84SF5_4TcmF3g";
 
 // Enhanced RTL text support for multiple languages
 const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'yi'];
