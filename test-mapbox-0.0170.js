@@ -216,15 +216,7 @@ class RealTimeVisibilityAutocomplete {
         }
     }
     
-    handleOutsideClick(e) {
-        if (!this.elements.input.contains(e.target) && 
-            !this.elements.wrapper.contains(e.target) && 
-            e.target !== this.elements.clear &&
-            !this.isSelecting) {
-            this.hideDropdown();
-        }
-    }
-    
+
     handleKeydown(e) {
         if (this.elements.wrapper.style.display === 'none') return;
         
@@ -2338,6 +2330,57 @@ const checkMapMarkersFiltering = (() => {
   };
 })();
 
+// OPTIMIZED: Filter application with smart batching and caching
+function applyFilterToMarkers(shouldReframe = true) {
+  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
+  
+  if (state.flags.skipNextReframe) {
+    return;
+  }
+  
+  // Helper function to check if element is truly visible (cached)
+  const visibilityCache = new Map();
+  const isElementVisible = (el) => {
+    if (visibilityCache.has(el)) {
+      return visibilityCache.get(el);
+    }
+    
+    let current = el;
+    while (current && current !== document.body) {
+      const style = getComputedStyle(current);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        visibilityCache.set(el, false);
+        return false;
+      }
+      current = current.parentElement;
+    }
+    
+    visibilityCache.set(el, true);
+    return true;
+  };
+  
+  // Collect elements from all discovered lists (batch operation)
+  const lists = getAvailableFilterLists();
+  const allData = [];
+  const visibleData = [];
+  
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) return;
+    
+    const listLat = Array.from(listContainer.querySelectorAll('.data-places-latitudes-filter'));
+    const listLon = Array.from(listContainer.querySelectorAll('.data-places-longitudes-filter'));
+    const listNames = Array.from(listContainer.querySelectorAll('.data-places-names-filter'));
+    
+    allData.push(...listLat.map((el, i) => ({ lat: el, lon: listLon[i], name: listNames[i] })));
+    
+    const visiblePairs = listLat.map((latEl, i) => ({ lat: latEl, lon: listLon[i], name: listNames[i] }))
+      .filter(pair => isElementVisible(pair.lat));
+    visibleData.push(...visiblePairs);
+  });
+  
+  let visibleCoordinates = [];
+  
   if (visibleData.length > 0 && visibleData.length < allData.length) {
     // Filtering is active - batch coordinate extraction
     visibleCoordinates = visibleData
@@ -2790,15 +2833,13 @@ function setupEvents() {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
-        // For #refresh-on-enter input events, only update highlighting (no reframing)
+// For #refresh-on-enter input events, just clear hidden-list-search
         if (element.id === 'refresh-on-enter' && eventType === 'input') {
           // Clear hidden-list-search when typing in refresh-on-enter
           const hiddenListSearch = document.getElementById('hidden-list-search');
           if (hiddenListSearch) {
             hiddenListSearch.value = '';
           }
-          
-          // Don't do any highlighting or filtering on typing
           return;
         }
         
@@ -2898,6 +2939,16 @@ function setupEvents() {
       }
     });
   });
+  
+  eventManager.add(document, 'focus', (e) => {
+    // Clear hidden-list-search when focusing on refresh-on-enter
+    if (e.target && e.target.id === 'refresh-on-enter') {
+      const hiddenListSearch = document.getElementById('hidden-list-search');
+      if (hiddenListSearch) {
+        hiddenListSearch.value = '';
+      }
+    }
+  }, true); // Use capture phase
   
   // Mark UI loading step complete
   loadingTracker.markComplete('eventsSetup');
@@ -3718,7 +3769,7 @@ function setupAllCheckboxListeners() {
     }
   });
 }
-
+  
 // OPTIMIZED: Control positioning with better timing
 state.setTimer('controlPositioning', () => {
   const ctrl = $1('.mapboxgl-ctrl-top-right');
