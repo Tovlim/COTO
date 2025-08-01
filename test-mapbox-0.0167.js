@@ -1,4 +1,55 @@
-// COMBINED MAPBOX & AUTOCOMPLETE SCRIPT - Production Version 2025
+// OPTIMIZED: Filter application with smart batching and caching
+function applyFilterToMarkers(shouldReframe = true) {
+  if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
+  
+  if (state.flags.skipNextReframe) {
+    return;
+  }
+  
+  // Helper function to check if element is truly visible (cached)
+  const visibilityCache = new Map();
+  const isElementVisible = (el) => {
+    if (visibilityCache.has(el)) {
+      return visibilityCache.get(el);
+    }
+    
+    let current = el;
+    while (current && current !== document.body) {
+      const style = getComputedStyle(current);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        visibilityCache.set(el, false);
+        return false;
+      }
+      current = current.parentElement;
+    }
+    
+    visibilityCache.set(el, true);
+    return true;
+  };
+  
+  // Collect elements from all discovered lists (batch operation)
+  const lists = getAvailableFilterLists();
+  const allData = [];
+  const visibleData = [];
+  
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) return;
+    
+    const listLat = Array.from(listContainer.querySelectorAll('.data-places-latitudes-filter'));
+    const listLon = Array.from(listContainer.querySelectorAll('.data-places-longitudes-filter'));
+    const listNames = Array.from(listContainer.querySelectorAll('.data-places-names-filter'));
+    
+    allData.push(...listLat.map((el, i) => ({ lat: el, lon: listLon[i], name: listNames[i] })));
+    
+    const visiblePairs = listLat.map((latEl, i) => ({ lat: latEl, lon: listLon[i], name: listNames[i] }))
+      .filter(pair => isElementVisible(pair.lat));
+    visibleData.push(...visiblePairs);
+  });
+  
+  let visibleCoordinates = [];
+  
+  // COMBINED MAPBOX & AUTOCOMPLETE SCRIPT - Production Version 2025
 // Includes: Map functionality, Real-time visibility autocomplete, Finsweet integration
 
 // ========================
@@ -30,8 +81,6 @@ class RealTimeVisibilityAutocomplete {
         // Event management
         this.eventHandlers = new Map();
         this.debounceTimers = new Map();
-        this.recentlySelected = false;
-        this.isSelecting = false;
         
         // Integration detection
         this.isMapboxIntegration = typeof window.isMarkerClick !== 'undefined';
@@ -56,16 +105,12 @@ class RealTimeVisibilityAutocomplete {
             position: 'fixed',
             zIndex: '999999',
             display: 'none',
-            visibility: 'visible',
-            opacity: '1',
-            transform: 'none',
             minWidth: '200px',
             maxWidth: '400px',
             overflow: 'hidden',
             overflowY: 'auto',
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            pointerEvents: 'none'
+            msOverflowStyle: 'none'
         };
         
         Object.assign(this.elements.wrapper.style, wrapperStyles);
@@ -89,11 +134,9 @@ class RealTimeVisibilityAutocomplete {
         this.attachEventHandler('input', 'input', debouncedInput);
         this.attachEventHandler('input', 'keyup', debouncedInput);
         this.attachEventHandler('input', 'focus', () => this.handleFocus());
-        this.attachEventHandler('input', 'click', () => this.handleFocus());
+        this.attachEventHandler('input', 'blur', () => this.handleBlur());
         this.attachEventHandler('input', 'keydown', (e) => this.handleKeydown(e));
         this.attachEventHandler('list', 'click', (e) => this.handleDropdownClick(e));
-        this.attachEventHandler('wrapper', 'click', (e) => this.handleDropdownClick(e));
-        this.attachEventHandler('document', 'click', (e) => this.handleOutsideClick(e));
         
         if (this.elements.clear) {
             this.attachEventHandler('clear', 'click', () => this.handleClear());
@@ -127,22 +170,26 @@ class RealTimeVisibilityAutocomplete {
     }
     
     handleInput(e) {
-        // Don't process if we're in the middle of selecting
-        if (this.isSelecting || this.recentlySelected) {
-            return;
-        }
-        
-        const value = this.elements.input.value.trim();
-        // Show dropdown for any input (including empty)
+        // Show dropdown with current visible terms
         this.showVisibleTerms();
     }
     
     handleFocus() {
-        // Don't show dropdown if we're in the middle of selecting or recently selected
-        if (!this.isSelecting && !this.recentlySelected) {
-            // Always show dropdown on focus, even if no text
-            this.showVisibleTerms();
+        // Clear hidden-list-search when focusing on refresh-on-enter
+        const hiddenListSearch = document.getElementById('hidden-list-search');
+        if (hiddenListSearch) {
+            hiddenListSearch.value = '';
         }
+        
+        // Show dropdown on focus
+        this.showVisibleTerms();
+    }
+    
+    handleBlur() {
+        // Hide dropdown on blur
+        setTimeout(() => {
+            this.hideDropdown();
+        }, 200); // Small delay to allow click events to fire first
     }
     
     handleDropdownClick(e) {
@@ -155,25 +202,7 @@ class RealTimeVisibilityAutocomplete {
             const term = listTerm.getAttribute('data-term');
             const type = listTerm.getAttribute('data-type');
             
-            // Set flags to prevent dropdown from reappearing
-            this.isSelecting = true;
-            this.recentlySelected = true;
-            
-            // Force hide dropdown multiple times to ensure it's really hidden
-            this.hideDropdown();
-            this.elements.wrapper.style.display = 'none';
-            this.elements.wrapper.style.visibility = 'hidden';
-            
-            // Then trigger the selection
-            setTimeout(() => {
-                this.selectTerm(term, type);
-                
-                // Reset flags after a delay
-                setTimeout(() => {
-                    this.isSelecting = false;
-                    this.recentlySelected = false;
-                }, 800);
-            }, 50);
+            this.selectTerm(term, type);
         }
     }
     
@@ -181,41 +210,13 @@ class RealTimeVisibilityAutocomplete {
         if (this.elements.input.value) {
             this.elements.input.value = '';
             this.triggerSearchEvents();
-            
-            // Clear highlights on the map
-            if (window.mapUtilities && window.mapUtilities.state && window.mapUtilities.state.allLocalityFeatures) {
-                const updatedFeatures = window.mapUtilities.state.allLocalityFeatures.map(feature => ({
-                    ...feature,
-                    properties: {
-                        ...feature.properties,
-                        isFiltered: false
-                    }
-                }));
-                
-                // Update the map source without highlighting
-                if (window.map && window.map.getSource('localities-source')) {
-                    window.map.getSource('localities-source').setData({
-                        type: "FeatureCollection",
-                        features: updatedFeatures
-                    });
-                }
-            }
-            
             this.elements.input.focus();
             // Show dropdown with all options after clearing
             this.showVisibleTerms();
         }
     }
     
-    handleOutsideClick(e) {
-        if (!this.elements.input.contains(e.target) && 
-            !this.elements.wrapper.contains(e.target) && 
-            e.target !== this.elements.clear &&
-            !this.isSelecting) {
-            this.hideDropdown();
-        }
-    }
-    
+
     handleKeydown(e) {
         if (this.elements.wrapper.style.display === 'none') return;
         
@@ -237,26 +238,10 @@ class RealTimeVisibilityAutocomplete {
                     e.preventDefault();
                     const term = currentActive.getAttribute('data-term');
                     const type = currentActive.getAttribute('data-type') || 'locality';
-                    
-                    // Set flags to prevent dropdown from reappearing
-                    this.isSelecting = true;
-                    this.recentlySelected = true;
-                    
-                    this.hideDropdown(); // Hide immediately
-                    setTimeout(() => {
-                        this.selectTerm(term, type);
-                        
-                        // Reset flags after a delay
-                        setTimeout(() => {
-                            this.isSelecting = false;
-                            this.recentlySelected = false;
-                        }, 800);
-                    }, 50);
+                    this.selectTerm(term, type);
                 }
                 break;
             case 'Escape':
-                this.isSelecting = false;
-                this.recentlySelected = false;
                 this.hideDropdown();
                 this.elements.input.blur();
                 break;
@@ -396,9 +381,6 @@ class RealTimeVisibilityAutocomplete {
         this.updateDropdownContent(sortedDistricts, sortedLocalities);
         this.updatePositioning();
         this.elements.wrapper.style.display = 'block';
-        this.elements.wrapper.style.visibility = 'visible';
-        this.elements.wrapper.style.opacity = '1';
-        this.elements.wrapper.style.pointerEvents = 'auto';
     }
     
     smartSort(items, searchTerm) {
@@ -540,21 +522,16 @@ class RealTimeVisibilityAutocomplete {
     
     hideDropdown() {
         this.elements.wrapper.style.display = 'none';
-        this.elements.wrapper.style.visibility = 'hidden';
-        this.elements.wrapper.style.opacity = '0';
-        this.elements.wrapper.style.pointerEvents = 'none';
         this.elements.list.querySelectorAll('.list-term.active')
             .forEach(item => item.classList.remove('active'));
     }
     
     selectTerm(term, type = 'locality') {
-        // First hide the dropdown forcefully
-        this.elements.wrapper.style.display = 'none';
-        this.elements.wrapper.style.visibility = 'hidden';
-        this.elements.wrapper.style.opacity = '0';
+        // Hide dropdown immediately
+        this.hideDropdown();
         
-        // Set selecting flag to prevent reopening
-        this.isSelecting = true;
+        // Blur the input
+        this.elements.input.blur();
         
         if (type === 'district') {
             // For districts/regions: Put text in input
@@ -565,19 +542,6 @@ class RealTimeVisibilityAutocomplete {
             this.elements.input.value = term;
             this.triggerLocalitySelection(term);
         }
-        
-        // Keep dropdown hidden and reset flag after delay
-        setTimeout(() => {
-            this.hideDropdown();
-            this.isSelecting = false;
-        }, 1000);
-        
-        // Focus the input after a short delay (but don't block the interaction)
-        setTimeout(() => {
-            if (!this.isMapboxIntegration || !window.isMarkerClick) {
-                this.elements.input.focus();
-            }
-        }, 50);
     }
     
     triggerDistrictSelection(districtName) {
@@ -632,33 +596,28 @@ class RealTimeVisibilityAutocomplete {
                     // Fly to bounds FIRST with smooth animation
                     window.map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
                     
-                    // Immediately highlight the new boundary (handles removal of old boundary internally)
-                    window.highlightBoundary(districtName);
-                    
-                    // Cascade actions during the flight animation
-                    // Select checkbox shortly after starting (200ms)
+                    // After small delay, handle the rest
                     setTimeout(() => {
+                        // Highlight the new boundary
+                        window.highlightBoundary(districtName);
+                        
+                        // Select district checkbox
                         if (typeof window.selectDistrictCheckbox === 'function') {
                             window.selectDistrictCheckbox(districtName);
                         }
-                    }, 200);
-                    
-                    // Show filtered elements (400ms)
-                    setTimeout(() => {
+                        
+                        // Show filtered elements
                         if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
                             window.mapUtilities.toggleShowWhenFilteredElements(true);
                         }
-                    }, 400);
-                    
-                    // Open left sidebar (600ms)
-                    setTimeout(() => {
+                        
+                        // Open left sidebar
                         if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
                             window.mapUtilities.toggleSidebar('Left', true);
                         }
-                    }, 600);
-                    
-                    // Cleanup after animation completes
-                    setTimeout(cleanupFlags, 1200);
+                        
+                        cleanupFlags();
+                    }, 100);
                     
                     return; // Exit early - we successfully zoomed to boundary
                 }
@@ -1801,30 +1760,6 @@ function selectLocalityCheckbox(localityName) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
-      
-      // Add event listener to clear highlights when unchecked
-      if (!targetCheckbox.dataset.highlightListener) {
-        targetCheckbox.addEventListener('change', (e) => {
-          if (!e.target.checked && !state.isSwitchingDistricts) {
-            // Clear highlights when unchecked
-            const updatedFeatures = state.allLocalityFeatures.map(feature => ({
-              ...feature,
-              properties: {
-                ...feature.properties,
-                isFiltered: false
-              }
-            }));
-            
-            if (mapLayers.hasSource('localities-source')) {
-              map.getSource('localities-source').setData({
-                type: "FeatureCollection",
-                features: updatedFeatures
-              });
-            }
-          }
-        });
-        targetCheckbox.dataset.highlightListener = 'true';
-      }
     }
     
     // Reset flag after a short delay
@@ -2019,24 +1954,9 @@ function addNativeMarkers() {
           'text-anchor': 'top'
         },
         paint: {
-          'text-color': [
-            'case',
-            ['boolean', ['get', 'isFiltered'], false],
-            '#ffffff', // White text for filtered localities
-            '#ffffff'  // White text for unfiltered localities
-          ],
-          'text-halo-color': [
-            'case',
-            ['boolean', ['get', 'isFiltered'], false],
-            '#cc2711', // Red halo for filtered localities
-            '#7e7800'  // Green halo for unfiltered localities
-          ],
-          'text-halo-width': [
-            'case',
-            ['boolean', ['get', 'isFiltered'], false],
-            3, // Thicker halo for filtered localities
-            2  // Normal halo for unfiltered localities
-          ],
+          'text-color': '#ffffff',
+          'text-halo-color': '#7e7800',
+          'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
             ['linear'],
@@ -2410,7 +2330,7 @@ const checkMapMarkersFiltering = (() => {
   };
 })();
 
-// OPTIMIZED: Filter application with smart batching, caching, and highlighting
+// OPTIMIZED: Filter application with smart batching and caching
 function applyFilterToMarkers(shouldReframe = true) {
   if (state.flags.isInitialLoad && !checkMapMarkersFiltering()) return;
   
@@ -2460,63 +2380,23 @@ function applyFilterToMarkers(shouldReframe = true) {
   });
   
   let visibleCoordinates = [];
-  let visibleLocalityNames = new Set();
   
   if (visibleData.length > 0 && visibleData.length < allData.length) {
-    // Filtering is active - batch coordinate extraction and collect visible locality names
+    // Filtering is active - batch coordinate extraction
     visibleCoordinates = visibleData
       .map(pair => {
         const lat = parseFloat(pair.lat?.textContent.trim());
         const lon = parseFloat(pair.lon?.textContent.trim());
-        const name = pair.name?.textContent.trim();
         
-        if (!isNaN(lat) && !isNaN(lon) && name) {
-          visibleLocalityNames.add(name);
+        if (!isNaN(lat) && !isNaN(lon)) {
           return [lon, lat];
         }
         return null;
       })
       .filter(coord => coord !== null);
-    
-    // Update locality features with highlighting information
-    const updatedFeatures = state.allLocalityFeatures.map(feature => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        isFiltered: visibleLocalityNames.has(feature.properties.name)
-      }
-    }));
-    
-    // Update the map source with highlighted features
-    if (mapLayers.hasSource('localities-source')) {
-      map.getSource('localities-source').setData({
-        type: "FeatureCollection",
-        features: updatedFeatures
-      });
-    }
-    
-    // Update cluster styling based on whether they contain filtered features
-    updateClusterHighlighting();
   } else if (visibleData.length === allData.length) {
-    // No filtering - show all features without highlighting
-    const updatedFeatures = state.allLocalityFeatures.map(feature => ({
-      ...feature,
-      properties: {
-        ...feature.properties,
-        isFiltered: false
-      }
-    }));
-    
-    if (mapLayers.hasSource('localities-source')) {
-      map.getSource('localities-source').setData({
-        type: "FeatureCollection",
-        features: updatedFeatures
-      });
-    }
+    // No filtering - show all coordinates
     visibleCoordinates = state.allLocalityFeatures.map(f => f.geometry.coordinates);
-    
-    // Reset cluster styling
-    resetClusterHighlighting();
   }
   
   // Only reframe the map if shouldReframe is true
@@ -2549,41 +2429,6 @@ function applyFilterToMarkers(shouldReframe = true) {
       }
     }
   }
-}
-
-// Function to update cluster highlighting based on contained features
-function updateClusterHighlighting() {
-  if (!mapLayers.hasLayer('locality-clusters')) return;
-  
-  // Get all clusters on the current view
-  const features = map.queryRenderedFeatures({ layers: ['locality-clusters'] });
-  
-  features.forEach(cluster => {
-    const clusterId = cluster.properties.cluster_id;
-    const source = map.getSource('localities-source');
-    
-    // Get all points in this cluster
-    source.getClusterLeaves(clusterId, Infinity, 0, (err, leaves) => {
-      if (err) return;
-      
-      // Check if any of the leaves are filtered
-      const hasFilteredFeature = leaves.some(leaf => leaf.properties.isFiltered);
-      
-      // Update cluster paint properties based on whether it contains filtered features
-      if (hasFilteredFeature) {
-        // This is a bit tricky since we can't style individual clusters
-        // We'll need to use a different approach
-      }
-    });
-  });
-}
-
-// Function to reset cluster highlighting
-function resetClusterHighlighting() {
-  if (!mapLayers.hasLayer('locality-clusters')) return;
-  
-  // Reset to default cluster styling
-  map.setPaintProperty('locality-clusters', 'text-halo-width', 2);
 }
 
 // OPTIMIZED: Debounced filter update with smart timing
@@ -2988,15 +2833,13 @@ function setupEvents() {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
-        // For #refresh-on-enter input events, only update highlighting (no reframing)
+// For #refresh-on-enter input events, just clear hidden-list-search
         if (element.id === 'refresh-on-enter' && eventType === 'input') {
           // Clear hidden-list-search when typing in refresh-on-enter
           const hiddenListSearch = document.getElementById('hidden-list-search');
           if (hiddenListSearch) {
             hiddenListSearch.value = '';
           }
-          
-          // Don't do any highlighting or filtering on typing
           return;
         }
         
@@ -3096,6 +2939,16 @@ function setupEvents() {
       }
     });
   });
+  
+  eventManager.add(document, 'focus', (e) => {
+    // Clear hidden-list-search when focusing on refresh-on-enter
+    if (e.target && e.target.id === 'refresh-on-enter') {
+      const hiddenListSearch = document.getElementById('hidden-list-search');
+      if (hiddenListSearch) {
+        hiddenListSearch.value = '';
+      }
+    }
+  }, true); // Use capture phase
   
   // Mark UI loading step complete
   loadingTracker.markComplete('eventsSetup');
@@ -3891,6 +3744,15 @@ function setupAllCheckboxListeners() {
             // Clear hidden-list-search when district is unchecked
             const hiddenListSearch = document.getElementById('hidden-list-search');
             if (hiddenListSearch) {
+              hiddenListSearch.value = '';
+            }
+          }
+        }
+      });
+      checkbox.dataset.highlightListener = 'true';
+    }
+  });
+} {
               hiddenListSearch.value = '';
             }
           } else {
