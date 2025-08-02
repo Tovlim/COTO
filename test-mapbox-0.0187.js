@@ -3548,12 +3548,21 @@ map.on("load", () => {
       scaleContainer.style.cursor = 'default';
     }
     
-    // Make both scale controls unclickable
+    // Make both scale controls unclickable and remove spacing
     const allScaleContainers = document.querySelectorAll('.mapboxgl-ctrl-scale');
-    allScaleContainers.forEach(container => {
+    allScaleContainers.forEach((container, index) => {
       container.style.pointerEvents = 'none';
       container.style.userSelect = 'none';
       container.style.cursor = 'default';
+      
+      // Remove margin between scale controls
+      if (index === 0) {
+        // First scale (metric) - remove bottom margin
+        container.style.marginBottom = '0';
+      } else {
+        // Second scale (imperial) - remove top margin
+        container.style.marginTop = '0';
+      }
     });
     
     init();
