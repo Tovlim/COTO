@@ -534,9 +534,11 @@ class RealTimeVisibilityAutocomplete {
             window.mapUtilities.toggleShowWhenFilteredElements(true);
         }
         
-        // Open left sidebar
-        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
-            window.mapUtilities.toggleSidebar('Left', true);
+        // Open left sidebar only on desktop (not on mobile 478px and down)
+        if (window.innerWidth > 478) {
+            if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                window.mapUtilities.toggleSidebar('Left', true);
+            }
         }
         
         // Always ensure cleanup happens regardless of which path we take
@@ -564,7 +566,7 @@ class RealTimeVisibilityAutocomplete {
                 hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
             }
             
-            // Still trigger filtering and sidebar
+            // Still trigger filtering
             setTimeout(() => {
                 if (window.mapUtilities && window.mapUtilities.state) {
                     const state = window.mapUtilities.state;
@@ -661,9 +663,11 @@ class RealTimeVisibilityAutocomplete {
             window.mapUtilities.toggleShowWhenFilteredElements(true);
         }
         
-        // Open left sidebar
-        if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
-            window.mapUtilities.toggleSidebar('Left', true);
+        // Open left sidebar only on desktop (not on mobile 478px and down)
+        if (window.innerWidth > 478) {
+            if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                window.mapUtilities.toggleSidebar('Left', true);
+            }
         }
         
         // Always ensure cleanup happens
