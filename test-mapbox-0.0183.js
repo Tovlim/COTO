@@ -498,20 +498,21 @@ class RealTimeVisibilityAutocomplete {
             // For districts/regions: Put text in input (FIX #4)
             this.elements.input.value = term;
             this.hideDropdown();
+            
+            // Blur the input to ensure dropdown stays hidden
+            this.elements.input.blur();
+            
             this.triggerDistrictSelection(term);
         } else {
             // For localities: Put text in input and trigger selection
             this.elements.input.value = term;
             this.hideDropdown();
+            
+            // Blur the input to ensure dropdown stays hidden
+            this.elements.input.blur();
+            
             this.triggerLocalitySelection(term);
         }
-        
-        // Focus the input after a short delay (but don't block the interaction)
-        setTimeout(() => {
-            if (!this.isMapboxIntegration || !window.isMarkerClick) {
-                this.elements.input.focus();
-            }
-        }, 50);
     }
     
     triggerDistrictSelection(districtName) {
