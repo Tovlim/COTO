@@ -1,5 +1,5 @@
 // SIDEBAR & UI MANAGEMENT SCRIPT - No Map Version
-// Includes: Sidebar functionality, Back-to-top button, Filtered element toggling, Checkbox generation
+// Includes: Sidebar functionality, Back-to-top button, Filtered element toggling, Checkbox consolidation
 
 // ========================
 // OPTIMIZED DOM CACHE
@@ -181,134 +181,80 @@ const utils = {
 };
 
 // ========================
-// FILTER LIST DISCOVERY
+// CHECKBOX CONSOLIDATION
 // ========================
 
-const getAvailableFilterLists = (() => {
-  let cachedLists = null;
-  let lastCacheTime = 0;
-  const cacheTimeout = 5000; // Cache for 5 seconds
-  
-  return () => {
-    const now = Date.now();
-    if (cachedLists && (now - lastCacheTime) < cacheTimeout) {
-      return cachedLists;
-    }
-    
-    const lists = [];
-    let consecutiveGaps = 0;
-    
-    // More efficient scanning with early termination
-    for (let i = 1; i <= 20; i++) {
-      const listId = `cms-filter-list-${i}`;
-      if ($id(listId)) {
-        lists.push(listId);
-        consecutiveGaps = 0;
-      } else {
-        consecutiveGaps++;
-        if (consecutiveGaps >= 3 && lists.length === 0) {
-          // Early termination if no lists found
-          break;
-        }
-        if (consecutiveGaps >= 5) {
-          // Stop after 5 consecutive gaps
-          break;
-        }
-      }
-    }
-    
-    cachedLists = lists;
-    lastCacheTime = now;
-    return lists;
-  };
-})();
-
-// ========================
-// CHECKBOX GENERATION
-// ========================
-
-function generateLocalityCheckboxes() {
-  const container = $id('locality-check-list');
-  if (!container) {
+function consolidateLocalityCheckboxes() {
+  const targetContainer = $id('locality-check-list');
+  if (!targetContainer) {
+    console.warn('Target container #locality-check-list not found');
     return;
   }
   
-  const template = container.querySelector('[checkbox-filter="locality"]');
-  if (!template) {
-    return;
-  }
+  // Find all locality checkboxes from various source lists
+  const checkboxes = [];
+  let sourceIndex = 1;
   
-  // Collect locality names from all filter lists
-  const localityNames = new Set();
-  const lists = getAvailableFilterLists();
-  
-  if (lists.length === 0) {
-    return;
-  }
-  
-  // Extract unique locality names from all lists
-  lists.forEach(listId => {
-    const listContainer = $id(listId);
-    if (!listContainer) return;
+  // Keep looking for source lists until we don't find any
+  while (true) {
+    const sourceList = $id(`locality-check-source-${sourceIndex}`);
+    if (!sourceList) break;
     
-    const nameElements = listContainer.querySelectorAll('.data-places-names-filter');
-    nameElements.forEach(element => {
-      const name = element.textContent.trim();
-      if (name && name.length > 0) {
-        localityNames.add(name);
-      }
-    });
+    // Find all .locality-checkbox elements within this source
+    const sourceCheckboxes = sourceList.querySelectorAll('.locality-checkbox');
+    checkboxes.push(...Array.from(sourceCheckboxes));
+    
+    sourceIndex++;
+  }
+  
+  if (checkboxes.length === 0) {
+    console.log('No locality checkboxes found to consolidate');
+    return;
+  }
+  
+  console.log(`Found ${checkboxes.length} locality checkboxes to consolidate`);
+  
+  // Sort checkboxes alphabetically by locality name
+  checkboxes.sort((a, b) => {
+    const nameA = a.querySelector('.test3.w-form-label')?.textContent.trim() || '';
+    const nameB = b.querySelector('.test3.w-form-label')?.textContent.trim() || '';
+    return nameA.localeCompare(nameB);
   });
   
-  // Convert to sorted array
-  const sortedNames = [...localityNames].sort();
+  // Clear the target container
+  targetContainer.innerHTML = '';
   
-  if (sortedNames.length === 0) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Batch generate checkboxes using document fragment
+  // Move all checkboxes to the target container
   const fragment = document.createDocumentFragment();
-  sortedNames.forEach(localityName => {
-    const checkbox = template.cloneNode(true);
-    
-    // Remove ID to avoid duplicates
-    const label = checkbox.querySelector('#locality-checkbox');
-    if (label) label.removeAttribute('id');
-    
-    // Update attributes
-    const input = checkbox.querySelector('input[name="locality"]');
-    if (input) input.setAttribute('fs-list-value', localityName);
-    
-    const span = checkbox.querySelector('.test3.w-form-label');
-    if (span) span.textContent = localityName;
-    
-    fragment.appendChild(checkbox);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(checkbox);
+  checkboxes.forEach((checkbox, index) => {
+    // Get the parent collection item
+    const collectionItem = checkbox.closest('.collection-item');
+    if (collectionItem) {
+      // Clone the entire collection item to preserve structure
+      const clonedItem = collectionItem.cloneNode(true);
+      
+      // Remove any duplicate IDs to avoid conflicts
+      const labelElement = clonedItem.querySelector('#locality-checkbox');
+      if (labelElement) {
+        labelElement.removeAttribute('id');
+      }
+      
+      fragment.appendChild(clonedItem);
+      
+      // Setup events for the checkbox
+      setupCheckboxEvents(clonedItem);
+    }
   });
   
-  container.appendChild(fragment);
+  targetContainer.appendChild(fragment);
   
-  // Re-cache checkbox filter script if it exists
-  if (window.checkboxFilterScript?.recacheElements) {
-    state.setTimer('recacheCheckboxFilter', () => {
-      window.checkboxFilterScript.recacheElements();
-    }, 100);
-  }
-  
-  // Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
+  // Invalidate DOM cache since we modified the DOM
   domCache.markStale();
+  
+  console.log('Locality checkboxes consolidated successfully');
 }
 
-// Setup events for generated checkboxes
+// Setup events for consolidated checkboxes
 function setupCheckboxEvents(checkboxContainer) {
   // Handle data-auto-sidebar="true"
   const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
@@ -350,7 +296,7 @@ function setupCheckboxEvents(checkboxContainer) {
       });
     };
     
-    // Add change event listener for checkboxes
+    // Add change event listener
     if (activator.type === 'checkbox' || activator.type === 'radio') {
       eventManager.add(activator, 'change', () => {
         const shouldShow = hasActiveFilters();
@@ -874,11 +820,11 @@ function setupEvents() {
 // ========================
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Consolidate checkboxes first
+  consolidateLocalityCheckboxes();
+  
   setupSidebars();
   setupEvents();
-  
-  // Generate locality checkboxes
-  state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
   
   // Start monitoring tags
   state.setTimer('initMonitorTags', () => {
@@ -887,13 +833,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
-  setupSidebars();
-  
-  // Retry checkbox generation if needed
-  if (!$id('locality-check-list')?.children.length) {
-    state.setTimer('retryCheckboxes', generateLocalityCheckboxes, 500);
+  // Try consolidating checkboxes again in case some loaded late
+  if (!$id('locality-check-list')?.hasChildNodes()) {
+    consolidateLocalityCheckboxes();
   }
   
+  setupSidebars();
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
 });
 
