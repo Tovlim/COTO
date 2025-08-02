@@ -1764,84 +1764,8 @@ function getLocationData() {
   // Store all locality features for reset functionality
   state.allLocalityFeatures = [...state.locationData.features];
   
-  // Reorganize DOM elements after data extraction
-  reorganizeDOMElements();
-  
   // Mark loading step complete
   loadingTracker.markComplete('locationDataLoaded');
-}
-
-// NEW: Reorganize DOM elements - move checkboxes and content
-function reorganizeDOMElements() {
-  // Get target containers
-  const localityCheckList = document.getElementById('locality-check-list');
-  const mapMarkersList = document.getElementById('map-markers-list');
-  
-  if (!localityCheckList || !mapMarkersList) {
-    console.warn('Target containers not found for DOM reorganization');
-    return;
-  }
-  
-  // Clear target containers
-  localityCheckList.innerHTML = '';
-  mapMarkersList.innerHTML = '';
-  
-  // Collect all locality checkboxes
-  const allLocalityCheckboxes = document.querySelectorAll('.locality-checkbox');
-  const checkboxesArray = Array.from(allLocalityCheckboxes);
-  
-  // Sort checkboxes alphabetically by locality name
-  checkboxesArray.sort((a, b) => {
-    const nameA = a.querySelector('.test3.w-form-label')?.textContent.trim() || '';
-    const nameB = b.querySelector('.test3.w-form-label')?.textContent.trim() || '';
-    return nameA.localeCompare(nameB);
-  });
-  
-  // Move sorted checkboxes to locality-check-list
-  const checkboxFragment = document.createDocumentFragment();
-  checkboxesArray.forEach(checkbox => {
-    // Preserve the checkbox by removing it from its current parent
-    if (checkbox.parentNode) {
-      checkbox.parentNode.removeChild(checkbox);
-    }
-    checkboxFragment.appendChild(checkbox);
-  });
-  localityCheckList.appendChild(checkboxFragment);
-  
-  // Collect all remaining content from cms-filter-lists
-  const remainingFragment = document.createDocumentFragment();
-  const lists = getAvailableFilterLists();
-  
-  lists.forEach(listId => {
-    const listContainer = document.getElementById(listId);
-    if (!listContainer) return;
-    
-    // Get all direct children (items) that are not checkboxes
-    const items = Array.from(listContainer.children);
-    items.forEach(item => {
-      // Skip if it's a checkbox container or empty
-      if (item.querySelector('.locality-checkbox') || !item.textContent.trim()) {
-        return;
-      }
-      
-      // Remove from current parent and add to fragment
-      if (item.parentNode) {
-        item.parentNode.removeChild(item);
-      }
-      remainingFragment.appendChild(item);
-    });
-  });
-  
-  mapMarkersList.appendChild(remainingFragment);
-  
-  // Setup events for the moved checkboxes
-  const movedCheckboxes = localityCheckList.querySelectorAll('.locality-checkbox');
-  movedCheckboxes.forEach(checkbox => {
-    setupCheckboxEvents(checkbox);
-  });
-  
-  // Invalidate DOM cache since we've moved elements
-  domCache.invalidate();
 }
 
 // OPTIMIZED: Native markers with batched operations
@@ -3553,6 +3477,9 @@ function init() {
   getLocationData();
   addNativeMarkers();
   setupEvents();
+  
+  // Generate locality checkboxes early
+  state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
   
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
