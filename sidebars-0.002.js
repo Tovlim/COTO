@@ -1,5 +1,5 @@
 // SIDEBAR & UI MANAGEMENT SCRIPT - No Map Version
-// Includes: Sidebar functionality, Back-to-top button, Filtered element toggling
+// Includes: Sidebar functionality, Back-to-top button, Filtered element toggling, Checkbox generation
 
 // ========================
 // OPTIMIZED DOM CACHE
@@ -179,6 +179,186 @@ const utils = {
     });
   }
 };
+
+// ========================
+// FILTER LIST DISCOVERY
+// ========================
+
+const getAvailableFilterLists = (() => {
+  let cachedLists = null;
+  let lastCacheTime = 0;
+  const cacheTimeout = 5000; // Cache for 5 seconds
+  
+  return () => {
+    const now = Date.now();
+    if (cachedLists && (now - lastCacheTime) < cacheTimeout) {
+      return cachedLists;
+    }
+    
+    const lists = [];
+    let consecutiveGaps = 0;
+    
+    // More efficient scanning with early termination
+    for (let i = 1; i <= 20; i++) {
+      const listId = `cms-filter-list-${i}`;
+      if ($id(listId)) {
+        lists.push(listId);
+        consecutiveGaps = 0;
+      } else {
+        consecutiveGaps++;
+        if (consecutiveGaps >= 3 && lists.length === 0) {
+          // Early termination if no lists found
+          break;
+        }
+        if (consecutiveGaps >= 5) {
+          // Stop after 5 consecutive gaps
+          break;
+        }
+      }
+    }
+    
+    cachedLists = lists;
+    lastCacheTime = now;
+    return lists;
+  };
+})();
+
+// ========================
+// CHECKBOX GENERATION
+// ========================
+
+function generateLocalityCheckboxes() {
+  const container = $id('locality-check-list');
+  if (!container) {
+    return;
+  }
+  
+  const template = container.querySelector('[checkbox-filter="locality"]');
+  if (!template) {
+    return;
+  }
+  
+  // Collect locality names from all filter lists
+  const localityNames = new Set();
+  const lists = getAvailableFilterLists();
+  
+  if (lists.length === 0) {
+    return;
+  }
+  
+  // Extract unique locality names from all lists
+  lists.forEach(listId => {
+    const listContainer = $id(listId);
+    if (!listContainer) return;
+    
+    const nameElements = listContainer.querySelectorAll('.data-places-names-filter');
+    nameElements.forEach(element => {
+      const name = element.textContent.trim();
+      if (name && name.length > 0) {
+        localityNames.add(name);
+      }
+    });
+  });
+  
+  // Convert to sorted array
+  const sortedNames = [...localityNames].sort();
+  
+  if (sortedNames.length === 0) {
+    return;
+  }
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  sortedNames.forEach(localityName => {
+    const checkbox = template.cloneNode(true);
+    
+    // Remove ID to avoid duplicates
+    const label = checkbox.querySelector('#locality-checkbox');
+    if (label) label.removeAttribute('id');
+    
+    // Update attributes
+    const input = checkbox.querySelector('input[name="locality"]');
+    if (input) input.setAttribute('fs-list-value', localityName);
+    
+    const span = checkbox.querySelector('.test3.w-form-label');
+    if (span) span.textContent = localityName;
+    
+    fragment.appendChild(checkbox);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(checkbox);
+  });
+  
+  container.appendChild(fragment);
+  
+  // Re-cache checkbox filter script if it exists
+  if (window.checkboxFilterScript?.recacheElements) {
+    state.setTimer('recacheCheckboxFilter', () => {
+      window.checkboxFilterScript.recacheElements();
+    }, 100);
+  }
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
+// Setup events for generated checkboxes
+function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-sidebar="true"
+  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
+  autoSidebarElements.forEach(element => {
+    ['change', 'input'].forEach(eventType => {
+      eventManager.add(element, eventType, () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('checkboxAutoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      });
+    });
+  });
+  
+  // Handle activate-filter-indicator functionality
+  const indicatorActivators = checkboxContainer.querySelectorAll('[activate-filter-indicator]');
+  indicatorActivators.forEach(activator => {
+    const groupName = activator.getAttribute('activate-filter-indicator');
+    if (!groupName) return;
+    
+    // Function to toggle indicators for this group
+    const toggleIndicators = (shouldShow) => {
+      const indicators = $(`[filter-indicator="${groupName}"]`);
+      indicators.forEach(indicator => {
+        indicator.style.display = shouldShow ? 'flex' : 'none';
+      });
+    };
+    
+    // Function to check if any activator in this group is active
+    const hasActiveFilters = () => {
+      const groupActivators = $(`[activate-filter-indicator="${groupName}"]`);
+      return groupActivators.some(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          return el.checked;
+        } else if (el.tagName.toLowerCase() === 'select') {
+          return el.selectedIndex > 0;
+        } else {
+          return el.value.trim() !== '';
+        }
+      });
+    };
+    
+    // Add change event listener for checkboxes
+    if (activator.type === 'checkbox' || activator.type === 'radio') {
+      eventManager.add(activator, 'change', () => {
+        const shouldShow = hasActiveFilters();
+        toggleIndicators(shouldShow);
+      });
+    }
+  });
+}
 
 // ========================
 // SIDEBAR MANAGEMENT
@@ -697,6 +877,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupEvents();
   
+  // Generate locality checkboxes
+  state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
+  
   // Start monitoring tags
   state.setTimer('initMonitorTags', () => {
     monitorTags();
@@ -705,6 +888,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('load', () => {
   setupSidebars();
+  
+  // Retry checkbox generation if needed
+  if (!$id('locality-check-list')?.children.length) {
+    state.setTimer('retryCheckboxes', generateLocalityCheckboxes, 500);
+  }
+  
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
 });
 
