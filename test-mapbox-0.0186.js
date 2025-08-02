@@ -1077,8 +1077,16 @@ const scaleControl = new mapboxgl.ScaleControl({
   maxWidth: 100,
   unit: 'metric'
 });
+
+// Add imperial scale control (miles/feet)
+const imperialScaleControl = new mapboxgl.ScaleControl({
+  maxWidth: 100,
+  unit: 'imperial'
+});
+
 const scalePosition = window.innerWidth <= 478 ? 'bottom-left' : 'bottom-right';
 map.addControl(scaleControl, scalePosition);
+map.addControl(imperialScaleControl, scalePosition);
 
 // Custom Map Reset Control
 class MapResetControl {
@@ -3539,6 +3547,14 @@ map.on("load", () => {
       scaleContainer.style.userSelect = 'none';
       scaleContainer.style.cursor = 'default';
     }
+    
+    // Make both scale controls unclickable
+    const allScaleContainers = document.querySelectorAll('.mapboxgl-ctrl-scale');
+    allScaleContainers.forEach(container => {
+      container.style.pointerEvents = 'none';
+      container.style.userSelect = 'none';
+      container.style.cursor = 'default';
+    });
     
     init();
     
