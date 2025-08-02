@@ -30,6 +30,8 @@
 //
 // 📑 TAB SYSTEM:
 // • Parent-scoped tabs using data-tab and data-tab-content attributes
+// • No tabs active by default - all content hidden initially
+// • Click active tab to close it (toggle behavior)
 // • Automatic tab initialization for all CMS items
 // • Handles dynamically loaded content
 // • Mobile-optimized tab switching
@@ -118,64 +120,74 @@ function initializeTabs(cmsItem) {
   
   console.log(`📑 Initializing tabs for CMS item with ${tabs.length} tabs`);
   
-  // Hide all tab contents except the first one
-  tabContents.forEach((content, index) => {
-    if (index === 0) {
-      content.style.display = 'block';
-      content.classList.add('active-tab-content');
-    } else {
-      content.style.display = 'none';
-      content.classList.remove('active-tab-content');
-    }
+  // Hide all tab contents by default (no active tab)
+  tabContents.forEach((content) => {
+    content.style.display = 'none';
+    content.classList.remove('active-tab-content');
   });
   
-  // Set first tab as active
-  tabs.forEach((tab, index) => {
-    if (index === 0) {
-      tab.classList.add('active-tab');
-    } else {
-      tab.classList.remove('active-tab');
-    }
+  // Remove active class from all tabs
+  tabs.forEach((tab) => {
+    tab.classList.remove('active-tab');
     
-    // Add click handler
+    // Add click handler with toggle functionality
     tab.addEventListener('click', function(e) {
       e.preventDefault();
       
       const tabIndex = this.getAttribute('data-tab');
+      const isCurrentlyActive = this.classList.contains('active-tab');
       
-      // Update active tab
-      tabs.forEach(t => t.classList.remove('active-tab'));
-      this.classList.add('active-tab');
-      
-      // Show corresponding content
-      tabContents.forEach(content => {
-        const contentIndex = content.getAttribute('data-tab-content');
-        if (contentIndex === tabIndex) {
-          content.style.display = 'block';
-          content.classList.add('active-tab-content');
-          
-          // Trigger LazyLoad update for any lazy images in the newly shown tab
-          if (lazyLoadInstance) {
-            const lazyImages = content.querySelectorAll('.lazy');
-            if (lazyImages.length > 0) {
-              setTimeout(() => {
-                lazyLoadInstance.update();
-              }, 100);
-            }
+      // If clicking the active tab, close it
+      if (isCurrentlyActive) {
+        // Remove active state from tab
+        this.classList.remove('active-tab');
+        
+        // Hide the corresponding content
+        tabContents.forEach(content => {
+          const contentIndex = content.getAttribute('data-tab-content');
+          if (contentIndex === tabIndex) {
+            content.style.display = 'none';
+            content.classList.remove('active-tab-content');
           }
-        } else {
-          content.style.display = 'none';
-          content.classList.remove('active-tab-content');
-        }
-      });
-      
-      console.log(`📑 Switched to tab ${tabIndex}`);
+        });
+        
+        console.log(`📑 Closed tab ${tabIndex}`);
+      } else {
+        // Otherwise, switch to the clicked tab
+        // Update active tab
+        tabs.forEach(t => t.classList.remove('active-tab'));
+        this.classList.add('active-tab');
+        
+        // Show corresponding content
+        tabContents.forEach(content => {
+          const contentIndex = content.getAttribute('data-tab-content');
+          if (contentIndex === tabIndex) {
+            content.style.display = 'block';
+            content.classList.add('active-tab-content');
+            
+            // Trigger LazyLoad update for any lazy images in the newly shown tab
+            if (lazyLoadInstance) {
+              const lazyImages = content.querySelectorAll('.lazy');
+              if (lazyImages.length > 0) {
+                setTimeout(() => {
+                  lazyLoadInstance.update();
+                }, 100);
+              }
+            }
+          } else {
+            content.style.display = 'none';
+            content.classList.remove('active-tab-content');
+          }
+        });
+        
+        console.log(`📑 Opened tab ${tabIndex}`);
+      }
     });
   });
   
   // Mark this item as processed for tabs
   processedTabItems.add(cmsItem);
-  console.log(`✅ Tabs initialized for CMS item`);
+  console.log(`✅ Tabs initialized for CMS item (all closed by default)`);
 }
 
 // Process tabs for newly loaded items
