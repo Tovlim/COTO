@@ -2996,21 +2996,8 @@ function addAreaOverlayToMap(name, areaFeature) {
     }
   });
   
-  // Determine the beforeId based on layer hierarchy
-  let beforeId = 'locality-clusters';
-  
-  // If this is firing zones, place it above area-c-layer if it exists
-  if (name === 'Firing Zones' && mapLayers.hasLayer('area-c-layer')) {
-    // Get all layers to find what's immediately after area-c-layer
-    const allLayers = map.getStyle().layers;
-    const areaCIndex = allLayers.findIndex(layer => layer.id === 'area-c-layer');
-    if (areaCIndex !== -1 && areaCIndex < allLayers.length - 1) {
-      // Place firing zones right after area C
-      beforeId = allLayers[areaCIndex + 1].id;
-    }
-  }
-  
   // Add layer
+  const beforeId = 'locality-clusters';
   map.addLayer({
     id: config.layerId,
     type: 'fill',
