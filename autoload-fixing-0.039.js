@@ -42,8 +42,6 @@
 // • Aggressive retry logic for stubborn lightboxes
 // • Coordinated with Finsweet filtering events
 
-console.log('🚀 Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix + Tabs Loading...');
-
 // Global state management
 let isLoadingMore = false;
 let lazyLoadInstance = null;
@@ -94,7 +92,6 @@ function checkFilteringStateChange() {
   const hasChanged = currentlyFiltering !== lastFilteringState;
   
   if (hasChanged) {
-    console.log(`Filtering state changed: ${lastFilteringState} → ${currentlyFiltering}`);
     lastFilteringState = currentlyFiltering;
     isCurrentlyFiltering = currentlyFiltering;
     return true;
@@ -117,8 +114,6 @@ function initializeTabs(cmsItem) {
   if (tabs.length === 0 || tabContents.length === 0) {
     return; // No tabs in this item
   }
-  
-  console.log(`📑 Initializing tabs for CMS item with ${tabs.length} tabs`);
   
   // Hide all tab contents by default (no active tab)
   tabContents.forEach((content) => {
@@ -150,8 +145,6 @@ function initializeTabs(cmsItem) {
             content.classList.remove('active-tab-content');
           }
         });
-        
-        console.log(`📑 Closed tab ${tabIndex}`);
       } else {
         // Otherwise, switch to the clicked tab
         // Update active tab
@@ -179,15 +172,12 @@ function initializeTabs(cmsItem) {
             content.classList.remove('active-tab-content');
           }
         });
-        
-        console.log(`📑 Opened tab ${tabIndex}`);
       }
     });
   });
   
   // Mark this item as processed for tabs
   processedTabItems.add(cmsItem);
-  console.log(`✅ Tabs initialized for CMS item (all closed by default)`);
 }
 
 // Process tabs for newly loaded items
@@ -211,27 +201,21 @@ function processFancyBoxGroups(item) {
   // Check if this item has lightbox group attribute
   const groupAttribute = item.getAttribute('wfu-lightbox-group');
   if (!groupAttribute) {
-    console.log(`❌ No wfu-lightbox-group found on item`);
     return false;
   }
-  
-  console.log(`🔧 Processing FancyBox group: ${groupAttribute}`);
   
   let hasProcessedGroups = false;
   let firstImageLink = null;
   
   // First pass: Find and process all lightbox images (including the first one)
   const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
-  console.log(`🔍 Found ${allLightboxLinks.length} lightbox links in group ${groupAttribute}`);
   
   allLightboxLinks.forEach((linkElement, linkIndex) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
-    console.log(`🔗 Processing link ${linkIndex + 1} with lightbox-image="${lightboxImageValue}"`);
     
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log(`⏭️ Skipping hidden link ${linkIndex + 1}`);
       return; // Skip this hidden link
     }
     
@@ -246,9 +230,6 @@ function processFancyBoxGroups(item) {
         const fullSizeImageUrl = img.getAttribute('src');
         if (fullSizeImageUrl) {
           linkElement.setAttribute('href', fullSizeImageUrl);
-          console.log(`✅ Set href for link ${linkIndex + 1}: ${fullSizeImageUrl.substring(0, 50)}...`);
-        } else {
-          console.log(`❌ No src found for img in link ${linkIndex + 1}`);
         }
         
         // Add any additional FancyBox attributes if needed
@@ -257,28 +238,20 @@ function processFancyBoxGroups(item) {
         // Remember the first image link for the opener
         if (lightboxImageValue === 'first') {
           firstImageLink = linkElement;
-          console.log(`🎯 Marked as first image link`);
         }
         
         hasProcessedGroups = true;
-        console.log(`✅ Successfully processed link ${linkIndex + 1} for FancyBox`);
-      } else {
-        console.log(`❌ No img found in link ${linkIndex + 1}`);
       }
-    } else {
-      console.log(`⏭️ Skipping link ${linkIndex + 1} - not marked for lightbox`);
     }
   });
   
   // Second pass: Process opener links
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"]');
-  console.log(`🔍 Found ${openerLinks.length} opener links in group ${groupAttribute}`);
   
   openerLinks.forEach((openerLink, openerIndex) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log(`⏭️ Skipping hidden opener ${openerIndex + 1}`);
       return;
     }
     
@@ -286,7 +259,6 @@ function processFancyBoxGroups(item) {
     if (firstImageLink) {
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log(`🎬 Opener clicked, triggering first image`);
         // Trigger click on the first image to open the gallery
         firstImageLink.click();
       });
@@ -295,13 +267,9 @@ function processFancyBoxGroups(item) {
       openerLink.style.cursor = 'pointer';
       
       hasProcessedGroups = true;
-      console.log(`✅ Successfully set up opener ${openerIndex + 1}`);
-    } else {
-      console.log(`❌ No first image found for opener ${openerIndex + 1}`);
     }
   });
   
-  console.log(`📊 Group ${groupAttribute} processing complete. Success: ${hasProcessedGroups}`);
   return hasProcessedGroups;
 }
 
@@ -334,7 +302,6 @@ function performFancyBoxReInit(retryAttempt = 0) {
         });
         
         if (unboundElements.length === 0) {
-          console.log(`📱 Mobile: Skipping re-init attempt ${retryAttempt + 1} - no new elements`);
           needsFancyBoxReInit = false;
           return true;
         }
@@ -369,12 +336,9 @@ function performFancyBoxReInit(retryAttempt = 0) {
         el.setAttribute('data-fancybox-bound', 'true');
       });
       
-      console.log(`✅ FancyBox 6 re-initialized with thumbnails (attempt ${retryAttempt + 1})`);
-      
       // On mobile, only do ONE additional re-initialization attempt instead of multiple
       if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
         setTimeout(() => {
-          console.log(`📱 Mobile: Final FancyBox re-init attempt`);
           performFancyBoxReInit(1);
         }, MOBILE_REINIT_DELAYS[0]);
       }
@@ -384,13 +348,12 @@ function performFancyBoxReInit(retryAttempt = 0) {
       return true;
     }
   } catch (e) {
-    console.error('FancyBox re-init error:', e);
+    // Silently handle error
   }
   
   // Only retry once on mobile if the first attempt failed
   if (isMobileDevice && retryAttempt === 0) {
     setTimeout(() => {
-      console.log(`📱 Mobile: Retrying FancyBox re-init due to error`);
       performFancyBoxReInit(1);
     }, MOBILE_REINIT_DELAYS[0]);
   }
@@ -408,9 +371,6 @@ function initLazyLoad() {
         // Lazy image loaded
       }
     });
-    console.log('✅ LazyLoad initialized');
-  } else {
-    console.warn('⚠️ LazyLoad not found');
   }
 }
 
@@ -425,7 +385,6 @@ function clickLoadMore(element) {
   if (isLoadingMore) return;
   
   isLoadingMore = true;
-  console.log('Auto-clicking load-more button...');
   
   // Store current scroll position
   const currentScrollY = window.scrollY;
@@ -448,7 +407,6 @@ function clickLoadMore(element) {
   // Reset loading flag after delay
   setTimeout(() => {
     isLoadingMore = false;
-    console.log('Ready for next load-more click');
   }, LOAD_MORE_DELAY);
 }
 
@@ -469,7 +427,6 @@ function observeLoadMoreButton() {
   const loadMoreButton = document.querySelector('#load-more');
   if (loadMoreButton && loadMoreObserver) {
     loadMoreObserver.observe(loadMoreButton);
-    console.log('Started observing #load-more button');
     return true;
   }
   return false;
@@ -539,7 +496,7 @@ function processItemsLazily(items) {
         }
         
       } catch (error) {
-        console.error('Processing error:', error);
+        // Silently handle error
       }
     });
     
@@ -565,8 +522,6 @@ function processNewlyAddedItems() {
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const newItems = [];
   
-  console.log(`🔍 Found ${allItems.length} total items with wfu-lightbox-group`);
-  
   allItems.forEach((item, index) => {
     // FORCE PROCESSING: Skip the WeakSet check for debugging
     const alreadyProcessed = processedItems.has(item);
@@ -575,16 +530,11 @@ function processNewlyAddedItems() {
     const hasDataFancybox = item.querySelector('[data-fancybox]');
     const needsProcessing = !hasDataFancybox;
     
-    console.log(`🔍 Item ${index + 1} (${item.getAttribute('wfu-lightbox-group')}): processed=${alreadyProcessed}, hasDataFancybox=${!!hasDataFancybox}, needsProcessing=${needsProcessing}`);
-    
     if (needsProcessing) {
-      console.log(`🔧 FORCE PROCESSING item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
-      
       // On mobile, process all new items immediately to avoid viewport detection issues
       if (isMobileDevice) {
         newItems.push(item);
         processedItems.add(item);
-        console.log(`✅ Added item ${index + 1} to processing queue`);
       } else {
         // On desktop, use viewport detection as before
         const rect = item.getBoundingClientRect();
@@ -598,13 +548,10 @@ function processNewlyAddedItems() {
           queueItemForLazyProcessing(item);
         }
       }
-    } else {
-      console.log(`⏭️ Skipping item ${index + 1}: already has FancyBox attributes`);
     }
   });
   
   if (newItems.length > 0) {
-    console.log(`🚀 Processing ${newItems.length} newly loaded FancyBox items (mobile: all new items, desktop: visible only)`);
     // Process all items in one batch instead of chunked processing
     processItemsBatch(newItems);
   }
@@ -614,23 +561,15 @@ function processNewlyAddedItems() {
 function processItemsBatch(items) {
   if (!items?.length) return;
   
-  console.log(`📦 Batch processing ${items.length} items`);
-  
   items.forEach((item, index) => {
     try {
-      console.log(`🔧 Processing item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
-      
       // Process FancyBox groups
       const processed = processFancyBoxGroups(item);
       if (processed) {
-        console.log(`✅ Successfully processed item ${index + 1}`);
         needsFancyBoxReInit = true;
-      } else {
-        console.log(`❌ Failed to process item ${index + 1}`);
       }
-      
     } catch (error) {
-      console.error(`❌ Error processing item ${index + 1}:`, error);
+      // Silently handle error
     }
   });
   
@@ -645,8 +584,6 @@ function processItemsBatch(items) {
 
 // Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
 function processFilteredItems() {
-  console.log('🔄 Processing items after filtering change...');
-  
   // Clear processed tabs to re-initialize them after filtering
   processedTabItems = new WeakSet();
   
@@ -697,8 +634,6 @@ function processFilteredItems() {
     }
   });
   
-  console.log(`Found ${visibleItems.length} visible filtered items, ${itemsToQueue.length} queued (mobile: all visible, desktop: viewport-based)`);
-  
   // Process visible items immediately
   if (visibleItems.length > 0) {
     processItemsLazily(visibleItems);
@@ -743,7 +678,6 @@ function processInitialVisibleItems() {
   
   // Process visible items immediately
   if (visibleItems.length > 0) {
-    console.log(`Processing ${visibleItems.length} initial items (mobile: all items, desktop: visible only)`);
     processItemsLazily(visibleItems);
   }
   
@@ -802,10 +736,6 @@ function initFilteringDetection() {
       childList: true,
       subtree: true
     });
-    
-    console.log('✅ Filtering detection initialized with MutationObserver');
-  } else {
-    console.log('⚠️ tagparent not found, using event-only detection');
   }
   
   // Method 2: Listen to all Finsweet filtering events
@@ -819,8 +749,6 @@ function initFilteringDetection() {
   
   finsweetEvents.forEach(eventType => {
     document.addEventListener(eventType, () => {
-      console.log(`📡 Finsweet event detected: ${eventType}`);
-      
       // Mobile-optimized timing for Finsweet events
       const delay = isMobileDevice ? 150 : 100;
       setTimeout(() => {
@@ -831,12 +759,9 @@ function initFilteringDetection() {
     });
   });
   
-  console.log('✅ Finsweet event listeners initialized');
-  
   // Method 3: Periodic filtering state check (fallback)
   setInterval(() => {
     if (checkFilteringStateChange()) {
-      console.log('🕐 Periodic check detected filtering change');
       processFilteredItems();
     }
   }, 2000);
@@ -850,8 +775,6 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(initWhenReady, 100);
       return;
     }
-    
-    console.log('✅ FancyBox 6 detected, initializing...');
     
     initLazyLoad();
     initItemProcessingObserver();
@@ -988,7 +911,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // Check initial filtering state
       lastFilteringState = detectFiltering();
       isCurrentlyFiltering = lastFilteringState;
-      console.log(`Initial filtering state: ${lastFilteringState}`);
       
       processInitialVisibleItems();
       processLazyOnlyItems();
@@ -996,17 +918,6 @@ document.addEventListener('DOMContentLoaded', function() {
       observeLoadMoreButton();
       updateLazyLoad();
     }, initialDelay);
-    
-    // Additional mobile initialization delay - DISABLED for debugging
-    // if (isMobileDevice) {
-    //   setTimeout(() => {
-    //     // Re-check filtering state and process if needed
-    //     if (checkFilteringStateChange()) {
-    //       console.log('📱 Mobile: Additional filtering check triggered');
-    //       processFilteredItems();
-    //     }
-    //   }, 1500);
-    // }
     
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
@@ -1021,5 +932,3 @@ document.addEventListener('DOMContentLoaded', function() {
   
   initWhenReady();
 });
-
-console.log('✅ Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix + Tabs Ready!');
