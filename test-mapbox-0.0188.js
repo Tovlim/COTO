@@ -2971,7 +2971,7 @@ function addAreaOverlayToMap(name, areaFeature) {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
     'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
-    'Firing Zones': { color: '#af4256', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
+    'Firing Zones': { color: '#c51d3c', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
   };
   
   const config = areaConfig[name];
