@@ -191,119 +191,37 @@ function consolidateLocalityCheckboxes() {
     return;
   }
   
-  // Find all locality checkboxes from various source lists
-  const checkboxes = [];
-  let sourceIndex = 1;
+  // Get all checkboxes with the class .locality-checkbox
+  const allCheckboxes = $('.locality-checkbox');
   
-  // Keep looking for source lists until we don't find any
-  while (true) {
-    const sourceList = $id(`locality-check-source-${sourceIndex}`);
-    if (!sourceList) break;
-    
-    // Find all .locality-checkbox elements within this source
-    const sourceCheckboxes = sourceList.querySelectorAll('.locality-checkbox');
-    checkboxes.push(...Array.from(sourceCheckboxes));
-    
-    sourceIndex++;
-  }
-  
-  if (checkboxes.length === 0) {
-    console.log('No locality checkboxes found to consolidate');
+  if (allCheckboxes.length === 0) {
+    console.log('No locality checkboxes found to move');
     return;
   }
   
-  console.log(`Found ${checkboxes.length} locality checkboxes to consolidate`);
-  
-  // Sort checkboxes alphabetically by locality name
-  checkboxes.sort((a, b) => {
-    const nameA = a.querySelector('.test3.w-form-label')?.textContent.trim() || '';
-    const nameB = b.querySelector('.test3.w-form-label')?.textContent.trim() || '';
-    return nameA.localeCompare(nameB);
-  });
-  
-  // Clear the target container
-  targetContainer.innerHTML = '';
-  
-  // Move all checkboxes to the target container
+  // Create a document fragment for better performance
   const fragment = document.createDocumentFragment();
-  checkboxes.forEach((checkbox, index) => {
-    // Get the parent collection item
+  let movedCount = 0;
+  
+  allCheckboxes.forEach(checkbox => {
+    // Get the parent collection-item div
     const collectionItem = checkbox.closest('.collection-item');
+    
     if (collectionItem) {
-      // Clone the entire collection item to preserve structure
-      const clonedItem = collectionItem.cloneNode(true);
-      
-      // Remove any duplicate IDs to avoid conflicts
-      const labelElement = clonedItem.querySelector('#locality-checkbox');
-      if (labelElement) {
-        labelElement.removeAttribute('id');
-      }
-      
-      fragment.appendChild(clonedItem);
-      
-      // Setup events for the checkbox
-      setupCheckboxEvents(clonedItem);
+      // Remove from current parent and add to fragment
+      fragment.appendChild(collectionItem);
+      movedCount++;
     }
   });
   
-  targetContainer.appendChild(fragment);
-  
-  // Invalidate DOM cache since we modified the DOM
-  domCache.markStale();
-  
-  console.log('Locality checkboxes consolidated successfully');
-}
-
-// Setup events for consolidated checkboxes
-function setupCheckboxEvents(checkboxContainer) {
-  // Handle data-auto-sidebar="true"
-  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
-  autoSidebarElements.forEach(element => {
-    ['change', 'input'].forEach(eventType => {
-      eventManager.add(element, eventType, () => {
-        if (window.innerWidth > 991) {
-          state.setTimer('checkboxAutoSidebar', () => toggleSidebar('Left', true), 50);
-        }
-      });
-    });
-  });
-  
-  // Handle activate-filter-indicator functionality
-  const indicatorActivators = checkboxContainer.querySelectorAll('[activate-filter-indicator]');
-  indicatorActivators.forEach(activator => {
-    const groupName = activator.getAttribute('activate-filter-indicator');
-    if (!groupName) return;
+  // Append all checkboxes to the target container at once
+  if (movedCount > 0) {
+    targetContainer.appendChild(fragment);
+    console.log(`Moved ${movedCount} locality checkboxes to #locality-check-list`);
     
-    // Function to toggle indicators for this group
-    const toggleIndicators = (shouldShow) => {
-      const indicators = $(`[filter-indicator="${groupName}"]`);
-      indicators.forEach(indicator => {
-        indicator.style.display = shouldShow ? 'flex' : 'none';
-      });
-    };
-    
-    // Function to check if any activator in this group is active
-    const hasActiveFilters = () => {
-      const groupActivators = $(`[activate-filter-indicator="${groupName}"]`);
-      return groupActivators.some(el => {
-        if (el.type === 'checkbox' || el.type === 'radio') {
-          return el.checked;
-        } else if (el.tagName.toLowerCase() === 'select') {
-          return el.selectedIndex > 0;
-        } else {
-          return el.value.trim() !== '';
-        }
-      });
-    };
-    
-    // Add change event listener
-    if (activator.type === 'checkbox' || activator.type === 'radio') {
-      eventManager.add(activator, 'change', () => {
-        const shouldShow = hasActiveFilters();
-        toggleIndicators(shouldShow);
-      });
-    }
-  });
+    // Mark DOM cache as stale since we've moved elements
+    domCache.markStale();
+  }
 }
 
 // ========================
@@ -833,10 +751,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
-  // Try consolidating checkboxes again in case some loaded late
-  if (!$id('locality-check-list')?.hasChildNodes()) {
-    consolidateLocalityCheckboxes();
-  }
+  // Try consolidating checkboxes again in case they weren't ready on DOMContentLoaded
+  consolidateLocalityCheckboxes();
   
   setupSidebars();
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
