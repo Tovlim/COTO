@@ -1,10 +1,11 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix v7.0
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.0
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
 // • FancyBox 6 grouping for ALL items (new, filtered, and existing)
 // • Integrates LazyLoad for images on new items  
 // • Supports CMS lightbox grouping with [wfu-lightbox-group] attributes
+// • Parent-scoped tab system with data-tab and data-tab-content attributes
 // • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
 // • COMPLETE re-processing when filtering changes
@@ -16,6 +17,7 @@
 // • Finsweet-coordinated event handling
 // • Attribute-based targeting for precision
 // • Mobile-aggressive FancyBox re-initialization
+// • Efficient parent-scoped tab queries
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
@@ -26,13 +28,19 @@
 // • Preserves scroll position during loading
 // • Coordinates with lightbox processing for optimal performance
 //
+// 📑 TAB SYSTEM:
+// • Parent-scoped tabs using data-tab and data-tab-content attributes
+// • Automatic tab initialization for all CMS items
+// • Handles dynamically loaded content
+// • Mobile-optimized tab switching
+//
 // 📱 MOBILE OPTIMIZATIONS:
 // • Enhanced timing for mobile browsers
 // • Multiple FancyBox re-initialization attempts
 // • Aggressive retry logic for stubborn lightboxes
 // • Coordinated with Finsweet filtering events
 
-console.log('🚀 Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix Loading...');
+console.log('🚀 Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix + Tabs Loading...');
 
 // Global state management
 let isLoadingMore = false;
@@ -41,6 +49,7 @@ let itemProcessingObserver = null;
 let loadMoreObserver = null;
 let filteringObserver = null;
 let processedItems = new WeakSet();
+let processedTabItems = new WeakSet();
 let needsFancyBoxReInit = false;
 let reInitTimeout = null;
 let isCurrentlyFiltering = false;
@@ -90,6 +99,99 @@ function checkFilteringStateChange() {
   }
   
   return false;
+}
+
+// TAB SYSTEM
+function initializeTabs(cmsItem) {
+  // Check if we've already processed tabs for this item
+  if (processedTabItems.has(cmsItem)) {
+    return;
+  }
+  
+  // Find all tabs within this CMS item
+  const tabs = cmsItem.querySelectorAll('[data-tab]');
+  const tabContents = cmsItem.querySelectorAll('[data-tab-content]');
+  
+  if (tabs.length === 0 || tabContents.length === 0) {
+    return; // No tabs in this item
+  }
+  
+  console.log(`📑 Initializing tabs for CMS item with ${tabs.length} tabs`);
+  
+  // Hide all tab contents except the first one
+  tabContents.forEach((content, index) => {
+    if (index === 0) {
+      content.style.display = 'block';
+      content.classList.add('active-tab-content');
+    } else {
+      content.style.display = 'none';
+      content.classList.remove('active-tab-content');
+    }
+  });
+  
+  // Set first tab as active
+  tabs.forEach((tab, index) => {
+    if (index === 0) {
+      tab.classList.add('active-tab');
+    } else {
+      tab.classList.remove('active-tab');
+    }
+    
+    // Add click handler
+    tab.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const tabIndex = this.getAttribute('data-tab');
+      
+      // Update active tab
+      tabs.forEach(t => t.classList.remove('active-tab'));
+      this.classList.add('active-tab');
+      
+      // Show corresponding content
+      tabContents.forEach(content => {
+        const contentIndex = content.getAttribute('data-tab-content');
+        if (contentIndex === tabIndex) {
+          content.style.display = 'block';
+          content.classList.add('active-tab-content');
+          
+          // Trigger LazyLoad update for any lazy images in the newly shown tab
+          if (lazyLoadInstance) {
+            const lazyImages = content.querySelectorAll('.lazy');
+            if (lazyImages.length > 0) {
+              setTimeout(() => {
+                lazyLoadInstance.update();
+              }, 100);
+            }
+          }
+        } else {
+          content.style.display = 'none';
+          content.classList.remove('active-tab-content');
+        }
+      });
+      
+      console.log(`📑 Switched to tab ${tabIndex}`);
+    });
+  });
+  
+  // Mark this item as processed for tabs
+  processedTabItems.add(cmsItem);
+  console.log(`✅ Tabs initialized for CMS item`);
+}
+
+// Process tabs for newly loaded items
+function processTabsForNewItems() {
+  // Find all CMS items that might have tabs
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+  
+  cmsItems.forEach(item => {
+    if (!processedTabItems.has(item)) {
+      // Check if this item contains tabs
+      const hasTabs = item.querySelector('[data-tab]');
+      if (hasTabs) {
+        initializeTabs(item);
+      }
+    }
+  });
 }
 
 // FancyBox 6 grouping system based on attributes
@@ -328,6 +430,7 @@ function clickLoadMore(element) {
   const processDelay = isMobileDevice ? 500 : 300;
   setTimeout(() => {
     processNewlyAddedItems();
+    processTabsForNewItems(); // Process tabs for new items
   }, processDelay);
   
   // Reset loading flag after delay
@@ -532,6 +635,9 @@ function processItemsBatch(items) {
 function processFilteredItems() {
   console.log('🔄 Processing items after filtering change...');
   
+  // Clear processed tabs to re-initialize them after filtering
+  processedTabItems = new WeakSet();
+  
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
   const itemsToQueue = [];
@@ -592,6 +698,11 @@ function processFilteredItems() {
       queueItemForLazyProcessing(item);
     });
   }
+  
+  // Re-process tabs for visible items
+  setTimeout(() => {
+    processTabsForNewItems();
+  }, 200);
 }
 
 function processInitialVisibleItems() {
@@ -737,6 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let pendingLightboxItems = new Set();
     let pendingLazyItems = new Set();
+    let pendingTabItems = new Set();
     let queueTimeout = null;
     
     // Unified item queuing
@@ -764,6 +876,18 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         }
         
+        // Process tab items
+        if (pendingTabItems.size > 0) {
+          const itemsToProcess = Array.from(pendingTabItems);
+          pendingTabItems.clear();
+          
+          itemsToProcess.forEach(item => {
+            if (!processedTabItems.has(item)) {
+              initializeTabs(item);
+            }
+          });
+        }
+        
         queueTimeout = null;
       }, 100);
     };
@@ -772,6 +896,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const observer = new MutationObserver((mutations) => {
       let hasNewItems = false;
       let hasNewLoadMore = false;
+      let hasNewTabs = false;
       
       for (const mutation of mutations) {
         if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -802,6 +927,25 @@ document.addEventListener('DOMContentLoaded', function() {
               }
             }
             
+            // Check for new tab items
+            const cmsItems = node.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+            for (const item of cmsItems) {
+              const hasTabs = item.querySelector('[data-tab]');
+              if (hasTabs) {
+                pendingTabItems.add(item);
+                hasNewTabs = true;
+              }
+            }
+            
+            // Also check if the node itself is a CMS item with tabs
+            if (node.matches && (node.matches('.cms-item') || node.matches('[data-item-slug]') || node.matches('.w-dyn-item'))) {
+              const hasTabs = node.querySelector('[data-tab]');
+              if (hasTabs) {
+                pendingTabItems.add(node);
+                hasNewTabs = true;
+              }
+            }
+            
             // Check for new load-more button
             if (node.id === 'load-more' || node.querySelector('#load-more')) {
               hasNewLoadMore = true;
@@ -810,7 +954,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      if (hasNewItems) {
+      if (hasNewItems || hasNewTabs) {
         scheduleItemQueuing();
       }
       
@@ -836,6 +980,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       processInitialVisibleItems();
       processLazyOnlyItems();
+      processTabsForNewItems(); // Process tabs on initial load
       observeLoadMoreButton();
       updateLazyLoad();
     }, initialDelay);
@@ -865,4 +1010,4 @@ document.addEventListener('DOMContentLoaded', function() {
   initWhenReady();
 });
 
-console.log('✅ Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix Ready!');
+console.log('✅ Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix + Tabs Ready!');
