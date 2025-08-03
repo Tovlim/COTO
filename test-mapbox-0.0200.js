@@ -86,7 +86,7 @@ class RealTimeVisibilityAutocomplete {
         this.attachEventHandler('input', 'input', debouncedInput);
         this.attachEventHandler('input', 'keyup', debouncedInput);
         this.attachEventHandler('input', 'focus', () => this.handleFocus());
-        this.attachEventHandler('input', 'blur', () => this.handleBlur());
+        this.attachEventHandler('input', 'blur', (e) => this.handleBlur(e));
         this.attachEventHandler('input', 'keydown', (e) => this.handleKeydown(e));
         this.attachEventHandler('list', 'click', (e) => this.handleDropdownClick(e));
         this.attachEventHandler('document', 'click', (e) => this.handleOutsideClick(e));
@@ -150,7 +150,7 @@ class RealTimeVisibilityAutocomplete {
             clearSearchWrap.classList.remove('blurred');
         }
         
-        // Show dropdown with 300ms delay on mobile (478px and down)
+        // Show dropdown with delay on mobile (478px and down)
         if (window.innerWidth <= 478) {
             setTimeout(() => {
                 // Check if still focused before showing
@@ -164,19 +164,37 @@ class RealTimeVisibilityAutocomplete {
         }
     }
     
-    handleBlur() {
-        // Add .blurred class back to search icons and clear wrap with 300ms delay
+    handleBlur(e) {
+        // Check if the blur is caused by clicking on the clear button
+        const isClickingClear = e && e.relatedTarget && (
+            e.relatedTarget === this.elements.clear ||
+            e.relatedTarget.closest('#' + this.elementIds.clearId)
+        );
+        
+        if (isClickingClear) {
+            // Don't add blurred classes or hide dropdown when clicking clear
+            // Refocus the input after a tiny delay to maintain focus
+            setTimeout(() => {
+                this.elements.input.focus();
+            }, 10);
+            return;
+        }
+        
+        // Add .blurred class back to search icons and clear wrap with 200ms delay
         setTimeout(() => {
-            const searchIconsWrap = document.querySelector('.search-icons-wrap');
-            const clearSearchWrap = document.querySelector('.clear-search-wrap');
-            
-            if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
-                searchIconsWrap.classList.add('blurred');
+            // Check if input is still not focused before adding blurred classes
+            if (document.activeElement !== this.elements.input) {
+                const searchIconsWrap = document.querySelector('.search-icons-wrap');
+                const clearSearchWrap = document.querySelector('.clear-search-wrap');
+                
+                if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
+                    searchIconsWrap.classList.add('blurred');
+                }
+                if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
+                    clearSearchWrap.classList.add('blurred');
+                }
             }
-            if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
-                clearSearchWrap.classList.add('blurred');
-            }
-        }, 300);
+        }, 200);
         
         // Hide dropdown on blur with a small delay to allow clicks
         setTimeout(() => {
