@@ -8,7 +8,7 @@
 class RealTimeVisibilityAutocomplete {
     constructor(options = {}) {
         this.elementIds = {
-            inputId: options.inputId || "refresh-on-enter",
+            inputId: options.inputId || "map-search",
             listId: options.listId || "search-terms",
             wrapperId: options.wrapperId || "searchTermsWrapper",
             clearId: options.clearId || "searchclear"
@@ -130,7 +130,7 @@ class RealTimeVisibilityAutocomplete {
     }
     
     handleFocus() {
-        // Clear #hidden-list-search when focusing on #refresh-on-enter
+        // Clear #hidden-list-search when focusing on #map-search
         const hiddenListSearch = document.getElementById('hidden-list-search');
         if (hiddenListSearch) {
             hiddenListSearch.value = '';
@@ -459,7 +459,7 @@ class RealTimeVisibilityAutocomplete {
     
     findWrapperElement() {
         // Try to find input wrapper element
-        let wrapperElement = document.getElementById('refresh-on-enter-wrapper');
+        let wrapperElement = document.getElementById('map-search-wrapper');
         
         if (!wrapperElement) {
             let parent = this.elements.input.parentElement;
@@ -2146,7 +2146,7 @@ const checkMapMarkersFiltering = (() => {
     }
     
     // FIXED: Check if search box has content (indicates active search/filtering)
-    const searchInput = document.getElementById('refresh-on-enter');
+    const searchInput = document.getElementById('map-search');
     if (searchInput && searchInput.value.trim().length > 0) {
       lastResult = true;
       lastCheck = now;
@@ -3772,7 +3772,7 @@ function initRealTimeAutocomplete() {
         }
         
         window.integratedAutocomplete = new RealTimeVisibilityAutocomplete({
-            inputId: "refresh-on-enter",
+            inputId: "map-search",
             listId: "search-terms", 
             wrapperId: "searchTermsWrapper",
             clearId: "searchclear",
