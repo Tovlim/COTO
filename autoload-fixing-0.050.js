@@ -427,6 +427,21 @@ function observeLoadMoreButton() {
   const loadMoreButton = document.querySelector('#load-more');
   if (loadMoreButton && loadMoreObserver) {
     loadMoreObserver.observe(loadMoreButton);
+    
+    // Add click listener for manual clicks
+    if (!loadMoreButton.hasAttribute('data-manual-click-listener')) {
+      loadMoreButton.setAttribute('data-manual-click-listener', 'true');
+      
+      loadMoreButton.addEventListener('click', function() {
+        // Process any new items after a delay (same as auto-click)
+        const processDelay = isMobileDevice ? 500 : 300;
+        setTimeout(() => {
+          processNewlyAddedItems();
+          processTabsForNewItems();
+        }, processDelay);
+      });
+    }
+    
     return true;
   }
   return false;
