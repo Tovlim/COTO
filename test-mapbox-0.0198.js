@@ -891,6 +891,27 @@ if (!document.querySelector('#map-control-styles')) {
     .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-scale:last-child {
       margin-top: 0 !important;
     }
+    /* Pre-position controls to prevent layout shift */
+    .mapboxgl-ctrl-top-right {
+      top: 4rem !important;
+      right: 0.5rem !important;
+      z-index: 10 !important;
+    }
+    .mapboxgl-ctrl-bottom-left {
+      bottom: 0 !important;
+      left: 0 !important;
+    }
+    .mapboxgl-ctrl-bottom-right {
+      bottom: 0 !important;
+      right: 0 !important;
+    }
+    /* Mobile adjustments */
+    @media (max-width: 478px) {
+      .mapboxgl-ctrl-bottom-left {
+        bottom: 0 !important;
+        left: 0 !important;
+      }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -3589,16 +3610,7 @@ function init() {
 
 // OPTIMIZED: Control positioning with better timing
 state.setTimer('controlPositioning', () => {
-  const ctrl = $1('.mapboxgl-ctrl-top-right');
-  if (ctrl) {
-    utils.setStyles(ctrl, {
-      top: '4rem', 
-      right: '0.5rem', 
-      zIndex: '10'
-    });
-  }
-  
-  // Mark UI loading step complete
+  // Mark UI loading step complete (positioning is already handled by CSS)
   loadingTracker.markComplete('uiPositioned');
 }, 300);
 
