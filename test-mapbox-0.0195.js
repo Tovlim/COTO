@@ -139,11 +139,33 @@ class RealTimeVisibilityAutocomplete {
             hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
         }
         
+        // Remove .blurred class from search icons and clear wrap
+        const searchIconsWrap = document.querySelector('.search-icons-wrap');
+        const clearSearchWrap = document.querySelector('.clear-search-wrap');
+        
+        if (searchIconsWrap && searchIconsWrap.classList.contains('blurred')) {
+            searchIconsWrap.classList.remove('blurred');
+        }
+        if (clearSearchWrap && clearSearchWrap.classList.contains('blurred')) {
+            clearSearchWrap.classList.remove('blurred');
+        }
+        
         // Always show dropdown on focus
         this.showVisibleTerms();
     }
     
     handleBlur() {
+        // Add .blurred class back to search icons and clear wrap
+        const searchIconsWrap = document.querySelector('.search-icons-wrap');
+        const clearSearchWrap = document.querySelector('.clear-search-wrap');
+        
+        if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
+            searchIconsWrap.classList.add('blurred');
+        }
+        if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
+            clearSearchWrap.classList.add('blurred');
+        }
+        
         // Hide dropdown on blur with a small delay to allow clicks
         setTimeout(() => {
             if (!this.elements.wrapper.matches(':hover')) {
