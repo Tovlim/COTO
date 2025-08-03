@@ -853,6 +853,48 @@ class RealTimeVisibilityAutocomplete {
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+// Pre-inject map control styles before map loads to prevent flash of unstyled content
+if (!document.querySelector('#map-control-styles')) {
+  const style = document.createElement('style');
+  style.id = 'map-control-styles';
+  style.textContent = `
+    .mapboxgl-ctrl-group > button {
+      background-color: #272727 !important;
+      color: #ffffff !important;
+    }
+    .mapboxgl-ctrl-group > button:hover {
+      background-color: #3a3a3a !important;
+    }
+    .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 10 6 C 9.446 6 9 6.4459904 9 7 L 9 9 L 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 9 11 L 9 13 C 9 13.55401 9.446 14 10 14 C 10.554 14 11 13.55401 11 13 L 11 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 11 9 L 11 7 C 11 6.4459904 10.554 6 10 6 z'/%3E%3C/svg%3E") !important;
+    }
+    .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 7 9 z'/%3E%3C/svg%3E") !important;
+    }
+    .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon {
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%23ffffff;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
+    }
+    .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%2333b5e5;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%2333b5e5;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
+    }
+    /* Scale control styles */
+    .mapboxgl-ctrl-scale {
+      pointer-events: none !important;
+      user-select: none !important;
+      cursor: default !important;
+    }
+    .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-scale:first-child,
+    .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-scale:first-child {
+      margin-bottom: 0 !important;
+    }
+    .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-scale:last-child,
+    .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-scale:last-child {
+      margin-top: 0 !important;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Show loading screen at start
 const loadingScreen = document.getElementById('loading-map-screen');
 if (loadingScreen) {
@@ -3563,72 +3605,6 @@ state.setTimer('controlPositioning', () => {
 // OPTIMIZED: Map load event handler with parallel operations
 map.on("load", () => {
   try {
-    // Make scale control unclickable
-    const scaleContainer = document.querySelector('.mapboxgl-ctrl-scale');
-    if (scaleContainer) {
-      scaleContainer.style.pointerEvents = 'none';
-      scaleContainer.style.userSelect = 'none';
-      scaleContainer.style.cursor = 'default';
-    }
-    
-    // Make both scale controls unclickable and remove spacing
-    const allScaleContainers = document.querySelectorAll('.mapboxgl-ctrl-scale');
-    allScaleContainers.forEach((container, index) => {
-      container.style.pointerEvents = 'none';
-      container.style.userSelect = 'none';
-      container.style.cursor = 'default';
-      
-      // Remove margin between scale controls
-      if (index === 0) {
-        // First scale (metric) - remove bottom margin
-        container.style.marginBottom = '0';
-      } else {
-        // Second scale (imperial) - remove top margin
-        container.style.marginTop = '0';
-      }
-    });
-    
-    // Style all map control buttons to #272727 background
-    setTimeout(() => {
-      const mapControlButtons = document.querySelectorAll('.mapboxgl-ctrl-group > button');
-      mapControlButtons.forEach(button => {
-        button.style.backgroundColor = '#272727';
-        button.style.color = '#ffffff';
-      });
-      
-      // Ensure the navigation control buttons have proper white icons
-      const navButtons = document.querySelectorAll('.mapboxgl-ctrl-zoom-in, .mapboxgl-ctrl-zoom-out');
-      navButtons.forEach(button => {
-        // The zoom controls use pseudo-elements for their icons, so we need to inject CSS
-        if (!document.querySelector('#map-control-styles')) {
-          const style = document.createElement('style');
-          style.id = 'map-control-styles';
-          style.textContent = `
-            .mapboxgl-ctrl-group > button {
-              background-color: #272727 !important;
-              color: #ffffff !important;
-            }
-            .mapboxgl-ctrl-group > button:hover {
-              background-color: #3a3a3a !important;
-            }
-            .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
-              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 10 6 C 9.446 6 9 6.4459904 9 7 L 9 9 L 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 9 11 L 9 13 C 9 13.55401 9.446 14 10 14 C 10.554 14 11 13.55401 11 13 L 11 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 11 9 L 11 7 C 11 6.4459904 10.554 6 10 6 z'/%3E%3C/svg%3E") !important;
-            }
-            .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
-              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 7 9 z'/%3E%3C/svg%3E") !important;
-            }
-            .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon {
-              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%23ffffff;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
-            }
-            .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
-              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%2333b5e5;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%2333b5e5;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
-            }
-          `;
-          document.head.appendChild(style);
-        }
-      });
-    }, 100);
-    
     init();
     
     // Load combined data
