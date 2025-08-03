@@ -1590,6 +1590,34 @@ const toggleSidebar = (side, show = null) => {
   if (!sidebar) return;
   
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
+  
+  // Mobile-specific sidebar switching delay (487px and down)
+  if (window.innerWidth <= 487 && isShowing) {
+    // Check if another sidebar is currently open (excluding SecondLeft and current sidebar)
+    const otherSidebars = ['Left', 'Right'].filter(s => s !== side);
+    const hasOpenSidebar = otherSidebars.some(s => {
+      const otherSidebar = sidebarCache.getSidebar(s);
+      return otherSidebar && otherSidebar.classList.contains('is-show');
+    });
+    
+    if (hasOpenSidebar) {
+      // Close other sidebars first
+      otherSidebars.forEach(otherSide => closeSidebar(otherSide));
+      
+      // Wait 200ms before opening the new sidebar
+      setTimeout(() => {
+        toggleSidebarInternal(side, sidebar, true);
+      }, 200);
+      return;
+    }
+  }
+  
+  // Normal toggle without delay
+  toggleSidebarInternal(side, sidebar, isShowing);
+};
+
+// Internal function to handle the actual sidebar toggling
+const toggleSidebarInternal = (side, sidebar, isShowing) => {
   sidebar.classList.toggle('is-show', isShowing);
   
   const jsMarginProperty = sidebarCache.getMarginProperty(side);
@@ -1615,7 +1643,7 @@ const toggleSidebar = (side, show = null) => {
   } else {
     // Mobile (478px and down): use margin behavior and close all other sidebars
     sidebar.style[jsMarginProperty] = isShowing ? '0' : '';
-    if (isShowing) {
+    if (isShowing && window.innerWidth > 487) {
       ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
         if (otherSide !== side) closeSidebar(otherSide);
       });
@@ -2662,7 +2690,7 @@ function setupControls() {
 
 // OPTIMIZED: Sidebar setup with better performance and cleaner management
 function setupSidebars() {
-  let zIndex = 1000;
+  let baseZIndex = 1000;
   
   const setupSidebarElement = (side) => {
     const sidebar = sidebarCache.getSidebar(side);
@@ -2676,50 +2704,51 @@ function setupSidebars() {
     const cssTransitionProperty = side === 'SecondLeft' ? 'margin-left' : `margin-${side.toLowerCase()}`;
     utils.setStyles(sidebar, {
       transition: `${cssTransitionProperty} 0.25s cubic-bezier(0.4, 0, 0.2, 1)`,
-      zIndex: zIndex,
+      zIndex: side === 'SecondLeft' ? baseZIndex : baseZIndex + 1,
       position: 'relative'
     });
     utils.setStyles(tab, {
       transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
     });
     
-    const bringToFront = () => {
-      const newZ = ++zIndex;
-      sidebar.style.zIndex = newZ;
-      
-      if (window.innerWidth <= 478) {
-        tab.style.zIndex = newZ + 10;
-        if (tab.parentElement) tab.parentElement.style.zIndex = newZ + 10;
+    // Set initial z-index for tabs on mobile (487px and down)
+    if (window.innerWidth <= 487) {
+      // SecondLeft tab always behind everything
+      if (side === 'SecondLeft') {
+        tab.style.zIndex = baseZIndex - 10;
+        if (tab.parentElement) tab.parentElement.style.zIndex = baseZIndex - 10;
+      } else {
+        // Left and Right tabs get higher z-index
+        tab.style.zIndex = baseZIndex + 10;
+        if (tab.parentElement) tab.parentElement.style.zIndex = baseZIndex + 10;
       }
-      
-      // Lower z-index for other sidebars
-      const allSides = ['Left', 'SecondLeft', 'Right'];
-      allSides.forEach(otherSide => {
-        if (otherSide !== side) {
-          const otherSidebar = sidebarCache.getSidebar(otherSide);
-          const otherTab = $id(`${otherSide}SideTab`);
-          
-          if (otherSidebar) otherSidebar.style.zIndex = newZ - 1;
-          if (otherTab && window.innerWidth <= 478) {
-            otherTab.style.zIndex = newZ + 5;
-            if (otherTab.parentElement) otherTab.parentElement.style.zIndex = newZ + 5;
-          }
-        }
-      });
-    };
-
-    // Use the main toggleSidebar function instead of internal logic
-    if (!sidebar.dataset.clickSetup) {
-      eventManager.add(sidebar, 'click', () => {
-        if (sidebar.classList.contains('is-show')) bringToFront();
-      });
-      sidebar.dataset.clickSetup = 'true';
     }
+
+    // Remove the bringToFront functionality - no longer needed
     
     if (tab.dataset.setupComplete !== 'true') {
       eventManager.add(tab, 'click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Handle z-index for mobile (487px and down)
+        if (window.innerWidth <= 487 && side !== 'SecondLeft') {
+          // When clicking a tab, lower its z-index permanently
+          const currentZIndex = parseInt(tab.style.zIndex) || baseZIndex + 10;
+          const otherSide = side === 'Left' ? 'Right' : 'Left';
+          const otherTab = $id(`${otherSide}SideTab`);
+          
+          if (otherTab) {
+            // Make the clicked tab lower than the other tab
+            tab.style.zIndex = currentZIndex - 5;
+            if (tab.parentElement) tab.parentElement.style.zIndex = currentZIndex - 5;
+            
+            // Ensure the other tab is higher
+            otherTab.style.zIndex = currentZIndex;
+            if (otherTab.parentElement) otherTab.parentElement.style.zIndex = currentZIndex;
+          }
+        }
+        
         toggleSidebar(side, !sidebar.classList.contains('is-show'));
       });
       tab.dataset.setupComplete = 'true';
@@ -2734,7 +2763,6 @@ function setupSidebars() {
       close.dataset.setupComplete = 'true';
     }
     
-    zIndex++;
     return true;
   };
   
