@@ -1120,15 +1120,16 @@ class MapResetControl {
     this._button = document.createElement('button');
     this._button.className = 'mapboxgl-ctrl-icon';
     this._button.type = 'button';
-    this._button.title = 'Reset map to default view';
-    this._button.setAttribute('aria-label', 'Reset map to default view');
+    this._button.title = 'Reset view';
+    this._button.setAttribute('aria-label', 'Reset view');
     
     // Add custom reset icon styling
     this._button.style.cssText = `
-      background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/6873aecae0c1702f3d417a81_reset%20icon%203.svg");
+      background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/688f42ee2ee6b3760ab68bac_reset%20icon.svg");
       background-repeat: no-repeat;
       background-position: center;
       background-size: 15px 15px;
+      background-color: #272727;
     `;
     
     this._button.addEventListener('click', () => {
@@ -3586,6 +3587,47 @@ map.on("load", () => {
         container.style.marginTop = '0';
       }
     });
+    
+    // Style all map control buttons to #272727 background
+    setTimeout(() => {
+      const mapControlButtons = document.querySelectorAll('.mapboxgl-ctrl-group > button');
+      mapControlButtons.forEach(button => {
+        button.style.backgroundColor = '#272727';
+        button.style.color = '#ffffff';
+      });
+      
+      // Ensure the navigation control buttons have proper white icons
+      const navButtons = document.querySelectorAll('.mapboxgl-ctrl-zoom-in, .mapboxgl-ctrl-zoom-out');
+      navButtons.forEach(button => {
+        // The zoom controls use pseudo-elements for their icons, so we need to inject CSS
+        if (!document.querySelector('#map-control-styles')) {
+          const style = document.createElement('style');
+          style.id = 'map-control-styles';
+          style.textContent = `
+            .mapboxgl-ctrl-group > button {
+              background-color: #272727 !important;
+              color: #ffffff !important;
+            }
+            .mapboxgl-ctrl-group > button:hover {
+              background-color: #3a3a3a !important;
+            }
+            .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
+              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 10 6 C 9.446 6 9 6.4459904 9 7 L 9 9 L 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 9 11 L 9 13 C 9 13.55401 9.446 14 10 14 C 10.554 14 11 13.55401 11 13 L 11 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 11 9 L 11 7 C 11 6.4459904 10.554 6 10 6 z'/%3E%3C/svg%3E") !important;
+            }
+            .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
+              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 7 9 z'/%3E%3C/svg%3E") !important;
+            }
+            .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon {
+              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%23ffffff;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
+            }
+            .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
+              background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%2333b5e5;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%2333b5e5;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      });
+    }, 100);
     
     init();
     
