@@ -1590,69 +1590,64 @@ const toggleSidebar = (side, show = null) => {
   if (!sidebar) return;
   
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
-  
-  // Mobile-specific sidebar switching delay (487px and down)
-  if (window.innerWidth <= 487 && isShowing) {
-    // Check if another sidebar is currently open (excluding SecondLeft and current sidebar)
-    const otherSidebars = ['Left', 'Right'].filter(s => s !== side);
-    const hasOpenSidebar = otherSidebars.some(s => {
-      const otherSidebar = sidebarCache.getSidebar(s);
-      return otherSidebar && otherSidebar.classList.contains('is-show');
-    });
-    
-    if (hasOpenSidebar) {
-      // Close other sidebars first
-      otherSidebars.forEach(otherSide => closeSidebar(otherSide));
-      
-      // Wait 200ms before opening the new sidebar
-      setTimeout(() => {
-        toggleSidebarInternal(side, sidebar, true);
-      }, 200);
-      return;
-    }
-  }
-  
-  // Normal toggle without delay
-  toggleSidebarInternal(side, sidebar, isShowing);
-};
-
-// Internal function to handle the actual sidebar toggling
-const toggleSidebarInternal = (side, sidebar, isShowing) => {
-  sidebar.classList.toggle('is-show', isShowing);
-  
   const jsMarginProperty = sidebarCache.getMarginProperty(side);
   const arrowIcon = sidebarCache.getArrow(side);
   
-  if (window.innerWidth > 478) {
-    const width = sidebarCache.getWidth(side);
-    sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${width + 1}px`;
-    
-    // Close other sidebars based on screen size
-    if (isShowing) {
-      if (window.innerWidth <= 991) {
-        // Close ALL other sidebars on devices 991px and down
-        ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
-          if (otherSide !== side) closeSidebar(otherSide);
-        });
-      } else if (side === 'Left' || side === 'SecondLeft') {
-        // On desktop (>991px): only close other left sidebars when opening a left sidebar
-        const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
-        closeSidebar(otherLeftSide);
-      }
-    }
-  } else {
-    // Mobile (478px and down): use margin behavior and close all other sidebars
-    sidebar.style[jsMarginProperty] = isShowing ? '0' : '';
-    if (isShowing && window.innerWidth > 487) {
-      ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
-        if (otherSide !== side) closeSidebar(otherSide);
-      });
+  // Check if we need to delay on mobile when switching between sidebars
+  let shouldDelay = false;
+  if (window.innerWidth <= 487 && isShowing && (side === 'Left' || side === 'Right')) {
+    // Check if any other sidebar (Left or Right, but not SecondLeft) is currently open
+    const otherSide = side === 'Left' ? 'Right' : 'Left';
+    const otherSidebar = sidebarCache.getSidebar(otherSide);
+    if (otherSidebar && otherSidebar.classList.contains('is-show')) {
+      shouldDelay = true;
+      // Close the other sidebar first
+      closeSidebar(otherSide);
     }
   }
   
-  // Set pointer events and arrow icon for the current sidebar
-  utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
-  if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
+  // Function to actually perform the sidebar toggle
+  const performToggle = () => {
+    sidebar.classList.toggle('is-show', isShowing);
+    
+    if (window.innerWidth > 478) {
+      const width = sidebarCache.getWidth(side);
+      sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${width + 1}px`;
+      
+      // Close other sidebars based on screen size
+      if (isShowing) {
+        if (window.innerWidth <= 991) {
+          // Close ALL other sidebars on devices 991px and down
+          ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
+            if (otherSide !== side) closeSidebar(otherSide);
+          });
+        } else if (side === 'Left' || side === 'SecondLeft') {
+          // On desktop (>991px): only close other left sidebars when opening a left sidebar
+          const otherLeftSide = side === 'Left' ? 'SecondLeft' : 'Left';
+          closeSidebar(otherLeftSide);
+        }
+      }
+    } else {
+      // Mobile (478px and down): use margin behavior and close all other sidebars
+      sidebar.style[jsMarginProperty] = isShowing ? '0' : '';
+      if (isShowing) {
+        ['Left', 'SecondLeft', 'Right'].forEach(otherSide => {
+          if (otherSide !== side) closeSidebar(otherSide);
+        });
+      }
+    }
+    
+    // Set pointer events and arrow icon for the current sidebar
+    utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
+    if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
+  };
+  
+  // Apply delay if needed, otherwise toggle immediately
+  if (shouldDelay) {
+    setTimeout(performToggle, 50);
+  } else {
+    performToggle();
+  }
 };
 
 // Highlight boundary with subtle red color and move above area overlays
@@ -2690,7 +2685,7 @@ function setupControls() {
 
 // OPTIMIZED: Sidebar setup with better performance and cleaner management
 function setupSidebars() {
-  let baseZIndex = 1000;
+  let zIndex = 1000;
   
   const setupSidebarElement = (side) => {
     const sidebar = sidebarCache.getSidebar(side);
@@ -2704,51 +2699,19 @@ function setupSidebars() {
     const cssTransitionProperty = side === 'SecondLeft' ? 'margin-left' : `margin-${side.toLowerCase()}`;
     utils.setStyles(sidebar, {
       transition: `${cssTransitionProperty} 0.25s cubic-bezier(0.4, 0, 0.2, 1)`,
-      zIndex: side === 'SecondLeft' ? baseZIndex : baseZIndex + 1,
+      zIndex: zIndex,
       position: 'relative'
     });
     utils.setStyles(tab, {
       transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
     });
     
-    // Set initial z-index for tabs on mobile (487px and down)
-    if (window.innerWidth <= 487) {
-      // SecondLeft tab always behind everything
-      if (side === 'SecondLeft') {
-        tab.style.zIndex = baseZIndex - 10;
-        if (tab.parentElement) tab.parentElement.style.zIndex = baseZIndex - 10;
-      } else {
-        // Left and Right tabs get higher z-index
-        tab.style.zIndex = baseZIndex + 10;
-        if (tab.parentElement) tab.parentElement.style.zIndex = baseZIndex + 10;
-      }
-    }
-
-    // Remove the bringToFront functionality - no longer needed
+    // Removed bringToFront function and click handler for z-index management
     
     if (tab.dataset.setupComplete !== 'true') {
       eventManager.add(tab, 'click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
-        // Handle z-index for mobile (487px and down)
-        if (window.innerWidth <= 487 && side !== 'SecondLeft') {
-          // When clicking a tab, lower its z-index permanently
-          const currentZIndex = parseInt(tab.style.zIndex) || baseZIndex + 10;
-          const otherSide = side === 'Left' ? 'Right' : 'Left';
-          const otherTab = $id(`${otherSide}SideTab`);
-          
-          if (otherTab) {
-            // Make the clicked tab lower than the other tab
-            tab.style.zIndex = currentZIndex - 5;
-            if (tab.parentElement) tab.parentElement.style.zIndex = currentZIndex - 5;
-            
-            // Ensure the other tab is higher
-            otherTab.style.zIndex = currentZIndex;
-            if (otherTab.parentElement) otherTab.parentElement.style.zIndex = currentZIndex;
-          }
-        }
-        
         toggleSidebar(side, !sidebar.classList.contains('is-show'));
       });
       tab.dataset.setupComplete = 'true';
@@ -2763,6 +2726,7 @@ function setupSidebars() {
       close.dataset.setupComplete = 'true';
     }
     
+    zIndex++;
     return true;
   };
   
