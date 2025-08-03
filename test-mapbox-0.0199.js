@@ -139,7 +139,7 @@ class RealTimeVisibilityAutocomplete {
             hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
         }
         
-        // Remove .blurred class from search icons and clear wrap
+        // Remove .blurred class from search icons and clear wrap (no delay on focus)
         const searchIconsWrap = document.querySelector('.search-icons-wrap');
         const clearSearchWrap = document.querySelector('.clear-search-wrap');
         
@@ -150,21 +150,33 @@ class RealTimeVisibilityAutocomplete {
             clearSearchWrap.classList.remove('blurred');
         }
         
-        // Always show dropdown on focus
-        this.showVisibleTerms();
+        // Show dropdown with 300ms delay on mobile (478px and down)
+        if (window.innerWidth <= 478) {
+            setTimeout(() => {
+                // Check if still focused before showing
+                if (document.activeElement === this.elements.input) {
+                    this.showVisibleTerms();
+                }
+            }, 300);
+        } else {
+            // Show dropdown immediately on desktop
+            this.showVisibleTerms();
+        }
     }
     
     handleBlur() {
-        // Add .blurred class back to search icons and clear wrap
-        const searchIconsWrap = document.querySelector('.search-icons-wrap');
-        const clearSearchWrap = document.querySelector('.clear-search-wrap');
-        
-        if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
-            searchIconsWrap.classList.add('blurred');
-        }
-        if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
-            clearSearchWrap.classList.add('blurred');
-        }
+        // Add .blurred class back to search icons and clear wrap with 300ms delay
+        setTimeout(() => {
+            const searchIconsWrap = document.querySelector('.search-icons-wrap');
+            const clearSearchWrap = document.querySelector('.clear-search-wrap');
+            
+            if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
+                searchIconsWrap.classList.add('blurred');
+            }
+            if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
+                clearSearchWrap.classList.add('blurred');
+            }
+        }, 300);
         
         // Hide dropdown on blur with a small delay to allow clicks
         setTimeout(() => {
