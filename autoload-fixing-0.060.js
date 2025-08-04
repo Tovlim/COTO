@@ -1,4 +1,4 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.3 (MOBILE DEBUG)
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.4 (MOBILE FIX)
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -429,6 +429,10 @@ function performFancyBoxReInit(retryAttempt = 0) {
       
       console.log(`[FANCYBOX] Re-init complete${isMobileDevice ? ' (MOBILE)' : ''}`);
       
+      // Always hide loading for this attempt
+      console.log(`[FANCYBOX] Calling hideLoadingIndicator for attempt ${retryAttempt + 1}`);
+      hideLoadingIndicator();
+      
       // On mobile, only do ONE additional re-initialization attempt instead of multiple
       if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
         console.log(`[FANCYBOX-MOBILE] Scheduling retry in ${MOBILE_REINIT_DELAYS[0]}ms`);
@@ -436,9 +440,6 @@ function performFancyBoxReInit(retryAttempt = 0) {
           console.log(`[FANCYBOX-MOBILE] Starting retry`);
           performFancyBoxReInit(1);
         }, MOBILE_REINIT_DELAYS[0]);
-      } else {
-        console.log(`[FANCYBOX] Calling hideLoadingIndicator from success path`);
-        hideLoadingIndicator();
       }
       
       needsFancyBoxReInit = false;
@@ -446,6 +447,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
       return true;
     } else {
       console.log(`[FANCYBOX] window.Fancybox not found`);
+      hideLoadingIndicator();
     }
   } catch (e) {
     console.error(`[FANCYBOX] Re-init error:`, e);
@@ -460,9 +462,6 @@ function performFancyBoxReInit(retryAttempt = 0) {
       console.log(`[FANCYBOX-MOBILE] Starting error retry`);
       performFancyBoxReInit(1);
     }, MOBILE_REINIT_DELAYS[0]);
-  } else {
-    console.log(`[FANCYBOX] Calling hideLoadingIndicator from final path`);
-    hideLoadingIndicator();
   }
   
   return false;
