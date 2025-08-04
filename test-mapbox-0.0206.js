@@ -87,62 +87,33 @@ class RealTimeVisibilityAutocomplete {
         this.attachEventHandler('input', 'keyup', debouncedInput);
         this.attachEventHandler('input', 'focus', () => this.handleFocus());
         this.attachEventHandler('input', 'blur', () => this.handleBlur());
+        this.attachEventHandler('input', 'focusout', () => this.handleBlur());
         this.attachEventHandler('input', 'keydown', (e) => this.handleKeydown(e));
         this.attachEventHandler('list', 'click', (e) => this.handleDropdownClick(e));
         this.attachEventHandler('document', 'click', (e) => this.handleOutsideClick(e));
         
+        // Add window blur to catch browser UI interactions
+        this.attachEventHandler('window', 'blur', () => {
+            if (document.activeElement === this.elements.input) {
+                this.elements.input.blur();
+            }
+        });
+        
         if (this.elements.clear) {
             this.attachEventHandler('clear', 'click', () => this.handleClear());
-        }
-        
-        // Visual Viewport API for mobile keyboard detection
-        if (window.visualViewport) {
-            let previousHeight = window.visualViewport.height;
-            let keyboardWasOpen = false;
-            
-            const viewportHandler = () => {
-                const currentHeight = window.visualViewport.height;
-                const heightDifference = currentHeight - previousHeight;
-                
-                // Keyboard was open if previous height was smaller (keyboard taking space)
-                if (previousHeight < window.innerHeight * 0.75) {
-                    keyboardWasOpen = true;
-                }
-                
-                // Keyboard just closed if height increased significantly and keyboard was open
-                if (heightDifference > 100 && keyboardWasOpen) {
-                    keyboardWasOpen = false;
-                    
-                    // Check if input is not focused (keyboard dismissed without blur)
-                    if (document.activeElement !== this.elements.input) {
-                        // Trigger the blur animations
-                        const searchIconsWrap = document.querySelector('.search-icons-wrap');
-                        const clearSearchWrap = document.querySelector('.clear-search-wrap');
-                        
-                        if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
-                            searchIconsWrap.classList.add('blurred');
-                        }
-                        if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
-                            clearSearchWrap.classList.add('blurred');
-                        }
-                        
-                        // Also hide the dropdown
-                        this.hideDropdown();
-                    }
-                }
-                
-                previousHeight = currentHeight;
-            };
-            
-            window.visualViewport.addEventListener('resize', viewportHandler);
-            
-            // Store the handler for cleanup
-            this.viewportHandler = viewportHandler;
         }
     }
     
     attachEventHandler(elementKey, eventType, handler) {
-        const element = elementKey === 'document' ? document : this.elements[elementKey];
+        let element;
+        if (elementKey === 'document') {
+            element = document;
+        } else if (elementKey === 'window') {
+            element = window;
+        } else {
+            element = this.elements[elementKey];
+        }
+        
         if (!element) return;
         
         element.addEventListener(eventType, handler);
@@ -872,11 +843,6 @@ class RealTimeVisibilityAutocomplete {
             element.removeEventListener(eventType, handler);
         });
         this.eventHandlers.clear();
-        
-        // Remove viewport listener if it exists
-        if (window.visualViewport && this.viewportHandler) {
-            window.visualViewport.removeEventListener('resize', this.viewportHandler);
-        }
         
         console.log('Autocomplete cleanup completed');
     }
