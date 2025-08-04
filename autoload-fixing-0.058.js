@@ -702,7 +702,6 @@ function processItemsBatch(items) {
 // Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
 function processFilteredItems() {
   console.log(`[FILTERING] processFilteredItems started`);
-  showLoadingIndicator();
   
   // Clear processed tabs to re-initialize them after filtering
   processedTabItems = new WeakSet();
@@ -759,11 +758,7 @@ function processFilteredItems() {
   // Process visible items immediately
   if (visibleItems.length > 0) {
     processItemsLazily(visibleItems);
-    // Note: processItemsLazily will handle its own hideLoadingIndicator
-  } else {
-    // If no visible items to process, hide loading immediately
-    console.log(`[FILTERING] No visible items, hiding loading`);
-    hideLoadingIndicator();
+    // Note: processItemsLazily handles its own loading indicator
   }
   
   // Queue non-visible items (desktop only)
