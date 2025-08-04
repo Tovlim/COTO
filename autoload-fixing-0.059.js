@@ -1,4 +1,4 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.3 (DEBUG)
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.3 (MOBILE DEBUG)
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -75,11 +75,13 @@ const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
 
 // Device detection (reuse existing isMobile if available, otherwise create it)
 const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+console.log(`[DEVICE] Mobile device detected: ${isMobileDevice}`);
 
 // Loading indicator management
 function showLoadingIndicator() {
   activeLoadingProcesses++;
-  console.log(`[LOADING] Show called. Active processes: ${activeLoadingProcesses}`);
+  console.log(`[LOADING] Show called. Active processes: ${activeLoadingProcesses}${isMobileDevice ? ' (MOBILE)' : ''}`);
+  console.trace('Show loading trace');
   const loadingElement = document.getElementById('loading-reports');
   if (loadingElement) {
     loadingElement.style.display = 'block';
@@ -88,13 +90,14 @@ function showLoadingIndicator() {
 
 function hideLoadingIndicator() {
   activeLoadingProcesses--;
-  console.log(`[LOADING] Hide called. Active processes: ${activeLoadingProcesses}`);
+  console.log(`[LOADING] Hide called. Active processes: ${activeLoadingProcesses}${isMobileDevice ? ' (MOBILE)' : ''}`);
+  console.trace('Hide loading trace');
   if (activeLoadingProcesses <= 0) {
     activeLoadingProcesses = 0;
     const loadingElement = document.getElementById('loading-reports');
     if (loadingElement) {
       loadingElement.style.display = 'none';
-      console.log(`[LOADING] Hidden. Reset to 0`);
+      console.log(`[LOADING] Hidden. Reset to 0${isMobileDevice ? ' (MOBILE)' : ''}`);
     }
   }
 }
@@ -371,11 +374,13 @@ function scheduleFancyBoxReInit() {
 function performFancyBoxReInit(retryAttempt = 0) {
   try {
     if (window.Fancybox) {
-      console.log(`[FANCYBOX] Re-init started (attempt ${retryAttempt + 1})`);
+      console.log(`[FANCYBOX] Re-init started (attempt ${retryAttempt + 1})${isMobileDevice ? ' (MOBILE)' : ''}`);
       showLoadingIndicator();
       
       // Check if FancyBox is already working before re-initializing
       const existingFancyboxElements = document.querySelectorAll('[data-fancybox]');
+      console.log(`[FANCYBOX] Found ${existingFancyboxElements.length} existing elements`);
+      
       if (existingFancyboxElements.length > 0 && retryAttempt > 0) {
         // On mobile retries, only re-init if there are actually new elements that need binding
         const unboundElements = Array.from(existingFancyboxElements).filter(el => {
@@ -383,8 +388,10 @@ function performFancyBoxReInit(retryAttempt = 0) {
           return !el.hasAttribute('data-fancybox-bound');
         });
         
+        console.log(`[FANCYBOX] Found ${unboundElements.length} unbound elements`);
+        
         if (unboundElements.length === 0) {
-          console.log(`[FANCYBOX] No unbound elements, skipping re-init`);
+          console.log(`[FANCYBOX] No unbound elements, skipping re-init${isMobileDevice ? ' (MOBILE)' : ''}`);
           needsFancyBoxReInit = false;
           hideLoadingIndicator();
           return true;
@@ -420,32 +427,41 @@ function performFancyBoxReInit(retryAttempt = 0) {
         el.setAttribute('data-fancybox-bound', 'true');
       });
       
-      console.log(`[FANCYBOX] Re-init complete`);
+      console.log(`[FANCYBOX] Re-init complete${isMobileDevice ? ' (MOBILE)' : ''}`);
       
       // On mobile, only do ONE additional re-initialization attempt instead of multiple
       if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
+        console.log(`[FANCYBOX-MOBILE] Scheduling retry in ${MOBILE_REINIT_DELAYS[0]}ms`);
         setTimeout(() => {
+          console.log(`[FANCYBOX-MOBILE] Starting retry`);
           performFancyBoxReInit(1);
         }, MOBILE_REINIT_DELAYS[0]);
       } else {
+        console.log(`[FANCYBOX] Calling hideLoadingIndicator from success path`);
         hideLoadingIndicator();
       }
       
       needsFancyBoxReInit = false;
       mobileRetryCount = 0;
       return true;
+    } else {
+      console.log(`[FANCYBOX] window.Fancybox not found`);
     }
   } catch (e) {
     console.error(`[FANCYBOX] Re-init error:`, e);
+    console.log(`[FANCYBOX] Calling hideLoadingIndicator from error path`);
     hideLoadingIndicator();
   }
   
   // Only retry once on mobile if the first attempt failed
   if (isMobileDevice && retryAttempt === 0) {
+    console.log(`[FANCYBOX-MOBILE] Scheduling error retry in ${MOBILE_REINIT_DELAYS[0]}ms`);
     setTimeout(() => {
+      console.log(`[FANCYBOX-MOBILE] Starting error retry`);
       performFancyBoxReInit(1);
     }, MOBILE_REINIT_DELAYS[0]);
   } else {
+    console.log(`[FANCYBOX] Calling hideLoadingIndicator from final path`);
     hideLoadingIndicator();
   }
   
@@ -475,6 +491,7 @@ function updateLazyLoad() {
 function clickLoadMore(element) {
   if (isLoadingMore) return;
   
+  console.log(`[LOADMORE] Auto-clicking load-more${isMobileDevice ? ' (MOBILE)' : ''}`);
   isLoadingMore = true;
   
   // Store current scroll position
@@ -490,6 +507,8 @@ function clickLoadMore(element) {
   
   // Process any new items that were just added (mobile-optimized timing)
   const processDelay = isMobileDevice ? 500 : 300;
+  console.log(`[LOADMORE] Processing new items in ${processDelay}ms${isMobileDevice ? ' (MOBILE)' : ''}`);
+  
   setTimeout(() => {
     processNewlyAddedItems();
     processTabsForNewItems(); // Process tabs for new items
@@ -498,6 +517,7 @@ function clickLoadMore(element) {
   // Reset loading flag after delay
   setTimeout(() => {
     isLoadingMore = false;
+    console.log(`[LOADMORE] Ready for next load-more${isMobileDevice ? ' (MOBILE)' : ''}`);
   }, LOAD_MORE_DELAY);
 }
 
@@ -776,6 +796,7 @@ function processFilteredItems() {
 }
 
 function processInitialVisibleItems() {
+  console.log(`[INITIAL] processInitialVisibleItems started${isMobileDevice ? ' (MOBILE)' : ''}`);
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
   const itemsToQueue = [];
@@ -798,6 +819,8 @@ function processInitialVisibleItems() {
       }
     }
   });
+  
+  console.log(`[INITIAL] Found ${visibleItems.length} visible items, ${itemsToQueue.length} to queue${isMobileDevice ? ' (MOBILE - ALL ITEMS)' : ''}`);
   
   // Process visible items immediately
   if (visibleItems.length > 0) {
@@ -1036,7 +1059,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial setup with mobile-optimized timing
     const initialDelay = isMobileDevice ? 800 : 500;
+    console.log(`[INIT] Starting initial setup with ${initialDelay}ms delay${isMobileDevice ? ' (MOBILE)' : ''}`);
+    
     setTimeout(() => {
+      console.log(`[INIT] Running initial setup${isMobileDevice ? ' (MOBILE)' : ''}`);
+      
       // Check initial filtering state
       lastFilteringState = detectFiltering();
       isCurrentlyFiltering = lastFilteringState;
@@ -1046,6 +1073,8 @@ document.addEventListener('DOMContentLoaded', function() {
       processTabsForNewItems(); // Process tabs on initial load
       observeLoadMoreButton();
       updateLazyLoad();
+      
+      console.log(`[INIT] Initial setup complete${isMobileDevice ? ' (MOBILE)' : ''}`);
     }, initialDelay);
     
     // Cleanup on page unload
