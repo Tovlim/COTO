@@ -237,6 +237,8 @@ function processTabsForNewItems() {
 
 // Force re-process tabs for filtered items
 function reprocessTabsForFilteredItems() {
+  showLoadingIndicator();
+  
   // Find all CMS items that might have tabs
   const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
   const visibleTabItems = [];
@@ -270,6 +272,9 @@ function reprocessTabsForFilteredItems() {
   visibleTabItems.forEach(item => {
     initializeTabs(item);
   });
+  
+  // Hide loading indicator after tab processing is complete
+  hideLoadingIndicator();
 }
 
 // FancyBox 6 grouping system based on attributes
