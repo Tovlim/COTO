@@ -1,4 +1,4 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.3
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.3 (DEBUG)
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -79,6 +79,7 @@ const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.inne
 // Loading indicator management
 function showLoadingIndicator() {
   activeLoadingProcesses++;
+  console.log(`[LOADING] Show called. Active processes: ${activeLoadingProcesses}`);
   const loadingElement = document.getElementById('loading-reports');
   if (loadingElement) {
     loadingElement.style.display = 'block';
@@ -87,11 +88,13 @@ function showLoadingIndicator() {
 
 function hideLoadingIndicator() {
   activeLoadingProcesses--;
+  console.log(`[LOADING] Hide called. Active processes: ${activeLoadingProcesses}`);
   if (activeLoadingProcesses <= 0) {
     activeLoadingProcesses = 0;
     const loadingElement = document.getElementById('loading-reports');
     if (loadingElement) {
       loadingElement.style.display = 'none';
+      console.log(`[LOADING] Hidden. Reset to 0`);
     }
   }
 }
@@ -237,8 +240,6 @@ function processTabsForNewItems() {
 
 // Force re-process tabs for filtered items
 function reprocessTabsForFilteredItems() {
-  showLoadingIndicator();
-  
   // Find all CMS items that might have tabs
   const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
   const visibleTabItems = [];
@@ -272,9 +273,6 @@ function reprocessTabsForFilteredItems() {
   visibleTabItems.forEach(item => {
     initializeTabs(item);
   });
-  
-  // Hide loading indicator after tab processing is complete
-  hideLoadingIndicator();
 }
 
 // FancyBox 6 grouping system based on attributes
@@ -373,6 +371,7 @@ function scheduleFancyBoxReInit() {
 function performFancyBoxReInit(retryAttempt = 0) {
   try {
     if (window.Fancybox) {
+      console.log(`[FANCYBOX] Re-init started (attempt ${retryAttempt + 1})`);
       showLoadingIndicator();
       
       // Check if FancyBox is already working before re-initializing
@@ -385,6 +384,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
         });
         
         if (unboundElements.length === 0) {
+          console.log(`[FANCYBOX] No unbound elements, skipping re-init`);
           needsFancyBoxReInit = false;
           hideLoadingIndicator();
           return true;
@@ -420,6 +420,8 @@ function performFancyBoxReInit(retryAttempt = 0) {
         el.setAttribute('data-fancybox-bound', 'true');
       });
       
+      console.log(`[FANCYBOX] Re-init complete`);
+      
       // On mobile, only do ONE additional re-initialization attempt instead of multiple
       if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
         setTimeout(() => {
@@ -434,7 +436,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
       return true;
     }
   } catch (e) {
-    // Silently handle error
+    console.error(`[FANCYBOX] Re-init error:`, e);
     hideLoadingIndicator();
   }
   
@@ -579,10 +581,12 @@ function queueItemForLazyProcessing(item) {
 function processItemsLazily(items) {
   if (!items?.length) return;
   
+  console.log(`[PROCESS] processItemsLazily started with ${items.length} items`);
   showLoadingIndicator();
   
   const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
     if (itemsToProcess.length === 0) {
+      console.log(`[PROCESS] All chunks processed, updating LazyLoad`);
       updateLazyLoad();
       // Schedule FancyBox re-init if needed
       if (needsFancyBoxReInit) {
@@ -593,6 +597,7 @@ function processItemsLazily(items) {
     }
     
     const chunk = itemsToProcess.splice(0, chunkSize);
+    console.log(`[PROCESS] Processing chunk of ${chunk.length} items, ${itemsToProcess.length} remaining`);
     
     chunk.forEach(item => {
       try {
@@ -603,7 +608,7 @@ function processItemsLazily(items) {
         }
         
       } catch (error) {
-        // Silently handle error
+        console.error(`[PROCESS] Error processing item:`, error);
       }
     });
     
@@ -612,6 +617,7 @@ function processItemsLazily(items) {
       requestAnimationFrame(() => processInChunks(itemsToProcess, chunkSize));
     } else {
       setTimeout(() => {
+        console.log(`[PROCESS] Final cleanup`);
         updateLazyLoad();
         // Schedule FancyBox re-init if needed
         if (needsFancyBoxReInit) {
@@ -695,6 +701,7 @@ function processItemsBatch(items) {
 
 // Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
 function processFilteredItems() {
+  console.log(`[FILTERING] processFilteredItems started`);
   showLoadingIndicator();
   
   // Clear processed tabs to re-initialize them after filtering
@@ -747,12 +754,15 @@ function processFilteredItems() {
     }
   });
   
+  console.log(`[FILTERING] Found ${visibleItems.length} visible items to process`);
+  
   // Process visible items immediately
   if (visibleItems.length > 0) {
     processItemsLazily(visibleItems);
     // Note: processItemsLazily will handle its own hideLoadingIndicator
   } else {
     // If no visible items to process, hide loading immediately
+    console.log(`[FILTERING] No visible items, hiding loading`);
     hideLoadingIndicator();
   }
   
@@ -765,6 +775,7 @@ function processFilteredItems() {
   
   // Force re-process tabs for all visible filtered items
   setTimeout(() => {
+    console.log(`[FILTERING] Starting tab reprocessing`);
     reprocessTabsForFilteredItems();
   }, 200);
 }
