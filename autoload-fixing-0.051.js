@@ -1,4 +1,4 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.0
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.2
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -6,6 +6,7 @@
 // • Integrates LazyLoad for images on new items  
 // • Supports CMS lightbox grouping with [wfu-lightbox-group] attributes
 // • Parent-scoped tab system with data-tab and data-tab-content attributes
+// • Shows #loading-reports during any loading/processing operations
 // • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
 // • COMPLETE re-processing when filtering changes
@@ -27,6 +28,7 @@
 // • Automatically clicks load-more button when it becomes visible
 // • Preserves scroll position during loading
 // • Coordinates with lightbox processing for optimal performance
+// • Shows loading indicator during processing
 //
 // 📑 TAB SYSTEM:
 // • Parent-scoped tabs using data-tab and data-tab-content attributes
@@ -35,6 +37,12 @@
 // • Automatic tab initialization for all CMS items
 // • Handles dynamically loaded content
 // • Mobile-optimized tab switching
+//
+// 📊 LOADING INDICATOR:
+// • Shows #loading-reports element during any processing
+// • Tracks multiple concurrent loading operations
+// • Automatically hides when all processing is complete
+// • Works with auto-load, manual load, filtering, and initial load
 //
 // 📱 MOBILE OPTIMIZATIONS:
 // • Enhanced timing for mobile browsers
@@ -55,6 +63,7 @@ let reInitTimeout = null;
 let isCurrentlyFiltering = false;
 let lastFilteringState = false;
 let mobileRetryCount = 0;
+let activeLoadingProcesses = 0;
 
 // Configuration
 const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
@@ -65,6 +74,26 @@ const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
 
 // Device detection (reuse existing isMobile if available, otherwise create it)
 const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+// Loading indicator management
+function showLoadingIndicator() {
+  activeLoadingProcesses++;
+  const loadingElement = document.getElementById('loading-reports');
+  if (loadingElement) {
+    loadingElement.style.display = 'block';
+  }
+}
+
+function hideLoadingIndicator() {
+  activeLoadingProcesses--;
+  if (activeLoadingProcesses <= 0) {
+    activeLoadingProcesses = 0;
+    const loadingElement = document.getElementById('loading-reports');
+    if (loadingElement) {
+      loadingElement.style.display = 'none';
+    }
+  }
+}
 
 // Debounce function
 function debounce(func, wait) {
@@ -292,6 +321,8 @@ function scheduleFancyBoxReInit() {
 function performFancyBoxReInit(retryAttempt = 0) {
   try {
     if (window.Fancybox) {
+      showLoadingIndicator();
+      
       // Check if FancyBox is already working before re-initializing
       const existingFancyboxElements = document.querySelectorAll('[data-fancybox]');
       if (existingFancyboxElements.length > 0 && retryAttempt > 0) {
@@ -303,6 +334,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
         
         if (unboundElements.length === 0) {
           needsFancyBoxReInit = false;
+          hideLoadingIndicator();
           return true;
         }
       }
@@ -341,6 +373,8 @@ function performFancyBoxReInit(retryAttempt = 0) {
         setTimeout(() => {
           performFancyBoxReInit(1);
         }, MOBILE_REINIT_DELAYS[0]);
+      } else {
+        hideLoadingIndicator();
       }
       
       needsFancyBoxReInit = false;
@@ -349,6 +383,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
     }
   } catch (e) {
     // Silently handle error
+    hideLoadingIndicator();
   }
   
   // Only retry once on mobile if the first attempt failed
@@ -356,6 +391,8 @@ function performFancyBoxReInit(retryAttempt = 0) {
     setTimeout(() => {
       performFancyBoxReInit(1);
     }, MOBILE_REINIT_DELAYS[0]);
+  } else {
+    hideLoadingIndicator();
   }
   
   return false;
@@ -490,6 +527,8 @@ function queueItemForLazyProcessing(item) {
 function processItemsLazily(items) {
   if (!items?.length) return;
   
+  showLoadingIndicator();
+  
   const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
     if (itemsToProcess.length === 0) {
       updateLazyLoad();
@@ -497,6 +536,7 @@ function processItemsLazily(items) {
       if (needsFancyBoxReInit) {
         scheduleFancyBoxReInit();
       }
+      hideLoadingIndicator();
       return;
     }
     
@@ -525,6 +565,7 @@ function processItemsLazily(items) {
         if (needsFancyBoxReInit) {
           scheduleFancyBoxReInit();
         }
+        hideLoadingIndicator();
       }, 100);
     }
   };
@@ -576,6 +617,8 @@ function processNewlyAddedItems() {
 function processItemsBatch(items) {
   if (!items?.length) return;
   
+  showLoadingIndicator();
+  
   items.forEach((item, index) => {
     try {
       // Process FancyBox groups
@@ -594,11 +637,14 @@ function processItemsBatch(items) {
     if (needsFancyBoxReInit) {
       scheduleFancyBoxReInit();
     }
+    hideLoadingIndicator();
   }, 100);
 }
 
 // Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
 function processFilteredItems() {
+  showLoadingIndicator();
+  
   // Clear processed tabs to re-initialize them after filtering
   processedTabItems = new WeakSet();
   
@@ -652,6 +698,10 @@ function processFilteredItems() {
   // Process visible items immediately
   if (visibleItems.length > 0) {
     processItemsLazily(visibleItems);
+    // Note: processItemsLazily will handle its own hideLoadingIndicator
+  } else {
+    // If no visible items to process, hide loading immediately
+    hideLoadingIndicator();
   }
   
   // Queue non-visible items (desktop only)
@@ -784,6 +834,12 @@ function initFilteringDetection() {
 
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
+  // Hide loading indicator initially
+  const loadingElement = document.getElementById('loading-reports');
+  if (loadingElement) {
+    loadingElement.style.display = 'none';
+  }
+  
   // Wait for FancyBox to be available
   const initWhenReady = () => {
     if (typeof Fancybox === 'undefined') {
