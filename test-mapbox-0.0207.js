@@ -100,6 +100,11 @@ class RealTimeVisibilityAutocomplete {
         });
         
         if (this.elements.clear) {
+            // Prevent default mousedown to stop blur
+            this.attachEventHandler('clear', 'mousedown', (e) => {
+                e.preventDefault();
+            });
+            
             this.attachEventHandler('clear', 'click', () => this.handleClear());
         }
     }
@@ -207,14 +212,20 @@ class RealTimeVisibilityAutocomplete {
             this.elements.input.value = '';
             this.hideDropdown();
             this.triggerSearchEvents();
+            
+            // Keep focus on the input after clearing
             this.elements.input.focus();
+            
+            // Re-show dropdown with all available items
+            this.showVisibleTerms();
         }
     }
     
     handleOutsideClick(e) {
         if (!this.elements.input.contains(e.target) && 
             !this.elements.wrapper.contains(e.target) && 
-            e.target !== this.elements.clear) {
+            e.target !== this.elements.clear &&
+            !this.elements.clear?.contains(e.target)) {
             this.hideDropdown();
         }
     }
