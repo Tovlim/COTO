@@ -1,4 +1,4 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.2
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs v8.3
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -37,6 +37,7 @@
 // • Automatic tab initialization for all CMS items
 // • Handles dynamically loaded content
 // • Mobile-optimized tab switching
+// • Re-initializes tabs after filtering (same as FancyBox)
 //
 // 📊 LOADING INDICATOR:
 // • Shows #loading-reports element during any processing
@@ -144,6 +145,15 @@ function initializeTabs(cmsItem) {
     return; // No tabs in this item
   }
   
+  // Remove any existing event listeners before re-initializing
+  tabs.forEach((tab) => {
+    const newTab = tab.cloneNode(true);
+    tab.parentNode.replaceChild(newTab, tab);
+  });
+  
+  // Re-query tabs after cloning
+  const freshTabs = cmsItem.querySelectorAll('[data-tab]');
+  
   // Hide all tab contents by default (no active tab)
   tabContents.forEach((content) => {
     content.style.display = 'none';
@@ -151,7 +161,7 @@ function initializeTabs(cmsItem) {
   });
   
   // Remove active class from all tabs
-  tabs.forEach((tab) => {
+  freshTabs.forEach((tab) => {
     tab.classList.remove('active-tab');
     
     // Add click handler with toggle functionality
@@ -177,7 +187,7 @@ function initializeTabs(cmsItem) {
       } else {
         // Otherwise, switch to the clicked tab
         // Update active tab
-        tabs.forEach(t => t.classList.remove('active-tab'));
+        freshTabs.forEach(t => t.classList.remove('active-tab'));
         this.classList.add('active-tab');
         
         // Show corresponding content
@@ -222,6 +232,43 @@ function processTabsForNewItems() {
         initializeTabs(item);
       }
     }
+  });
+}
+
+// Force re-process tabs for filtered items
+function reprocessTabsForFilteredItems() {
+  // Find all CMS items that might have tabs
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+  const visibleTabItems = [];
+  
+  cmsItems.forEach(item => {
+    // Check if this item contains tabs
+    const hasTabs = item.querySelector('[data-tab]');
+    if (!hasTabs) return;
+    
+    // Check if item is actually visible (not hidden by filtering)
+    let currentElement = item;
+    let isVisible = true;
+    
+    while (currentElement && currentElement !== document.body) {
+      const style = getComputedStyle(currentElement);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        isVisible = false;
+        break;
+      }
+      currentElement = currentElement.parentElement;
+    }
+    
+    if (isVisible) {
+      // Remove from processed items to force re-initialization
+      processedTabItems.delete(item);
+      visibleTabItems.push(item);
+    }
+  });
+  
+  // Re-initialize tabs for all visible items
+  visibleTabItems.forEach(item => {
+    initializeTabs(item);
   });
 }
 
@@ -711,9 +758,9 @@ function processFilteredItems() {
     });
   }
   
-  // Re-process tabs for visible items
+  // Force re-process tabs for all visible filtered items
   setTimeout(() => {
-    processTabsForNewItems();
+    reprocessTabsForFilteredItems();
   }, 200);
 }
 
