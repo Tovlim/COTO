@@ -1,82 +1,4 @@
-triggerSubregionSelection(subregionName) {
-        // Set marker click flag to prevent conflicts
-        window.isMarkerClick = true;
-        
-        // Also clear any mapbox marker interaction locks
-        if (window.mapUtilities && window.mapUtilities.state) {
-            window.mapUtilities.state.markerInteractionLock = false;
-        }
-        
-        // For subregions, we'll paste to hidden-list-search like districts without boundaries
-        const hiddenListSearch = document.getElementById('hidden-list-search');
-        if (hiddenListSearch) {
-            hiddenListSearch.value = subregionName;
-            // Trigger events on hidden-list-search
-            hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-            hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // Show filtered elements
-        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
-            window.mapUtilities.toggleShowWhenFilteredElements(true);
-        }
-        
-        // Open left sidebar only on desktop (not on mobile 478px and down)
-        if (window.innerWidth > 478) {
-            if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
-                window.mapUtilities.toggleSidebar('Left', true);
-            }
-        }
-        
-        // Always ensure cleanup happens
-        const cleanupFlags = () => {
-            window.isMarkerClick = false;
-            if (window.mapUtilities && window.mapUtilities.state) {
-                window.mapUtilities.state.markerInteractionLock = false;
-                window.mapUtilities.state.flags.forceFilteredReframe = false;
-                window.mapUtilities.state.flags.isRefreshButtonAction = false;
-            }
-        };
-        
-        // Trigger filtering
-        setTimeout(() => {
-            if (window.mapUtilities && window.mapUtilities.state) {
-                const state = window.mapUtilities.state;
-                state.flags.forceFilteredReframe = true;
-                state.flags.isRefreshButtonAction = true;
-                
-                if (typeof window.applyFilterToMarkers === 'function') {
-                    window.applyFilterToMarkers();
-                    
-                    // Clean up after reframing
-                    setTimeout(cleanupFlags, 1000);
-                } else {
-                    // Clean up if no applyFilterToMarkers function
-                    setTimeout(cleanupFlags, 500);
-                }
-            } else {
-                // Clean up if no mapUtilities
-                setTimeout(cleanupFlags, 500);
-            }
-        }, 100);
-    }    getCurrentlyVisibleSubregions() {
-        const container = this.getFilterContainer();
-        if (!container) return [];
-        
-        const visibleSubregions = new Set();
-        const subregionElements = container.querySelectorAll('.data-places-subregion-filter');
-        
-        subregionElements.forEach(element => {
-            if (this.isElementVisible(element)) {
-                const term = element.textContent.trim();
-                if (term && term.length > 0) {
-                    visibleSubregions.add(term);
-                }
-            }
-        });
-        
-        return [...visibleSubregions].sort();
-    }// COMBINED MAPBOX & AUTOCOMPLETE SCRIPT - Production Version 2025
+// COMBINED MAPBOX & AUTOCOMPLETE SCRIPT - Production Version 2025
 // Includes: Map functionality, Real-time visibility autocomplete, Finsweet integration
 
 // ========================
@@ -357,7 +279,6 @@ class RealTimeVisibilityAutocomplete {
     getCurrentlyVisibleTerms() {
         const startTime = performance.now();
         const visibleDistricts = new Set();
-        const visibleSubregions = new Set();
         const visibleLocalities = new Set();
         
         try {
@@ -368,10 +289,9 @@ class RealTimeVisibilityAutocomplete {
                 return [];
             }
             
-            // Get all locality, district, and subregion elements
+            // Get all locality and district elements
             const localityElements = container.querySelectorAll('.data-places-names-filter');
             const districtElements = container.querySelectorAll('.data-places-district-filter');
-            const subregionElements = container.querySelectorAll('.data-places-subregion-filter');
             
             // Check locality visibility and collect visible ones
             localityElements.forEach(element => {
@@ -393,23 +313,12 @@ class RealTimeVisibilityAutocomplete {
                 }
             });
             
-            // Check subregion visibility and collect visible ones
-            subregionElements.forEach(element => {
-                if (this.isElementVisible(element)) {
-                    const term = element.textContent.trim();
-                    if (term && term.length > 0) {
-                        visibleSubregions.add(term);
-                    }
-                }
-            });
-            
-            // Combine results: districts first, then subregions, then localities
+            // Combine results: districts first, then localities
             const sortedDistricts = [...visibleDistricts].sort();
-            const sortedSubregions = [...visibleSubregions].sort();
             const sortedLocalities = [...visibleLocalities].sort();
-            const combinedTerms = [...sortedDistricts, ...sortedSubregions, ...sortedLocalities];
+            const combinedTerms = [...sortedDistricts, ...sortedLocalities];
             
-            console.log(`Found ${sortedDistricts.length} districts, ${sortedSubregions.length} subregions, and ${sortedLocalities.length} localities in ${performance.now() - startTime}ms`);
+            console.log(`Found ${sortedDistricts.length} districts and ${sortedLocalities.length} localities in ${performance.now() - startTime}ms`);
             return combinedTerms;
             
         } catch (error) {
@@ -466,16 +375,15 @@ class RealTimeVisibilityAutocomplete {
     // CORE: Show dropdown with currently visible terms
     showVisibleTerms() {
         const visibleDistricts = this.getCurrentlyVisibleDistricts();
-        const visibleSubregions = this.getCurrentlyVisibleSubregions();
         const visibleLocalities = this.getCurrentlyVisibleLocalities();
         
         // Always show dropdown if there are any terms (even if input is empty)
-        if (visibleDistricts.length === 0 && visibleSubregions.length === 0 && visibleLocalities.length === 0) {
+        if (visibleDistricts.length === 0 && visibleLocalities.length === 0) {
             this.hideDropdown();
             return;
         }
         
-        this.updateDropdownContent(visibleDistricts, visibleSubregions, visibleLocalities);
+        this.updateDropdownContent(visibleDistricts, visibleLocalities);
         this.updatePositioning();
         this.elements.wrapper.style.display = 'block';
     }
@@ -592,21 +500,19 @@ class RealTimeVisibilityAutocomplete {
         }
     }
     
-    updateDropdownContent(districts, subregions, localities) {
+    updateDropdownContent(districts, localities) {
         // Clear existing content
         this.elements.list.innerHTML = '';
         
         // Get search text for sorting
         const searchText = this.elements.input.value.trim();
         
-        // Sort districts, subregions and localities by relevance
+        // Sort districts and localities by relevance
         const sortedDistricts = this.sortTermsByRelevance(districts, searchText);
-        const sortedSubregions = this.sortTermsByRelevance(subregions, searchText);
         const sortedLocalities = this.sortTermsByRelevance(localities, searchText);
         
-        // Limit districts and subregions to max 3 each
+        // Limit districts to max 3
         const limitedDistricts = sortedDistricts.slice(0, 3);
-        const limitedSubregions = sortedSubregions.slice(0, 3);
         
         // Create new dropdown items
         const fragment = document.createDocumentFragment();
@@ -616,15 +522,6 @@ class RealTimeVisibilityAutocomplete {
             limitedDistricts.forEach(district => {
                 const li = document.createElement('li');
                 li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="term-label">Region</span></a>`;
-                fragment.appendChild(li);
-            });
-        }
-        
-        // Add subregions (max 3, with same brown styling as districts)
-        if (limitedSubregions.length > 0) {
-            limitedSubregions.forEach(subregion => {
-                const li = document.createElement('li');
-                li.innerHTML = `<a href="#" class="list-term subregion-term" data-term="${this.escapeHtml(subregion)}" data-type="subregion">${this.escapeHtml(subregion)} <span class="term-label">Sub-Region</span></a>`;
                 fragment.appendChild(li);
             });
         }
@@ -926,7 +823,6 @@ class RealTimeVisibilityAutocomplete {
         style.id = 'autocomplete-district-styles';
         style.textContent = `
             .list-term.district-term,
-            .list-term.subregion-term,
             .list-term.locality-term {
                 display: flex;
                 align-items: center;
@@ -934,15 +830,13 @@ class RealTimeVisibilityAutocomplete {
                 padding: 8px 12px;
             }
             
-            .list-term.district-term,
-            .list-term.subregion-term {
+            .list-term.district-term {
                 font-weight: 600;
                 color: #6e3500;
                 background-color: #fdf6f0;
                 border-left: 3px solid #6e3500;
             }
-            .list-term.district-term:hover,
-            .list-term.subregion-term:hover {
+            .list-term.district-term:hover {
                 background-color: #f5e6d3;
             }
             
@@ -971,7 +865,7 @@ class RealTimeVisibilityAutocomplete {
             
             .locality-region {
                 font-size: 0.85em;
-                color: #6e3500;
+                color: #666;
                 font-weight: normal;
             }
             
@@ -985,8 +879,7 @@ class RealTimeVisibilityAutocomplete {
                 margin-top: 2px;
             }
             
-            .list-term.district-term .term-label,
-            .list-term.subregion-term .term-label {
+            .list-term.district-term .term-label {
                 color: #8f4500;
             }
             
