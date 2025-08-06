@@ -851,6 +851,11 @@ class RealTimeVisibilityAutocomplete {
                 background-color: #f9f8e6;
             }
             
+            /* Make all child elements of locality terms unclickable */
+            .list-term.locality-term * {
+                pointer-events: none;
+            }
+            
             .locality-info {
                 flex-grow: 1;
                 display: flex;
