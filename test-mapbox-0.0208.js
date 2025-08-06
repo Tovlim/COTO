@@ -411,19 +411,36 @@ class RealTimeVisibilityAutocomplete {
         const container = this.getFilterContainer();
         if (!container) return [];
         
-        const visibleLocalities = new Set();
+        const visibleLocalities = [];
         const localityElements = container.querySelectorAll('.data-places-names-filter');
         
         localityElements.forEach(element => {
             if (this.isElementVisible(element)) {
-                const term = element.textContent.trim();
-                if (term && term.length > 0) {
-                    visibleLocalities.add(term);
+                const name = element.textContent.trim();
+                if (name && name.length > 0) {
+                    // Get the parent element to find siblings
+                    const parent = element.parentElement;
+                    if (parent) {
+                        // Find district (region) element
+                        const districtElement = parent.querySelector('.data-places-district-filter');
+                        const district = districtElement ? districtElement.textContent.trim() : '';
+                        
+                        // Find sub-region element (may not exist due to conditional visibility)
+                        const subregionElement = parent.querySelector('.data-places-subregion-filter');
+                        const subregion = subregionElement ? subregionElement.textContent.trim() : '';
+                        
+                        visibleLocalities.push({
+                            name: name,
+                            district: district,
+                            subregion: subregion
+                        });
+                    }
                 }
             }
         });
         
-        return [...visibleLocalities].sort();
+        // Sort by name
+        return visibleLocalities.sort((a, b) => a.name.localeCompare(b.name));
     }
     
     sortTermsByRelevance(terms, searchText) {
@@ -431,28 +448,56 @@ class RealTimeVisibilityAutocomplete {
         
         const search = searchText.toLowerCase();
         
-        // Separate terms that start with search text from those that don't
-        const startsWithSearch = [];
-        const containsSearch = [];
-        const others = [];
+        // For localities (objects), check the name property
+        const isLocality = terms.length > 0 && typeof terms[0] === 'object';
         
-        terms.forEach(term => {
-            const termLower = term.toLowerCase();
-            if (termLower.startsWith(search)) {
-                startsWithSearch.push(term);
-            } else if (termLower.includes(search)) {
-                containsSearch.push(term);
-            } else {
-                others.push(term);
-            }
-        });
-        
-        // Sort each group alphabetically and combine
-        return [
-            ...startsWithSearch.sort(),
-            ...containsSearch.sort(),
-            ...others.sort()
-        ];
+        if (isLocality) {
+            // Separate terms that start with search text from those that don't
+            const startsWithSearch = [];
+            const containsSearch = [];
+            const others = [];
+            
+            terms.forEach(term => {
+                const termName = term.name.toLowerCase();
+                if (termName.startsWith(search)) {
+                    startsWithSearch.push(term);
+                } else if (termName.includes(search)) {
+                    containsSearch.push(term);
+                } else {
+                    others.push(term);
+                }
+            });
+            
+            // Sort each group alphabetically by name
+            return [
+                ...startsWithSearch.sort((a, b) => a.name.localeCompare(b.name)),
+                ...containsSearch.sort((a, b) => a.name.localeCompare(b.name)),
+                ...others.sort((a, b) => a.name.localeCompare(b.name))
+            ];
+        } else {
+            // For districts (strings), use the original logic
+            const startsWithSearch = [];
+            const containsSearch = [];
+            const others = [];
+            
+            terms.forEach(term => {
+                const termLower = term.toLowerCase();
+                if (termLower.startsWith(search)) {
+                    startsWithSearch.push(term);
+                } else if (termLower.includes(search)) {
+                    containsSearch.push(term);
+                } else {
+                    others.push(term);
+                }
+            });
+            
+            // Sort each group alphabetically and combine
+            return [
+                ...startsWithSearch.sort(),
+                ...containsSearch.sort(),
+                ...others.sort()
+            ];
+        }
     }
     
     updateDropdownContent(districts, localities) {
@@ -481,10 +526,26 @@ class RealTimeVisibilityAutocomplete {
             });
         }
         
-        // Add localities (with styling)
+        // Add localities with region info
         sortedLocalities.forEach(locality => {
             const li = document.createElement('li');
-            li.innerHTML = `<a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality)}" data-type="locality">${this.escapeHtml(locality)} <span class="term-label">Locality</span></a>`;
+            
+            // Build region display text
+            let regionText = '';
+            if (locality.subregion && locality.district) {
+                regionText = `${locality.subregion}, ${locality.district}`;
+            } else if (locality.district) {
+                regionText = locality.district;
+            }
+            
+            li.innerHTML = `
+                <a href="#" class="list-term locality-term" data-term="${this.escapeHtml(locality.name)}" data-type="locality">
+                    <div class="locality-info">
+                        <div class="locality-name">${this.escapeHtml(locality.name)}</div>
+                        ${regionText ? `<div class="locality-region">${this.escapeHtml(regionText)}</div>` : ''}
+                    </div>
+                    <span class="term-label">Locality</span>
+                </a>`;
             fragment.appendChild(li);
         });
         
@@ -784,9 +845,28 @@ class RealTimeVisibilityAutocomplete {
                 color: #7e7800;
                 background-color: #fffef5;
                 border-left: 3px solid #7e7800;
+                padding: 10px 12px;
             }
             .list-term.locality-term:hover {
                 background-color: #f9f8e6;
+            }
+            
+            .locality-info {
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            
+            .locality-name {
+                font-weight: 500;
+                color: #7e7800;
+            }
+            
+            .locality-region {
+                font-size: 0.85em;
+                color: #666;
+                font-weight: normal;
             }
             
             .term-label {
@@ -795,6 +875,8 @@ class RealTimeVisibilityAutocomplete {
                 opacity: 0.8;
                 margin-left: 8px;
                 flex-shrink: 0;
+                align-self: flex-start;
+                margin-top: 2px;
             }
             
             .list-term.district-term .term-label {
