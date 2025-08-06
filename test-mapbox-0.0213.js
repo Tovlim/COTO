@@ -950,7 +950,7 @@ class RealTimeVisibilityAutocomplete {
             }
             
             .locality-region {
-                font-size: 0.85em;
+                font-size: 0.75em;
                 color: #6e3500;
                 font-weight: normal;
             }
