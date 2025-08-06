@@ -375,15 +375,16 @@ class RealTimeVisibilityAutocomplete {
     // CORE: Show dropdown with currently visible terms
     showVisibleTerms() {
         const visibleDistricts = this.getCurrentlyVisibleDistricts();
+        const visibleSubregions = this.getCurrentlyVisibleSubregions();
         const visibleLocalities = this.getCurrentlyVisibleLocalities();
         
         // Always show dropdown if there are any terms (even if input is empty)
-        if (visibleDistricts.length === 0 && visibleLocalities.length === 0) {
+        if (visibleDistricts.length === 0 && visibleSubregions.length === 0 && visibleLocalities.length === 0) {
             this.hideDropdown();
             return;
         }
         
-        this.updateDropdownContent(visibleDistricts, visibleLocalities);
+        this.updateDropdownContent(visibleDistricts, visibleSubregions, visibleLocalities);
         this.updatePositioning();
         this.elements.wrapper.style.display = 'block';
     }
@@ -405,6 +406,25 @@ class RealTimeVisibilityAutocomplete {
         });
         
         return [...visibleDistricts].sort();
+    }
+    
+    getCurrentlyVisibleSubregions() {
+        const container = this.getFilterContainer();
+        if (!container) return [];
+        
+        const visibleSubregions = new Set();
+        const subregionElements = container.querySelectorAll('.data-places-subregion-filter');
+        
+        subregionElements.forEach(element => {
+            if (this.isElementVisible(element)) {
+                const term = element.textContent.trim();
+                if (term && term.length > 0) {
+                    visibleSubregions.add(term);
+                }
+            }
+        });
+        
+        return [...visibleSubregions].sort();
     }
     
     getCurrentlyVisibleLocalities() {
@@ -475,7 +495,7 @@ class RealTimeVisibilityAutocomplete {
                 ...others.sort((a, b) => a.name.localeCompare(b.name))
             ];
         } else {
-            // For districts (strings), use the original logic
+            // For districts and subregions (strings), use the original logic
             const startsWithSearch = [];
             const containsSearch = [];
             const others = [];
@@ -500,28 +520,44 @@ class RealTimeVisibilityAutocomplete {
         }
     }
     
-    updateDropdownContent(districts, localities) {
+    updateDropdownContent(districts, subregions, localities) {
         // Clear existing content
         this.elements.list.innerHTML = '';
         
         // Get search text for sorting
         const searchText = this.elements.input.value.trim();
         
-        // Sort districts and localities by relevance
+        // Sort all items by relevance
         const sortedDistricts = this.sortTermsByRelevance(districts, searchText);
+        const sortedSubregions = this.sortTermsByRelevance(subregions, searchText);
         const sortedLocalities = this.sortTermsByRelevance(localities, searchText);
         
-        // Limit districts to max 3
-        const limitedDistricts = sortedDistricts.slice(0, 3);
+        // Combine districts and subregions, then limit to max 3 total
+        const combinedRegions = [];
+        let districtIndex = 0;
+        let subregionIndex = 0;
+        
+        // Interleave districts and subregions based on relevance
+        while ((districtIndex < sortedDistricts.length || subregionIndex < sortedSubregions.length) && combinedRegions.length < 3) {
+            if (districtIndex < sortedDistricts.length) {
+                combinedRegions.push({ name: sortedDistricts[districtIndex], type: 'district' });
+                districtIndex++;
+            }
+            if (subregionIndex < sortedSubregions.length && combinedRegions.length < 3) {
+                combinedRegions.push({ name: sortedSubregions[subregionIndex], type: 'subregion' });
+                subregionIndex++;
+            }
+        }
         
         // Create new dropdown items
         const fragment = document.createDocumentFragment();
         
-        // Add districts first (max 3, with special styling)
-        if (limitedDistricts.length > 0) {
-            limitedDistricts.forEach(district => {
+        // Add combined regions (districts and subregions, max 3 total)
+        if (combinedRegions.length > 0) {
+            combinedRegions.forEach(region => {
                 const li = document.createElement('li');
-                li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(district)}" data-type="district">${this.escapeHtml(district)} <span class="term-label">Region</span></a>`;
+                const labelText = region.type === 'district' ? 'Region' : 'Sub-Region';
+                li.innerHTML = `<a href="#" class="list-term district-term" data-term="${this.escapeHtml(region.name)}" data-type="${region.type}">${this.escapeHtml(region.name)} <span class="term-label">${labelText}</span></a>`;
                 fragment.appendChild(li);
             });
         }
@@ -604,15 +640,19 @@ class RealTimeVisibilityAutocomplete {
     }
     
     selectTerm(term, type = 'locality') {
-        if (type === 'district') {
-            // For districts/regions: Put text in input (FIX #4)
+        if (type === 'district' || type === 'subregion') {
+            // For districts/regions and subregions: Put text in input
             this.elements.input.value = term;
             this.hideDropdown();
             
             // Blur the input to ensure dropdown stays hidden
             this.elements.input.blur();
             
-            this.triggerDistrictSelection(term);
+            if (type === 'district') {
+                this.triggerDistrictSelection(term);
+            } else if (type === 'subregion') {
+                this.triggerSubregionSelection(term);
+            }
         } else {
             // For localities: Put text in input and trigger selection
             this.elements.input.value = term;
@@ -623,6 +663,47 @@ class RealTimeVisibilityAutocomplete {
             
             this.triggerLocalitySelection(term);
         }
+    }
+    
+    triggerSubregionSelection(subregionName) {
+        // Similar to district selection but for subregions
+        // Use hidden-list-search for text-based filtering
+        const hiddenListSearch = document.getElementById('hidden-list-search');
+        if (hiddenListSearch) {
+            hiddenListSearch.value = subregionName;
+            hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Show filtered elements
+        if (window.mapUtilities && typeof window.mapUtilities.toggleShowWhenFilteredElements === 'function') {
+            window.mapUtilities.toggleShowWhenFilteredElements(true);
+        }
+        
+        // Open left sidebar only on desktop
+        if (window.innerWidth > 478) {
+            if (window.mapUtilities && typeof window.mapUtilities.toggleSidebar === 'function') {
+                window.mapUtilities.toggleSidebar('Left', true);
+            }
+        }
+        
+        // Trigger filtering with reframe
+        setTimeout(() => {
+            if (window.mapUtilities && window.mapUtilities.state) {
+                const state = window.mapUtilities.state;
+                state.flags.forceFilteredReframe = true;
+                state.flags.isRefreshButtonAction = true;
+                
+                if (typeof window.applyFilterToMarkers === 'function') {
+                    window.applyFilterToMarkers();
+                    
+                    setTimeout(() => {
+                        state.flags.forceFilteredReframe = false;
+                        state.flags.isRefreshButtonAction = false;
+                    }, 1000);
+                }
+            }
+        }, 100);
     }
     
     triggerDistrictSelection(districtName) {
@@ -870,7 +951,7 @@ class RealTimeVisibilityAutocomplete {
             
             .locality-region {
                 font-size: 0.85em;
-                color: #666;
+                color: #6e3500;
                 font-weight: normal;
             }
             
@@ -947,11 +1028,13 @@ class RealTimeVisibilityAutocomplete {
     
     getStats() {
         const visibleDistricts = this.getCurrentlyVisibleDistricts();
+        const visibleSubregions = this.getCurrentlyVisibleSubregions();
         const visibleLocalities = this.getCurrentlyVisibleLocalities();
         return {
             visibleDistricts: visibleDistricts.length,
+            visibleSubregions: visibleSubregions.length,
             visibleLocalities: visibleLocalities.length,
-            totalVisible: visibleDistricts.length + visibleLocalities.length,
+            totalVisible: visibleDistricts.length + visibleSubregions.length + visibleLocalities.length,
             targetContainer: this.targetCollection,
             dataField: this.dataField,
             eventHandlers: this.eventHandlers.size,
