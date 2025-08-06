@@ -152,13 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 
-                if (idField) {
-                    if (selectedIds.length === 1) {
-                        idField.value = selectedIds[0];
-                    } else {
-                        idField.value = selectedIds.map(id => `"${id}"`).join(',');
-                    }
-                }
+                if (idField) idField.value = selectedIds.map(id => `"${id}"`).join(',');
                 if (nameField) {
                     if (nameField.tagName === 'INPUT') {
                         nameField.value = selectedNames.join(' & ');
@@ -328,13 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                     
-                    if (idField) {
-                        if (selectedIds.length === 1) {
-                            idField.value = selectedIds[0];
-                        } else {
-                            idField.value = selectedIds.map(id => `"${id}"`).join(',');
-                        }
-                    }
+                    if (idField) idField.value = selectedIds.map(id => `"${id}"`).join(',');
                     if (nameField) {
                         const nameValue = selectedNames.join(' & ');
                         if (nameField.tagName === 'INPUT') {
