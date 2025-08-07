@@ -366,7 +366,26 @@ function initializeReporters(reportItem) {
     if (modalElements) modalElements.classList.add('modal-click');
   });
   
-  // Set up modal close
+  // Set up modal background click to close
+  if (reporterListWrap) {
+    reporterListWrap.addEventListener('click', function(e) {
+      // Only close if clicking directly on the reporterListWrap, not its children
+      if (e.target === this) {
+        e.preventDefault();
+        
+        // Remove modal-click class from the three elements
+        const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
+        const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
+        
+        this.classList.remove('modal-click');
+        this.style.display = 'none'; // Hide when modal closes
+        if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
+        if (modalElements) modalElements.classList.remove('modal-click');
+      }
+    });
+  }
+  
+  // Set up modal close button
   const closeBtn = reportersWrap.querySelector('[modal-close-btn="true"]');
   if (closeBtn) {
     closeBtn.addEventListener('click', function(e) {
