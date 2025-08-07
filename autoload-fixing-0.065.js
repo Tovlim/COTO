@@ -1,33 +1,4 @@
-function processInitialVisibleItems() {
-  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
-  const visibleItems = [];
-  const itemsToQueue = [];
-  
-  allItems.forEach(item => {
-    // On mobile, process all items immediately to avoid viewport detection issues
-    if (isMobileDevice) {
-      visibleItems.push(item);
-      processedItems.add(item);
-    } else {
-      // On desktop, use viewport detection as before
-      const rect = item.getBoundingClientRect();
-      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-      
-      if (isVisible) {
-        visibleItems.push(item);
-        processedItems.add(item);
-      } else {
-        itemsToQueue.push(item);
-      }
-    }
-  });
-  
-  // Process visible items immediately
-  if (visibleItems.length > 0) {
-    processItemsLazily(visibleItems);
-  }
-  
-  // Queue non-visible items (desktop only// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter v9.0
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter v9.0
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -35,7 +6,7 @@ function processInitialVisibleItems() {
 // • Integrates LazyLoad for images on new items  
 // • Supports CMS lightbox grouping with [wfu-lightbox-group] attributes
 // • Parent-scoped tab system with data-tab and data-tab-content attributes
-// • Multi-reporter system with modal display for collaborative posts
+// • Multi-reporter display with modal functionality
 // • Shows #loading-reports during any loading/processing operations
 // • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
@@ -70,12 +41,13 @@ function processInitialVisibleItems() {
 // • Re-initializes tabs after filtering (same as FancyBox)
 //
 // 👥 MULTI-REPORTER SYSTEM:
-// • Handles collaborative posts with multiple reporters
-// • Single reporter: Hides multi-reporter wrap
-// • Two reporters: Shows both images and names (Name1 & Name2)
-// • Three+ reporters: Shows first reporter and "& X others"
-// • Modal popup displays all reporters when clicked
-// • Automatic re-initialization after filtering
+// • Automatically detects number of reporters per report
+// • Single reporter: hides multi-reporter UI
+// • Two reporters: shows "Name & Name" format
+// • Three+ reporters: shows "Name & X others" format
+// • Modal opens on multi-reporter click
+// • Modal closes on close button click
+// • Scoped to report items with proper image handling
 //
 // 📊 LOADING INDICATOR:
 // • Shows #loading-reports element during any processing
@@ -312,165 +284,139 @@ function reprocessTabsForFilteredItems() {
 }
 
 // MULTI-REPORTER SYSTEM
-function initializeMultiReporter(reportItem) {
-  // Check if we've already processed this item
+function initializeReporters(reportItem) {
+  // Check if we've already processed reporters for this item
   if (processedReporterItems.has(reportItem)) {
     return;
   }
   
-  // Find the reporters wrap
+  // Find reporter elements within this report
   const reportersWrap = reportItem.querySelector('[reporters-wrap="true"]');
   if (!reportersWrap) return;
   
-  // Find all reporter items in the collection list
+  const multiReporterWrap = reportersWrap.querySelector('[multi-reporter-wrap="true"]');
+  const reporterListWrap = reportersWrap.querySelector('[reporter-list-wrap="true"]');
   const reporterItems = reportersWrap.querySelectorAll('[reporter-list-item="true"]');
+  
+  if (!multiReporterWrap || !reporterListWrap || reporterItems.length === 0) return;
+  
   const reporterCount = reporterItems.length;
   
-  // Set data attribute for debugging
-  reportersWrap.setAttribute('data-reporter-count', reporterCount);
-  
-  // Find the multi-reporter wrap
-  const multiReporterWrap = reportersWrap.querySelector('[multi-reporter-wrap="true"]');
-  if (!multiReporterWrap) return;
-  
-  // Find the modal elements
-  const reporterListWrap = reportersWrap.querySelector('[reporter-list-wrap="true"]');
-  const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
-  const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
-  
-  if (reporterCount <= 1) {
-    // Single reporter - ensure multi-reporter wrap stays hidden
+  // Single reporter - hide multi-reporter UI
+  if (reporterCount === 1) {
     multiReporterWrap.style.display = 'none';
-  } else {
-    // Multiple reporters - show the multi-reporter wrap
-    multiReporterWrap.style.display = 'flex';
-    
-    // Get reporter data
-    const reporters = Array.from(reporterItems).map(item => {
-      const image = item.querySelector('[reporter-image="true"]');
-      const nameElement = item.querySelector('.multi-reporter-name');
-      return {
-        name: nameElement ? nameElement.textContent : '',
-        imageSrc: image ? image.getAttribute('src') : ''
-      };
-    });
-    
-    // Update the multi-reporter display
-    const firstReporterImage = multiReporterWrap.querySelector('[first-reporter-image="true"]');
-    const multiReporterName = multiReporterWrap.querySelector('.multi-reporter-name');
-    
-    if (firstReporterImage && reporters[0]) {
-      firstReporterImage.src = reporters[0].imageSrc;
-      firstReporterImage.alt = reporters[0].name;
-    }
-    
+    processedReporterItems.add(reportItem);
+    return;
+  }
+  
+  // Multiple reporters - set up UI
+  multiReporterWrap.style.display = 'block';
+  
+  // Get reporter data
+  const reporters = Array.from(reporterItems).map(item => {
+    const nameElement = item.querySelector('.multi-reporter-name');
+    const imageElement = item.querySelector('[reporter-image="true"]');
+    return {
+      name: nameElement ? nameElement.textContent : '',
+      imageSrc: imageElement ? imageElement.src : ''
+    };
+  });
+  
+  // Set up images
+  const firstReporterImage = multiReporterWrap.querySelector('[first-reporter-image="true"]');
+  const secondReporterImage = multiReporterWrap.querySelector('[second-reporter-image="true"]');
+  
+  if (firstReporterImage && reporters[0]) {
+    firstReporterImage.src = reporters[0].imageSrc;
+    firstReporterImage.alt = reporters[0].name;
+    firstReporterImage.classList.add('lazy');
+  }
+  
+  if (secondReporterImage && reporters[1]) {
+    secondReporterImage.src = reporters[1].imageSrc;
+    secondReporterImage.alt = reporters[1].name;
+    secondReporterImage.classList.add('lazy');
+  }
+  
+  // Set up names
+  const nameElement = multiReporterWrap.querySelector('.multi-reporter-name');
+  if (nameElement) {
     if (reporterCount === 2) {
-      // Two reporters - show both images and names
-      const secondReporterImage = multiReporterWrap.querySelector('[second-reporter-image="true"]');
-      if (secondReporterImage && reporters[1]) {
-        secondReporterImage.src = reporters[1].imageSrc;
-        secondReporterImage.alt = reporters[1].name;
-        secondReporterImage.style.display = 'block';
-      }
-      
-      if (multiReporterName) {
-        multiReporterName.textContent = `${reporters[0].name} & ${reporters[1].name}`;
-      }
+      nameElement.textContent = `${reporters[0].name} & ${reporters[1].name}`;
     } else {
-      // Three or more reporters - show first and count
-      const secondReporterImage = multiReporterWrap.querySelector('[second-reporter-image="true"]');
-      if (secondReporterImage) {
-        secondReporterImage.style.display = 'none';
-      }
-      
-      if (multiReporterName) {
-        const othersCount = reporterCount - 1;
-        multiReporterName.textContent = `${reporters[0].name} & ${othersCount} others`;
-      }
-    }
-    
-    // Set up modal functionality
-    if (reporterListWrap) {
-      // Initialize modal as closed
-      reporterListWrap.setAttribute('data-modal-open', 'false');
-      
-      // Remove any existing modal classes initially
-      reporterListWrap.classList.remove('modal-click');
-      if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
-      if (modalElements) modalElements.classList.remove('modal-click');
-      
-      // Click handler for opening modal
-      multiReporterWrap.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Add modal classes
-        reporterListWrap.classList.add('modal-click');
-        if (modalPreWrap) modalPreWrap.classList.add('modal-click');
-        if (modalElements) modalElements.classList.add('modal-click');
-        
-        reporterListWrap.setAttribute('data-modal-open', 'true');
-        
-        // Prevent body scroll
-        document.body.style.overflow = 'hidden';
-      });
-      
-      // Close button handler
-      const closeBtn = reporterListWrap.querySelector('[modal-close-btn="true"]');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          closeModal();
-        });
-      }
-      
-      // Click outside to close
-      reporterListWrap.addEventListener('click', function(e) {
-        if (e.target === reporterListWrap || e.target === modalPreWrap) {
-          closeModal();
-        }
-      });
-      
-      // Function to close modal
-      function closeModal() {
-        reporterListWrap.classList.remove('modal-click');
-        if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
-        if (modalElements) modalElements.classList.remove('modal-click');
-        
-        reporterListWrap.setAttribute('data-modal-open', 'false');
-        
-        // Restore body scroll
-        document.body.style.overflow = '';
-      }
+      nameElement.textContent = `${reporters[0].name} & ${reporterCount - 1} others`;
     }
   }
   
-  // Mark as processed
+  // Set up modal trigger
+  multiReporterWrap.addEventListener('click', function(e) {
+    e.preventDefault();
+    
+    // Add modal-click class to the three elements within this report
+    const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
+    const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
+    
+    if (reporterListWrap) reporterListWrap.classList.add('modal-click');
+    if (modalPreWrap) modalPreWrap.classList.add('modal-click');
+    if (modalElements) modalElements.classList.add('modal-click');
+  });
+  
+  // Set up modal close
+  const closeBtn = reportersWrap.querySelector('[modal-close-btn="true"]');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Remove modal-click class from the three elements
+      const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
+      const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
+      
+      if (reporterListWrap) reporterListWrap.classList.remove('modal-click');
+      if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
+      if (modalElements) modalElements.classList.remove('modal-click');
+    });
+  }
+  
+  // Mark this item as processed for reporters
   processedReporterItems.add(reportItem);
+  
+  // Update LazyLoad for new images
+  if (lazyLoadInstance) {
+    setTimeout(() => {
+      lazyLoadInstance.update();
+    }, 100);
+  }
 }
 
-// Process multi-reporters for newly loaded items
-function processMultiReportersForNewItems() {
-  // Find all report items that might have reporters
-  const reportItems = document.querySelectorAll('[reporters-wrap="true"]').forEach(wrap => {
-    const reportItem = wrap.closest('.cms-item, [data-item-slug], .w-dyn-item');
-    if (reportItem && !processedReporterItems.has(reportItem)) {
-      initializeMultiReporter(reportItem);
+// Process reporters for newly loaded items
+function processReportersForNewItems() {
+  // Find all report items with the lightbox group attribute
+  const reportItems = document.querySelectorAll('[wfu-lightbox-group]');
+  
+  reportItems.forEach(item => {
+    if (!processedReporterItems.has(item)) {
+      // Check if this item contains reporters
+      const hasReporters = item.querySelector('[reporters-wrap="true"]');
+      if (hasReporters) {
+        initializeReporters(item);
+      }
     }
   });
 }
 
-// Force re-process multi-reporters for filtered items
-function reprocessMultiReportersForFilteredItems() {
-  // Find all report items with reporters
-  const reporterWraps = document.querySelectorAll('[reporters-wrap="true"]');
+// Force re-process reporters for filtered items
+function reprocessReportersForFilteredItems() {
+  // Find all report items
+  const reportItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleReporterItems = [];
   
-  reporterWraps.forEach(wrap => {
-    const reportItem = wrap.closest('.cms-item, [data-item-slug], .w-dyn-item');
-    if (!reportItem) return;
+  reportItems.forEach(item => {
+    // Check if this item contains reporters
+    const hasReporters = item.querySelector('[reporters-wrap="true"]');
+    if (!hasReporters) return;
     
     // Check if item is actually visible (not hidden by filtering)
-    let currentElement = reportItem;
+    let currentElement = item;
     let isVisible = true;
     
     while (currentElement && currentElement !== document.body) {
@@ -484,14 +430,14 @@ function reprocessMultiReportersForFilteredItems() {
     
     if (isVisible) {
       // Remove from processed items to force re-initialization
-      processedReporterItems.delete(reportItem);
-      visibleReporterItems.push(reportItem);
+      processedReporterItems.delete(item);
+      visibleReporterItems.push(item);
     }
   });
   
-  // Re-initialize multi-reporters for all visible items
+  // Re-initialize reporters for all visible items
   visibleReporterItems.forEach(item => {
-    initializeMultiReporter(item);
+    initializeReporters(item);
   });
 }
 
@@ -711,7 +657,7 @@ function clickLoadMore(element) {
   setTimeout(() => {
     processNewlyAddedItems();
     processTabsForNewItems();
-    processMultiReportersForNewItems();
+    processReportersForNewItems();
   }, processDelay);
   
   // Reset loading flag after delay
@@ -748,7 +694,7 @@ function observeLoadMoreButton() {
         setTimeout(() => {
           processNewlyAddedItems();
           processTabsForNewItems();
-          processMultiReportersForNewItems();
+          processReportersForNewItems();
         }, processDelay);
       });
     }
@@ -984,7 +930,7 @@ function processFilteredItems() {
   // Force re-process tabs and reporters for all visible filtered items
   setTimeout(() => {
     reprocessTabsForFilteredItems();
-    reprocessMultiReportersForFilteredItems();
+    reprocessReportersForFilteredItems();
   }, 200);
 }
 
@@ -1173,7 +1119,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           itemsToProcess.forEach(item => {
             if (!processedReporterItems.has(item)) {
-              initializeMultiReporter(item);
+              initializeReporters(item);
             }
           });
         }
@@ -1199,11 +1145,25 @@ document.addEventListener('DOMContentLoaded', function() {
           if (node.hasAttribute?.('wfu-lightbox-group')) {
             pendingLightboxItems.add(node);
             hasNewItems = true;
+            
+            // Also check for reporters in this item
+            const hasReporters = node.querySelector('[reporters-wrap="true"]');
+            if (hasReporters) {
+              pendingReporterItems.add(node);
+              hasNewReporters = true;
+            }
           } else if (node.querySelector) {
             const lightboxItems = node.querySelectorAll('[wfu-lightbox-group]');
             for (const item of lightboxItems) {
               pendingLightboxItems.add(item);
               hasNewItems = true;
+              
+              // Also check for reporters in these items
+              const hasReporters = item.querySelector('[reporters-wrap="true"]');
+              if (hasReporters) {
+                pendingReporterItems.add(item);
+                hasNewReporters = true;
+              }
             }
             
             // Check for lazy-only items
@@ -1235,23 +1195,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 pendingTabItems.add(node);
                 hasNewTabs = true;
               }
-            }
-            
-            // Check for new reporter items
-            const reporterWraps = node.querySelectorAll('[reporters-wrap="true"]');
-            for (const wrap of reporterWraps) {
-              const reportItem = wrap.closest('.cms-item, [data-item-slug], .w-dyn-item');
-              if (reportItem) {
-                pendingReporterItems.add(reportItem);
-                hasNewReporters = true;
-              }
-            }
-            
-            // Check if node itself has reporters
-            if (node.querySelector && node.querySelector('[reporters-wrap="true"]')) {
-              const reportItem = node.closest('.cms-item, [data-item-slug], .w-dyn-item') || node;
-              pendingReporterItems.add(reportItem);
-              hasNewReporters = true;
             }
             
             // Check for new load-more button
@@ -1288,8 +1231,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       processInitialVisibleItems();
       processLazyOnlyItems();
-      processTabsForNewItems();
-      processMultiReportersForNewItems();
+      processTabsForNewItems(); // Process tabs on initial load
+      processReportersForNewItems(); // Process reporters on initial load
       observeLoadMoreButton();
       updateLazyLoad();
     }, initialDelay);
