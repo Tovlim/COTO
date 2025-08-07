@@ -305,7 +305,7 @@ function initializeReporters(reportItem) {
   // Single reporter - hide multi-reporter UI and show regular list
   if (reporterCount === 1) {
     multiReporterWrap.style.display = 'none';
-    reporterListWrap.style.display = 'block';
+    reporterListWrap.style.display = 'flex';
     processedReporterItems.add(reportItem);
     return;
   }
@@ -360,7 +360,7 @@ function initializeReporters(reportItem) {
     
     if (reporterListWrap) {
       reporterListWrap.classList.add('modal-click');
-      reporterListWrap.style.display = 'block'; // Show when modal opens
+      reporterListWrap.style.display = 'flex'; // Show when modal opens
     }
     if (modalPreWrap) modalPreWrap.classList.add('modal-click');
     if (modalElements) modalElements.classList.add('modal-click');
