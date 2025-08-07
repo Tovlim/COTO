@@ -302,15 +302,17 @@ function initializeReporters(reportItem) {
   
   const reporterCount = reporterItems.length;
   
-  // Single reporter - hide multi-reporter UI
+  // Single reporter - hide multi-reporter UI and show regular list
   if (reporterCount === 1) {
     multiReporterWrap.style.display = 'none';
+    reporterListWrap.style.display = 'block';
     processedReporterItems.add(reportItem);
     return;
   }
   
   // Multiple reporters - set up UI
-  multiReporterWrap.style.display = 'block';
+  multiReporterWrap.style.display = 'flex';
+  reporterListWrap.style.display = 'none'; // Hide by default, show only on modal
   
   // Get reporter data
   const reporters = Array.from(reporterItems).map(item => {
@@ -356,7 +358,10 @@ function initializeReporters(reportItem) {
     const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
     const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
     
-    if (reporterListWrap) reporterListWrap.classList.add('modal-click');
+    if (reporterListWrap) {
+      reporterListWrap.classList.add('modal-click');
+      reporterListWrap.style.display = 'block'; // Show when modal opens
+    }
     if (modalPreWrap) modalPreWrap.classList.add('modal-click');
     if (modalElements) modalElements.classList.add('modal-click');
   });
@@ -371,7 +376,10 @@ function initializeReporters(reportItem) {
       const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
       const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
       
-      if (reporterListWrap) reporterListWrap.classList.remove('modal-click');
+      if (reporterListWrap) {
+        reporterListWrap.classList.remove('modal-click');
+        reporterListWrap.style.display = 'none'; // Hide when modal closes
+      }
       if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
       if (modalElements) modalElements.classList.remove('modal-click');
     });
