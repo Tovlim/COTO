@@ -1,10 +1,42 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix v7.0
+function processInitialVisibleItems() {
+  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
+  const visibleItems = [];
+  const itemsToQueue = [];
+  
+  allItems.forEach(item => {
+    // On mobile, process all items immediately to avoid viewport detection issues
+    if (isMobileDevice) {
+      visibleItems.push(item);
+      processedItems.add(item);
+    } else {
+      // On desktop, use viewport detection as before
+      const rect = item.getBoundingClientRect();
+      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
+      
+      if (isVisible) {
+        visibleItems.push(item);
+        processedItems.add(item);
+      } else {
+        itemsToQueue.push(item);
+      }
+    }
+  });
+  
+  // Process visible items immediately
+  if (visibleItems.length > 0) {
+    processItemsLazily(visibleItems);
+  }
+  
+  // Queue non-visible items (desktop only// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter v9.0
 // 
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
 // • FancyBox 6 grouping for ALL items (new, filtered, and existing)
 // • Integrates LazyLoad for images on new items  
 // • Supports CMS lightbox grouping with [wfu-lightbox-group] attributes
+// • Parent-scoped tab system with data-tab and data-tab-content attributes
+// • Multi-reporter system with modal display for collaborative posts
+// • Shows #loading-reports during any loading/processing operations
 // • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
 // • COMPLETE re-processing when filtering changes
@@ -16,6 +48,7 @@
 // • Finsweet-coordinated event handling
 // • Attribute-based targeting for precision
 // • Mobile-aggressive FancyBox re-initialization
+// • Efficient parent-scoped tab queries
 // • Dramatically reduces initial page load work
 // • Prevents UI freezing on large item counts
 // • Smart viewport detection with buffer zone
@@ -25,14 +58,36 @@
 // • Automatically clicks load-more button when it becomes visible
 // • Preserves scroll position during loading
 // • Coordinates with lightbox processing for optimal performance
+// • Shows loading indicator during processing
+//
+// 📑 TAB SYSTEM:
+// • Parent-scoped tabs using data-tab and data-tab-content attributes
+// • No tabs active by default - all content hidden initially
+// • Click active tab to close it (toggle behavior)
+// • Automatic tab initialization for all CMS items
+// • Handles dynamically loaded content
+// • Mobile-optimized tab switching
+// • Re-initializes tabs after filtering (same as FancyBox)
+//
+// 👥 MULTI-REPORTER SYSTEM:
+// • Handles collaborative posts with multiple reporters
+// • Single reporter: Hides multi-reporter wrap
+// • Two reporters: Shows both images and names (Name1 & Name2)
+// • Three+ reporters: Shows first reporter and "& X others"
+// • Modal popup displays all reporters when clicked
+// • Automatic re-initialization after filtering
+//
+// 📊 LOADING INDICATOR:
+// • Shows #loading-reports element during any processing
+// • Tracks multiple concurrent loading operations
+// • Automatically hides when all processing is complete
+// • Works with auto-load, manual load, filtering, and initial load
 //
 // 📱 MOBILE OPTIMIZATIONS:
 // • Enhanced timing for mobile browsers
 // • Multiple FancyBox re-initialization attempts
 // • Aggressive retry logic for stubborn lightboxes
 // • Coordinated with Finsweet filtering events
-
-console.log('🚀 Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix Loading...');
 
 // Global state management
 let isLoadingMore = false;
@@ -41,54 +96,14 @@ let itemProcessingObserver = null;
 let loadMoreObserver = null;
 let filteringObserver = null;
 let processedItems = new WeakSet();
+let processedTabItems = new WeakSet();
+let processedReporterItems = new WeakSet();
 let needsFancyBoxReInit = false;
 let reInitTimeout = null;
 let isCurrentlyFiltering = false;
 let lastFilteringState = false;
 let mobileRetryCount = 0;
-
-// Loading state management
-let activeProcesses = new Set();
-let loadingHideTimeout = null;
-
-// Loading indicator functions
-function showLoading(processName) {
-  activeProcesses.add(processName);
-  const loadingElement = document.getElementById('loading-reports');
-  if (loadingElement) {
-    loadingElement.style.display = 'block';
-    console.log(`📊 Loading ON (${processName}) - Active: ${Array.from(activeProcesses).join(', ')}`);
-  }
-  
-  // Clear any pending hide timeout
-  if (loadingHideTimeout) {
-    clearTimeout(loadingHideTimeout);
-    loadingHideTimeout = null;
-  }
-}
-
-function hideLoading(processName) {
-  activeProcesses.delete(processName);
-  
-  // Only hide if no other processes are active
-  if (activeProcesses.size === 0) {
-    // Add small delay to prevent flickering
-    if (loadingHideTimeout) {
-      clearTimeout(loadingHideTimeout);
-    }
-    
-    loadingHideTimeout = setTimeout(() => {
-      const loadingElement = document.getElementById('loading-reports');
-      if (loadingElement && activeProcesses.size === 0) {
-        loadingElement.style.display = 'none';
-        console.log(`📊 Loading OFF (${processName}) - All processes complete`);
-      }
-      loadingHideTimeout = null;
-    }, 300); // 300ms delay to prevent flickering
-  } else {
-    console.log(`📊 Loading continues (${processName} done) - Still active: ${Array.from(activeProcesses).join(', ')}`);
-  }
-}
+let activeLoadingProcesses = 0;
 
 // Configuration
 const LOAD_MORE_DELAY = 1500; // 1.5 seconds delay between load-more clicks
@@ -99,6 +114,26 @@ const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
 
 // Device detection (reuse existing isMobile if available, otherwise create it)
 const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+
+// Loading indicator management
+function showLoadingIndicator() {
+  activeLoadingProcesses++;
+  const loadingElement = document.getElementById('loading-reports');
+  if (loadingElement) {
+    loadingElement.style.display = 'block';
+  }
+}
+
+function hideLoadingIndicator() {
+  activeLoadingProcesses--;
+  if (activeLoadingProcesses <= 0) {
+    activeLoadingProcesses = 0;
+    const loadingElement = document.getElementById('loading-reports');
+    if (loadingElement) {
+      loadingElement.style.display = 'none';
+    }
+  }
+}
 
 // Debounce function
 function debounce(func, wait) {
@@ -126,7 +161,6 @@ function checkFilteringStateChange() {
   const hasChanged = currentlyFiltering !== lastFilteringState;
   
   if (hasChanged) {
-    console.log(`Filtering state changed: ${lastFilteringState} → ${currentlyFiltering}`);
     lastFilteringState = currentlyFiltering;
     isCurrentlyFiltering = currentlyFiltering;
     return true;
@@ -135,32 +169,352 @@ function checkFilteringStateChange() {
   return false;
 }
 
-// FancyBox 6 grouping system + Multi-reporter system
+// TAB SYSTEM
+function initializeTabs(cmsItem) {
+  // Check if we've already processed tabs for this item
+  if (processedTabItems.has(cmsItem)) {
+    return;
+  }
+  
+  // Find all tabs within this CMS item
+  const tabs = cmsItem.querySelectorAll('[data-tab]');
+  const tabContents = cmsItem.querySelectorAll('[data-tab-content]');
+  
+  if (tabs.length === 0 || tabContents.length === 0) {
+    return; // No tabs in this item
+  }
+  
+  // Remove any existing event listeners before re-initializing
+  tabs.forEach((tab) => {
+    const newTab = tab.cloneNode(true);
+    tab.parentNode.replaceChild(newTab, tab);
+  });
+  
+  // Re-query tabs after cloning
+  const freshTabs = cmsItem.querySelectorAll('[data-tab]');
+  
+  // Hide all tab contents by default (no active tab)
+  tabContents.forEach((content) => {
+    content.style.display = 'none';
+    content.classList.remove('active-tab-content');
+  });
+  
+  // Remove active class from all tabs
+  freshTabs.forEach((tab) => {
+    tab.classList.remove('active-tab');
+    
+    // Add click handler with toggle functionality
+    tab.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      const tabIndex = this.getAttribute('data-tab');
+      const isCurrentlyActive = this.classList.contains('active-tab');
+      
+      // If clicking the active tab, close it
+      if (isCurrentlyActive) {
+        // Remove active state from tab
+        this.classList.remove('active-tab');
+        
+        // Hide the corresponding content
+        tabContents.forEach(content => {
+          const contentIndex = content.getAttribute('data-tab-content');
+          if (contentIndex === tabIndex) {
+            content.style.display = 'none';
+            content.classList.remove('active-tab-content');
+          }
+        });
+      } else {
+        // Otherwise, switch to the clicked tab
+        // Update active tab
+        freshTabs.forEach(t => t.classList.remove('active-tab'));
+        this.classList.add('active-tab');
+        
+        // Show corresponding content
+        tabContents.forEach(content => {
+          const contentIndex = content.getAttribute('data-tab-content');
+          if (contentIndex === tabIndex) {
+            content.style.display = 'block';
+            content.classList.add('active-tab-content');
+            
+            // Trigger LazyLoad update for any lazy images in the newly shown tab
+            if (lazyLoadInstance) {
+              const lazyImages = content.querySelectorAll('.lazy');
+              if (lazyImages.length > 0) {
+                setTimeout(() => {
+                  lazyLoadInstance.update();
+                }, 100);
+              }
+            }
+          } else {
+            content.style.display = 'none';
+            content.classList.remove('active-tab-content');
+          }
+        });
+      }
+    });
+  });
+  
+  // Mark this item as processed for tabs
+  processedTabItems.add(cmsItem);
+}
+
+// Process tabs for newly loaded items
+function processTabsForNewItems() {
+  // Find all CMS items that might have tabs
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+  
+  cmsItems.forEach(item => {
+    if (!processedTabItems.has(item)) {
+      // Check if this item contains tabs
+      const hasTabs = item.querySelector('[data-tab]');
+      if (hasTabs) {
+        initializeTabs(item);
+      }
+    }
+  });
+}
+
+// Force re-process tabs for filtered items
+function reprocessTabsForFilteredItems() {
+  // Find all CMS items that might have tabs
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+  const visibleTabItems = [];
+  
+  cmsItems.forEach(item => {
+    // Check if this item contains tabs
+    const hasTabs = item.querySelector('[data-tab]');
+    if (!hasTabs) return;
+    
+    // Check if item is actually visible (not hidden by filtering)
+    let currentElement = item;
+    let isVisible = true;
+    
+    while (currentElement && currentElement !== document.body) {
+      const style = getComputedStyle(currentElement);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        isVisible = false;
+        break;
+      }
+      currentElement = currentElement.parentElement;
+    }
+    
+    if (isVisible) {
+      // Remove from processed items to force re-initialization
+      processedTabItems.delete(item);
+      visibleTabItems.push(item);
+    }
+  });
+  
+  // Re-initialize tabs for all visible items
+  visibleTabItems.forEach(item => {
+    initializeTabs(item);
+  });
+}
+
+// MULTI-REPORTER SYSTEM
+function initializeMultiReporter(reportItem) {
+  // Check if we've already processed this item
+  if (processedReporterItems.has(reportItem)) {
+    return;
+  }
+  
+  // Find the reporters wrap
+  const reportersWrap = reportItem.querySelector('[reporters-wrap="true"]');
+  if (!reportersWrap) return;
+  
+  // Find all reporter items in the collection list
+  const reporterItems = reportersWrap.querySelectorAll('[reporter-list-item="true"]');
+  const reporterCount = reporterItems.length;
+  
+  // Set data attribute for debugging
+  reportersWrap.setAttribute('data-reporter-count', reporterCount);
+  
+  // Find the multi-reporter wrap
+  const multiReporterWrap = reportersWrap.querySelector('[multi-reporter-wrap="true"]');
+  if (!multiReporterWrap) return;
+  
+  // Find the modal elements
+  const reporterListWrap = reportersWrap.querySelector('[reporter-list-wrap="true"]');
+  const modalPreWrap = reportersWrap.querySelector('.modal-pre-wrap');
+  const modalElements = reportersWrap.querySelector('[modal-elements="true"]');
+  
+  if (reporterCount <= 1) {
+    // Single reporter - ensure multi-reporter wrap stays hidden
+    multiReporterWrap.style.display = 'none';
+  } else {
+    // Multiple reporters - show the multi-reporter wrap
+    multiReporterWrap.style.display = 'flex';
+    
+    // Get reporter data
+    const reporters = Array.from(reporterItems).map(item => {
+      const image = item.querySelector('[reporter-image="true"]');
+      const nameElement = item.querySelector('.multi-reporter-name');
+      return {
+        name: nameElement ? nameElement.textContent : '',
+        imageSrc: image ? image.getAttribute('src') : ''
+      };
+    });
+    
+    // Update the multi-reporter display
+    const firstReporterImage = multiReporterWrap.querySelector('[first-reporter-image="true"]');
+    const multiReporterName = multiReporterWrap.querySelector('.multi-reporter-name');
+    
+    if (firstReporterImage && reporters[0]) {
+      firstReporterImage.src = reporters[0].imageSrc;
+      firstReporterImage.alt = reporters[0].name;
+    }
+    
+    if (reporterCount === 2) {
+      // Two reporters - show both images and names
+      const secondReporterImage = multiReporterWrap.querySelector('[second-reporter-image="true"]');
+      if (secondReporterImage && reporters[1]) {
+        secondReporterImage.src = reporters[1].imageSrc;
+        secondReporterImage.alt = reporters[1].name;
+        secondReporterImage.style.display = 'block';
+      }
+      
+      if (multiReporterName) {
+        multiReporterName.textContent = `${reporters[0].name} & ${reporters[1].name}`;
+      }
+    } else {
+      // Three or more reporters - show first and count
+      const secondReporterImage = multiReporterWrap.querySelector('[second-reporter-image="true"]');
+      if (secondReporterImage) {
+        secondReporterImage.style.display = 'none';
+      }
+      
+      if (multiReporterName) {
+        const othersCount = reporterCount - 1;
+        multiReporterName.textContent = `${reporters[0].name} & ${othersCount} others`;
+      }
+    }
+    
+    // Set up modal functionality
+    if (reporterListWrap) {
+      // Initialize modal as closed
+      reporterListWrap.setAttribute('data-modal-open', 'false');
+      
+      // Remove any existing modal classes initially
+      reporterListWrap.classList.remove('modal-click');
+      if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
+      if (modalElements) modalElements.classList.remove('modal-click');
+      
+      // Click handler for opening modal
+      multiReporterWrap.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Add modal classes
+        reporterListWrap.classList.add('modal-click');
+        if (modalPreWrap) modalPreWrap.classList.add('modal-click');
+        if (modalElements) modalElements.classList.add('modal-click');
+        
+        reporterListWrap.setAttribute('data-modal-open', 'true');
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+      });
+      
+      // Close button handler
+      const closeBtn = reporterListWrap.querySelector('[modal-close-btn="true"]');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          closeModal();
+        });
+      }
+      
+      // Click outside to close
+      reporterListWrap.addEventListener('click', function(e) {
+        if (e.target === reporterListWrap || e.target === modalPreWrap) {
+          closeModal();
+        }
+      });
+      
+      // Function to close modal
+      function closeModal() {
+        reporterListWrap.classList.remove('modal-click');
+        if (modalPreWrap) modalPreWrap.classList.remove('modal-click');
+        if (modalElements) modalElements.classList.remove('modal-click');
+        
+        reporterListWrap.setAttribute('data-modal-open', 'false');
+        
+        // Restore body scroll
+        document.body.style.overflow = '';
+      }
+    }
+  }
+  
+  // Mark as processed
+  processedReporterItems.add(reportItem);
+}
+
+// Process multi-reporters for newly loaded items
+function processMultiReportersForNewItems() {
+  // Find all report items that might have reporters
+  const reportItems = document.querySelectorAll('[reporters-wrap="true"]').forEach(wrap => {
+    const reportItem = wrap.closest('.cms-item, [data-item-slug], .w-dyn-item');
+    if (reportItem && !processedReporterItems.has(reportItem)) {
+      initializeMultiReporter(reportItem);
+    }
+  });
+}
+
+// Force re-process multi-reporters for filtered items
+function reprocessMultiReportersForFilteredItems() {
+  // Find all report items with reporters
+  const reporterWraps = document.querySelectorAll('[reporters-wrap="true"]');
+  const visibleReporterItems = [];
+  
+  reporterWraps.forEach(wrap => {
+    const reportItem = wrap.closest('.cms-item, [data-item-slug], .w-dyn-item');
+    if (!reportItem) return;
+    
+    // Check if item is actually visible (not hidden by filtering)
+    let currentElement = reportItem;
+    let isVisible = true;
+    
+    while (currentElement && currentElement !== document.body) {
+      const style = getComputedStyle(currentElement);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        isVisible = false;
+        break;
+      }
+      currentElement = currentElement.parentElement;
+    }
+    
+    if (isVisible) {
+      // Remove from processed items to force re-initialization
+      processedReporterItems.delete(reportItem);
+      visibleReporterItems.push(reportItem);
+    }
+  });
+  
+  // Re-initialize multi-reporters for all visible items
+  visibleReporterItems.forEach(item => {
+    initializeMultiReporter(item);
+  });
+}
+
+// FancyBox 6 grouping system based on attributes
 function processFancyBoxGroups(item) {
   // Check if this item has lightbox group attribute
   const groupAttribute = item.getAttribute('wfu-lightbox-group');
   if (!groupAttribute) {
-    console.log(`❌ No wfu-lightbox-group found on item`);
     return false;
   }
-  
-  console.log(`🔧 Processing FancyBox group: ${groupAttribute}`);
   
   let hasProcessedGroups = false;
   let firstImageLink = null;
   
   // First pass: Find and process all lightbox images (including the first one)
   const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
-  console.log(`🔍 Found ${allLightboxLinks.length} lightbox links in group ${groupAttribute}`);
   
   allLightboxLinks.forEach((linkElement, linkIndex) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
-    console.log(`🔗 Processing link ${linkIndex + 1} with lightbox-image="${lightboxImageValue}"`);
     
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log(`⏭️ Skipping hidden link ${linkIndex + 1}`);
       return; // Skip this hidden link
     }
     
@@ -175,9 +529,6 @@ function processFancyBoxGroups(item) {
         const fullSizeImageUrl = img.getAttribute('src');
         if (fullSizeImageUrl) {
           linkElement.setAttribute('href', fullSizeImageUrl);
-          console.log(`✅ Set href for link ${linkIndex + 1}: ${fullSizeImageUrl.substring(0, 50)}...`);
-        } else {
-          console.log(`❌ No src found for img in link ${linkIndex + 1}`);
         }
         
         // Add any additional FancyBox attributes if needed
@@ -186,28 +537,20 @@ function processFancyBoxGroups(item) {
         // Remember the first image link for the opener
         if (lightboxImageValue === 'first') {
           firstImageLink = linkElement;
-          console.log(`🎯 Marked as first image link`);
         }
         
         hasProcessedGroups = true;
-        console.log(`✅ Successfully processed link ${linkIndex + 1} for FancyBox`);
-      } else {
-        console.log(`❌ No img found in link ${linkIndex + 1}`);
       }
-    } else {
-      console.log(`⏭️ Skipping link ${linkIndex + 1} - not marked for lightbox`);
     }
   });
   
   // Second pass: Process opener links
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"]');
-  console.log(`🔍 Found ${openerLinks.length} opener links in group ${groupAttribute}`);
   
   openerLinks.forEach((openerLink, openerIndex) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log(`⏭️ Skipping hidden opener ${openerIndex + 1}`);
       return;
     }
     
@@ -215,7 +558,6 @@ function processFancyBoxGroups(item) {
     if (firstImageLink) {
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log(`🎬 Opener clicked, triggering first image`);
         // Trigger click on the first image to open the gallery
         firstImageLink.click();
       });
@@ -224,179 +566,10 @@ function processFancyBoxGroups(item) {
       openerLink.style.cursor = 'pointer';
       
       hasProcessedGroups = true;
-      console.log(`✅ Successfully set up opener ${openerIndex + 1}`);
-    } else {
-      console.log(`❌ No first image found for opener ${openerIndex + 1}`);
     }
   });
   
-  // Third pass: Process multi-reporter system
-  const processedReporter = processMultiReporter(item);
-  if (processedReporter) {
-    hasProcessedGroups = true;
-  }
-  
-  console.log(`📊 Group ${groupAttribute} processing complete. Success: ${hasProcessedGroups}`);
   return hasProcessedGroups;
-}
-
-// Multi-reporter processing system
-function processMultiReporter(item) {
-  const reportersWrap = item.querySelector('[reporters-wrap="true"]');
-  if (!reportersWrap) return false;
-  
-  const reporterListItems = reportersWrap.querySelectorAll('[reporter-list-item="true"]');
-  const reporterCount = reporterListItems.length;
-  
-  const multiReporterWrap = reportersWrap.querySelector('[multi-reporter-wrap="true"]');
-  const reporterListWrap = reportersWrap.querySelector('[reporter-list-wrap="true"]');
-  
-  if (!multiReporterWrap || !reporterListWrap) return false;
-  
-  console.log(`👥 Processing ${reporterCount} reporters`);
-  
-  if (reporterCount === 0) {
-    // No reporters - hide everything
-    multiReporterWrap.style.display = 'none';
-    reporterListWrap.style.display = 'none';
-    return true;
-  }
-  
-  if (reporterCount === 1) {
-    // Single reporter - hide multi-reporter display
-    multiReporterWrap.style.display = 'none';
-    reporterListWrap.style.display = 'block';
-    return true;
-  }
-  
-  // Multiple reporters (2+) - show multi-reporter display
-  multiReporterWrap.style.display = 'block';
-  reporterListWrap.style.display = 'none';
-  
-  // Get reporter data
-  const reporters = Array.from(reporterListItems).map(item => {
-    const link = item.querySelector('[reporter-image="true"]');
-    const nameElement = item.querySelector('.multi-reporter-name');
-    return {
-      image: link ? link.getAttribute('src') : null,
-      name: nameElement ? nameElement.textContent.trim() : 'Unknown Reporter',
-      element: item
-    };
-  }).filter(reporter => reporter.image && reporter.name !== 'Unknown Reporter');
-  
-  if (reporters.length === 0) {
-    multiReporterWrap.style.display = 'none';
-    return true;
-  }
-  
-  // Update multi-reporter display
-  const firstReporterImage = multiReporterWrap.querySelector('[first-reporter-image="true"]');
-  const secondReporterImage = multiReporterWrap.querySelector('[second-reporter-image="true"]');
-  const multiReporterName = multiReporterWrap.querySelector('[reporter=""], .multi-reporter-name');
-  
-  if (firstReporterImage && reporters[0]) {
-    firstReporterImage.src = reporters[0].image;
-    firstReporterImage.alt = reporters[0].name;
-  }
-  
-  if (reporters.length === 2) {
-    // Two reporters
-    if (secondReporterImage && reporters[1]) {
-      secondReporterImage.src = reporters[1].image;
-      secondReporterImage.alt = reporters[1].name;
-      secondReporterImage.style.display = 'block';
-    }
-    
-    if (multiReporterName) {
-      multiReporterName.textContent = `${reporters[0].name} & ${reporters[1].name}`;
-    }
-  } else {
-    // Three or more reporters
-    if (secondReporterImage) {
-      secondReporterImage.style.display = 'none';
-    }
-    
-    if (multiReporterName) {
-      const othersCount = reporters.length - 1;
-      multiReporterName.textContent = `${reporters[0].name} & ${othersCount} others`;
-    }
-  }
-  
-  // Set up modal functionality
-  setupReporterModal(multiReporterWrap, reporterListWrap, reporters);
-  
-  console.log(`✅ Multi-reporter setup complete for ${reporters.length} reporters`);
-  return true;
-}
-
-// Reporter modal system
-function setupReporterModal(trigger, modal, reporters) {
-  // Add modal-click class to main elements
-  modal.classList.add('modal-click');
-  
-  const modalPreWrap = modal.querySelector('.modal-pre-wrap');
-  if (modalPreWrap) {
-    modalPreWrap.classList.add('modal-click');
-  }
-  
-  const modalElements = modal.querySelector('[modal-elements="true"]');
-  if (modalElements) {
-    modalElements.classList.add('modal-click');
-  }
-  
-  // Find custom close button
-  const closeButton = modal.querySelector('[modal-close-btn="true"]');
-  
-  // Ensure modal is properly hidden initially
-  modal.style.display = 'none';
-  
-  // Click handlers
-  trigger.addEventListener('click', (e) => {
-    e.preventDefault();
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-    console.log('📱 Reporter modal opened');
-  });
-  
-  if (closeButton) {
-    closeButton.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
-      console.log('📱 Reporter modal closed');
-    });
-  }
-  
-  // Click outside to close (only on the main modal element)
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
-      console.log('📱 Reporter modal closed (outside click)');
-    }
-  });
-  
-  // Prevent clicks inside modal content from closing modal
-  const modalContent = modal.querySelector('.modal-pre-wrap') || modal.querySelector('.collection-list-wrapper-26');
-  if (modalContent) {
-    modalContent.addEventListener('click', (e) => {
-      e.stopPropagation();
-    });
-  }
-  
-  // ESC key to close
-  const escHandler = (e) => {
-    if (e.key === 'Escape' && modal.style.display === 'block') {
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
-      console.log('📱 Reporter modal closed (ESC key)');
-    }
-  };
-  
-  // Remove any existing ESC handlers to prevent duplicates
-  document.removeEventListener('keydown', escHandler);
-  document.addEventListener('keydown', escHandler);
 }
 
 // Enhanced FancyBox re-initialization with mobile-aggressive retry logic
@@ -418,8 +591,11 @@ function scheduleFancyBoxReInit() {
 function performFancyBoxReInit(retryAttempt = 0) {
   try {
     if (window.Fancybox) {
+      showLoadingIndicator();
+      
       // Check if FancyBox is already working before re-initializing
       const existingFancyboxElements = document.querySelectorAll('[data-fancybox]');
+      
       if (existingFancyboxElements.length > 0 && retryAttempt > 0) {
         // On mobile retries, only re-init if there are actually new elements that need binding
         const unboundElements = Array.from(existingFancyboxElements).filter(el => {
@@ -428,9 +604,8 @@ function performFancyBoxReInit(retryAttempt = 0) {
         });
         
         if (unboundElements.length === 0) {
-          console.log(`📱 Mobile: Skipping re-init attempt ${retryAttempt + 1} - no new elements`);
           needsFancyBoxReInit = false;
-          hideLoading('fancybox-init');
+          hideLoadingIndicator();
           return true;
         }
       }
@@ -464,35 +639,31 @@ function performFancyBoxReInit(retryAttempt = 0) {
         el.setAttribute('data-fancybox-bound', 'true');
       });
       
-      console.log(`✅ FancyBox 6 re-initialized with thumbnails (attempt ${retryAttempt + 1})`);
+      // Always hide loading for this attempt
+      hideLoadingIndicator();
       
       // On mobile, only do ONE additional re-initialization attempt instead of multiple
       if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
         setTimeout(() => {
-          console.log(`📱 Mobile: Final FancyBox re-init attempt`);
           performFancyBoxReInit(1);
         }, MOBILE_REINIT_DELAYS[0]);
-      } else {
-        // Hide loading only if this is the final attempt
-        hideLoading('fancybox-init');
       }
       
       needsFancyBoxReInit = false;
       mobileRetryCount = 0;
       return true;
+    } else {
+      hideLoadingIndicator();
     }
   } catch (e) {
-    console.error('FancyBox re-init error:', e);
+    hideLoadingIndicator();
   }
   
   // Only retry once on mobile if the first attempt failed
   if (isMobileDevice && retryAttempt === 0) {
     setTimeout(() => {
-      console.log(`📱 Mobile: Retrying FancyBox re-init due to error`);
       performFancyBoxReInit(1);
     }, MOBILE_REINIT_DELAYS[0]);
-  } else {
-    hideLoading('fancybox-init');
   }
   
   return false;
@@ -508,9 +679,6 @@ function initLazyLoad() {
         // Lazy image loaded
       }
     });
-    console.log('✅ LazyLoad initialized');
-  } else {
-    console.warn('⚠️ LazyLoad not found');
   }
 }
 
@@ -525,8 +693,6 @@ function clickLoadMore(element) {
   if (isLoadingMore) return;
   
   isLoadingMore = true;
-  showLoading('auto-load-more');
-  console.log('Auto-clicking load-more button...');
   
   // Store current scroll position
   const currentScrollY = window.scrollY;
@@ -541,15 +707,16 @@ function clickLoadMore(element) {
   
   // Process any new items that were just added (mobile-optimized timing)
   const processDelay = isMobileDevice ? 500 : 300;
+  
   setTimeout(() => {
     processNewlyAddedItems();
+    processTabsForNewItems();
+    processMultiReportersForNewItems();
   }, processDelay);
   
   // Reset loading flag after delay
   setTimeout(() => {
     isLoadingMore = false;
-    hideLoading('auto-load-more');
-    console.log('Ready for next load-more click');
   }, LOAD_MORE_DELAY);
 }
 
@@ -570,7 +737,22 @@ function observeLoadMoreButton() {
   const loadMoreButton = document.querySelector('#load-more');
   if (loadMoreButton && loadMoreObserver) {
     loadMoreObserver.observe(loadMoreButton);
-    console.log('Started observing #load-more button');
+    
+    // Add click listener for manual clicks
+    if (!loadMoreButton.hasAttribute('data-manual-click-listener')) {
+      loadMoreButton.setAttribute('data-manual-click-listener', 'true');
+      
+      loadMoreButton.addEventListener('click', function() {
+        // Process any new items after a delay (same as auto-click)
+        const processDelay = isMobileDevice ? 500 : 300;
+        setTimeout(() => {
+          processNewlyAddedItems();
+          processTabsForNewItems();
+          processMultiReportersForNewItems();
+        }, processDelay);
+      });
+    }
+    
     return true;
   }
   return false;
@@ -616,21 +798,19 @@ function queueItemForLazyProcessing(item) {
   }
 }
 
-function processItemsLazily(items, loadingProcessName = 'lazy-processing') {
-  if (!items?.length) {
-    hideLoading(loadingProcessName);
-    return;
-  }
+function processItemsLazily(items) {
+  if (!items?.length) return;
+  
+  showLoadingIndicator();
   
   const processInChunks = (itemsToProcess, chunkSize = PROCESSING_CHUNK_SIZE) => {
     if (itemsToProcess.length === 0) {
       updateLazyLoad();
       // Schedule FancyBox re-init if needed
       if (needsFancyBoxReInit) {
-        showLoading('fancybox-init');
         scheduleFancyBoxReInit();
       }
-      hideLoading(loadingProcessName);
+      hideLoadingIndicator();
       return;
     }
     
@@ -645,7 +825,7 @@ function processItemsLazily(items, loadingProcessName = 'lazy-processing') {
         }
         
       } catch (error) {
-        console.error('Processing error:', error);
+        // Silently handle error
       }
     });
     
@@ -657,10 +837,9 @@ function processItemsLazily(items, loadingProcessName = 'lazy-processing') {
         updateLazyLoad();
         // Schedule FancyBox re-init if needed
         if (needsFancyBoxReInit) {
-          showLoading('fancybox-init');
           scheduleFancyBoxReInit();
         }
-        hideLoading(loadingProcessName);
+        hideLoadingIndicator();
       }, 100);
     }
   };
@@ -670,12 +849,8 @@ function processItemsLazily(items, loadingProcessName = 'lazy-processing') {
 
 // Process items that were just added by load-more
 function processNewlyAddedItems() {
-  showLoading('load-more-processing');
-  
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const newItems = [];
-  
-  console.log(`🔍 Found ${allItems.length} total items with wfu-lightbox-group`);
   
   allItems.forEach((item, index) => {
     // FORCE PROCESSING: Skip the WeakSet check for debugging
@@ -685,16 +860,11 @@ function processNewlyAddedItems() {
     const hasDataFancybox = item.querySelector('[data-fancybox]');
     const needsProcessing = !hasDataFancybox;
     
-    console.log(`🔍 Item ${index + 1} (${item.getAttribute('wfu-lightbox-group')}): processed=${alreadyProcessed}, hasDataFancybox=${!!hasDataFancybox}, needsProcessing=${needsProcessing}`);
-    
     if (needsProcessing) {
-      console.log(`🔧 FORCE PROCESSING item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
-      
       // On mobile, process all new items immediately to avoid viewport detection issues
       if (isMobileDevice) {
         newItems.push(item);
         processedItems.add(item);
-        console.log(`✅ Added item ${index + 1} to processing queue`);
       } else {
         // On desktop, use viewport detection as before
         const rect = item.getBoundingClientRect();
@@ -708,44 +878,30 @@ function processNewlyAddedItems() {
           queueItemForLazyProcessing(item);
         }
       }
-    } else {
-      console.log(`⏭️ Skipping item ${index + 1}: already has FancyBox attributes`);
     }
   });
   
   if (newItems.length > 0) {
-    console.log(`🚀 Processing ${newItems.length} newly loaded FancyBox items (mobile: all new items, desktop: visible only)`);
     // Process all items in one batch instead of chunked processing
-    processItemsBatch(newItems, 'load-more-processing');
-  } else {
-    hideLoading('load-more-processing');
+    processItemsBatch(newItems);
   }
 }
 
 // Simplified batch processing for debugging
-function processItemsBatch(items, loadingProcessName = 'batch-processing') {
-  if (!items?.length) {
-    hideLoading(loadingProcessName);
-    return;
-  }
+function processItemsBatch(items) {
+  if (!items?.length) return;
   
-  console.log(`📦 Batch processing ${items.length} items`);
+  showLoadingIndicator();
   
   items.forEach((item, index) => {
     try {
-      console.log(`🔧 Processing item ${index + 1}: ${item.getAttribute('wfu-lightbox-group')}`);
-      
       // Process FancyBox groups
       const processed = processFancyBoxGroups(item);
       if (processed) {
-        console.log(`✅ Successfully processed item ${index + 1}`);
         needsFancyBoxReInit = true;
-      } else {
-        console.log(`❌ Failed to process item ${index + 1}`);
       }
-      
     } catch (error) {
-      console.error(`❌ Error processing item ${index + 1}:`, error);
+      // Silently handle error
     }
   });
   
@@ -753,17 +909,17 @@ function processItemsBatch(items, loadingProcessName = 'batch-processing') {
   setTimeout(() => {
     updateLazyLoad();
     if (needsFancyBoxReInit) {
-      showLoading('fancybox-init');
       scheduleFancyBoxReInit();
     }
-    hideLoading(loadingProcessName);
+    hideLoadingIndicator();
   }, 100);
 }
 
 // Enhanced: Re-scan ALL items when filtering changes (this is the key fix!)
 function processFilteredItems() {
-  showLoading('filter-processing');
-  console.log('🔄 Processing items after filtering change...');
+  // Clear processed tabs and reporters to re-initialize them after filtering
+  processedTabItems = new WeakSet();
+  processedReporterItems = new WeakSet();
   
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
@@ -812,13 +968,10 @@ function processFilteredItems() {
     }
   });
   
-  console.log(`Found ${visibleItems.length} visible filtered items, ${itemsToQueue.length} queued (mobile: all visible, desktop: viewport-based)`);
-  
   // Process visible items immediately
   if (visibleItems.length > 0) {
-    processItemsLazily(visibleItems, 'filter-processing');
-  } else {
-    hideLoading('filter-processing');
+    processItemsLazily(visibleItems);
+    // Note: processItemsLazily handles its own loading indicator
   }
   
   // Queue non-visible items (desktop only)
@@ -827,11 +980,15 @@ function processFilteredItems() {
       queueItemForLazyProcessing(item);
     });
   }
+  
+  // Force re-process tabs and reporters for all visible filtered items
+  setTimeout(() => {
+    reprocessTabsForFilteredItems();
+    reprocessMultiReportersForFilteredItems();
+  }, 200);
 }
 
 function processInitialVisibleItems() {
-  showLoading('initial-processing');
-  
   const allItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
   const itemsToQueue = [];
@@ -857,10 +1014,7 @@ function processInitialVisibleItems() {
   
   // Process visible items immediately
   if (visibleItems.length > 0) {
-    console.log(`Processing ${visibleItems.length} initial items (mobile: all items, desktop: visible only)`);
-    processItemsLazily(visibleItems, 'initial-processing');
-  } else {
-    hideLoading('initial-processing');
+    processItemsLazily(visibleItems);
   }
   
   // Queue non-visible items (desktop only)
@@ -918,10 +1072,6 @@ function initFilteringDetection() {
       childList: true,
       subtree: true
     });
-    
-    console.log('✅ Filtering detection initialized with MutationObserver');
-  } else {
-    console.log('⚠️ tagparent not found, using event-only detection');
   }
   
   // Method 2: Listen to all Finsweet filtering events
@@ -935,8 +1085,6 @@ function initFilteringDetection() {
   
   finsweetEvents.forEach(eventType => {
     document.addEventListener(eventType, () => {
-      console.log(`📡 Finsweet event detected: ${eventType}`);
-      
       // Mobile-optimized timing for Finsweet events
       const delay = isMobileDevice ? 150 : 100;
       setTimeout(() => {
@@ -947,12 +1095,9 @@ function initFilteringDetection() {
     });
   });
   
-  console.log('✅ Finsweet event listeners initialized');
-  
   // Method 3: Periodic filtering state check (fallback)
   setInterval(() => {
     if (checkFilteringStateChange()) {
-      console.log('🕐 Periodic check detected filtering change');
       processFilteredItems();
     }
   }, 2000);
@@ -960,14 +1105,18 @@ function initFilteringDetection() {
 
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
+  // Hide loading indicator initially
+  const loadingElement = document.getElementById('loading-reports');
+  if (loadingElement) {
+    loadingElement.style.display = 'none';
+  }
+  
   // Wait for FancyBox to be available
   const initWhenReady = () => {
     if (typeof Fancybox === 'undefined') {
       setTimeout(initWhenReady, 100);
       return;
     }
-    
-    console.log('✅ FancyBox 6 detected, initializing...');
     
     initLazyLoad();
     initItemProcessingObserver();
@@ -976,6 +1125,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let pendingLightboxItems = new Set();
     let pendingLazyItems = new Set();
+    let pendingTabItems = new Set();
+    let pendingReporterItems = new Set();
     let queueTimeout = null;
     
     // Unified item queuing
@@ -1003,6 +1154,30 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         }
         
+        // Process tab items
+        if (pendingTabItems.size > 0) {
+          const itemsToProcess = Array.from(pendingTabItems);
+          pendingTabItems.clear();
+          
+          itemsToProcess.forEach(item => {
+            if (!processedTabItems.has(item)) {
+              initializeTabs(item);
+            }
+          });
+        }
+        
+        // Process reporter items
+        if (pendingReporterItems.size > 0) {
+          const itemsToProcess = Array.from(pendingReporterItems);
+          pendingReporterItems.clear();
+          
+          itemsToProcess.forEach(item => {
+            if (!processedReporterItems.has(item)) {
+              initializeMultiReporter(item);
+            }
+          });
+        }
+        
         queueTimeout = null;
       }, 100);
     };
@@ -1011,6 +1186,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const observer = new MutationObserver((mutations) => {
       let hasNewItems = false;
       let hasNewLoadMore = false;
+      let hasNewTabs = false;
+      let hasNewReporters = false;
       
       for (const mutation of mutations) {
         if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -1041,6 +1218,42 @@ document.addEventListener('DOMContentLoaded', function() {
               }
             }
             
+            // Check for new tab items
+            const cmsItems = node.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+            for (const item of cmsItems) {
+              const hasTabs = item.querySelector('[data-tab]');
+              if (hasTabs) {
+                pendingTabItems.add(item);
+                hasNewTabs = true;
+              }
+            }
+            
+            // Also check if the node itself is a CMS item with tabs
+            if (node.matches && (node.matches('.cms-item') || node.matches('[data-item-slug]') || node.matches('.w-dyn-item'))) {
+              const hasTabs = node.querySelector('[data-tab]');
+              if (hasTabs) {
+                pendingTabItems.add(node);
+                hasNewTabs = true;
+              }
+            }
+            
+            // Check for new reporter items
+            const reporterWraps = node.querySelectorAll('[reporters-wrap="true"]');
+            for (const wrap of reporterWraps) {
+              const reportItem = wrap.closest('.cms-item, [data-item-slug], .w-dyn-item');
+              if (reportItem) {
+                pendingReporterItems.add(reportItem);
+                hasNewReporters = true;
+              }
+            }
+            
+            // Check if node itself has reporters
+            if (node.querySelector && node.querySelector('[reporters-wrap="true"]')) {
+              const reportItem = node.closest('.cms-item, [data-item-slug], .w-dyn-item') || node;
+              pendingReporterItems.add(reportItem);
+              hasNewReporters = true;
+            }
+            
             // Check for new load-more button
             if (node.id === 'load-more' || node.querySelector('#load-more')) {
               hasNewLoadMore = true;
@@ -1049,7 +1262,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      if (hasNewItems) {
+      if (hasNewItems || hasNewTabs || hasNewReporters) {
         scheduleItemQueuing();
       }
       
@@ -1067,28 +1280,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial setup with mobile-optimized timing
     const initialDelay = isMobileDevice ? 800 : 500;
+    
     setTimeout(() => {
       // Check initial filtering state
       lastFilteringState = detectFiltering();
       isCurrentlyFiltering = lastFilteringState;
-      console.log(`Initial filtering state: ${lastFilteringState}`);
       
       processInitialVisibleItems();
       processLazyOnlyItems();
+      processTabsForNewItems();
+      processMultiReportersForNewItems();
       observeLoadMoreButton();
       updateLazyLoad();
     }, initialDelay);
-    
-    // Additional mobile initialization delay - DISABLED for debugging
-    // if (isMobileDevice) {
-    //   setTimeout(() => {
-    //     // Re-check filtering state and process if needed
-    //     if (checkFilteringStateChange()) {
-    //       console.log('📱 Mobile: Additional filtering check triggered');
-    //       processFilteredItems();
-    //     }
-    //   }, 1500);
-    // }
     
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
@@ -1103,5 +1307,3 @@ document.addEventListener('DOMContentLoaded', function() {
   
   initWhenReady();
 });
-
-console.log('✅ Enhanced Mobile-Optimized Auto Load More + FancyBox 6 Fix Ready!');
