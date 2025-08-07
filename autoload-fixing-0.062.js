@@ -331,46 +331,24 @@ function processMultiReporter(item) {
 
 // Reporter modal system
 function setupReporterModal(trigger, modal, reporters) {
+  // Add modal-click class to main elements
+  modal.classList.add('modal-click');
+  
+  const modalPreWrap = modal.querySelector('.modal-pre-wrap');
+  if (modalPreWrap) {
+    modalPreWrap.classList.add('modal-click');
+  }
+  
+  const modalElements = modal.querySelector('[modal-elements="true"]');
+  if (modalElements) {
+    modalElements.classList.add('modal-click');
+  }
+  
+  // Find custom close button
+  const closeButton = modal.querySelector('[modal-close-btn="true"]');
+  
   // Ensure modal is properly hidden initially
   modal.style.display = 'none';
-  modal.style.position = 'fixed';
-  modal.style.top = '0';
-  modal.style.left = '0';
-  modal.style.width = '100vw';
-  modal.style.height = '100vh';
-  modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-  modal.style.zIndex = '9999';
-  modal.style.padding = '20px';
-  modal.style.boxSizing = 'border-box';
-  modal.style.overflowY = 'auto';
-  
-  // Center the content
-  const existingContent = modal.querySelector('.collection-list-wrapper-26');
-  if (existingContent) {
-    existingContent.style.maxWidth = '600px';
-    existingContent.style.margin = '50px auto';
-    existingContent.style.backgroundColor = '#fff';
-    existingContent.style.padding = '20px';
-    existingContent.style.borderRadius = '8px';
-    existingContent.style.position = 'relative';
-  }
-  
-  // Add close button if not exists
-  let closeButton = modal.querySelector('.modal-close-btn');
-  if (!closeButton && existingContent) {
-    closeButton = document.createElement('button');
-    closeButton.className = 'modal-close-btn';
-    closeButton.innerHTML = '×';
-    closeButton.style.position = 'absolute';
-    closeButton.style.top = '10px';
-    closeButton.style.right = '15px';
-    closeButton.style.background = 'none';
-    closeButton.style.border = 'none';
-    closeButton.style.fontSize = '24px';
-    closeButton.style.cursor = 'pointer';
-    closeButton.style.zIndex = '10000';
-    existingContent.insertBefore(closeButton, existingContent.firstChild);
-  }
   
   // Click handlers
   trigger.addEventListener('click', (e) => {
@@ -382,6 +360,7 @@ function setupReporterModal(trigger, modal, reporters) {
   
   if (closeButton) {
     closeButton.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       modal.style.display = 'none';
       document.body.style.overflow = '';
@@ -389,7 +368,7 @@ function setupReporterModal(trigger, modal, reporters) {
     });
   }
   
-  // Click outside to close
+  // Click outside to close (only on the main modal element)
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       modal.style.display = 'none';
@@ -398,21 +377,26 @@ function setupReporterModal(trigger, modal, reporters) {
     }
   });
   
-  // Prevent clicks inside content from closing modal
-  if (existingContent) {
-    existingContent.addEventListener('click', (e) => {
+  // Prevent clicks inside modal content from closing modal
+  const modalContent = modal.querySelector('.modal-pre-wrap') || modal.querySelector('.collection-list-wrapper-26');
+  if (modalContent) {
+    modalContent.addEventListener('click', (e) => {
       e.stopPropagation();
     });
   }
   
   // ESC key to close
-  document.addEventListener('keydown', (e) => {
+  const escHandler = (e) => {
     if (e.key === 'Escape' && modal.style.display === 'block') {
       modal.style.display = 'none';
       document.body.style.overflow = '';
       console.log('📱 Reporter modal closed (ESC key)');
     }
-  });
+  };
+  
+  // Remove any existing ESC handlers to prevent duplicates
+  document.removeEventListener('keydown', escHandler);
+  document.addEventListener('keydown', escHandler);
 }
 
 // Enhanced FancyBox re-initialization with mobile-aggressive retry logic
