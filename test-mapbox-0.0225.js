@@ -1123,9 +1123,6 @@ setTimeout(() => {
   if (!loadingTracker.states.uiPositioned) {
     loadingTracker.markComplete('uiPositioned');
   }
-  if (!loadingTracker.states.autocompleteReady) {
-    loadingTracker.markComplete('autocompleteReady');
-  }
   if (!loadingTracker.states.backToTopSetup) {
     loadingTracker.markComplete('backToTopSetup');
   }
