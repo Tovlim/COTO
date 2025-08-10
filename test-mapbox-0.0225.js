@@ -1493,8 +1493,8 @@ const loadingTracker = {
     if (loadingScreen && loadingScreen.style.display !== 'none') {
       loadingScreen.style.display = 'none';
     }
-  },
-  
+  }
+};
 
 // OPTIMIZED: High-performance utilities
 const utils = {
