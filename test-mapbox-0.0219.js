@@ -76,10 +76,7 @@ class HighPerformanceAutocomplete {
         
         console.log('High-performance autocomplete initialized');
         
-        // Mark as ready immediately
-        if (window.loadingTracker) {
-            window.loadingTracker.markComplete('autocompleteReady');
-        }
+        // Don't interact with loading tracker - let the map handle it
     }
     
     setupDropdownStructure() {
@@ -211,6 +208,17 @@ class HighPerformanceAutocomplete {
             // Prevent blur when clicking clear
             this.elements.clear.addEventListener('mousedown', (e) => e.preventDefault());
             this.elements.clear.addEventListener('click', () => this.handleClear());
+        }
+        
+        // Watch for input resize (focus state changes)
+        // Use ResizeObserver if available for better performance
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(() => {
+                if (this.isDropdownVisible()) {
+                    this.updatePosition();
+                }
+            });
+            resizeObserver.observe(this.elements.input);
         }
         
         // Prevent form submission
@@ -639,7 +647,11 @@ class HighPerformanceAutocomplete {
             this.showAllItems();
             this.renderResults();
         }
-        this.showDropdown();
+        
+        // Small delay to ensure input has finished resizing
+        setTimeout(() => {
+            this.showDropdown();
+        }, 10);
     }
     
     handleBlur() {
@@ -683,8 +695,14 @@ class HighPerformanceAutocomplete {
             return;
         }
         
+        // Always update position when showing to get current input dimensions
         this.updatePosition();
         this.elements.wrapper.style.display = 'block';
+        
+        // Update position again after display block to ensure accuracy
+        requestAnimationFrame(() => {
+            this.updatePosition();
+        });
     }
     
     hideDropdown() {
@@ -699,15 +717,19 @@ class HighPerformanceAutocomplete {
     }
     
     updatePosition() {
+        // Always use the actual input element's current dimensions
+        // This ensures we get the correct size even when focused
         const inputRect = this.elements.input.getBoundingClientRect();
-        const wrapperElement = this.findWrapperElement();
-        const wrapperRect = wrapperElement ? wrapperElement.getBoundingClientRect() : inputRect;
+        
+        // Use the input's actual width, not a wrapper
+        // This accounts for focus state changes
+        const width = inputRect.width;
         
         Object.assign(this.elements.wrapper.style, {
             position: 'fixed',
-            top: `${inputRect.bottom + window.scrollY + 4}px`,
-            left: `${wrapperRect.left}px`,
-            width: `${wrapperRect.width}px`,
+            top: `${inputRect.bottom + 4}px`,
+            left: `${inputRect.left}px`,
+            width: `${width}px`,
             maxHeight: `${this.config.itemHeight * this.config.visibleItems}px`,
             overflowY: 'auto',
             zIndex: '999999'
@@ -954,7 +976,6 @@ window.addEventListener('beforeunload', () => {
         window.hpAutocomplete.destroy();
     }
 });
-
 
 // ========================
 // MAIN MAP SCRIPT
