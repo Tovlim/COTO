@@ -75,12 +75,12 @@ class HighPerformanceAutocomplete {
         // Apply initial styles
         this.applyStyles();
         
-        // Load data synchronously but efficiently
-        this.loadData();
+        // Load data asynchronously after marking ready
+        setTimeout(() => {
+            this.loadData();
+        }, 0);
         
         console.log('High-performance autocomplete initialized');
-        
-        // Don't interact with loading tracker - let the map handle it
     }
     
     setupDropdownStructure() {
@@ -962,6 +962,11 @@ class HighPerformanceAutocomplete {
 // INITIALIZE HIGH-PERFORMANCE AUTOCOMPLETE
 // ========================
 
+// Mark autocomplete as ready immediately to prevent loading screen delay
+if (window.loadingTracker) {
+    window.loadingTracker.markComplete('autocompleteReady');
+}
+
 function initHighPerformanceAutocomplete() {
     // Clean up old autocomplete if exists
     if (window.integratedAutocomplete) {
@@ -1024,7 +1029,7 @@ window.addEventListener('beforeunload', () => {
         window.hpAutocomplete.destroy();
     }
 });
-                    
+
 // ========================
 // MAIN MAP SCRIPT
 // ========================
