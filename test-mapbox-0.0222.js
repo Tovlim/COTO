@@ -80,10 +80,7 @@ class HighPerformanceAutocomplete {
         
         console.log('High-performance autocomplete initialized');
         
-        // Mark as ready for loading tracker
-        if (window.loadingTracker) {
-            window.loadingTracker.markComplete('autocompleteReady');
-        }
+        // Don't interact with loading tracker - let the map handle it
     }
     
     setupDropdownStructure() {
@@ -1126,9 +1123,6 @@ setTimeout(() => {
   if (!loadingTracker.states.uiPositioned) {
     loadingTracker.markComplete('uiPositioned');
   }
-  if (!loadingTracker.states.autocompleteReady) {
-    loadingTracker.markComplete('autocompleteReady');
-  }
   if (!loadingTracker.states.backToTopSetup) {
     loadingTracker.markComplete('backToTopSetup');
   }
@@ -1477,7 +1471,6 @@ const loadingTracker = {
     tabSwitcherSetup: false,
     eventsSetup: false,
     uiPositioned: false,
-    autocompleteReady: false,
     backToTopSetup: false
   },
   
@@ -1502,16 +1495,6 @@ const loadingTracker = {
     }
   },
   
-  // Helper to check if autocomplete is ready
-  checkAutocompleteReady() {
-    if (window.integratedAutocomplete && !this.states.autocompleteReady) {
-      this.markComplete('autocompleteReady');
-    } else if (!this.states.autocompleteReady) {
-      // Check again in a bit
-      setTimeout(() => this.checkAutocompleteReady(), 500);
-    }
-  }
-};
 
 // OPTIMIZED: High-performance utilities
 const utils = {
