@@ -12,15 +12,14 @@ class HighPerformanceAutocomplete {
             inputId: options.inputId || "map-search",
             wrapperId: options.wrapperId || "searchTermsWrapper",
             clearId: options.clearId || "searchclear",
-            virtualScroll: options.virtualScroll !== false, // Enable by default
-            itemHeight: options.itemHeight || 45, // Height of each item in pixels
-            visibleItems: options.visibleItems || 8, // Number of items visible at once
-            bufferSize: options.bufferSize || 3, // Extra items to render outside viewport
-            fuzzySearch: options.fuzzySearch !== false, // Enable fuzzy search by default
-            maxResults: options.maxResults || 200, // Maximum results to process
-            debounceMs: options.debounceMs || 50, // Faster debounce for in-memory filtering
-            highlightMatches: options.highlightMatches !== false,
-            scoreThreshold: options.scoreThreshold || 0.3 // Minimum fuzzy match score
+            virtualScroll: false, // Disabled for simplicity
+            itemHeight: options.itemHeight || 45,
+            visibleItems: options.visibleItems || 8,
+            fuzzySearch: options.fuzzySearch !== false,
+            maxResults: options.maxResults || 200,
+            debounceMs: options.debounceMs || 50,
+            highlightMatches: false, // Disabled highlighting
+            scoreThreshold: options.scoreThreshold || 0.3
         };
         
         // Data storage - all in memory for maximum performance
@@ -66,17 +65,21 @@ class HighPerformanceAutocomplete {
         // Create optimized dropdown structure
         this.setupDropdownStructure();
         
-        // Setup event listeners first (minimal and optimized)
+        // Setup event listeners first
         this.setupEventListeners();
         
         // Apply initial styles
         this.applyStyles();
         
-        // Load data asynchronously to not block
-        requestAnimationFrame(() => {
-            this.loadData();
-            console.log('High-performance autocomplete initialized');
-        });
+        // Load data synchronously but efficiently
+        this.loadData();
+        
+        console.log('High-performance autocomplete initialized');
+        
+        // Mark as ready immediately
+        if (window.loadingTracker) {
+            window.loadingTracker.markComplete('autocompleteReady');
+        }
     }
     
     setupDropdownStructure() {
@@ -89,55 +92,61 @@ class HighPerformanceAutocomplete {
     }
     
     loadData() {
-        // Extract data from CMS collections - one-time operation
+        // Extract data from CMS collections - optimized for speed
         const startTime = performance.now();
         
         // Use Sets to prevent duplicates
         const districtSet = new Set();
         const subregionSet = new Set();
-        const localitiesMap = new Map(); // Use map to prevent duplicate localities
+        const localitiesMap = new Map();
         
-        // Find all CMS filter lists (limit to 10 for performance)
-        for (let i = 1; i <= 10; i++) {
+        // Find only first 5 lists for faster loading
+        for (let i = 1; i <= 5; i++) {
             const listContainer = document.getElementById(`cms-filter-list-${i}`);
             if (!listContainer) continue;
             
-            // Extract all elements at once
-            const nameElements = listContainer.querySelectorAll('.data-places-names-filter');
-            const districtElements = listContainer.querySelectorAll('.data-places-district-filter');
-            const subregionElements = listContainer.querySelectorAll('.data-places-subregion-filter');
-            const latElements = listContainer.querySelectorAll('.data-places-latitudes-filter');
-            const lngElements = listContainer.querySelectorAll('.data-places-longitudes-filter');
+            // Use more specific selectors for faster querying
+            const items = listContainer.children;
             
-            // Process localities and collect unique districts/subregions
-            nameElements.forEach((el, index) => {
-                const name = el.textContent.trim();
-                if (!name) return;
+            for (let j = 0; j < items.length; j++) {
+                const item = items[j];
                 
-                const district = districtElements[index]?.textContent.trim() || '';
-                const subregion = subregionElements[index]?.textContent.trim() || '';
+                const nameEl = item.querySelector('.data-places-names-filter');
+                if (!nameEl) continue;
                 
-                // Add to sets (automatically handles duplicates)
+                const name = nameEl.textContent.trim();
+                if (!name) continue;
+                
+                const districtEl = item.querySelector('.data-places-district-filter');
+                const subregionEl = item.querySelector('.data-places-subregion-filter');
+                
+                const district = districtEl?.textContent.trim() || '';
+                const subregion = subregionEl?.textContent.trim() || '';
+                
+                // Add to sets
                 if (district) districtSet.add(district);
                 if (subregion) subregionSet.add(subregion);
                 
-                // Add locality (use name as key to prevent duplicates)
+                // Add locality
                 if (!localitiesMap.has(name)) {
+                    const latEl = item.querySelector('.data-places-latitudes-filter');
+                    const lngEl = item.querySelector('.data-places-longitudes-filter');
+                    
                     localitiesMap.set(name, {
                         name: name,
                         nameLower: name.toLowerCase(),
                         district: district,
                         subregion: subregion,
-                        lat: parseFloat(latElements[index]?.textContent) || 0,
-                        lng: parseFloat(lngElements[index]?.textContent) || 0,
+                        lat: parseFloat(latEl?.textContent) || 0,
+                        lng: parseFloat(lngEl?.textContent) || 0,
                         type: 'locality',
                         searchTokens: this.createSearchTokens(name)
                     });
                 }
-            });
+            }
         }
         
-        // Convert sets to arrays with proper structure
+        // Convert sets to arrays
         this.data.districts = Array.from(districtSet).map(district => ({
             name: district,
             nameLower: district.toLowerCase(),
@@ -263,7 +272,7 @@ class HighPerformanceAutocomplete {
         this.data.districts.forEach(item => {
             const score = this.calculateMatchScore(searchLower, searchTokens, item);
             if (score > this.config.scoreThreshold) {
-                scoredResults.push({ ...item, score, highlight: this.getHighlight(searchText, item.name) });
+                scoredResults.push({ ...item, score });
             }
         });
         
@@ -271,7 +280,7 @@ class HighPerformanceAutocomplete {
         this.data.subregions.forEach(item => {
             const score = this.calculateMatchScore(searchLower, searchTokens, item);
             if (score > this.config.scoreThreshold) {
-                scoredResults.push({ ...item, score, highlight: this.getHighlight(searchText, item.name) });
+                scoredResults.push({ ...item, score });
             }
         });
         
@@ -279,7 +288,7 @@ class HighPerformanceAutocomplete {
         this.data.localities.forEach(item => {
             const score = this.calculateMatchScore(searchLower, searchTokens, item);
             if (score > this.config.scoreThreshold) {
-                scoredResults.push({ ...item, score, highlight: this.getHighlight(searchText, item.name) });
+                scoredResults.push({ ...item, score });
             }
         });
         
@@ -403,19 +412,19 @@ class HighPerformanceAutocomplete {
         a.dataset.type = item.type;
         a.dataset.term = item.name;
         
-        // Build HTML based on item type - matching original structure
+        // Build HTML based on item type - no highlighting
         if (item.type === 'locality') {
             const location = [item.subregion, item.district].filter(Boolean).join(', ');
             a.innerHTML = `
                 <div class="locality-info">
-                    <div class="locality-name">${item.highlight || item.name}</div>
+                    <div class="locality-name">${item.name}</div>
                     ${location ? `<div class="locality-region">${location}</div>` : ''}
                 </div>
                 <span class="term-label">Locality</span>
             `;
         } else {
             const typeLabel = item.type === 'district' ? 'Region' : 'Sub-Region';
-            a.innerHTML = `${item.highlight || item.name} <span class="term-label">${typeLabel}</span>`;
+            a.innerHTML = `${item.name} <span class="term-label">${typeLabel}</span>`;
         }
         
         li.appendChild(a);
@@ -765,32 +774,21 @@ class HighPerformanceAutocomplete {
                     background-color: #f5f5f5;
                 }
                 
-                /* District term - original brown colors */
-                .list-term.district-term {
+                /* District/Subregion terms - unified brown colors */
+                .list-term.district-term,
+                .list-term.subregion-term {
                     font-weight: 600;
                     color: #6e3500;
                     background-color: #fdf6f0;
                     border-left: 3px solid #6e3500;
                 }
-                .list-term.district-term:hover {
+                .list-term.district-term:hover,
+                .list-term.subregion-term:hover {
                     background-color: #f5e6d3;
                 }
-                .list-term.district-term .term-label {
-                    color: #8f4500;
-                }
-                
-                /* Subregion term - original blue colors */
-                .list-term.subregion-term {
-                    font-weight: 600;
-                    color: #0056b3;
-                    background-color: #f0f6fd;
-                    border-left: 3px solid #0056b3;
-                }
-                .list-term.subregion-term:hover {
-                    background-color: #d3e6f5;
-                }
+                .list-term.district-term .term-label,
                 .list-term.subregion-term .term-label {
-                    color: #0056b3;
+                    color: #8f4500;
                 }
                 
                 /* Locality term - original yellow colors */
@@ -851,13 +849,6 @@ class HighPerformanceAutocomplete {
                     padding: 20px;
                     text-align: center;
                     color: #666;
-                }
-                
-                /* Highlight matches */
-                mark {
-                    background-color: #ffeb3b;
-                    font-weight: 600;
-                    padding: 0;
                 }
             `;
             document.head.appendChild(style);
@@ -922,15 +913,7 @@ function initHighPerformanceAutocomplete() {
         window.hpAutocomplete = new HighPerformanceAutocomplete({
             inputId: "map-search",
             wrapperId: "searchTermsWrapper",
-            clearId: "searchclear",
-            virtualScroll: false, // Disable virtual scrolling for simpler implementation
-            itemHeight: 45,
-            visibleItems: 8,
-            fuzzySearch: true,
-            maxResults: 200,
-            debounceMs: 50,
-            highlightMatches: true,
-            scoreThreshold: 0.2
+            clearId: "searchclear"
         });
         
         // Expose global functions
@@ -946,24 +929,20 @@ function initHighPerformanceAutocomplete() {
             }
         };
         
-        console.log('High-performance autocomplete initialized successfully');
+        console.log('High-performance autocomplete ready');
         
-        // Mark autocomplete as ready for loading tracker
-        if (window.loadingTracker) {
-            window.loadingTracker.markComplete('autocompleteReady');
-        }
     } else {
         // Retry after a short delay
         setTimeout(initHighPerformanceAutocomplete, 100);
     }
 }
 
-// Initialize when DOM is ready
+// Initialize immediately - don't wait for DOM
+initHighPerformanceAutocomplete();
+
+// Also try on DOMContentLoaded as backup
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initHighPerformanceAutocomplete);
-} else {
-    // Initialize immediately
-    initHighPerformanceAutocomplete();
 }
 
 // ========================
