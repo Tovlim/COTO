@@ -1,6 +1,3 @@
-// COMBINED MAPBOX & AUTOCOMPLETE SCRIPT - Production Version 2025
-// Includes: Map functionality, Real-time visibility autocomplete, Finsweet integration
-
 // ========================
 // OPTIMIZED HIGH-PERFORMANCE AUTOCOMPLETE WITH VIRTUAL SCROLLING
 // ========================
@@ -1025,9 +1022,8 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-// ========================
-// MAIN MAP SCRIPT
-// ========================
+// COMBINED MAPBOX SCRIPT - Production Version 2025
+// Optimized version without autocomplete loading dependency
 
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1122,9 +1118,6 @@ setTimeout(() => {
   }
   if (!loadingTracker.states.uiPositioned) {
     loadingTracker.markComplete('uiPositioned');
-  }
-  if (!loadingTracker.states.autocompleteReady) {
-    loadingTracker.markComplete('autocompleteReady');
   }
   if (!loadingTracker.states.backToTopSetup) {
     loadingTracker.markComplete('backToTopSetup');
@@ -1461,7 +1454,7 @@ class OptimizedMapState {
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
-// ENHANCED: Loading state tracker
+// ENHANCED: Loading state tracker (removed autocompleteReady)
 const loadingTracker = {
   states: {
     mapInitialized: false,
@@ -1474,7 +1467,6 @@ const loadingTracker = {
     tabSwitcherSetup: false,
     eventsSetup: false,
     uiPositioned: false,
-    autocompleteReady: false,
     backToTopSetup: false
   },
   
@@ -1496,16 +1488,6 @@ const loadingTracker = {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen && loadingScreen.style.display !== 'none') {
       loadingScreen.style.display = 'none';
-    }
-  },
-  
-  // Helper to check if autocomplete is ready
-  checkAutocompleteReady() {
-    if (window.integratedAutocomplete && !this.states.autocompleteReady) {
-      this.markComplete('autocompleteReady');
-    } else if (!this.states.autocompleteReady) {
-      // Check again in a bit
-      setTimeout(() => this.checkAutocompleteReady(), 500);
     }
   }
 };
@@ -3140,6 +3122,436 @@ function loadCombinedGeoData() {
       loadingTracker.markComplete('geoDataLoaded');
     });
 }
+
+// Continued...
+
+// OPTIMIZED: Setup events for generated checkboxes with better performance
+function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-sidebar="true"
+  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
+  autoSidebarElements.forEach(element => {
+    ['change', 'input'].forEach(eventType => {
+      eventManager.add(element, eventType, () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('checkboxAutoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      });
+    });
+  });
+  
+  // Handle fs-cmsfilter-element filters
+  const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
+  filterElements.forEach(element => {
+    eventManager.add(element, 'change', () => state.setTimer('checkboxFilter', handleFilterUpdate, 50));
+  });
+  
+  // Handle activate-filter-indicator functionality
+  const indicatorActivators = checkboxContainer.querySelectorAll('[activate-filter-indicator]');
+  indicatorActivators.forEach(activator => {
+    const groupName = activator.getAttribute('activate-filter-indicator');
+    if (!groupName) return;
+    
+    // Function to toggle indicators for this group
+    const toggleIndicators = (shouldShow) => {
+      const indicators = $(`[filter-indicator="${groupName}"]`);
+      indicators.forEach(indicator => {
+        indicator.style.display = shouldShow ? 'flex' : 'none';
+      });
+    };
+    
+    // Function to check if any activator in this group is active
+    const hasActiveFilters = () => {
+      const groupActivators = $(`[activate-filter-indicator="${groupName}"]`);
+      return groupActivators.some(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          return el.checked;
+        } else if (el.tagName.toLowerCase() === 'select') {
+          return el.selectedIndex > 0;
+        } else {
+          return el.value.trim() !== '';
+        }
+      });
+    };
+    
+    // Add change event listener for checkboxes
+    if (activator.type === 'checkbox' || activator.type === 'radio') {
+      eventManager.add(activator, 'change', () => {
+        const shouldShow = hasActiveFilters();
+        toggleIndicators(shouldShow);
+      });
+    }
+  });
+}
+
+// SIMPLIFIED: Only use hiddentagparent method for filtering detection
+const checkAndToggleFilteredElements = () => {
+  // Check for hiddentagparent (Finsweet official filtering indicator)
+  const hiddenTagParent = document.getElementById('hiddentagparent');
+  const shouldShow = !!hiddenTagParent;
+  
+  toggleShowWhenFilteredElements(shouldShow);
+  return shouldShow;
+};
+
+// FIXED: Enhanced tag monitoring with proper cleanup and no recursion
+const monitorTags = (() => {
+  let isSetup = false; // Flag to prevent multiple setups
+  let pollingTimer = null; // Store polling timer for cleanup
+  
+  return () => {
+    // Prevent multiple setups
+    if (isSetup) {
+      return;
+    }
+    
+    // Initial check
+    checkAndToggleFilteredElements();
+    
+    // Don't use cached query for tagparent
+    const tagParent = document.getElementById('tagparent');
+    if (tagParent) {
+      // Clean up existing observer if it exists
+      if (tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+      }
+      
+      const observer = new MutationObserver(() => {
+        // Immediate check when DOM changes
+        checkAndToggleFilteredElements();
+      });
+      observer.observe(tagParent, {childList: true, subtree: true});
+      
+      // Store observer for cleanup
+      tagParent._mutationObserver = observer;
+    }
+    
+    // Additional monitoring: Watch for checkbox changes
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+      if (!checkbox.dataset.filteredElementListener) {
+        eventManager.add(checkbox, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 50);
+        });
+        checkbox.dataset.filteredElementListener = 'true';
+      }
+    });
+    
+    // Additional monitoring: Watch for form changes that might indicate filtering
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      if (!form.dataset.filteredElementListener) {
+        eventManager.add(form, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        eventManager.add(form, 'input', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        form.dataset.filteredElementListener = 'true';
+      }
+    });
+    
+    // FIXED: Fallback polling that doesn't recursively call monitorTags
+    const startPolling = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+      }
+      
+      pollingTimer = setTimeout(() => {
+        checkAndToggleFilteredElements(); // Just check, don't setup again
+        startPolling(); // Continue polling
+      }, 1000);
+    };
+    
+    // Start the polling
+    startPolling();
+    
+    // Mark as setup
+    isSetup = true;
+    
+    // Cleanup function (can be called to reset)
+    const cleanup = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+        pollingTimer = null;
+      }
+      
+      const tagParent = document.getElementById('tagparent');
+      if (tagParent && tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+        tagParent._mutationObserver = null;
+      }
+      
+      isSetup = false;
+    };
+    
+    // Store cleanup function for external access
+    window.cleanupTagMonitoring = cleanup;
+  };
+})();
+
+// OPTIMIZED: Smart initialization with parallel loading
+function init() {
+  // Core initialization (parallel where possible)
+  getLocationData();
+  addNativeMarkers();
+  setupEvents();
+  
+  // Generate locality checkboxes early
+  state.setTimer('generateCheckboxes', generateLocalityCheckboxes, 300);
+  
+  // Layer optimization
+  state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
+  
+  const handleMapEvents = () => {
+    state.clearTimer('mapEventHandler');
+    state.setTimer('mapEventHandler', () => {
+      // Map events handled by optimized layer management
+    }, 10);
+  };
+  
+  map.on('moveend', handleMapEvents);
+  map.on('zoomend', handleMapEvents);
+  
+  // Staggered setup with smart timing
+  [300, 800].forEach(delay => 
+    state.setTimer(`dropdownSetup-${delay}`, setupDropdownListeners, delay)
+  );
+  [200, 600, 1200].forEach(delay => 
+    state.setTimer(`tabSetup-${delay}`, setupTabSwitcher, delay)
+  );
+  
+  state.flags.mapInitialized = true;
+  
+  // Mark loading step complete
+  loadingTracker.markComplete('mapInitialized');
+  
+  // Initial filtering check
+  state.setTimer('initialFiltering', () => {
+    if (state.flags.isInitialLoad) {
+      const hasFiltering = checkMapMarkersFiltering();
+      if (hasFiltering) {
+        applyFilterToMarkers();
+      }
+      state.flags.isInitialLoad = false;
+    }
+    
+    // FIXED: Always check filtered elements on initial load
+    checkAndToggleFilteredElements();
+  }, 300);
+}
+
+// OPTIMIZED: Control positioning with better timing
+state.setTimer('controlPositioning', () => {
+  // Mark UI loading step complete (positioning is already handled by CSS)
+  loadingTracker.markComplete('uiPositioned');
+}, 300);
+
+// OPTIMIZED: Map load event handler with parallel operations
+map.on("load", () => {
+  try {
+    init();
+    
+    // Load combined data
+    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    
+    // Load district tags
+    state.setTimer('loadDistrictTags', loadDistrictTags, 800);
+    
+    // Setup area controls
+    state.setTimer('setupAreaControls', setupAreaKeyControls, 2000);
+    
+    // Final layer optimization
+    state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
+    
+  } catch (error) {
+    // Mark all loading steps as complete to hide loading screen on error
+    Object.keys(loadingTracker.states).forEach(stateName => {
+      loadingTracker.markComplete(stateName);
+    });
+  }
+});
+
+// OPTIMIZED: DOM ready handlers
+document.addEventListener('DOMContentLoaded', () => {
+  setupSidebars();
+  setupTabSwitcher();
+  setupBackToTopButton();
+  
+  // Early UI readiness checks
+  state.setTimer('earlyUICheck', () => {
+    // Check if tab switcher is ready early
+    if (!loadingTracker.states.tabSwitcherSetup && $('[open-tab]').length > 0) {
+      const hasSetupTabs = $('[open-tab]').some(tab => tab.dataset.tabSwitcherSetup === 'true');
+      if (hasSetupTabs) {
+        loadingTracker.markComplete('tabSwitcherSetup');
+      }
+    }
+    
+    // Check if controls are positioned early
+    if (!loadingTracker.states.uiPositioned) {
+      const ctrl = $1('.mapboxgl-ctrl-top-right');
+      if (ctrl && ctrl.style.top) {
+        loadingTracker.markComplete('uiPositioned');
+      }
+    }
+    
+    // Check if back to top is ready early
+    if (!loadingTracker.states.backToTopSetup) {
+      const button = $id('jump-to-top');
+      const scrollContainer = $id('scroll-wrap');
+      if (button && scrollContainer) {
+        loadingTracker.markComplete('backToTopSetup');
+      }
+    }
+  }, 2000);
+});
+
+window.addEventListener('load', () => {
+  setupSidebars();
+  setupTabSwitcher();
+  setupBackToTopButton();
+  
+  state.setTimer('loadFallbackInit', () => {
+    if (!state.allLocalityFeatures.length && map.loaded()) {
+      try { 
+        init(); 
+      } catch (error) { 
+        // Silent error handling in production
+      }
+    }
+  }, 100);
+  
+  // Retry mechanisms with smart timing
+  if (!state.flags.districtTagsLoaded) {
+    [1200, 2500].forEach(delay => 
+      state.setTimer(`districtTagsRetry-${delay}`, () => {
+        if (!state.flags.districtTagsLoaded) {
+          loadDistrictTags();
+          // Fallback: mark as complete even if no tags found
+          if (!loadingTracker.states.districtTagsLoaded) {
+            state.setTimer('districtTagsFallback', () => {
+              loadingTracker.markComplete('districtTagsLoaded');
+            }, delay + 1000);
+          }
+        }
+      }, delay)
+    );
+  }
+  
+  if (!state.flags.areaControlsSetup) {
+    [2500, 4000].forEach(delay => 
+      state.setTimer(`areaControlsRetry-${delay}`, () => {
+        if (!state.flags.areaControlsSetup) {
+          setupAreaKeyControls();
+          // Fallback: mark as complete even if setup seems incomplete
+          if (!loadingTracker.states.controlsSetup) {
+            state.setTimer('controlsFallback', () => {
+              loadingTracker.markComplete('controlsSetup');
+            }, delay + 1000);
+          }
+        }
+      }, delay)
+    );
+  }
+  
+  // OPTIMIZED: Auto-trigger reframing with smart logic
+  const checkAndReframe = () => {
+    if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
+      state.flags.forceFilteredReframe = true;
+      state.flags.isRefreshButtonAction = true;
+      applyFilterToMarkers();
+      state.setTimer('autoReframeCleanup', () => {
+        state.flags.forceFilteredReframe = false;
+        state.flags.isRefreshButtonAction = false;
+      }, 1000);
+      
+      // FIXED: Also check filtered elements when reframing
+      checkAndToggleFilteredElements();
+      return true;
+    }
+    return false;
+  };
+  
+  if (!checkAndReframe()) {
+    state.setTimer('reframeCheck1', () => {
+      if (!checkAndReframe()) {
+        state.setTimer('reframeCheck2', checkAndReframe, 1000);
+      }
+    }, 500);
+  }
+});
+
+// FIXED: Enhanced tag monitoring initialization (immediate start)
+state.setTimer('initMonitorTags', () => {
+  monitorTags();
+  
+  // Mark monitoring as part of events setup
+  state.setTimer('monitoringCheck', () => {
+    if (!loadingTracker.states.eventsSetup) {
+      loadingTracker.markComplete('eventsSetup');
+    }
+  }, 1000);
+}, 100);
+
+// FIXED: Additional check after page is fully loaded
+window.addEventListener('load', () => {
+  state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+});
+
+// ========================
+// GLOBAL EXPORTS & UTILITIES
+// ========================
+
+// Make functions available globally for autocomplete integration
+window.selectDistrictCheckbox = selectDistrictCheckbox;
+window.selectLocalityCheckbox = selectLocalityCheckbox;
+window.applyFilterToMarkers = applyFilterToMarkers;
+window.highlightBoundary = highlightBoundary;
+window.map = map;
+window.mapboxgl = mapboxgl;
+
+// OPTIMIZED: Shared utilities for other scripts (integration optimization)
+window.mapUtilities = {
+  getAvailableFilterLists,
+  domCache,
+  eventManager,
+  state,
+  utils,
+  mapLayers,
+  sidebarCache,
+  toggleSidebar,
+  closeSidebar,
+  checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
+  toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+};
+
+// ========================
+// CLEANUP
+// ========================
+
+// OPTIMIZED: Cleanup on page unload (prevent memory leaks)
+window.addEventListener('beforeunload', () => {
+  // Clean up all managed resources
+  eventManager.cleanup();
+  state.cleanup();
+  sidebarCache.invalidate();
+  
+  // Clean up mutation observers
+  const tagParent = $id('tagparent');
+  if (tagParent && tagParent._mutationObserver) {
+    tagParent._mutationObserver.disconnect();
+  }
+  
+  // Clean up back to top tag observer  
+  if (tagParent && tagParent._tagObserver) {
+    tagParent._tagObserver.disconnect();
+  }
+  
+  // Clean up map resources
+  if (map) {
+    map.remove();
+  }
+}); (final part)
 
 // OPTIMIZED: District boundary addition with batching
 function addDistrictBoundaryToMap(name, districtFeature) {
