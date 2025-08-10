@@ -3913,16 +3913,6 @@ window.addEventListener('load', () => {
     }, 500);
   }
   
-  // Check autocomplete readiness
-  state.setTimer('checkAutocomplete', () => {
-    loadingTracker.checkAutocompleteReady();
-  }, 1000);
-  
-  // Additional autocomplete check after longer delay
-  state.setTimer('checkAutocompleteLater', () => {
-    loadingTracker.checkAutocompleteReady();
-  }, 3000);
-});
 
 // FIXED: Enhanced tag monitoring initialization (immediate start)
 state.setTimer('initMonitorTags', () => {
