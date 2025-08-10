@@ -1474,7 +1474,6 @@ const loadingTracker = {
     tabSwitcherSetup: false,
     eventsSetup: false,
     uiPositioned: false,
-    autocompleteReady: false,
     backToTopSetup: false
   },
   
