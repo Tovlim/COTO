@@ -80,7 +80,10 @@ class HighPerformanceAutocomplete {
         
         console.log('High-performance autocomplete initialized');
         
-        // Don't interact with loading tracker - let the map handle it
+        // Mark as ready for loading tracker
+        if (window.loadingTracker) {
+            window.loadingTracker.markComplete('autocompleteReady');
+        }
     }
     
     setupDropdownStructure() {
