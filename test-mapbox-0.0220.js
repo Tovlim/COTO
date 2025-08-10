@@ -204,6 +204,12 @@ class HighPerformanceAutocomplete {
         // Keyboard navigation
         this.elements.input.addEventListener('keydown', (e) => this.handleKeydown(e));
         
+        // Prevent blur when interacting with dropdown
+        this.elements.wrapper.addEventListener('mousedown', (e) => {
+            // Prevent the input from losing focus when clicking in dropdown
+            e.preventDefault();
+        });
+        
         // Click handling with event delegation
         this.elements.wrapper.addEventListener('click', (e) => this.handleItemClick(e));
         
@@ -688,12 +694,9 @@ class HighPerformanceAutocomplete {
             clearSearchWrap.classList.add('blurred');
         }
         
-        // Delay to allow clicks on dropdown items
-        setTimeout(() => {
-            if (!this.elements.wrapper.matches(':hover')) {
-                this.hideDropdown();
-            }
-        }, 200);
+        // Hide immediately - no delay needed because mousedown preventDefault
+        // ensures blur only happens when clicking outside the dropdown
+        this.hideDropdown();
     }
     
     handleClear() {
