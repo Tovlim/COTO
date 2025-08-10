@@ -19,7 +19,9 @@ class HighPerformanceAutocomplete {
             maxResults: options.maxResults || 200,
             debounceMs: options.debounceMs || 50,
             highlightMatches: false, // Disabled highlighting
-            scoreThreshold: options.scoreThreshold || 0.3
+            scoreThreshold: options.scoreThreshold || 0.3,
+            mobileBreakpoint: 478, // Mobile breakpoint
+            mobileShowDelay: 400 // Delay before showing on mobile
         };
         
         // Data storage - all in memory for maximum performance
@@ -44,6 +46,8 @@ class HighPerformanceAutocomplete {
         this.renderFrame = null;
         this.scrollFrame = null;
         this.filterTimeout = null;
+        this.showTimeout = null; // For mobile delay
+        this.isFirstShow = true; // Track first show
         
         // Initialize
         this.init();
@@ -210,17 +214,6 @@ class HighPerformanceAutocomplete {
             this.elements.clear.addEventListener('click', () => this.handleClear());
         }
         
-        // Watch for input resize (focus state changes)
-        // Use ResizeObserver if available for better performance
-        if (window.ResizeObserver) {
-            const resizeObserver = new ResizeObserver(() => {
-                if (this.isDropdownVisible()) {
-                    this.updatePosition();
-                }
-            });
-            resizeObserver.observe(this.elements.input);
-        }
-        
         // Prevent form submission
         const form = this.elements.input.closest('form');
         if (form) {
@@ -229,6 +222,9 @@ class HighPerformanceAutocomplete {
     }
     
     handleInput(searchText) {
+        // Clear any pending mobile show timeout
+        clearTimeout(this.showTimeout);
+        
         if (!searchText || searchText.length === 0) {
             // Show all items when empty
             this.showAllItems();
@@ -238,7 +234,19 @@ class HighPerformanceAutocomplete {
         }
         
         this.renderResults();
-        this.showDropdown();
+        
+        // Show dropdown with mobile delay if applicable
+        const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
+        
+        if (isMobile && document.activeElement === this.elements.input) {
+            // Delay showing on mobile during typing
+            this.showTimeout = setTimeout(() => {
+                this.showDropdown();
+            }, this.config.mobileShowDelay);
+        } else {
+            // Show immediately on desktop
+            this.showDropdown();
+        }
     }
     
     showAllItems() {
@@ -642,19 +650,33 @@ class HighPerformanceAutocomplete {
             clearSearchWrap.classList.remove('blurred');
         }
         
-        // Show dropdown with current results
+        // Prepare data if empty input
         if (this.elements.input.value.length === 0) {
             this.showAllItems();
             this.renderResults();
         }
         
-        // Small delay to ensure input has finished resizing
-        setTimeout(() => {
+        // Show dropdown with appropriate delay
+        const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
+        
+        if (isMobile) {
+            // Clear any existing timeout
+            clearTimeout(this.showTimeout);
+            
+            // Delay showing on mobile
+            this.showTimeout = setTimeout(() => {
+                this.showDropdown();
+            }, this.config.mobileShowDelay);
+        } else {
+            // Show immediately on desktop
             this.showDropdown();
-        }, 10);
+        }
     }
     
     handleBlur() {
+        // Clear any pending show timeout (for mobile)
+        clearTimeout(this.showTimeout);
+        
         // Add blurred classes back
         const searchIconsWrap = document.querySelector('.search-icons-wrap');
         const clearSearchWrap = document.querySelector('.clear-search-wrap');
@@ -695,17 +717,35 @@ class HighPerformanceAutocomplete {
             return;
         }
         
-        // Always update position when showing to get current input dimensions
+        // Set position BEFORE making visible to prevent glitch
         this.updatePosition();
-        this.elements.wrapper.style.display = 'block';
         
-        // Update position again after display block to ensure accuracy
-        requestAnimationFrame(() => {
+        // If first show, ensure dropdown is properly positioned before display
+        if (this.isFirstShow) {
+            // Hide initially to prevent flash
+            this.elements.wrapper.style.visibility = 'hidden';
+            this.elements.wrapper.style.display = 'block';
+            
+            // Force layout calculation
+            this.elements.wrapper.offsetHeight;
+            
+            // Update position with actual dimensions
             this.updatePosition();
-        });
+            
+            // Now show it
+            this.elements.wrapper.style.visibility = 'visible';
+            this.isFirstShow = false;
+        } else {
+            // Subsequent shows are simple
+            this.elements.wrapper.style.display = 'block';
+        }
     }
     
     hideDropdown() {
+        // Clear any pending show timeout (for mobile)
+        clearTimeout(this.showTimeout);
+        
+        // Hide immediately (no delay on hide)
         this.elements.wrapper.style.display = 'none';
         this.elements.list.querySelectorAll('.list-term.active')
             .forEach(item => item.classList.remove('active'));
@@ -759,6 +799,10 @@ class HighPerformanceAutocomplete {
         // Preserve original styles exactly
         this.elements.input.setAttribute('autocomplete', 'off');
         this.elements.input.setAttribute('spellcheck', 'false');
+        
+        // Initially hide the wrapper to prevent flash
+        this.elements.wrapper.style.display = 'none';
+        this.elements.wrapper.style.visibility = 'visible';
         
         // Add the exact original styles from the old autocomplete
         if (!document.getElementById('hp-autocomplete-styles')) {
@@ -886,14 +930,15 @@ class HighPerformanceAutocomplete {
     }
     
     destroy() {
-        // Clean up event listeners and DOM
-        this.elements.list.innerHTML = '';
-        this.elements.wrapper.style.display = 'none';
-        
-        // Clear all timeouts
+        // Clean up timeouts
         clearTimeout(this.filterTimeout);
+        clearTimeout(this.showTimeout);
         cancelAnimationFrame(this.renderFrame);
         cancelAnimationFrame(this.scrollFrame);
+        
+        // Clean up DOM
+        this.elements.list.innerHTML = '';
+        this.elements.wrapper.style.display = 'none';
         
         console.log('Autocomplete destroyed');
     }
