@@ -1,1027 +1,992 @@
 // ========================
-// OPTIMIZED HIGH-PERFORMANCE AUTOCOMPLETE WITH VIRTUAL SCROLLING
+// LAZY LOADED HIGH-PERFORMANCE AUTOCOMPLETE
 // ========================
 
-class HighPerformanceAutocomplete {
-    constructor(options = {}) {
-        // Configuration
-        this.config = {
-            inputId: options.inputId || "map-search",
-            wrapperId: options.wrapperId || "searchTermsWrapper",
-            clearId: options.clearId || "searchclear",
-            virtualScroll: false, // Disabled for simplicity
-            itemHeight: options.itemHeight || 45,
-            visibleItems: options.visibleItems || 8,
-            fuzzySearch: options.fuzzySearch !== false,
-            maxResults: options.maxResults || 200,
-            debounceMs: options.debounceMs || 50,
-            highlightMatches: false, // Disabled highlighting
-            scoreThreshold: options.scoreThreshold || 0.3,
-            mobileBreakpoint: 478, // Mobile breakpoint
-            mobileShowDelay: 400 // Delay before showing on mobile
-        };
-        
-        // Data storage - all in memory for maximum performance
-        this.data = {
-            districts: [],
-            subregions: [],
-            localities: [],
-            filteredResults: [],
-            selectedIndex: -1
-        };
-        
-        // Virtual scrolling state
-        this.virtualScroll = {
-            scrollTop: 0,
-            startIndex: 0,
-            endIndex: this.config.visibleItems,
-            containerHeight: this.config.itemHeight * this.config.visibleItems
-        };
-        
-        // Performance optimization
-        this.cache = new Map();
-        this.renderFrame = null;
-        this.scrollFrame = null;
-        this.filterTimeout = null;
-        this.showTimeout = null; // For mobile delay
-        this.isFirstShow = true; // Track first show
-        
-        // Initialize
-        this.init();
-    }
+(function() {
+    // Track loading state
+    let autocompleteLoadState = 'pending'; // 'pending', 'loading', 'loaded'
+    let autocompleteInstance = null;
+    let loadPromise = null;
     
-    init() {
-        // Cache DOM elements once
-        this.elements = {
-            input: document.getElementById(this.config.inputId),
-            wrapper: document.getElementById(this.config.wrapperId),
-            clear: document.getElementById(this.config.clearId)
-        };
-        
-        if (!this.elements.input || !this.elements.wrapper) {
-            console.error('Required elements not found');
-            return;
+    // Lightweight stub that handles initial interactions
+    class AutocompleteStub {
+        constructor() {
+            this.setupStubListeners();
         }
         
-        // Create optimized dropdown structure
-        this.setupDropdownStructure();
-        
-        // Setup event listeners first
-        this.setupEventListeners();
-        
-        // Apply initial styles
-        this.applyStyles();
-        
-        // Load data synchronously but efficiently
-        this.loadData();
-        
-        console.log('High-performance autocomplete initialized');
-        
-        // Don't interact with loading tracker - let the map handle it
-    }
-    
-    setupDropdownStructure() {
-        // Create a simple list structure without scroll container initially
-        this.elements.wrapper.innerHTML = `
-            <ul id="search-terms" class="autocomplete-list"></ul>
-        `;
-        
-        this.elements.list = this.elements.wrapper.querySelector('.autocomplete-list');
-    }
-    
-    loadData() {
-        // Extract data from CMS collections - optimized for speed
-        const startTime = performance.now();
-        
-        // Use Sets to prevent duplicates
-        const districtSet = new Set();
-        const subregionSet = new Set();
-        const localitiesMap = new Map();
-        
-        // Find only first 5 lists for faster loading
-        for (let i = 1; i <= 5; i++) {
-            const listContainer = document.getElementById(`cms-filter-list-${i}`);
-            if (!listContainer) continue;
+        setupStubListeners() {
+            const searchInput = document.getElementById('map-search');
+            if (!searchInput) {
+                // Retry if element not found
+                setTimeout(() => this.setupStubListeners(), 100);
+                return;
+            }
             
-            // Use more specific selectors for faster querying
-            const items = listContainer.children;
+            // Track if user has interacted
+            let hasInteracted = false;
             
-            for (let j = 0; j < items.length; j++) {
-                const item = items[j];
-                
-                const nameEl = item.querySelector('.data-places-names-filter');
-                if (!nameEl) continue;
-                
-                const name = nameEl.textContent.trim();
-                if (!name) continue;
-                
-                const districtEl = item.querySelector('.data-places-district-filter');
-                const subregionEl = item.querySelector('.data-places-subregion-filter');
-                
-                const district = districtEl?.textContent.trim() || '';
-                const subregion = subregionEl?.textContent.trim() || '';
-                
-                // Add to sets
-                if (district) districtSet.add(district);
-                if (subregion) subregionSet.add(subregion);
-                
-                // Add locality
-                if (!localitiesMap.has(name)) {
-                    const latEl = item.querySelector('.data-places-latitudes-filter');
-                    const lngEl = item.querySelector('.data-places-longitudes-filter');
-                    
-                    localitiesMap.set(name, {
-                        name: name,
-                        nameLower: name.toLowerCase(),
-                        district: district,
-                        subregion: subregion,
-                        lat: parseFloat(latEl?.textContent) || 0,
-                        lng: parseFloat(lngEl?.textContent) || 0,
-                        type: 'locality',
-                        searchTokens: this.createSearchTokens(name)
-                    });
+            // Load on first focus
+            const handleFirstFocus = () => {
+                if (!hasInteracted) {
+                    hasInteracted = true;
+                    searchInput.removeEventListener('focus', handleFirstFocus);
+                    searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
+                    loadAutocomplete('user-interaction');
                 }
-            }
-        }
-        
-        // Convert sets to arrays
-        this.data.districts = Array.from(districtSet).map(district => ({
-            name: district,
-            nameLower: district.toLowerCase(),
-            type: 'district',
-            searchTokens: this.createSearchTokens(district)
-        })).sort((a, b) => a.name.localeCompare(b.name));
-        
-        this.data.subregions = Array.from(subregionSet).map(subregion => ({
-            name: subregion,
-            nameLower: subregion.toLowerCase(),
-            type: 'subregion',
-            searchTokens: this.createSearchTokens(subregion)
-        })).sort((a, b) => a.name.localeCompare(b.name));
-        
-        this.data.localities = Array.from(localitiesMap.values())
-            .sort((a, b) => a.name.localeCompare(b.name));
-        
-        console.log(`Data loaded in ${performance.now() - startTime}ms:`, {
-            districts: this.data.districts.length,
-            subregions: this.data.subregions.length,
-            localities: this.data.localities.length
-        });
-    }
-    
-    createSearchTokens(text) {
-        // Pre-compute search tokens for fuzzy matching
-        const tokens = text.toLowerCase().split(/\s+/);
-        const ngrams = [];
-        
-        // Generate character n-grams for fuzzy matching
-        for (let n = 2; n <= 3; n++) {
-            for (let i = 0; i <= text.length - n; i++) {
-                ngrams.push(text.toLowerCase().substr(i, n));
-            }
-        }
-        
-        return { tokens, ngrams };
-    }
-    
-    setupEventListeners() {
-        // Optimized event handling with single listener per event type
-        let inputTimeout;
-        
-        // Input handling with smart debouncing
-        this.elements.input.addEventListener('input', (e) => {
-            clearTimeout(inputTimeout);
-            inputTimeout = setTimeout(() => this.handleInput(e.target.value), this.config.debounceMs);
-        });
-        
-        // Focus handling
-        this.elements.input.addEventListener('focus', () => this.handleFocus());
-        this.elements.input.addEventListener('blur', () => this.handleBlur());
-        
-        // Keyboard navigation
-        this.elements.input.addEventListener('keydown', (e) => this.handleKeydown(e));
-        
-        // Prevent blur when interacting with dropdown
-        this.elements.wrapper.addEventListener('mousedown', (e) => {
-            // Prevent the input from losing focus when clicking in dropdown
-            e.preventDefault();
-        });
-        
-        // Click handling with event delegation
-        this.elements.wrapper.addEventListener('click', (e) => this.handleItemClick(e));
-        
-        // Clear button
-        if (this.elements.clear) {
-            // Prevent blur when clicking clear
-            this.elements.clear.addEventListener('mousedown', (e) => e.preventDefault());
-            this.elements.clear.addEventListener('click', () => this.handleClear());
-        }
-        
-        // Prevent form submission
-        const form = this.elements.input.closest('form');
-        if (form) {
-            form.addEventListener('submit', (e) => e.preventDefault());
-        }
-    }
-    
-    handleInput(searchText) {
-        // Clear any pending mobile show timeout
-        clearTimeout(this.showTimeout);
-        
-        if (!searchText || searchText.length === 0) {
-            // Show all items when empty
-            this.showAllItems();
-        } else {
-            // Perform filtered search
-            this.performSearch(searchText);
-        }
-        
-        this.renderResults();
-        
-        // Show dropdown with mobile delay if applicable
-        const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
-        
-        if (isMobile && document.activeElement === this.elements.input) {
-            // Delay showing on mobile during typing
-            this.showTimeout = setTimeout(() => {
-                this.showDropdown();
-            }, this.config.mobileShowDelay);
-        } else {
-            // Show immediately on desktop
-            this.showDropdown();
-        }
-    }
-    
-    showAllItems() {
-        // Combine districts (max 3), subregions (max 3), and localities
-        const maxDistrictsAndSubregions = 3;
-        const combinedRegions = [];
-        
-        // Interleave districts and subregions
-        let districtIndex = 0;
-        let subregionIndex = 0;
-        
-        while (combinedRegions.length < maxDistrictsAndSubregions && 
-               (districtIndex < this.data.districts.length || subregionIndex < this.data.subregions.length)) {
-            if (districtIndex < this.data.districts.length && combinedRegions.length < maxDistrictsAndSubregions) {
-                combinedRegions.push(this.data.districts[districtIndex]);
-                districtIndex++;
-            }
-            if (subregionIndex < this.data.subregions.length && combinedRegions.length < maxDistrictsAndSubregions) {
-                combinedRegions.push(this.data.subregions[subregionIndex]);
-                subregionIndex++;
-            }
-        }
-        
-        this.data.filteredResults = [
-            ...combinedRegions,
-            ...this.data.localities.slice(0, this.config.maxResults)
-        ];
-    }
-    
-    performSearch(searchText) {
-        const startTime = performance.now();
-        const searchLower = searchText.toLowerCase();
-        const searchTokens = searchText.toLowerCase().split(/\s+/);
-        
-        // Score and filter results
-        const scoredResults = [];
-        
-        // Search districts
-        this.data.districts.forEach(item => {
-            const score = this.calculateMatchScore(searchLower, searchTokens, item);
-            if (score > this.config.scoreThreshold) {
-                scoredResults.push({ ...item, score });
-            }
-        });
-        
-        // Search subregions
-        this.data.subregions.forEach(item => {
-            const score = this.calculateMatchScore(searchLower, searchTokens, item);
-            if (score > this.config.scoreThreshold) {
-                scoredResults.push({ ...item, score });
-            }
-        });
-        
-        // Search localities
-        this.data.localities.forEach(item => {
-            const score = this.calculateMatchScore(searchLower, searchTokens, item);
-            if (score > this.config.scoreThreshold) {
-                scoredResults.push({ ...item, score });
-            }
-        });
-        
-        // Sort by score and type (districts/subregions first, then localities)
-        scoredResults.sort((a, b) => {
-            // First sort by score
-            if (Math.abs(b.score - a.score) > 0.1) {
-                return b.score - a.score;
-            }
-            // Then prioritize districts/subregions over localities
-            if (a.type !== 'locality' && b.type === 'locality') return -1;
-            if (a.type === 'locality' && b.type !== 'locality') return 1;
-            // Finally sort alphabetically
-            return a.name.localeCompare(b.name);
-        });
-        
-        // Limit districts/subregions to 3 total
-        let regionCount = 0;
-        const limitedResults = [];
-        
-        for (const result of scoredResults) {
-            if (result.type === 'district' || result.type === 'subregion') {
-                if (regionCount < 3) {
-                    limitedResults.push(result);
-                    regionCount++;
+            };
+            
+            // Preload on hover (gives us a head start)
+            const handleFirstMouseEnter = () => {
+                if (!hasInteracted && autocompleteLoadState === 'pending') {
+                    hasInteracted = true;
+                    searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
+                    searchInput.removeEventListener('focus', handleFirstFocus);
+                    loadAutocomplete('user-hover');
                 }
+            };
+            
+            // Add lightweight listeners
+            searchInput.addEventListener('focus', handleFirstFocus, { once: true });
+            searchInput.addEventListener('mouseenter', handleFirstMouseEnter, { once: true });
+            
+            // Also prevent form submission while autocomplete is not loaded
+            const form = searchInput.closest('form');
+            if (form) {
+                form.addEventListener('submit', (e) => {
+                    if (autocompleteLoadState !== 'loaded') {
+                        e.preventDefault();
+                    }
+                });
+            }
+        }
+    }
+    
+    // Function to load the actual autocomplete
+    function loadAutocomplete(trigger = 'unknown') {
+        // Prevent multiple simultaneous loads
+        if (autocompleteLoadState === 'loading' || autocompleteLoadState === 'loaded') {
+            return loadPromise;
+        }
+        
+        console.log(`Loading autocomplete... (triggered by: ${trigger})`);
+        autocompleteLoadState = 'loading';
+        
+        // Create a promise for the loading process
+        loadPromise = new Promise((resolve) => {
+            // Use requestIdleCallback if available, otherwise setTimeout
+            const loadFunction = () => {
+                try {
+                    // Initialize the actual autocomplete
+                    initializeFullAutocomplete();
+                    autocompleteLoadState = 'loaded';
+                    console.log('Autocomplete loaded successfully');
+                    resolve();
+                } catch (error) {
+                    console.error('Failed to load autocomplete:', error);
+                    autocompleteLoadState = 'pending'; // Reset to allow retry
+                    resolve(); // Resolve anyway to prevent blocking
+                }
+            };
+            
+            if ('requestIdleCallback' in window) {
+                requestIdleCallback(loadFunction, { timeout: 1000 });
             } else {
-                limitedResults.push(result);
+                setTimeout(loadFunction, 10);
             }
-            
-            if (limitedResults.length >= this.config.maxResults) break;
-        }
-        
-        this.data.filteredResults = limitedResults;
-        
-        console.log(`Search completed in ${performance.now() - startTime}ms, found ${this.data.filteredResults.length} results`);
-    }
-    
-    calculateMatchScore(searchLower, searchTokens, item) {
-        let score = 0;
-        
-        // Exact match
-        if (item.nameLower === searchLower) {
-            return 1.0;
-        }
-        
-        // Starts with match (high score)
-        if (item.nameLower.startsWith(searchLower)) {
-            score = 0.9;
-        }
-        // Contains match (medium score)
-        else if (item.nameLower.includes(searchLower)) {
-            score = 0.7;
-        }
-        
-        // Token-based matching for multi-word searches
-        if (searchTokens.length > 1) {
-            const matchedTokens = searchTokens.filter(token => 
-                item.searchTokens.tokens.some(itemToken => itemToken.includes(token))
-            );
-            score = Math.max(score, matchedTokens.length / searchTokens.length * 0.8);
-        }
-        
-        // Fuzzy matching using n-grams
-        if (this.config.fuzzySearch && score < 0.5) {
-            const searchNgrams = new Set();
-            for (let i = 0; i <= searchLower.length - 2; i++) {
-                searchNgrams.add(searchLower.substr(i, 2));
-            }
-            
-            let matches = 0;
-            searchNgrams.forEach(ngram => {
-                if (item.searchTokens.ngrams.includes(ngram)) matches++;
-            });
-            
-            const fuzzyScore = matches / Math.max(searchNgrams.size, 1) * 0.6;
-            score = Math.max(score, fuzzyScore);
-        }
-        
-        return score;
-    }
-    
-    getHighlight(searchText, itemName) {
-        if (!this.config.highlightMatches) return itemName;
-        
-        const searchLower = searchText.toLowerCase();
-        const itemLower = itemName.toLowerCase();
-        const index = itemLower.indexOf(searchLower);
-        
-        if (index === -1) return itemName;
-        
-        return (
-            itemName.substr(0, index) +
-            '<mark>' + itemName.substr(index, searchText.length) + '</mark>' +
-            itemName.substr(index + searchText.length)
-        );
-    }
-    
-    renderResults() {
-        if (!this.data.filteredResults.length) {
-            this.elements.list.innerHTML = '<li class="no-results">No results found</li>';
-            return;
-        }
-        
-        const fragment = document.createDocumentFragment();
-        
-        this.data.filteredResults.forEach((item, index) => {
-            fragment.appendChild(this.createItemElement(item, index));
         });
         
-        this.elements.list.innerHTML = '';
-        this.elements.list.appendChild(fragment);
+        return loadPromise;
     }
     
-    createItemElement(item, index) {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = '#';
-        a.className = `list-term ${item.type}-term ${index === this.data.selectedIndex ? 'active' : ''}`;
-        a.dataset.index = index;
-        a.dataset.type = item.type;
-        a.dataset.term = item.name;
+    // The actual autocomplete implementation (wrapped in a function)
+    function initializeFullAutocomplete() {
+        // ========================
+        // FULL AUTOCOMPLETE CLASS
+        // ========================
         
-        // Build HTML based on item type - no highlighting
-        if (item.type === 'locality') {
-            const location = [item.subregion, item.district].filter(Boolean).join(', ');
-            a.innerHTML = `
-                <div class="locality-info">
-                    <div class="locality-name">${item.name}</div>
-                    ${location ? `<div class="locality-region">${location}</div>` : ''}
-                </div>
-                <span class="term-label">Locality</span>
-            `;
-        } else {
-            const typeLabel = item.type === 'district' ? 'Region' : 'Sub-Region';
-            a.innerHTML = `${item.name} <span class="term-label">${typeLabel}</span>`;
-        }
-        
-        li.appendChild(a);
-        return li;
-    }
-    
-    handleKeydown(e) {
-        if (!this.isDropdownVisible()) return;
-        
-        const visibleItems = this.getDropdownItems();
-        let currentActive = this.elements.list.querySelector('.list-term.active');
-        let activeIndex = currentActive ? parseInt(currentActive.dataset.index) : -1;
-        
-        switch(e.key) {
-            case 'ArrowDown':
+        class HighPerformanceAutocomplete {
+            constructor(options = {}) {
+                // Configuration
+                this.config = {
+                    inputId: options.inputId || "map-search",
+                    wrapperId: options.wrapperId || "searchTermsWrapper",
+                    clearId: options.clearId || "searchclear",
+                    virtualScroll: false,
+                    itemHeight: options.itemHeight || 45,
+                    visibleItems: options.visibleItems || 8,
+                    fuzzySearch: options.fuzzySearch !== false,
+                    maxResults: options.maxResults || 200,
+                    debounceMs: options.debounceMs || 50,
+                    highlightMatches: false,
+                    scoreThreshold: options.scoreThreshold || 0.3,
+                    mobileBreakpoint: 478,
+                    mobileShowDelay: 400
+                };
+                
+                // Data storage
+                this.data = {
+                    districts: [],
+                    subregions: [],
+                    localities: [],
+                    filteredResults: [],
+                    selectedIndex: -1
+                };
+                
+                // Virtual scrolling state
+                this.virtualScroll = {
+                    scrollTop: 0,
+                    startIndex: 0,
+                    endIndex: this.config.visibleItems,
+                    containerHeight: this.config.itemHeight * this.config.visibleItems
+                };
+                
+                // Performance optimization
+                this.cache = new Map();
+                this.renderFrame = null;
+                this.scrollFrame = null;
+                this.filterTimeout = null;
+                this.showTimeout = null;
+                this.isFirstShow = true;
+                
+                // Initialize
+                this.init();
+            }
+            
+            init() {
+                // Cache DOM elements
+                this.elements = {
+                    input: document.getElementById(this.config.inputId),
+                    wrapper: document.getElementById(this.config.wrapperId),
+                    clear: document.getElementById(this.config.clearId)
+                };
+                
+                if (!this.elements.input || !this.elements.wrapper) {
+                    console.error('Required elements not found');
+                    return;
+                }
+                
+                // Create optimized dropdown structure
+                this.setupDropdownStructure();
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Apply initial styles
+                this.applyStyles();
+                
+                // Load data
+                this.loadData();
+                
+                console.log('High-performance autocomplete initialized');
+            }
+            
+            setupDropdownStructure() {
+                this.elements.wrapper.innerHTML = `
+                    <ul id="search-terms" class="autocomplete-list"></ul>
+                `;
+                
+                this.elements.list = this.elements.wrapper.querySelector('.autocomplete-list');
+            }
+            
+            loadData() {
+                const startTime = performance.now();
+                
+                // Use Sets to prevent duplicates
+                const districtSet = new Set();
+                const subregionSet = new Set();
+                const localitiesMap = new Map();
+                
+                // Find only first 5 lists for faster loading
+                for (let i = 1; i <= 5; i++) {
+                    const listContainer = document.getElementById(`cms-filter-list-${i}`);
+                    if (!listContainer) continue;
+                    
+                    const items = listContainer.children;
+                    
+                    for (let j = 0; j < items.length; j++) {
+                        const item = items[j];
+                        
+                        const nameEl = item.querySelector('.data-places-names-filter');
+                        if (!nameEl) continue;
+                        
+                        const name = nameEl.textContent.trim();
+                        if (!name) continue;
+                        
+                        const districtEl = item.querySelector('.data-places-district-filter');
+                        const subregionEl = item.querySelector('.data-places-subregion-filter');
+                        
+                        const district = districtEl?.textContent.trim() || '';
+                        const subregion = subregionEl?.textContent.trim() || '';
+                        
+                        if (district) districtSet.add(district);
+                        if (subregion) subregionSet.add(subregion);
+                        
+                        if (!localitiesMap.has(name)) {
+                            const latEl = item.querySelector('.data-places-latitudes-filter');
+                            const lngEl = item.querySelector('.data-places-longitudes-filter');
+                            
+                            localitiesMap.set(name, {
+                                name: name,
+                                nameLower: name.toLowerCase(),
+                                district: district,
+                                subregion: subregion,
+                                lat: parseFloat(latEl?.textContent) || 0,
+                                lng: parseFloat(lngEl?.textContent) || 0,
+                                type: 'locality',
+                                searchTokens: this.createSearchTokens(name)
+                            });
+                        }
+                    }
+                }
+                
+                // Convert sets to arrays
+                this.data.districts = Array.from(districtSet).map(district => ({
+                    name: district,
+                    nameLower: district.toLowerCase(),
+                    type: 'district',
+                    searchTokens: this.createSearchTokens(district)
+                })).sort((a, b) => a.name.localeCompare(b.name));
+                
+                this.data.subregions = Array.from(subregionSet).map(subregion => ({
+                    name: subregion,
+                    nameLower: subregion.toLowerCase(),
+                    type: 'subregion',
+                    searchTokens: this.createSearchTokens(subregion)
+                })).sort((a, b) => a.name.localeCompare(b.name));
+                
+                this.data.localities = Array.from(localitiesMap.values())
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                
+                console.log(`Data loaded in ${performance.now() - startTime}ms:`, {
+                    districts: this.data.districts.length,
+                    subregions: this.data.subregions.length,
+                    localities: this.data.localities.length
+                });
+            }
+            
+            createSearchTokens(text) {
+                const tokens = text.toLowerCase().split(/\s+/);
+                const ngrams = [];
+                
+                for (let n = 2; n <= 3; n++) {
+                    for (let i = 0; i <= text.length - n; i++) {
+                        ngrams.push(text.toLowerCase().substr(i, n));
+                    }
+                }
+                
+                return { tokens, ngrams };
+            }
+            
+            setupEventListeners() {
+                let inputTimeout;
+                
+                // Input handling
+                this.elements.input.addEventListener('input', (e) => {
+                    clearTimeout(inputTimeout);
+                    inputTimeout = setTimeout(() => this.handleInput(e.target.value), this.config.debounceMs);
+                });
+                
+                // Focus/blur handling
+                this.elements.input.addEventListener('focus', () => this.handleFocus());
+                this.elements.input.addEventListener('blur', () => this.handleBlur());
+                
+                // Keyboard navigation
+                this.elements.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+                
+                // Prevent blur when interacting with dropdown
+                this.elements.wrapper.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                });
+                
+                // Click handling
+                this.elements.wrapper.addEventListener('click', (e) => this.handleItemClick(e));
+                
+                // Clear button
+                if (this.elements.clear) {
+                    this.elements.clear.addEventListener('mousedown', (e) => e.preventDefault());
+                    this.elements.clear.addEventListener('click', () => this.handleClear());
+                }
+                
+                // Prevent form submission
+                const form = this.elements.input.closest('form');
+                if (form) {
+                    form.addEventListener('submit', (e) => e.preventDefault());
+                }
+            }
+            
+            handleInput(searchText) {
+                clearTimeout(this.showTimeout);
+                
+                if (!searchText || searchText.length === 0) {
+                    this.showAllItems();
+                } else {
+                    this.performSearch(searchText);
+                }
+                
+                this.renderResults();
+                
+                const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
+                
+                if (isMobile && document.activeElement === this.elements.input) {
+                    this.showTimeout = setTimeout(() => {
+                        this.showDropdown();
+                    }, this.config.mobileShowDelay);
+                } else {
+                    this.showDropdown();
+                }
+            }
+            
+            showAllItems() {
+                const maxDistrictsAndSubregions = 3;
+                const combinedRegions = [];
+                
+                let districtIndex = 0;
+                let subregionIndex = 0;
+                
+                while (combinedRegions.length < maxDistrictsAndSubregions && 
+                       (districtIndex < this.data.districts.length || subregionIndex < this.data.subregions.length)) {
+                    if (districtIndex < this.data.districts.length && combinedRegions.length < maxDistrictsAndSubregions) {
+                        combinedRegions.push(this.data.districts[districtIndex]);
+                        districtIndex++;
+                    }
+                    if (subregionIndex < this.data.subregions.length && combinedRegions.length < maxDistrictsAndSubregions) {
+                        combinedRegions.push(this.data.subregions[subregionIndex]);
+                        subregionIndex++;
+                    }
+                }
+                
+                this.data.filteredResults = [
+                    ...combinedRegions,
+                    ...this.data.localities.slice(0, this.config.maxResults)
+                ];
+            }
+            
+            performSearch(searchText) {
+                const startTime = performance.now();
+                const searchLower = searchText.toLowerCase();
+                const searchTokens = searchText.toLowerCase().split(/\s+/);
+                
+                const scoredResults = [];
+                
+                // Search all categories
+                [...this.data.districts, ...this.data.subregions, ...this.data.localities].forEach(item => {
+                    const score = this.calculateMatchScore(searchLower, searchTokens, item);
+                    if (score > this.config.scoreThreshold) {
+                        scoredResults.push({ ...item, score });
+                    }
+                });
+                
+                // Sort by score and type
+                scoredResults.sort((a, b) => {
+                    if (Math.abs(b.score - a.score) > 0.1) {
+                        return b.score - a.score;
+                    }
+                    if (a.type !== 'locality' && b.type === 'locality') return -1;
+                    if (a.type === 'locality' && b.type !== 'locality') return 1;
+                    return a.name.localeCompare(b.name);
+                });
+                
+                // Limit districts/subregions to 3 total
+                let regionCount = 0;
+                const limitedResults = [];
+                
+                for (const result of scoredResults) {
+                    if (result.type === 'district' || result.type === 'subregion') {
+                        if (regionCount < 3) {
+                            limitedResults.push(result);
+                            regionCount++;
+                        }
+                    } else {
+                        limitedResults.push(result);
+                    }
+                    
+                    if (limitedResults.length >= this.config.maxResults) break;
+                }
+                
+                this.data.filteredResults = limitedResults;
+                
+                console.log(`Search completed in ${performance.now() - startTime}ms, found ${this.data.filteredResults.length} results`);
+            }
+            
+            calculateMatchScore(searchLower, searchTokens, item) {
+                let score = 0;
+                
+                if (item.nameLower === searchLower) {
+                    return 1.0;
+                }
+                
+                if (item.nameLower.startsWith(searchLower)) {
+                    score = 0.9;
+                } else if (item.nameLower.includes(searchLower)) {
+                    score = 0.7;
+                }
+                
+                if (searchTokens.length > 1) {
+                    const matchedTokens = searchTokens.filter(token => 
+                        item.searchTokens.tokens.some(itemToken => itemToken.includes(token))
+                    );
+                    score = Math.max(score, matchedTokens.length / searchTokens.length * 0.8);
+                }
+                
+                if (this.config.fuzzySearch && score < 0.5) {
+                    const searchNgrams = new Set();
+                    for (let i = 0; i <= searchLower.length - 2; i++) {
+                        searchNgrams.add(searchLower.substr(i, 2));
+                    }
+                    
+                    let matches = 0;
+                    searchNgrams.forEach(ngram => {
+                        if (item.searchTokens.ngrams.includes(ngram)) matches++;
+                    });
+                    
+                    const fuzzyScore = matches / Math.max(searchNgrams.size, 1) * 0.6;
+                    score = Math.max(score, fuzzyScore);
+                }
+                
+                return score;
+            }
+            
+            renderResults() {
+                if (!this.data.filteredResults.length) {
+                    this.elements.list.innerHTML = '<li class="no-results">No results found</li>';
+                    return;
+                }
+                
+                const fragment = document.createDocumentFragment();
+                
+                this.data.filteredResults.forEach((item, index) => {
+                    fragment.appendChild(this.createItemElement(item, index));
+                });
+                
+                this.elements.list.innerHTML = '';
+                this.elements.list.appendChild(fragment);
+            }
+            
+            createItemElement(item, index) {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = '#';
+                a.className = `list-term ${item.type}-term ${index === this.data.selectedIndex ? 'active' : ''}`;
+                a.dataset.index = index;
+                a.dataset.type = item.type;
+                a.dataset.term = item.name;
+                
+                if (item.type === 'locality') {
+                    const location = [item.subregion, item.district].filter(Boolean).join(', ');
+                    a.innerHTML = `
+                        <div class="locality-info">
+                            <div class="locality-name">${item.name}</div>
+                            ${location ? `<div class="locality-region">${location}</div>` : ''}
+                        </div>
+                        <span class="term-label">Locality</span>
+                    `;
+                } else {
+                    const typeLabel = item.type === 'district' ? 'Region' : 'Sub-Region';
+                    a.innerHTML = `${item.name} <span class="term-label">${typeLabel}</span>`;
+                }
+                
+                li.appendChild(a);
+                return li;
+            }
+            
+            handleKeydown(e) {
+                if (!this.isDropdownVisible()) return;
+                
+                const visibleItems = this.getDropdownItems();
+                let currentActive = this.elements.list.querySelector('.list-term.active');
+                let activeIndex = currentActive ? parseInt(currentActive.dataset.index) : -1;
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        activeIndex = Math.min(activeIndex + 1, this.data.filteredResults.length - 1);
+                        this.setActiveItem(visibleItems, activeIndex);
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        activeIndex = Math.max(activeIndex - 1, 0);
+                        this.setActiveItem(visibleItems, activeIndex);
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        if (currentActive) {
+                            const term = currentActive.getAttribute('data-term');
+                            const type = currentActive.getAttribute('data-type');
+                            this.selectTerm(term, type);
+                        }
+                        break;
+                    case 'Escape':
+                        this.hideDropdown();
+                        this.elements.input.blur();
+                        break;
+                }
+            }
+            
+            getDropdownItems() {
+                return Array.from(this.elements.list.querySelectorAll('.list-term'));
+            }
+            
+            setActiveItem(items, index) {
+                items.forEach(item => item.classList.remove('active'));
+                
+                const activeItem = items.find(item => parseInt(item.dataset.index) === index);
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                    activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+                
+                this.data.selectedIndex = index;
+            }
+            
+            handleItemClick(e) {
                 e.preventDefault();
-                activeIndex = Math.min(activeIndex + 1, this.data.filteredResults.length - 1);
-                this.setActiveItem(visibleItems, activeIndex);
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                activeIndex = Math.max(activeIndex - 1, 0);
-                this.setActiveItem(visibleItems, activeIndex);
-                break;
-            case 'Enter':
-                e.preventDefault();
-                if (currentActive) {
-                    const term = currentActive.getAttribute('data-term');
-                    const type = currentActive.getAttribute('data-type');
+                const termElement = e.target.closest('.list-term');
+                if (!termElement) return;
+                
+                const term = termElement.getAttribute('data-term');
+                const type = termElement.getAttribute('data-type');
+                
+                if (term) {
                     this.selectTerm(term, type);
                 }
-                break;
-            case 'Escape':
+            }
+            
+            selectTerm(term, type) {
+                this.elements.input.value = term;
                 this.hideDropdown();
                 this.elements.input.blur();
-                break;
-        }
-    }
-    
-    getDropdownItems() {
-        return Array.from(this.elements.list.querySelectorAll('.list-term'));
-    }
-    
-    setActiveItem(items, index) {
-        // Remove all active classes
-        items.forEach(item => item.classList.remove('active'));
-        
-        // Set new active item
-        const activeItem = items.find(item => parseInt(item.dataset.index) === index);
-        if (activeItem) {
-            activeItem.classList.add('active');
-            activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }
-        
-        this.data.selectedIndex = index;
-    }
-    
-    handleItemClick(e) {
-        e.preventDefault();
-        const termElement = e.target.closest('.list-term');
-        if (!termElement) return;
-        
-        const term = termElement.getAttribute('data-term');
-        const type = termElement.getAttribute('data-type');
-        
-        if (term) {
-            this.selectTerm(term, type);
-        }
-    }
-    
-    selectTerm(term, type) {
-        // Update input
-        this.elements.input.value = term;
-        
-        // Hide dropdown
-        this.hideDropdown();
-        
-        // Blur input
-        this.elements.input.blur();
-        
-        // Trigger selection based on type
-        if (type === 'district') {
-            this.triggerDistrictSelection(term);
-        } else if (type === 'subregion') {
-            this.triggerSubregionSelection(term);
-        } else if (type === 'locality') {
-            this.triggerLocalitySelection(term);
-        }
-    }
-    
-    triggerDistrictSelection(districtName) {
-        // Set marker click flag
-        window.isMarkerClick = true;
-        
-        // Clear any locks
-        if (window.mapUtilities && window.mapUtilities.state) {
-            window.mapUtilities.state.markerInteractionLock = false;
-        }
-        
-        // Use existing global functions
-        if (window.selectDistrictCheckbox) {
-            window.selectDistrictCheckbox(districtName);
-        }
-        
-        if (window.mapUtilities?.toggleShowWhenFilteredElements) {
-            window.mapUtilities.toggleShowWhenFilteredElements(true);
-        }
-        
-        if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
-            window.mapUtilities.toggleSidebar('Left', true);
-        }
-        
-        // Handle boundary highlighting
-        if (window.highlightBoundary) {
-            window.highlightBoundary(districtName);
-        }
-        
-        // Trigger map update
-        setTimeout(() => {
-            window.isMarkerClick = false;
-            if (window.applyFilterToMarkers) {
-                window.applyFilterToMarkers();
+                
+                if (type === 'district') {
+                    this.triggerDistrictSelection(term);
+                } else if (type === 'subregion') {
+                    this.triggerSubregionSelection(term);
+                } else if (type === 'locality') {
+                    this.triggerLocalitySelection(term);
+                }
             }
-        }, 100);
-    }
-    
-    triggerSubregionSelection(subregionName) {
-        // Similar to district but uses text search
-        const hiddenListSearch = document.getElementById('hidden-list-search');
-        if (hiddenListSearch) {
-            hiddenListSearch.value = subregionName;
-            hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-            hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        if (window.mapUtilities?.toggleShowWhenFilteredElements) {
-            window.mapUtilities.toggleShowWhenFilteredElements(true);
-        }
-        
-        if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
-            window.mapUtilities.toggleSidebar('Left', true);
-        }
-        
-        setTimeout(() => {
-            if (window.applyFilterToMarkers) {
-                window.applyFilterToMarkers();
+            
+            triggerDistrictSelection(districtName) {
+                window.isMarkerClick = true;
+                
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    window.mapUtilities.state.markerInteractionLock = false;
+                }
+                
+                if (window.selectDistrictCheckbox) {
+                    window.selectDistrictCheckbox(districtName);
+                }
+                
+                if (window.mapUtilities?.toggleShowWhenFilteredElements) {
+                    window.mapUtilities.toggleShowWhenFilteredElements(true);
+                }
+                
+                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                    window.mapUtilities.toggleSidebar('Left', true);
+                }
+                
+                if (window.highlightBoundary) {
+                    window.highlightBoundary(districtName);
+                }
+                
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                    if (window.applyFilterToMarkers) {
+                        window.applyFilterToMarkers();
+                    }
+                }, 100);
             }
-        }, 100);
-    }
-    
-    triggerLocalitySelection(localityName) {
-        // Set marker click flag
-        window.isMarkerClick = true;
-        
-        // Clear any locks
-        if (window.mapUtilities && window.mapUtilities.state) {
-            window.mapUtilities.state.markerInteractionLock = false;
-        }
-        
-        // Select checkbox
-        if (window.selectLocalityCheckbox) {
-            window.selectLocalityCheckbox(localityName);
-        }
-        
-        if (window.mapUtilities?.toggleShowWhenFilteredElements) {
-            window.mapUtilities.toggleShowWhenFilteredElements(true);
-        }
-        
-        if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
-            window.mapUtilities.toggleSidebar('Left', true);
-        }
-        
-        // Find locality and fly to it
-        const locality = this.data.localities.find(l => l.name === localityName);
-        if (window.map && locality && locality.lat && locality.lng) {
-            window.map.flyTo({
-                center: [locality.lng, locality.lat],
-                zoom: 13.5,
-                duration: 1000,
-                essential: true
-            });
-        }
-        
-        // Clean up flag
-        setTimeout(() => {
-            window.isMarkerClick = false;
-        }, 800);
-    }
-    
-    handleFocus() {
-        // Clear hidden search
-        const hiddenListSearch = document.getElementById('hidden-list-search');
-        if (hiddenListSearch) {
-            hiddenListSearch.value = '';
-            hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-            hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        
-        // Remove blurred classes
-        const searchIconsWrap = document.querySelector('.search-icons-wrap');
-        const clearSearchWrap = document.querySelector('.clear-search-wrap');
-        
-        if (searchIconsWrap && searchIconsWrap.classList.contains('blurred')) {
-            searchIconsWrap.classList.remove('blurred');
-        }
-        if (clearSearchWrap && clearSearchWrap.classList.contains('blurred')) {
-            clearSearchWrap.classList.remove('blurred');
-        }
-        
-        // Prepare data if empty input
-        if (this.elements.input.value.length === 0) {
-            this.showAllItems();
-            this.renderResults();
-        }
-        
-        // Show dropdown with appropriate delay
-        const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
-        
-        if (isMobile) {
-            // Clear any existing timeout
-            clearTimeout(this.showTimeout);
             
-            // Delay showing on mobile
-            this.showTimeout = setTimeout(() => {
-                this.showDropdown();
-            }, this.config.mobileShowDelay);
-        } else {
-            // Show immediately on desktop
-            this.showDropdown();
-        }
-    }
-    
-    handleBlur() {
-        // Clear any pending show timeout (for mobile)
-        clearTimeout(this.showTimeout);
-        
-        // Add blurred classes back
-        const searchIconsWrap = document.querySelector('.search-icons-wrap');
-        const clearSearchWrap = document.querySelector('.clear-search-wrap');
-        
-        if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
-            searchIconsWrap.classList.add('blurred');
-        }
-        if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
-            clearSearchWrap.classList.add('blurred');
-        }
-        
-        // Hide immediately - no delay needed because mousedown preventDefault
-        // ensures blur only happens when clicking outside the dropdown
-        this.hideDropdown();
-    }
-    
-    handleClear() {
-        if (this.elements.input.value) {
-            this.elements.input.value = '';
-            this.hideDropdown();
-            
-            // Keep focus on input
-            this.elements.input.focus();
-            
-            // Show all items
-            this.showAllItems();
-            this.renderResults();
-            this.showDropdown();
-        }
-    }
-    
-    showDropdown() {
-        if (this.data.filteredResults.length === 0) {
-            this.hideDropdown();
-            return;
-        }
-        
-        // Set position BEFORE making visible to prevent glitch
-        this.updatePosition();
-        
-        // If first show, ensure dropdown is properly positioned before display
-        if (this.isFirstShow) {
-            // Hide initially to prevent flash
-            this.elements.wrapper.style.visibility = 'hidden';
-            this.elements.wrapper.style.display = 'block';
-            
-            // Force layout calculation
-            this.elements.wrapper.offsetHeight;
-            
-            // Update position with actual dimensions
-            this.updatePosition();
-            
-            // Now show it
-            this.elements.wrapper.style.visibility = 'visible';
-            this.isFirstShow = false;
-        } else {
-            // Subsequent shows are simple
-            this.elements.wrapper.style.display = 'block';
-        }
-    }
-    
-    hideDropdown() {
-        // Clear any pending show timeout (for mobile)
-        clearTimeout(this.showTimeout);
-        
-        // Hide immediately (no delay on hide)
-        this.elements.wrapper.style.display = 'none';
-        this.elements.list.querySelectorAll('.list-term.active')
-            .forEach(item => item.classList.remove('active'));
-        this.data.selectedIndex = -1;
-    }
-    
-    isDropdownVisible() {
-        return this.elements.wrapper.style.display === 'block';
-    }
-    
-    updatePosition() {
-        // Always use the actual input element's current dimensions
-        // This ensures we get the correct size even when focused
-        const inputRect = this.elements.input.getBoundingClientRect();
-        
-        // Use the input's actual width, not a wrapper
-        // This accounts for focus state changes
-        const width = inputRect.width;
-        
-        Object.assign(this.elements.wrapper.style, {
-            position: 'fixed',
-            top: `${inputRect.bottom + 4}px`,
-            left: `${inputRect.left}px`,
-            width: `${width}px`,
-            maxHeight: `${this.config.itemHeight * this.config.visibleItems}px`,
-            overflowY: 'auto',
-            zIndex: '999999'
-        });
-    }
-    
-    findWrapperElement() {
-        // Try to find input wrapper element
-        let wrapperElement = document.getElementById('map-search-wrapper');
-        
-        if (!wrapperElement) {
-            let parent = this.elements.input.parentElement;
-            while (parent && parent !== document.body) {
-                const className = parent.className.toLowerCase();
-                if (className.includes('wrapper') || className.includes('container')) {
-                    wrapperElement = parent;
-                    break;
+            triggerSubregionSelection(subregionName) {
+                const hiddenListSearch = document.getElementById('hidden-list-search');
+                if (hiddenListSearch) {
+                    hiddenListSearch.value = subregionName;
+                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
                 }
-                parent = parent.parentElement;
+                
+                if (window.mapUtilities?.toggleShowWhenFilteredElements) {
+                    window.mapUtilities.toggleShowWhenFilteredElements(true);
+                }
+                
+                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                    window.mapUtilities.toggleSidebar('Left', true);
+                }
+                
+                setTimeout(() => {
+                    if (window.applyFilterToMarkers) {
+                        window.applyFilterToMarkers();
+                    }
+                }, 100);
+            }
+            
+            triggerLocalitySelection(localityName) {
+                window.isMarkerClick = true;
+                
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    window.mapUtilities.state.markerInteractionLock = false;
+                }
+                
+                if (window.selectLocalityCheckbox) {
+                    window.selectLocalityCheckbox(localityName);
+                }
+                
+                if (window.mapUtilities?.toggleShowWhenFilteredElements) {
+                    window.mapUtilities.toggleShowWhenFilteredElements(true);
+                }
+                
+                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                    window.mapUtilities.toggleSidebar('Left', true);
+                }
+                
+                const locality = this.data.localities.find(l => l.name === localityName);
+                if (window.map && locality && locality.lat && locality.lng) {
+                    window.map.flyTo({
+                        center: [locality.lng, locality.lat],
+                        zoom: 13.5,
+                        duration: 1000,
+                        essential: true
+                    });
+                }
+                
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                }, 800);
+            }
+            
+            handleFocus() {
+                const hiddenListSearch = document.getElementById('hidden-list-search');
+                if (hiddenListSearch) {
+                    hiddenListSearch.value = '';
+                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                
+                const searchIconsWrap = document.querySelector('.search-icons-wrap');
+                const clearSearchWrap = document.querySelector('.clear-search-wrap');
+                
+                if (searchIconsWrap && searchIconsWrap.classList.contains('blurred')) {
+                    searchIconsWrap.classList.remove('blurred');
+                }
+                if (clearSearchWrap && clearSearchWrap.classList.contains('blurred')) {
+                    clearSearchWrap.classList.remove('blurred');
+                }
+                
+                if (this.elements.input.value.length === 0) {
+                    this.showAllItems();
+                    this.renderResults();
+                }
+                
+                const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
+                
+                if (isMobile) {
+                    clearTimeout(this.showTimeout);
+                    this.showTimeout = setTimeout(() => {
+                        this.showDropdown();
+                    }, this.config.mobileShowDelay);
+                } else {
+                    this.showDropdown();
+                }
+            }
+            
+            handleBlur() {
+                clearTimeout(this.showTimeout);
+                
+                const searchIconsWrap = document.querySelector('.search-icons-wrap');
+                const clearSearchWrap = document.querySelector('.clear-search-wrap');
+                
+                if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
+                    searchIconsWrap.classList.add('blurred');
+                }
+                if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
+                    clearSearchWrap.classList.add('blurred');
+                }
+                
+                this.hideDropdown();
+            }
+            
+            handleClear() {
+                if (this.elements.input.value) {
+                    this.elements.input.value = '';
+                    this.hideDropdown();
+                    this.elements.input.focus();
+                    this.showAllItems();
+                    this.renderResults();
+                    this.showDropdown();
+                }
+            }
+            
+            showDropdown() {
+                if (this.data.filteredResults.length === 0) {
+                    this.hideDropdown();
+                    return;
+                }
+                
+                this.updatePosition();
+                
+                if (this.isFirstShow) {
+                    this.elements.wrapper.style.visibility = 'hidden';
+                    this.elements.wrapper.style.display = 'block';
+                    this.elements.wrapper.offsetHeight;
+                    this.updatePosition();
+                    this.elements.wrapper.style.visibility = 'visible';
+                    this.isFirstShow = false;
+                } else {
+                    this.elements.wrapper.style.display = 'block';
+                }
+            }
+            
+            hideDropdown() {
+                clearTimeout(this.showTimeout);
+                this.elements.wrapper.style.display = 'none';
+                this.elements.list.querySelectorAll('.list-term.active')
+                    .forEach(item => item.classList.remove('active'));
+                this.data.selectedIndex = -1;
+            }
+            
+            isDropdownVisible() {
+                return this.elements.wrapper.style.display === 'block';
+            }
+            
+            updatePosition() {
+                const inputRect = this.elements.input.getBoundingClientRect();
+                const width = inputRect.width;
+                
+                Object.assign(this.elements.wrapper.style, {
+                    position: 'fixed',
+                    top: `${inputRect.bottom + 4}px`,
+                    left: `${inputRect.left}px`,
+                    width: `${width}px`,
+                    maxHeight: `${this.config.itemHeight * this.config.visibleItems}px`,
+                    overflowY: 'auto',
+                    zIndex: '999999'
+                });
+            }
+            
+            applyStyles() {
+                this.elements.input.setAttribute('autocomplete', 'off');
+                this.elements.input.setAttribute('spellcheck', 'false');
+                
+                this.elements.wrapper.style.display = 'none';
+                this.elements.wrapper.style.visibility = 'visible';
+                
+                if (!document.getElementById('hp-autocomplete-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'hp-autocomplete-styles';
+                    style.textContent = `
+                        #searchTermsWrapper::-webkit-scrollbar { display: none; }
+                        #searchTermsWrapper { -ms-overflow-style: none; scrollbar-width: none; }
+                        #search-terms { list-style: none; margin: 0; padding: 0; }
+                        
+                        .list-term {
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            padding: 8px 12px;
+                            text-decoration: none;
+                            color: inherit;
+                            transition: background-color 0.2s;
+                        }
+                        
+                        .list-term:hover { background-color: #f5f5f5; }
+                        
+                        .list-term.district-term,
+                        .list-term.subregion-term {
+                            font-weight: 600;
+                            color: #6e3500;
+                            background-color: #fdf6f0;
+                            border-left: 3px solid #6e3500;
+                        }
+                        
+                        .list-term.district-term:hover,
+                        .list-term.subregion-term:hover {
+                            background-color: #f5e6d3;
+                        }
+                        
+                        .list-term.district-term .term-label,
+                        .list-term.subregion-term .term-label {
+                            color: #8f4500;
+                        }
+                        
+                        .list-term.locality-term {
+                            font-weight: 500;
+                            color: #7e7800;
+                            background-color: #fffef5;
+                            border-left: 3px solid #7e7800;
+                            padding: 10px 12px;
+                        }
+                        
+                        .list-term.locality-term:hover { background-color: #f9f8e6; }
+                        .list-term.locality-term * { pointer-events: none; }
+                        .list-term.locality-term .term-label { color: #a49c00; }
+                        
+                        .locality-info {
+                            flex-grow: 1;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 2px;
+                        }
+                        
+                        .locality-name {
+                            font-weight: 500;
+                            color: #7e7800;
+                        }
+                        
+                        .locality-region {
+                            font-size: 0.75em;
+                            color: #6e3500;
+                            font-weight: normal;
+                        }
+                        
+                        .term-label {
+                            font-size: 0.75em;
+                            font-weight: normal;
+                            opacity: 0.8;
+                            margin-left: 8px;
+                            flex-shrink: 0;
+                            align-self: flex-start;
+                            margin-top: 2px;
+                        }
+                        
+                        .list-term.active { background-color: #e8e8e8 !important; }
+                        .no-results { padding: 20px; text-align: center; color: #666; }
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+            
+            refresh() {
+                this.loadData();
+                if (this.isDropdownVisible()) {
+                    this.handleInput(this.elements.input.value);
+                }
+            }
+            
+            destroy() {
+                clearTimeout(this.filterTimeout);
+                clearTimeout(this.showTimeout);
+                cancelAnimationFrame(this.renderFrame);
+                cancelAnimationFrame(this.scrollFrame);
+                
+                this.elements.list.innerHTML = '';
+                this.elements.wrapper.style.display = 'none';
+                
+                console.log('Autocomplete destroyed');
+            }
+            
+            getStats() {
+                return {
+                    totalItems: this.data.districts.length + this.data.subregions.length + this.data.localities.length,
+                    districts: this.data.districts.length,
+                    subregions: this.data.subregions.length,
+                    localities: this.data.localities.length,
+                    filteredResults: this.data.filteredResults.length,
+                    cacheSize: this.cache.size
+                };
             }
         }
         
-        return wrapperElement;
-    }
-    
-    applyStyles() {
-        // Preserve original styles exactly
-        this.elements.input.setAttribute('autocomplete', 'off');
-        this.elements.input.setAttribute('spellcheck', 'false');
-        
-        // Initially hide the wrapper to prevent flash
-        this.elements.wrapper.style.display = 'none';
-        this.elements.wrapper.style.visibility = 'visible';
-        
-        // Add the exact original styles from the old autocomplete
-        if (!document.getElementById('hp-autocomplete-styles')) {
-            const style = document.createElement('style');
-            style.id = 'hp-autocomplete-styles';
-            style.textContent = `
-                /* Hide scrollbar */
-                #searchTermsWrapper::-webkit-scrollbar {
-                    display: none;
-                }
-                #searchTermsWrapper {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
-                
-                /* Original list styles */
-                #search-terms {
-                    list-style: none;
-                    margin: 0;
-                    padding: 0;
-                }
-                
-                /* Original term styles with exact colors */
-                .list-term {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 8px 12px;
-                    text-decoration: none;
-                    color: inherit;
-                    transition: background-color 0.2s;
-                }
-                
-                .list-term:hover {
-                    background-color: #f5f5f5;
-                }
-                
-                /* District/Subregion terms - unified brown colors */
-                .list-term.district-term,
-                .list-term.subregion-term {
-                    font-weight: 600;
-                    color: #6e3500;
-                    background-color: #fdf6f0;
-                    border-left: 3px solid #6e3500;
-                }
-                .list-term.district-term:hover,
-                .list-term.subregion-term:hover {
-                    background-color: #f5e6d3;
-                }
-                .list-term.district-term .term-label,
-                .list-term.subregion-term .term-label {
-                    color: #8f4500;
-                }
-                
-                /* Locality term - original yellow colors */
-                .list-term.locality-term {
-                    font-weight: 500;
-                    color: #7e7800;
-                    background-color: #fffef5;
-                    border-left: 3px solid #7e7800;
-                    padding: 10px 12px;
-                }
-                .list-term.locality-term:hover {
-                    background-color: #f9f8e6;
-                }
-                .list-term.locality-term * {
-                    pointer-events: none;
-                }
-                .list-term.locality-term .term-label {
-                    color: #a49c00;
-                }
-                
-                /* Locality info styles */
-                .locality-info {
-                    flex-grow: 1;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                }
-                
-                .locality-name {
-                    font-weight: 500;
-                    color: #7e7800;
-                }
-                
-                .locality-region {
-                    font-size: 0.75em;
-                    color: #6e3500;
-                    font-weight: normal;
-                }
-                
-                /* Term label */
-                .term-label {
-                    font-size: 0.75em;
-                    font-weight: normal;
-                    opacity: 0.8;
-                    margin-left: 8px;
-                    flex-shrink: 0;
-                    align-self: flex-start;
-                    margin-top: 2px;
-                }
-                
-                /* Active/selected state */
-                .list-term.active {
-                    background-color: #e8e8e8 !important;
-                }
-                
-                /* No results */
-                .no-results {
-                    padding: 20px;
-                    text-align: center;
-                    color: #666;
-                }
-            `;
-            document.head.appendChild(style);
+        // Clean up old instances
+        if (window.integratedAutocomplete) {
+            window.integratedAutocomplete.destroy();
+            window.integratedAutocomplete = null;
         }
-    }
-    
-    // Public API methods
-    refresh() {
-        this.loadData();
-        if (this.isDropdownVisible()) {
-            this.handleInput(this.elements.input.value);
+        
+        if (window.hpAutocomplete) {
+            window.hpAutocomplete.destroy();
+            window.hpAutocomplete = null;
         }
-    }
-    
-    destroy() {
-        // Clean up timeouts
-        clearTimeout(this.filterTimeout);
-        clearTimeout(this.showTimeout);
-        cancelAnimationFrame(this.renderFrame);
-        cancelAnimationFrame(this.scrollFrame);
         
-        // Clean up DOM
-        this.elements.list.innerHTML = '';
-        this.elements.wrapper.style.display = 'none';
-        
-        console.log('Autocomplete destroyed');
-    }
-    
-    getStats() {
-        return {
-            totalItems: this.data.districts.length + this.data.subregions.length + this.data.localities.length,
-            districts: this.data.districts.length,
-            subregions: this.data.subregions.length,
-            localities: this.data.localities.length,
-            filteredResults: this.data.filteredResults.length,
-            cacheSize: this.cache.size
-        };
-    }
-}
-
-// ========================
-// INITIALIZE HIGH-PERFORMANCE AUTOCOMPLETE
-// ========================
-
-function initHighPerformanceAutocomplete() {
-    // Clean up old autocomplete if exists
-    if (window.integratedAutocomplete) {
-        window.integratedAutocomplete.destroy();
-        window.integratedAutocomplete = null;
-    }
-    
-    // Clean up any previous high-performance autocomplete
-    if (window.hpAutocomplete) {
-        window.hpAutocomplete.destroy();
-        window.hpAutocomplete = null;
-    }
-    
-    // Initialize immediately if elements exist
-    if (document.getElementById('map-search') && 
-        document.getElementById('searchTermsWrapper')) {
-        
-        // Initialize new high-performance autocomplete
-        window.hpAutocomplete = new HighPerformanceAutocomplete({
+        // Create new instance
+        autocompleteInstance = new HighPerformanceAutocomplete({
             inputId: "map-search",
             wrapperId: "searchTermsWrapper",
             clearId: "searchclear"
         });
         
         // Expose global functions
+        window.hpAutocomplete = autocompleteInstance;
+        
         window.refreshAutocomplete = () => {
-            if (window.hpAutocomplete) {
-                window.hpAutocomplete.refresh();
+            if (autocompleteInstance) {
+                autocompleteInstance.refresh();
             }
         };
         
         window.getAutocompleteStats = () => {
-            if (window.hpAutocomplete) {
-                return window.hpAutocomplete.getStats();
+            if (autocompleteInstance) {
+                return autocompleteInstance.getStats();
             }
         };
+    }
+    
+    // Smart loading strategy
+    function setupSmartLoading() {
+        // Initialize the stub immediately
+        new AutocompleteStub();
         
-        console.log('High-performance autocomplete ready');
+        // Strategy 1: Load after map is initialized (low priority)
+        if (window.map && window.mapUtilities) {
+            // Map is already loaded, wait a bit then load autocomplete
+            setTimeout(() => {
+                if (autocompleteLoadState === 'pending') {
+                    loadAutocomplete('map-ready-delayed');
+                }
+            }, 2000);
+        } else {
+            // Wait for map to be ready
+            const checkMapReady = setInterval(() => {
+                if (window.map && window.mapUtilities) {
+                    clearInterval(checkMapReady);
+                    // Give map time to fully initialize, then load autocomplete
+                    setTimeout(() => {
+                        if (autocompleteLoadState === 'pending') {
+                            loadAutocomplete('map-ready');
+                        }
+                    }, 3000);
+                }
+            }, 500);
+            
+            // Timeout after 10 seconds and load anyway
+            setTimeout(() => {
+                clearInterval(checkMapReady);
+                if (autocompleteLoadState === 'pending') {
+                    loadAutocomplete('timeout');
+                }
+            }, 10000);
+        }
         
+        // Strategy 2: Also load if page has been idle for 5 seconds
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+                if (autocompleteLoadState === 'pending') {
+                    loadAutocomplete('idle');
+                }
+            }, { timeout: 5000 });
+        } else {
+            setTimeout(() => {
+                if (autocompleteLoadState === 'pending') {
+                    loadAutocomplete('idle-fallback');
+                }
+            }, 5000);
+        }
+    }
+    
+    // Initialize smart loading
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupSmartLoading);
     } else {
-        // Retry after a short delay
-        setTimeout(initHighPerformanceAutocomplete, 100);
+        setupSmartLoading();
     }
-}
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (autocompleteInstance) {
+            autocompleteInstance.destroy();
+        }
+    });
+})();
 
-// Initialize immediately - don't wait for DOM
-initHighPerformanceAutocomplete();
-
-// Also try on DOMContentLoaded as backup
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initHighPerformanceAutocomplete);
-}
-
-// ========================
-// CLEANUP ON PAGE UNLOAD
-// ========================
-
-window.addEventListener('beforeunload', () => {
-    if (window.hpAutocomplete) {
-        window.hpAutocomplete.destroy();
-    }
-});
-
+//  MAPBOX SCRIPT //
 
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
