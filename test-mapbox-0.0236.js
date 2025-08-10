@@ -986,7 +986,8 @@
     });
 })();
 
-//  MAPBOX SCRIPT //
+// COMBINED MAPBOX SCRIPT - Production Version 2025
+// Optimized version without autocomplete loading dependency
 
 // Detect mobile for better map experience
 const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1072,9 +1073,6 @@ setTimeout(() => {
 setTimeout(() => {
   if (!loadingTracker.states.sidebarSetup) {
     loadingTracker.markComplete('sidebarSetup');
-  }
-  if (!loadingTracker.states.tabSwitcherSetup) {
-    loadingTracker.markComplete('tabSwitcherSetup');
   }
   if (!loadingTracker.states.eventsSetup) {
     loadingTracker.markComplete('eventsSetup');
@@ -1417,7 +1415,7 @@ class OptimizedMapState {
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
-// ENHANCED: Loading state tracker (removed autocompleteReady)
+// ENHANCED: Loading state tracker (removed autocompleteReady and tab switcher)
 const loadingTracker = {
   states: {
     mapInitialized: false,
@@ -1425,9 +1423,7 @@ const loadingTracker = {
     markersAdded: false,
     geoDataLoaded: false,
     districtTagsLoaded: false,
-    controlsSetup: false,
     sidebarSetup: false,
-    tabSwitcherSetup: false,
     eventsSetup: false,
     uiPositioned: false,
     backToTopSetup: false
@@ -2630,37 +2626,6 @@ function setupBackToTopButton() {
   loadingTracker.markComplete('backToTopSetup');
 }
 
-// Custom tab switcher
-function setupTabSwitcher() {
-  const tabTriggers = $('[open-tab]');
-  
-  tabTriggers.forEach(trigger => {
-    if (trigger.dataset.tabSwitcherSetup === 'true') return;
-    
-    eventManager.add(trigger, 'click', function(e) {
-      if (!this.hasAttribute('open-right-sidebar')) {
-        e.preventDefault();
-      }
-      
-      const groupName = this.getAttribute('open-tab');
-      
-      if (this.hasAttribute('open-right-sidebar')) {
-        return;
-      }
-      
-      const targetTab = $1(`[opened-tab="${groupName}"]`);
-      if (targetTab) targetTab.click();
-    });
-    
-    trigger.dataset.tabSwitcherSetup = 'true';
-  });
-  
-  // Mark UI loading step complete
-  if (!loadingTracker.states.tabSwitcherSetup) {
-    loadingTracker.markComplete('tabSwitcherSetup');
-  }
-}
-
 // OPTIMIZED: Consolidated controls with event delegation where possible
 function setupControls() {
   const controlMap = {
@@ -2721,14 +2686,6 @@ function setupControls() {
         else {
           toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
         }
-        
-        const groupName = element.getAttribute('open-tab');
-        if (groupName) {
-          state.setTimer(`openTab-${groupName}`, () => {
-            const tab = $1(`[opened-tab="${groupName}"]`);
-            if (tab) tab.click();
-          }, 50);
-        }
       };
       
       if (eventType === 'change' && (element.type === 'radio' || element.type === 'checkbox')) {
@@ -2749,8 +2706,8 @@ function setupControls() {
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
   setupSidebarControls('.OpenSecondLeftSidebar, [OpenSecondLeftSidebar], [opensecondleftsidebar]', 'SecondLeft', 'change');
   
-  setupTabSwitcher();
-  setupAreaKeyControls();
+  // Defer area controls loading
+  setupDeferredAreaControls();
   setupBackToTopButton();
 }
 
@@ -3225,7 +3182,192 @@ function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.layerCache.set(config.layerId, true);
 }
 
-// OPTIMIZED: Area key controls with better performance
+// DEFERRED: Area key controls - loads after main functionality
+function setupDeferredAreaControls() {
+  // Defer loading area controls to improve initial load time
+  const loadAreaControls = () => {
+    // Check if controls already setup
+    if (state.flags.areaControlsSetup) return;
+    
+    const areaControls = [
+      {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
+      {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
+      {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
+      {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
+    ];
+    
+    const markerControls = [
+      {
+        keyId: 'district-toggle-key', 
+        wrapId: 'district-toggle-key-wrap',
+        type: 'district',
+        layers: ['district-points'],
+        label: 'District Markers & Boundaries'
+      },
+      {
+        keyId: 'locality-toggle-key', 
+        wrapId: 'locality-toggle-key-wrap',
+        type: 'locality',
+        layers: ['locality-clusters', 'locality-points'],
+        label: 'Locality Markers'
+      }
+    ];
+    
+    let setupCount = 0;
+    
+    // Setup area controls
+    areaControls.forEach(control => {
+      const checkbox = $id(control.keyId);
+      if (!checkbox) return;
+      
+      checkbox.checked = false;
+      
+      if (!checkbox.dataset.mapboxListenerAdded) {
+        checkbox.addEventListener('change', () => {
+          if (!mapLayers.hasLayer(control.layerId)) return;
+          
+          const visibility = checkbox.checked ? 'none' : 'visible';
+          map.setLayoutProperty(control.layerId, 'visibility', visibility);
+        });
+        checkbox.dataset.mapboxListenerAdded = 'true';
+      }
+      
+      const wrapperDiv = $id(control.wrapId);
+      if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+        wrapperDiv.addEventListener('mouseenter', () => {
+          if (!mapLayers.hasLayer(control.layerId)) return;
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+        });
+        
+        wrapperDiv.addEventListener('mouseleave', () => {
+          if (!mapLayers.hasLayer(control.layerId)) return;
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+        });
+        
+        wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      }
+      
+      setupCount++;
+    });
+    
+    // Setup marker controls
+    markerControls.forEach(control => {
+      const checkbox = $id(control.keyId);
+      if (!checkbox) return;
+      
+      checkbox.checked = false;
+      
+      if (!checkbox.dataset.mapboxListenerAdded) {
+        const changeHandler = (e) => {
+          const visibility = e.target.checked ? 'none' : 'visible';
+          
+          if (control.type === 'district') {
+            control.layers.forEach(layerId => {
+              if (mapLayers.hasLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+              }
+            });
+            
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-fill') || layer.id.includes('-border')) {
+                map.setLayoutProperty(layer.id, 'visibility', visibility);
+              }
+            });
+            
+          } else if (control.type === 'locality') {
+            control.layers.forEach(layerId => {
+              if (mapLayers.hasLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+              }
+            });
+          }
+        };
+        
+        checkbox.addEventListener('change', changeHandler);
+        checkbox.dataset.mapboxListenerAdded = 'true';
+      }
+      
+      const wrapperDiv = $id(control.wrapId);
+      if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+        const mouseEnterHandler = () => {
+          if (control.type === 'district') {
+            if (mapLayers.hasLayer('district-points')) {
+              map.setPaintProperty('district-points', 'text-halo-color', '#8f4500');
+            }
+            
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-fill')) {
+                map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
+              }
+              if (layer.id.includes('-border')) {
+                map.setPaintProperty(layer.id, 'line-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.6);
+              }
+            });
+          } else if (control.type === 'locality') {
+            if (mapLayers.hasLayer('locality-clusters')) {
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#a49c00');
+            }
+            if (mapLayers.hasLayer('locality-points')) {
+              map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
+            }
+          }
+        };
+        
+        const mouseLeaveHandler = () => {
+          if (control.type === 'district') {
+            if (mapLayers.hasLayer('district-points')) {
+              map.setPaintProperty('district-points', 'text-halo-color', '#6e3500');
+            }
+            
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-fill')) {
+                map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
+              }
+              if (layer.id.includes('-border')) {
+                map.setPaintProperty(layer.id, 'line-color', '#888888');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.4);
+              }
+            });
+          } else if (control.type === 'locality') {
+            if (mapLayers.hasLayer('locality-clusters')) {
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#7e7800');
+            }
+            if (mapLayers.hasLayer('locality-points')) {
+              map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
+            }
+          }
+        };
+        
+        wrapperDiv.addEventListener('mouseenter', mouseEnterHandler);
+        wrapperDiv.addEventListener('mouseleave', mouseLeaveHandler);
+        wrapperDiv.dataset.mapboxHoverAdded = 'true';
+      }
+      
+      setupCount++;
+    });
+    
+    // Mark as complete
+    if (setupCount > 0) {
+      state.flags.areaControlsSetup = true;
+      console.log('Area controls loaded');
+    }
+  };
+  
+  // Use requestIdleCallback if available, otherwise setTimeout
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(loadAreaControls, { timeout: 3000 });
+  } else {
+    setTimeout(loadAreaControls, 2000);
+  }
+}
+
+// OPTIMIZED: Area key controls with better performance (OLD - REMOVED)
 function setupAreaKeyControls() {
   if (state.flags.areaControlsSetup) return;
   
@@ -3708,9 +3850,6 @@ function init() {
   [300, 800].forEach(delay => 
     state.setTimer(`dropdownSetup-${delay}`, setupDropdownListeners, delay)
   );
-  [200, 600, 1200].forEach(delay => 
-    state.setTimer(`tabSetup-${delay}`, setupTabSwitcher, delay)
-  );
   
   state.flags.mapInitialized = true;
   
@@ -3749,9 +3888,6 @@ map.on("load", () => {
     // Load district tags
     state.setTimer('loadDistrictTags', loadDistrictTags, 800);
     
-    // Setup area controls
-    state.setTimer('setupAreaControls', setupAreaKeyControls, 2000);
-    
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
     
@@ -3766,19 +3902,10 @@ map.on("load", () => {
 // OPTIMIZED: DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
-  setupTabSwitcher();
   setupBackToTopButton();
   
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
-    // Check if tab switcher is ready early
-    if (!loadingTracker.states.tabSwitcherSetup && $('[open-tab]').length > 0) {
-      const hasSetupTabs = $('[open-tab]').some(tab => tab.dataset.tabSwitcherSetup === 'true');
-      if (hasSetupTabs) {
-        loadingTracker.markComplete('tabSwitcherSetup');
-      }
-    }
-    
     // Check if controls are positioned early
     if (!loadingTracker.states.uiPositioned) {
       const ctrl = $1('.mapboxgl-ctrl-top-right');
@@ -3800,7 +3927,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.addEventListener('load', () => {
   setupSidebars();
-  setupTabSwitcher();
   setupBackToTopButton();
   
   state.setTimer('loadFallbackInit', () => {
@@ -3823,22 +3949,6 @@ window.addEventListener('load', () => {
           if (!loadingTracker.states.districtTagsLoaded) {
             state.setTimer('districtTagsFallback', () => {
               loadingTracker.markComplete('districtTagsLoaded');
-            }, delay + 1000);
-          }
-        }
-      }, delay)
-    );
-  }
-  
-  if (!state.flags.areaControlsSetup) {
-    [2500, 4000].forEach(delay => 
-      state.setTimer(`areaControlsRetry-${delay}`, () => {
-        if (!state.flags.areaControlsSetup) {
-          setupAreaKeyControls();
-          // Fallback: mark as complete even if setup seems incomplete
-          if (!loadingTracker.states.controlsSetup) {
-            state.setTimer('controlsFallback', () => {
-              loadingTracker.markComplete('controlsSetup');
             }, delay + 1000);
           }
         }
