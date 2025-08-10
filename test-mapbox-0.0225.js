@@ -1123,6 +1123,9 @@ setTimeout(() => {
   if (!loadingTracker.states.uiPositioned) {
     loadingTracker.markComplete('uiPositioned');
   }
+  if (!loadingTracker.states.autocompleteReady) {
+    loadingTracker.markComplete('autocompleteReady');
+  }
   if (!loadingTracker.states.backToTopSetup) {
     loadingTracker.markComplete('backToTopSetup');
   }
@@ -1471,6 +1474,7 @@ const loadingTracker = {
     tabSwitcherSetup: false,
     eventsSetup: false,
     uiPositioned: false,
+    autocompleteReady: false,
     backToTopSetup: false
   },
   
@@ -1492,6 +1496,16 @@ const loadingTracker = {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen && loadingScreen.style.display !== 'none') {
       loadingScreen.style.display = 'none';
+    }
+  },
+  
+  // Helper to check if autocomplete is ready
+  checkAutocompleteReady() {
+    if (window.integratedAutocomplete && !this.states.autocompleteReady) {
+      this.markComplete('autocompleteReady');
+    } else if (!this.states.autocompleteReady) {
+      // Check again in a bit
+      setTimeout(() => this.checkAutocompleteReady(), 500);
     }
   }
 };
@@ -3913,6 +3927,16 @@ window.addEventListener('load', () => {
     }, 500);
   }
   
+  // Check autocomplete readiness
+  state.setTimer('checkAutocomplete', () => {
+    loadingTracker.checkAutocompleteReady();
+  }, 1000);
+  
+  // Additional autocomplete check after longer delay
+  state.setTimer('checkAutocompleteLater', () => {
+    loadingTracker.checkAutocompleteReady();
+  }, 3000);
+});
 
 // FIXED: Enhanced tag monitoring initialization (immediate start)
 state.setTimer('initMonitorTags', () => {
