@@ -1495,16 +1495,6 @@ const loadingTracker = {
     }
   },
   
-  // Helper to check if autocomplete is ready
-  checkAutocompleteReady() {
-    if (window.integratedAutocomplete && !this.states.autocompleteReady) {
-      this.markComplete('autocompleteReady');
-    } else if (!this.states.autocompleteReady) {
-      // Check again in a bit
-      setTimeout(() => this.checkAutocompleteReady(), 500);
-    }
-  }
-};
 
 // OPTIMIZED: High-performance utilities
 const utils = {
