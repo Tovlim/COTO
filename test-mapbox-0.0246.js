@@ -195,7 +195,6 @@
                 this.scrollFrame = null;
                 this.filterTimeout = null;
                 this.isFirstShow = true;
-                this.allowShow = true; // Flag to control dropdown showing after blur
                 
                 // Initialize
                 this.init();
@@ -364,8 +363,8 @@
             }
             
             handleInput(searchText) {
-                // Only process input if we're allowed to show dropdown
-                if (!this.allowShow) {
+                // Only process if input is actually focused
+                if (document.activeElement !== this.elements.input) {
                     return;
                 }
                 
@@ -742,9 +741,6 @@
                 // Blurred classes are already handled by the stub
                 // Just handle autocomplete-specific functionality
                 
-                // Re-enable showing dropdown on real focus
-                this.allowShow = true;
-                
                 if (this.elements.input.value.length === 0) {
                     this.showAllItems();
                     this.renderResults();
@@ -755,8 +751,7 @@
             
             handleBlur() {
                 // Blurred classes are already handled by the stub
-                // Hide dropdown and prevent it from showing until next real focus
-                this.allowShow = false;
+                // Just hide the dropdown
                 this.hideDropdown();
             }
             
@@ -772,8 +767,8 @@
             }
             
             showDropdown() {
-                // Don't show if not allowed (after blur)
-                if (!this.allowShow) {
+                // Only show if input is actually focused
+                if (document.activeElement !== this.elements.input) {
                     return;
                 }
                 
@@ -1044,6 +1039,7 @@
         }
     });
 })();
+
 
 // COMBINED MAPBOX SCRIPT - Production Version 2025
 // Optimized version without autocomplete loading dependency
