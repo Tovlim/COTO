@@ -552,97 +552,62 @@
             }
             
             triggerDistrictSelection(districtName) {
-                // Set marker click flag
                 window.isMarkerClick = true;
                 
-                // Clear any locks
                 if (window.mapUtilities && window.mapUtilities.state) {
                     window.mapUtilities.state.markerInteractionLock = false;
                 }
                 
-                // Select district checkbox
                 if (window.selectDistrictCheckbox) {
                     window.selectDistrictCheckbox(districtName);
                 }
                 
-                // Show filtered elements
                 if (window.mapUtilities?.toggleShowWhenFilteredElements) {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
                 
-                // Open sidebar on desktop
                 if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // Check if this district has boundaries and zoom to them
-                const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-                
-                if (window.map && window.map.getSource && window.map.getSource(boundarySourceId)) {
-                    // District has boundaries - highlight and zoom to them
-                    if (window.highlightBoundary) {
-                        window.highlightBoundary(districtName);
-                    }
-                    
-                    const source = window.map.getSource(boundarySourceId);
-                    if (source && source._data) {
-                        const bounds = new window.mapboxgl.LngLatBounds();
-                        
-                        const addCoords = coords => {
-                            if (Array.isArray(coords) && coords.length > 0) {
-                                if (typeof coords[0] === 'number') {
-                                    bounds.extend(coords);
-                                } else {
-                                    coords.forEach(addCoords);
-                                }
-                            }
-                        };
-                        
-                        source._data.features.forEach(feature => {
-                            addCoords(feature.geometry.coordinates);
-                        });
-                        
-                        // Zoom to boundaries
-                        window.map.fitBounds(bounds, {
-                            padding: 50,
-                            duration: 1000,
-                            essential: true
-                        });
-                    }
-                } else {
-                    // District without boundaries - use text search and reframe to filtered markers
-                    const hiddenListSearch = document.getElementById('hidden-list-search');
-                    if (hiddenListSearch) {
-                        hiddenListSearch.value = districtName;
-                        hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-                        hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                    
-                    // Force reframing to filtered markers
-                    setTimeout(() => {
-                        if (window.mapUtilities && window.mapUtilities.state) {
-                            const state = window.mapUtilities.state;
-                            state.flags.forceFilteredReframe = true;
-                            state.flags.isRefreshButtonAction = true;
-                            
-                            if (window.applyFilterToMarkers) {
-                                window.applyFilterToMarkers();
-                                
-                                setTimeout(() => {
-                                    state.flags.forceFilteredReframe = false;
-                                    state.flags.isRefreshButtonAction = false;
-                                }, 1000);
-                            }
-                        }
-                    }, 200);
+                // Highlight and frame district boundary
+                if (window.highlightBoundary) {
+                    window.highlightBoundary(districtName);
                 }
                 
-                // Clean up marker click flag
+                // Use the global function to frame district boundaries
+                if (window.frameDistrictBoundary) {
+                    if (!window.frameDistrictBoundary(districtName)) {
+                        // No boundary found - fallback to filtered reframing
+                        setTimeout(() => {
+                            if (window.mapUtilities && window.mapUtilities.state) {
+                                const state = window.mapUtilities.state;
+                                state.flags.forceFilteredReframe = true;
+                                state.flags.isRefreshButtonAction = true;
+                                
+                                if (window.applyFilterToMarkers) {
+                                    window.applyFilterToMarkers();
+                                    
+                                    setTimeout(() => {
+                                        state.flags.forceFilteredReframe = false;
+                                        state.flags.isRefreshButtonAction = false;
+                                    }, 1000);
+                                }
+                            }
+                        }, 200);
+                    }
+                } else {
+                    // Fallback if frameDistrictBoundary doesn't exist
+                    setTimeout(() => {
+                        window.isMarkerClick = false;
+                        if (window.applyFilterToMarkers) {
+                            window.applyFilterToMarkers();
+                        }
+                    }, 100);
+                }
+                
                 setTimeout(() => {
                     window.isMarkerClick = false;
-                    if (window.mapUtilities && window.mapUtilities.state) {
-                        window.mapUtilities.state.markerInteractionLock = false;
-                    }
                 }, 800);
             }
             
@@ -1767,6 +1732,29 @@ const toggleSidebar = (side, show = null) => {
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
 
+// Global function to frame district boundaries (used by both markers and autocomplete)
+function frameDistrictBoundary(districtName) {
+  const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+  const source = map.getSource(boundarySourceId);
+  
+  if (source && source._data) {
+    // District has boundaries - frame them
+    const bounds = new mapboxgl.LngLatBounds();
+    const addCoords = coords => {
+      if (Array.isArray(coords) && coords.length > 0) {
+        if (typeof coords[0] === 'number') bounds.extend(coords);
+        else coords.forEach(addCoords);
+      }
+    };
+    
+    source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
+    map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+    return true; // Successfully framed
+  }
+  
+  return false; // No boundary found
+}
+
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(districtName) {
   // Remove any existing highlight first
@@ -2264,20 +2252,9 @@ function setupDistrictMarkerClicks() {
     if (districtSource === 'boundary') {
       highlightBoundary(districtName);
       
-      const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-      const source = map.getSource(boundarySourceId);
-      if (source && source._data) {
-        const bounds = new mapboxgl.LngLatBounds();
-        const addCoords = coords => {
-          if (Array.isArray(coords) && coords.length > 0) {
-            if (typeof coords[0] === 'number') bounds.extend(coords);
-            else coords.forEach(addCoords);
-          }
-        };
-        
-        source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
-        map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
-      } else {
+      // Use the global function to frame boundaries
+      if (!frameDistrictBoundary(districtName)) {
+        // Fallback if no boundary found
         removeBoundaryHighlight();
         state.setTimer('districtFallback', () => {
           state.flags.forceFilteredReframe = true;
@@ -4059,6 +4036,7 @@ window.selectDistrictCheckbox = selectDistrictCheckbox;
 window.selectLocalityCheckbox = selectLocalityCheckbox;
 window.applyFilterToMarkers = applyFilterToMarkers;
 window.highlightBoundary = highlightBoundary;
+window.frameDistrictBoundary = frameDistrictBoundary;
 window.map = map;
 window.mapboxgl = mapboxgl;
 
