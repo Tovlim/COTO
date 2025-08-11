@@ -583,6 +583,7 @@
             }
             
             triggerSubregionSelection(subregionName) {
+                // Subregions use text-based search, not checkbox selection
                 const hiddenListSearch = document.getElementById('hidden-list-search');
                 if (hiddenListSearch) {
                     hiddenListSearch.value = subregionName;
@@ -598,9 +599,21 @@
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
+                // Trigger filtering with reframe for subregions
                 setTimeout(() => {
-                    if (window.applyFilterToMarkers) {
-                        window.applyFilterToMarkers();
+                    if (window.mapUtilities && window.mapUtilities.state) {
+                        const state = window.mapUtilities.state;
+                        state.flags.forceFilteredReframe = true;
+                        state.flags.isRefreshButtonAction = true;
+                        
+                        if (window.applyFilterToMarkers) {
+                            window.applyFilterToMarkers();
+                            
+                            setTimeout(() => {
+                                state.flags.forceFilteredReframe = false;
+                                state.flags.isRefreshButtonAction = false;
+                            }, 1000);
+                        }
                     }
                 }, 100);
             }
