@@ -12,6 +12,57 @@
     class AutocompleteStub {
         constructor() {
             this.setupStubListeners();
+            this.setupBlurredClassHandling();
+        }
+        
+        setupBlurredClassHandling() {
+            const searchInput = document.getElementById('map-search');
+            const searchIconsWrap = document.querySelector('.search-icons-wrap');
+            const clearSearchWrap = document.querySelector('.clear-search-wrap');
+            
+            if (!searchInput) {
+                // Retry if element not found
+                setTimeout(() => this.setupBlurredClassHandling(), 100);
+                return;
+            }
+            
+            // Ensure blurred class is applied initially (input not focused)
+            if (document.activeElement !== searchInput) {
+                if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
+                    searchIconsWrap.classList.add('blurred');
+                }
+                if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
+                    clearSearchWrap.classList.add('blurred');
+                }
+            }
+            
+            // Handle focus - remove blurred classes
+            searchInput.addEventListener('focus', () => {
+                if (searchIconsWrap && searchIconsWrap.classList.contains('blurred')) {
+                    searchIconsWrap.classList.remove('blurred');
+                }
+                if (clearSearchWrap && clearSearchWrap.classList.contains('blurred')) {
+                    clearSearchWrap.classList.remove('blurred');
+                }
+                
+                // Also clear hidden-list-search
+                const hiddenListSearch = document.getElementById('hidden-list-search');
+                if (hiddenListSearch) {
+                    hiddenListSearch.value = '';
+                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+            
+            // Handle blur - add blurred classes back
+            searchInput.addEventListener('blur', () => {
+                if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
+                    searchIconsWrap.classList.add('blurred');
+                }
+                if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
+                    clearSearchWrap.classList.add('blurred');
+                }
+            });
         }
         
         setupStubListeners() {
@@ -682,22 +733,8 @@
             }
             
             handleFocus() {
-                const hiddenListSearch = document.getElementById('hidden-list-search');
-                if (hiddenListSearch) {
-                    hiddenListSearch.value = '';
-                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                
-                const searchIconsWrap = document.querySelector('.search-icons-wrap');
-                const clearSearchWrap = document.querySelector('.clear-search-wrap');
-                
-                if (searchIconsWrap && searchIconsWrap.classList.contains('blurred')) {
-                    searchIconsWrap.classList.remove('blurred');
-                }
-                if (clearSearchWrap && clearSearchWrap.classList.contains('blurred')) {
-                    clearSearchWrap.classList.remove('blurred');
-                }
+                // Blurred classes are already handled by the stub
+                // Just handle autocomplete-specific functionality
                 
                 if (this.elements.input.value.length === 0) {
                     this.showAllItems();
@@ -708,16 +745,8 @@
             }
             
             handleBlur() {
-                const searchIconsWrap = document.querySelector('.search-icons-wrap');
-                const clearSearchWrap = document.querySelector('.clear-search-wrap');
-                
-                if (searchIconsWrap && !searchIconsWrap.classList.contains('blurred')) {
-                    searchIconsWrap.classList.add('blurred');
-                }
-                if (clearSearchWrap && !clearSearchWrap.classList.contains('blurred')) {
-                    clearSearchWrap.classList.add('blurred');
-                }
-                
+                // Blurred classes are already handled by the stub
+                // Just hide the dropdown
                 this.hideDropdown();
             }
             
