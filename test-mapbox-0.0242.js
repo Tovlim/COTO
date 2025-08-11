@@ -3108,6 +3108,15 @@ function addDistrictBoundaryToMap(name, districtFeature) {
     borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
   };
   
+  // Check if this is an Israeli district
+  const isIsraeliDistrict = districtFeature.properties.subtype === 'israeli';
+  
+  // Set colors based on district type
+  const fillColor = isIsraeliDistrict ? '#697f9e' : '#1a1b1e';
+  const fillOpacity = isIsraeliDistrict ? 0.2 : 0.15;
+  const borderColor = isIsraeliDistrict ? '#697f9e' : '#888888';
+  const borderOpacity = isIsraeliDistrict ? 0.5 : 0.4;
+  
   // Remove existing layers/sources if they exist (batch operation)
   [boundary.borderId, boundary.fillId].forEach(layerId => {
     if (mapLayers.hasLayer(layerId)) {
@@ -3135,28 +3144,28 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
-  // Add fill layer
+  // Add fill layer with appropriate colors
   map.addLayer({
     id: boundary.fillId,
     type: 'fill',
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'fill-color': '#1a1b1e',
-      'fill-opacity': 0.15
+      'fill-color': fillColor,
+      'fill-opacity': fillOpacity
     }
   }, beforeId);
   
-  // Add border layer
+  // Add border layer with appropriate colors
   map.addLayer({
     id: boundary.borderId,
     type: 'line',
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'line-color': '#888888',
+      'line-color': borderColor,
       'line-width': 1,
-      'line-opacity': 0.4
+      'line-opacity': borderOpacity
     }
   }, beforeId);
   
@@ -3180,7 +3189,8 @@ function addDistrictBoundaryToMap(name, districtFeature) {
         name: name,
         id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
         type: 'district',
-        source: 'boundary'
+        source: 'boundary',
+        subtype: districtFeature.properties.subtype // Preserve subtype
       }
     };
     
