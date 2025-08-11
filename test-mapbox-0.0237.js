@@ -118,9 +118,7 @@
                     maxResults: options.maxResults || 200,
                     debounceMs: options.debounceMs || 50,
                     highlightMatches: false,
-                    scoreThreshold: options.scoreThreshold || 0.3,
-                    mobileBreakpoint: 478,
-                    mobileShowDelay: 400
+                    scoreThreshold: options.scoreThreshold || 0.3
                 };
                 
                 // Data storage
@@ -145,7 +143,6 @@
                 this.renderFrame = null;
                 this.scrollFrame = null;
                 this.filterTimeout = null;
-                this.showTimeout = null;
                 this.isFirstShow = true;
                 
                 // Initialize
@@ -315,8 +312,6 @@
             }
             
             handleInput(searchText) {
-                clearTimeout(this.showTimeout);
-                
                 if (!searchText || searchText.length === 0) {
                     this.showAllItems();
                 } else {
@@ -324,16 +319,7 @@
                 }
                 
                 this.renderResults();
-                
-                const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
-                
-                if (isMobile && document.activeElement === this.elements.input) {
-                    this.showTimeout = setTimeout(() => {
-                        this.showDropdown();
-                    }, this.config.mobileShowDelay);
-                } else {
-                    this.showDropdown();
-                }
+                this.showDropdown();
             }
             
             showAllItems() {
@@ -676,21 +662,10 @@
                     this.renderResults();
                 }
                 
-                const isMobile = window.innerWidth <= this.config.mobileBreakpoint;
-                
-                if (isMobile) {
-                    clearTimeout(this.showTimeout);
-                    this.showTimeout = setTimeout(() => {
-                        this.showDropdown();
-                    }, this.config.mobileShowDelay);
-                } else {
-                    this.showDropdown();
-                }
+                this.showDropdown();
             }
             
             handleBlur() {
-                clearTimeout(this.showTimeout);
-                
                 const searchIconsWrap = document.querySelector('.search-icons-wrap');
                 const clearSearchWrap = document.querySelector('.clear-search-wrap');
                 
@@ -736,7 +711,6 @@
             }
             
             hideDropdown() {
-                clearTimeout(this.showTimeout);
                 this.elements.wrapper.style.display = 'none';
                 this.elements.list.querySelectorAll('.list-term.active')
                     .forEach(item => item.classList.remove('active'));
@@ -863,7 +837,6 @@
             
             destroy() {
                 clearTimeout(this.filterTimeout);
-                clearTimeout(this.showTimeout);
                 cancelAnimationFrame(this.renderFrame);
                 cancelAnimationFrame(this.scrollFrame);
                 
