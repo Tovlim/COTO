@@ -195,6 +195,7 @@
                 this.scrollFrame = null;
                 this.filterTimeout = null;
                 this.isFirstShow = true;
+                this.allowShow = true; // Flag to control dropdown showing after blur
                 
                 // Initialize
                 this.init();
@@ -363,6 +364,11 @@
             }
             
             handleInput(searchText) {
+                // Only process input if we're allowed to show dropdown
+                if (!this.allowShow) {
+                    return;
+                }
+                
                 if (!searchText || searchText.length === 0) {
                     this.showAllItems();
                 } else {
@@ -736,6 +742,9 @@
                 // Blurred classes are already handled by the stub
                 // Just handle autocomplete-specific functionality
                 
+                // Re-enable showing dropdown on real focus
+                this.allowShow = true;
+                
                 if (this.elements.input.value.length === 0) {
                     this.showAllItems();
                     this.renderResults();
@@ -746,7 +755,8 @@
             
             handleBlur() {
                 // Blurred classes are already handled by the stub
-                // Just hide the dropdown
+                // Hide dropdown and prevent it from showing until next real focus
+                this.allowShow = false;
                 this.hideDropdown();
             }
             
@@ -762,6 +772,11 @@
             }
             
             showDropdown() {
+                // Don't show if not allowed (after blur)
+                if (!this.allowShow) {
+                    return;
+                }
+                
                 if (this.data.filteredResults.length === 0) {
                     this.hideDropdown();
                     return;
@@ -3043,7 +3058,7 @@ function setupDropdownListeners() {
 
 // OPTIMIZED: Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.007.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -3108,15 +3123,6 @@ function addDistrictBoundaryToMap(name, districtFeature) {
     borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
   };
   
-  // Check if this is an Israeli district
-  const isIsraeliDistrict = districtFeature.properties.subtype === 'israeli';
-  
-  // Set colors based on district type
-  const fillColor = isIsraeliDistrict ? '#697f9e' : '#1a1b1e';
-  const fillOpacity = isIsraeliDistrict ? 0.2 : 0.15;
-  const borderColor = isIsraeliDistrict ? '#697f9e' : '#888888';
-  const borderOpacity = isIsraeliDistrict ? 0.5 : 0.4;
-  
   // Remove existing layers/sources if they exist (batch operation)
   [boundary.borderId, boundary.fillId].forEach(layerId => {
     if (mapLayers.hasLayer(layerId)) {
@@ -3144,28 +3150,28 @@ function addDistrictBoundaryToMap(name, districtFeature) {
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
   const beforeId = firstAreaLayer || 'locality-clusters';
   
-  // Add fill layer with appropriate colors
+  // Add fill layer
   map.addLayer({
     id: boundary.fillId,
     type: 'fill',
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'fill-color': fillColor,
-      'fill-opacity': fillOpacity
+      'fill-color': '#1a1b1e',
+      'fill-opacity': 0.15
     }
   }, beforeId);
   
-  // Add border layer with appropriate colors
+  // Add border layer
   map.addLayer({
     id: boundary.borderId,
     type: 'line',
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'line-color': borderColor,
+      'line-color': '#888888',
       'line-width': 1,
-      'line-opacity': borderOpacity
+      'line-opacity': 0.4
     }
   }, beforeId);
   
@@ -3189,8 +3195,7 @@ function addDistrictBoundaryToMap(name, districtFeature) {
         name: name,
         id: `district-${name.toLowerCase().replace(/\s+/g, '-')}`,
         type: 'district',
-        source: 'boundary',
-        subtype: districtFeature.properties.subtype // Preserve subtype
+        source: 'boundary'
       }
     };
     
