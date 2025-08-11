@@ -363,11 +363,6 @@
             }
             
             handleInput(searchText) {
-                // Only process if input is actually focused
-                if (document.activeElement !== this.elements.input) {
-                    return;
-                }
-                
                 if (!searchText || searchText.length === 0) {
                     this.showAllItems();
                 } else {
@@ -767,11 +762,6 @@
             }
             
             showDropdown() {
-                // Only show if input is actually focused
-                if (document.activeElement !== this.elements.input) {
-                    return;
-                }
-                
                 if (this.data.filteredResults.length === 0) {
                     this.hideDropdown();
                     return;
@@ -1039,7 +1029,6 @@
         }
     });
 })();
-
 
 // COMBINED MAPBOX SCRIPT - Production Version 2025
 // Optimized version without autocomplete loading dependency
