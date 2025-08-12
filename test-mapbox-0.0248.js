@@ -837,32 +837,36 @@
                         .list-term.district-term,
                         .list-term.subregion-term {
                             font-weight: 600;
-                            color: #6e3500;
-                            background-color: #fdf6f0;
-                            border-left: 3px solid #6e3500;
+                            color: #ffffff;
+                            background-color: #6e3500;
+                            border-left: 3px solid #fdf6f0;
                         }
                         
                         .list-term.district-term:hover,
                         .list-term.subregion-term:hover {
-                            background-color: #f5e6d3;
+                            background-color: #8f4500;
                         }
                         
                         .list-term.district-term .term-label,
                         .list-term.subregion-term .term-label {
-                            color: #8f4500;
+                            color: #fdf6f0;
                         }
                         
                         .list-term.locality-term {
                             font-weight: 500;
-                            color: #7e7800;
-                            background-color: #fffef5;
-                            border-left: 3px solid #7e7800;
+                            color: #ffffff;
+                            background-color: #7e7800;
+                            border-left: 3px solid #fffef5;
                             padding: 10px 12px;
                         }
                         
-                        .list-term.locality-term:hover { background-color: #f9f8e6; }
+                        .list-term.locality-term:hover { 
+                            background-color: #a49c00; 
+                        }
                         .list-term.locality-term * { pointer-events: none; }
-                        .list-term.locality-term .term-label { color: #a49c00; }
+                        .list-term.locality-term .term-label { 
+                            color: #fffef5; 
+                        }
                         
                         .locality-info {
                             flex-grow: 1;
@@ -873,26 +877,28 @@
                         
                         .locality-name {
                             font-weight: 500;
-                            color: #7e7800;
+                            color: #ffffff;
                         }
                         
                         .locality-region {
                             font-size: 0.75em;
-                            color: #6e3500;
+                            color: #fdf6f0;
                             font-weight: normal;
                         }
                         
                         .term-label {
                             font-size: 0.75em;
                             font-weight: normal;
-                            opacity: 0.8;
+                            opacity: 0.9;
                             margin-left: 8px;
                             flex-shrink: 0;
                             align-self: flex-start;
                             margin-top: 2px;
                         }
                         
-                        .list-term.active { background-color: #e8e8e8 !important; }
+                        .list-term.active { 
+                            background-color: #333333 !important; 
+                        }
                         .no-results { padding: 20px; text-align: center; color: #666; }
                     `;
                     document.head.appendChild(style);
