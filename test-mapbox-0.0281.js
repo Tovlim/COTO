@@ -3554,7 +3554,7 @@ function addSettlementMarkers() {
       logLayerOrder('Before adding settlement layers');
       
       // Add clustered settlements layer with new color
-      console.log('[DEBUG] Adding settlement-clusters layer with beforeId: locality-points');
+      console.log('[DEBUG] Adding settlement-clusters layer with beforeId: settlement-subdivision-label');
       map.addLayer({
         id: 'settlement-clusters',
         type: 'symbol',
@@ -3572,12 +3572,12 @@ function addSettlementMarkers() {
           'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2
         }
-      }, 'locality-points');
+      }, 'settlement-subdivision-label'); // Insert at the very beginning of the layer stack
       
-      console.log('[DEBUG] settlement-clusters layer added');
+      console.log('[DEBUG] settlement-clusters layer added with beforeId: settlement-subdivision-label');
       
       // Add individual settlement points layer with new color
-      console.log('[DEBUG] Adding settlement-points layer with beforeId: locality-points');
+      console.log('[DEBUG] Adding settlement-points layer with beforeId: settlement-subdivision-label');
       map.addLayer({
         id: 'settlement-points',
         type: 'symbol',
@@ -3613,9 +3613,9 @@ function addSettlementMarkers() {
             isMobile ? 8.1 : 9.5, 1
           ]
         }
-      }, 'locality-points');
+      }, 'settlement-subdivision-label'); // Insert at the very beginning of the layer stack
       
-      console.log('[DEBUG] settlement-points layer added');
+      console.log('[DEBUG] settlement-points layer added with beforeId: settlement-subdivision-label');
       
       // Log final layer order after adding settlements
       logLayerOrder('After adding settlement layers');
