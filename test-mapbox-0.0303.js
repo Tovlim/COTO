@@ -1535,6 +1535,12 @@ loadDataFromState() {
                         .sort((a, b) => a.name.localeCompare(b.name));
                 }
                 
+                // Shuffle each category once for variety in dropdown display
+                this.shuffleArray(this.data.regions);
+                this.shuffleArray(this.data.subregions);
+                this.shuffleArray(this.data.localities);
+                this.shuffleArray(this.data.settlements);
+                
                 console.log('Autocomplete data loaded:', {
                     regions: this.data.regions.length,
                     subregions: this.data.subregions.length,
@@ -1562,6 +1568,15 @@ loadDataFromState() {
                 }
                 
                 return { tokens, ngrams };
+            }
+            
+            shuffleArray(array) {
+                // Fisher-Yates shuffle algorithm
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
             }
             
             setupEventListeners() {
