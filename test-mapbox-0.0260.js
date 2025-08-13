@@ -989,29 +989,35 @@ window.addEventListener('load', () => {
 // GLOBAL EXPORTS & UTILITIES
 // ========================
 
-// Make functions available globally for autocomplete integration
-window.selectRegionCheckbox = selectRegionCheckbox;
-window.selectLocalityCheckbox = selectLocalityCheckbox;
-window.selectSettlementCheckbox = selectSettlementCheckbox;
-window.applyFilterToMarkers = applyFilterToMarkers;
-window.highlightBoundary = highlightBoundary;
-window.frameRegionBoundary = frameRegionBoundary;
-window.map = map;
-window.mapboxgl = mapboxgl;
+// Defer global exports until after everything is initialized
+function setupGlobalExports() {
+  // Make functions available globally for autocomplete integration
+  window.selectRegionCheckbox = selectRegionCheckbox;
+  window.selectLocalityCheckbox = selectLocalityCheckbox;
+  window.selectSettlementCheckbox = selectSettlementCheckbox;
+  window.applyFilterToMarkers = applyFilterToMarkers;
+  window.highlightBoundary = highlightBoundary;
+  window.frameRegionBoundary = frameRegionBoundary;
+  window.map = map;
+  window.mapboxgl = mapboxgl;
 
-// OPTIMIZED: Shared utilities for other scripts (integration optimization)
-window.mapUtilities = {
-  domCache,
-  eventManager,
-  state,
-  utils,
-  mapLayers,
-  sidebarCache,
-  toggleSidebar,
-  closeSidebar,
-  checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-  toggleShowWhenFilteredElements // FIXED: Export the toggle function too
-};
+  // OPTIMIZED: Shared utilities for other scripts (integration optimization)
+  window.mapUtilities = {
+    domCache,
+    eventManager,
+    state,
+    utils,
+    mapLayers,
+    sidebarCache,
+    toggleSidebar,
+    closeSidebar,
+    checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
+    toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+  };
+}
+
+// Call setupGlobalExports after map is created
+setTimeout(setupGlobalExports, 0);
 
 // ========================
 // CLEANUP
@@ -2787,7 +2793,7 @@ class OptimizedMapLayers {
 // OPTIMIZED: Global layer manager
 const mapLayers = new OptimizedMapLayers(map);
 
-// OPTIMIZED: Sidebar element and arrow icon caching
+// OPTIMIZED: Sidebar element and arrow icon caching (moved here before setupSidebars)
 const sidebarCache = {
   elements: new Map(),
   arrows: new Map(),
@@ -2829,6 +2835,7 @@ const sidebarCache = {
   }
 };
 
+// OPTIMIZED: Helper function to close a sidebar without recursion
 // OPTIMIZED: Helper function to close a sidebar without recursion
 const closeSidebar = (side) => {
   const sidebar = sidebarCache.getSidebar(side);
