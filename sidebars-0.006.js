@@ -181,47 +181,189 @@ const utils = {
 };
 
 // ========================
-// CHECKBOX CONSOLIDATION
+// CHECKBOX GENERATION
 // ========================
 
-function consolidateLocalityCheckboxes() {
-  const targetContainer = $id('locality-check-list');
-  if (!targetContainer) {
+// Generate locality checkboxes from GeoJSON data
+function generateLocalityCheckboxes() {
+  const container = $id('locality-check-list');
+  if (!container) {
     console.warn('Target container #locality-check-list not found');
     return;
   }
-  
-  // Get all checkboxes with the class .locality-checkbox
-  const allCheckboxes = $('.locality-checkbox');
-  
-  if (allCheckboxes.length === 0) {
-    console.log('No locality checkboxes found to move');
+
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.003.geojson')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(localityData => {
+      // Extract unique locality names from locality features
+      const localityNames = localityData.features
+        .map(feature => feature.properties.name)
+        .filter(name => name && name.trim() !== '')
+        .sort()
+        .filter((name, index, array) => array.indexOf(name) === index);
+
+      if (localityNames.length === 0) {
+        console.warn('No valid locality names found in GeoJSON data');
+        return;
+      }
+
+      // Clear existing content
+      container.innerHTML = '';
+
+      // Generate checkboxes using document fragment for performance
+      const fragment = document.createDocumentFragment();
+      
+      localityNames.forEach(localityName => {
+        // Create the wrapper div
+        const wrapperDiv = document.createElement('div');
+        wrapperDiv.setAttribute('checkbox-filter', 'locality');
+        wrapperDiv.className = 'checbox-item';
+
+        // Create the collection item div
+        const collectionItem = document.createElement('div');
+        collectionItem.className = 'collection-item-4 w-dyn-item';
+        collectionItem.setAttribute('role', 'listitem');
+
+        // Create the label
+        const label = document.createElement('label');
+        label.className = 'checbox-field-2 w-checkbox';
+
+        // Create the input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'locality-checkbox w-checkbox-input';
+        input.setAttribute('fs-list-value', localityName);
+        input.setAttribute('fs-cmsfilter-field', 'locality');
+        input.name = 'locality';
+        input.setAttribute('data-name', 'locality');
+        input.value = localityName;
+        input.id = `locality-${localityName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
+        // Create the checkbox indicator
+        const checkboxDiv = document.createElement('div');
+        checkboxDiv.className = 'w-checkbox-indicator';
+
+        // Create the span for the text
+        const span = document.createElement('span');
+        span.className = 'checbox-label w-form-label';
+        span.setAttribute('for', input.id);
+        span.textContent = localityName;
+
+        // Assemble the structure
+        label.appendChild(input);
+        label.appendChild(checkboxDiv);
+        label.appendChild(span);
+        collectionItem.appendChild(label);
+        wrapperDiv.appendChild(collectionItem);
+        fragment.appendChild(wrapperDiv);
+      });
+
+      // Append all checkboxes to container
+      container.appendChild(fragment);
+      console.log(`Generated ${localityNames.length} locality checkboxes from GeoJSON`);
+
+      // Mark DOM cache as stale since we've added new elements
+      domCache.markStale();
+    })
+    .catch(error => {
+      console.error('Failed to load locality data:', error);
+    });
+}
+
+// Generate settlement checkboxes from GeoJSON data
+function generateSettlementCheckboxes() {
+  const container = $id('settlement-check-list');
+  if (!container) {
+    console.warn('Target container #settlement-check-list not found');
     return;
   }
-  
-  // Create a document fragment for better performance
-  const fragment = document.createDocumentFragment();
-  let movedCount = 0;
-  
-  allCheckboxes.forEach(checkbox => {
-    // Get the parent collection-item div
-    const collectionItem = checkbox.closest('.collection-item');
-    
-    if (collectionItem) {
-      // Remove from current parent and add to fragment
-      fragment.appendChild(collectionItem);
-      movedCount++;
-    }
-  });
-  
-  // Append all checkboxes to the target container at once
-  if (movedCount > 0) {
-    targetContainer.appendChild(fragment);
-    console.log(`Moved ${movedCount} locality checkboxes to #locality-check-list`);
-    
-    // Mark DOM cache as stale since we've moved elements
-    domCache.markStale();
-  }
+
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(settlementData => {
+      // Extract unique settlement names from settlement features
+      const settlementNames = settlementData.features
+        .map(feature => feature.properties.name)
+        .filter(name => name && name.trim() !== '')
+        .sort()
+        .filter((name, index, array) => array.indexOf(name) === index);
+
+      if (settlementNames.length === 0) {
+        console.warn('No valid settlement names found in GeoJSON data');
+        return;
+      }
+
+      // Clear existing content
+      container.innerHTML = '';
+
+      // Generate checkboxes using document fragment for performance
+      const fragment = document.createDocumentFragment();
+      
+      settlementNames.forEach(settlementName => {
+        // Create the wrapper div
+        const wrapperDiv = document.createElement('div');
+        wrapperDiv.setAttribute('checkbox-filter', 'settlement');
+        wrapperDiv.className = 'checbox-item';
+
+        // Create the collection item div
+        const collectionItem = document.createElement('div');
+        collectionItem.className = 'collection-item-4 w-dyn-item';
+        collectionItem.setAttribute('role', 'listitem');
+
+        // Create the label
+        const label = document.createElement('label');
+        label.className = 'checbox-field-2 w-checkbox';
+
+        // Create the input
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'settlement-checkbox w-checkbox-input';
+        input.setAttribute('fs-list-value', settlementName);
+        input.setAttribute('fs-cmsfilter-field', 'settlement');
+        input.name = 'settlement';
+        input.setAttribute('data-name', 'settlement');
+        input.value = settlementName;
+        input.id = `settlement-${settlementName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
+        // Create the checkbox indicator
+        const checkboxDiv = document.createElement('div');
+        checkboxDiv.className = 'w-checkbox-indicator';
+
+        // Create the span for the text
+        const span = document.createElement('span');
+        span.className = 'checbox-label w-form-label';
+        span.setAttribute('for', input.id);
+        span.textContent = settlementName;
+
+        // Assemble the structure
+        label.appendChild(input);
+        label.appendChild(checkboxDiv);
+        label.appendChild(span);
+        collectionItem.appendChild(label);
+        wrapperDiv.appendChild(collectionItem);
+        fragment.appendChild(wrapperDiv);
+      });
+
+      // Append all checkboxes to container
+      container.appendChild(fragment);
+      console.log(`Generated ${settlementNames.length} settlement checkboxes from GeoJSON`);
+
+      // Mark DOM cache as stale since we've added new elements
+      domCache.markStale();
+    })
+    .catch(error => {
+      console.error('Failed to load settlement data:', error);
+    });
 }
 
 // ========================
@@ -738,8 +880,9 @@ function setupEvents() {
 // ========================
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Consolidate checkboxes first
-  consolidateLocalityCheckboxes();
+  // Generate checkboxes from GeoJSON data
+  generateLocalityCheckboxes();
+  generateSettlementCheckboxes();
   
   setupSidebars();
   setupEvents();
@@ -751,8 +894,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
-  // Try consolidating checkboxes again in case they weren't ready on DOMContentLoaded
-  consolidateLocalityCheckboxes();
+  // Try generating checkboxes again in case they weren't ready on DOMContentLoaded
+  state.setTimer('loadGenerateCheckboxes', () => {
+    generateLocalityCheckboxes();
+    generateSettlementCheckboxes();
+  }, 500);
   
   setupSidebars();
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
