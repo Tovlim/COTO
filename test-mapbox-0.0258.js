@@ -903,33 +903,6 @@ function init() {
   }, 300);
 }
 
-// OPTIMIZED: Map load event handler with parallel operations
-map.on("load", () => {
-  // Control positioning with better timing (moved inside map load to ensure state exists)
-  state.setTimer('controlPositioning', () => {
-    // Mark UI loading step complete (positioning is already handled by CSS)
-    loadingTracker.markComplete('uiPositioned');
-  }, 300);
-  try {
-    init();
-    
-    // Load combined data
-    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
-    
-    // Load settlements
-    state.setTimer('loadSettlements', loadSettlements, 200);
-    
-    // Final layer optimization
-    state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
-    
-  } catch (error) {
-    // Mark all loading steps as complete to hide loading screen on error
-    Object.keys(loadingTracker.states).forEach(stateName => {
-      loadingTracker.markComplete(stateName);
-    });
-  }
-});
-
 // OPTIMIZED: DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
@@ -2457,6 +2430,33 @@ const map = new mapboxgl.Map({
   center: isMobile ? [34.85, 31.7] : [35.22, 31.85], // Mobile: both West Bank & Gaza, Desktop: West Bank focused
   zoom: isMobile ? 7.1 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
+});
+
+// OPTIMIZED: Map load event handler with parallel operations (moved here right after map creation)
+map.on("load", () => {
+  // Control positioning with better timing (moved inside map load to ensure state exists)
+  state.setTimer('controlPositioning', () => {
+    // Mark UI loading step complete (positioning is already handled by CSS)
+    loadingTracker.markComplete('uiPositioned');
+  }, 300);
+  try {
+    init();
+    
+    // Load combined data
+    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    
+    // Load settlements
+    state.setTimer('loadSettlements', loadSettlements, 200);
+    
+    // Final layer optimization
+    state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
+    
+  } catch (error) {
+    // Mark all loading steps as complete to hide loading screen on error
+    Object.keys(loadingTracker.states).forEach(stateName => {
+      loadingTracker.markComplete(stateName);
+    });
+  }
 });
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
