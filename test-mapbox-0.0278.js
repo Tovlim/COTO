@@ -3541,7 +3541,7 @@ function addSettlementMarkers() {
           'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2
         }
-      }, 'locality-points');
+      });
       
       // Add individual settlement points layer with new color
       map.addLayer({
@@ -3579,9 +3579,26 @@ function addSettlementMarkers() {
             isMobile ? 8.1 : 9.5, 1
           ]
         }
-      }, 'locality-points');
+      });
       
       mapLayers.invalidateCache();
+      
+      // Move settlement layers to bottom for proper visual hierarchy
+      setTimeout(() => {
+        try {
+          // Move settlement layers before locality layers if they exist
+          if (map.getLayer('locality-points')) {
+            if (map.getLayer('settlement-clusters')) {
+              map.moveLayer('settlement-clusters', 'locality-points');
+            }
+            if (map.getLayer('settlement-points')) {
+              map.moveLayer('settlement-points', 'locality-points');
+            }
+          }
+        } catch (error) {
+          console.log('Layer reordering skipped:', error.message);
+        }
+      }, 100);
     }
   });
   
