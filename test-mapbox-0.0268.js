@@ -3860,6 +3860,17 @@ function setupRegionMarkerClicks() {
         essential: true
       });
     }
+    
+    state.setTimer('markerCleanup', () => {
+      window.isMarkerClick = false;
+      state.markerInteractionLock = false;
+    }, 800);
+  };
+  
+  map.on('click', 'region-points', regionClickHandler);
+  map.on('mouseenter', 'region-points', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'region-points', () => map.getCanvas().style.cursor = '');
+} // THIS CLOSING BRACE WAS MISSING!
 
 // Add this new function to display subregion markers on the map
 function addNativeSubregionMarkers() {
@@ -3969,17 +3980,6 @@ function setupSubregionMarkerClicks() {
   map.on('click', 'subregion-points', subregionClickHandler);
   map.on('mouseenter', 'subregion-points', () => map.getCanvas().style.cursor = 'pointer');
   map.on('mouseleave', 'subregion-points', () => map.getCanvas().style.cursor = '');
-}
-    
-    state.setTimer('markerCleanup', () => {
-      window.isMarkerClick = false;
-      state.markerInteractionLock = false;
-    }, 800);
-  };
-  
-  map.on('click', 'region-points', regionClickHandler);
-  map.on('mouseenter', 'region-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'region-points', () => map.getCanvas().style.cursor = '');
 }
 
 // SIMPLIFIED: No longer need to check CMS filter lists
