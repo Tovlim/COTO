@@ -244,8 +244,8 @@
                 const subregionSet = new Set();
                 const localitiesMap = new Map();
                 
-                // Find only first 5 lists for faster loading
-                for (let i = 1; i <= 5; i++) {
+                // Check all lists (up to 10 to cover all 9 lists)
+                for (let i = 1; i <= 10; i++) {
                     const listContainer = document.getElementById(`cms-filter-list-${i}`);
                     if (!listContainer) continue;
                     
