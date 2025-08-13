@@ -3292,8 +3292,6 @@ function selectSettlementCheckbox(settlementName) {
     }
   });
 }
-// REMOVE or comment out this entire function - no longer needed
-// function loadRegionsFromGeoJSON() { ... }
 
 // MODIFY loadLocalitiesFromGeoJSON to also extract regions
 function loadLocalitiesFromGeoJSON() {
