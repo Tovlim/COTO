@@ -500,10 +500,10 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#8896b8');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#5F6980');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#8896b8');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#5F6980');
             }
           }
         };
