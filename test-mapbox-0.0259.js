@@ -908,6 +908,18 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupBackToTopButton();
   
+  // FIXED: Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
+  state.setTimer('initMonitorTags', () => {
+    monitorTags();
+    
+    // Mark monitoring as part of events setup
+    state.setTimer('monitoringCheck', () => {
+      if (!loadingTracker.states.eventsSetup) {
+        loadingTracker.markComplete('eventsSetup');
+      }
+    }, 1000);
+  }, 100);
+  
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
     // Check if controls are positioned early
@@ -968,22 +980,8 @@ window.addEventListener('load', () => {
       }
     }, 500);
   }
-});
-
-// FIXED: Enhanced tag monitoring initialization (immediate start)
-state.setTimer('initMonitorTags', () => {
-  monitorTags();
   
-  // Mark monitoring as part of events setup
-  state.setTimer('monitoringCheck', () => {
-    if (!loadingTracker.states.eventsSetup) {
-      loadingTracker.markComplete('eventsSetup');
-    }
-  }, 1000);
-}, 100);
-
-// FIXED: Additional check after page is fully loaded
-window.addEventListener('load', () => {
+  // FIXED: Additional check after page is fully loaded
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
 });
 
@@ -2212,6 +2210,43 @@ if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
+// ENHANCED: Loading state tracker (moved up before any usage)
+const loadingTracker = {
+  states: {
+    mapInitialized: false,
+    locationDataLoaded: false,
+    markersAdded: false,
+    geoDataLoaded: false,
+    regionsLoaded: false,
+    localitiesLoaded: false,
+    sidebarSetup: false,
+    eventsSetup: false,
+    uiPositioned: false,
+    backToTopSetup: false
+  },
+  
+  markComplete(stateName) {
+    if (this.states.hasOwnProperty(stateName)) {
+      this.states[stateName] = true;
+      this.checkAllComplete();
+    }
+  },
+  
+  checkAllComplete() {
+    const allComplete = Object.values(this.states).every(state => state === true);
+    if (allComplete) {
+      this.hideLoadingScreen();
+    }
+  },
+  
+  hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-map-screen');
+    if (loadingScreen && loadingScreen.style.display !== 'none') {
+      loadingScreen.style.display = 'none';
+    }
+  }
+};
+
 // Fallback: Hide loading screen after max 20 seconds regardless
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
@@ -2424,6 +2459,65 @@ if (rtlLanguages.includes(lang)) {
   );
 }
 
+// OPTIMIZED: Smart State Management (moved here before map creation)
+class OptimizedMapState {
+  constructor() {
+    this.locationData = {type: "FeatureCollection", features: []};
+    this.settlementData = {type: "FeatureCollection", features: []};
+    this.allLocalityFeatures = [];
+    this.allSettlementFeatures = [];
+    this.allRegionFeatures = [];
+    this.timers = new Map();
+    this.lastClickedMarker = null;
+    this.lastClickTime = 0;
+    this.markerInteractionLock = false;
+    this.highlightedBoundary = null;
+    
+    this.flags = new Proxy({
+      isInitialLoad: true,
+      mapInitialized: false,
+      forceFilteredReframe: false,
+      isRefreshButtonAction: false,
+      dropdownListenersSetup: false,
+      regionsLoaded: false,
+      localitiesLoaded: false,
+      areaControlsSetup: false,
+      skipNextReframe: false
+    }, {
+      set: (target, property, value) => {
+        target[property] = value;
+        return true;
+      }
+    });
+  }
+  
+  setTimer(id, callback, delay) {
+    if (this.timers.has(id)) {
+      clearTimeout(this.timers.get(id));
+    }
+    this.timers.set(id, setTimeout(() => {
+      this.timers.delete(id);
+      callback();
+    }, delay));
+  }
+  
+  clearTimer(id) {
+    if (this.timers.has(id)) {
+      clearTimeout(this.timers.get(id));
+      this.timers.delete(id);
+    }
+  }
+  
+  cleanup() {
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+  }
+}
+
+// OPTIMIZED: Global state management
+const state = new OptimizedMapState();
+window.isLinkClick = false;
+
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/nitaihardy/cmdp8fjw100ex01s83b2d6jzf",
@@ -2536,102 +2630,6 @@ class MapResetControl {
 
 // Add the custom reset control
 map.addControl(new MapResetControl(), 'top-right');
-
-// OPTIMIZED: Smart State Management  
-class OptimizedMapState {
-  constructor() {
-    this.locationData = {type: "FeatureCollection", features: []};
-    this.settlementData = {type: "FeatureCollection", features: []};
-    this.allLocalityFeatures = [];
-    this.allSettlementFeatures = [];
-    this.allRegionFeatures = [];
-    this.timers = new Map();
-    this.lastClickedMarker = null;
-    this.lastClickTime = 0;
-    this.markerInteractionLock = false;
-    this.highlightedBoundary = null;
-    
-    this.flags = new Proxy({
-      isInitialLoad: true,
-      mapInitialized: false,
-      forceFilteredReframe: false,
-      isRefreshButtonAction: false,
-      dropdownListenersSetup: false,
-      regionsLoaded: false,
-      localitiesLoaded: false,
-      areaControlsSetup: false,
-      skipNextReframe: false
-    }, {
-      set: (target, property, value) => {
-        target[property] = value;
-        return true;
-      }
-    });
-  }
-  
-  setTimer(id, callback, delay) {
-    if (this.timers.has(id)) {
-      clearTimeout(this.timers.get(id));
-    }
-    this.timers.set(id, setTimeout(() => {
-      this.timers.delete(id);
-      callback();
-    }, delay));
-  }
-  
-  clearTimer(id) {
-    if (this.timers.has(id)) {
-      clearTimeout(this.timers.get(id));
-      this.timers.delete(id);
-    }
-  }
-  
-  cleanup() {
-    this.timers.forEach(timer => clearTimeout(timer));
-    this.timers.clear();
-  }
-}
-
-// OPTIMIZED: Global state management with loading tracker
-const state = new OptimizedMapState();
-window.isLinkClick = false;
-
-// ENHANCED: Loading state tracker
-const loadingTracker = {
-  states: {
-    mapInitialized: false,
-    locationDataLoaded: false,
-    markersAdded: false,
-    geoDataLoaded: false,
-    regionsLoaded: false,
-    localitiesLoaded: false,
-    sidebarSetup: false,
-    eventsSetup: false,
-    uiPositioned: false,
-    backToTopSetup: false
-  },
-  
-  markComplete(stateName) {
-    if (this.states.hasOwnProperty(stateName)) {
-      this.states[stateName] = true;
-      this.checkAllComplete();
-    }
-  },
-  
-  checkAllComplete() {
-    const allComplete = Object.values(this.states).every(state => state === true);
-    if (allComplete) {
-      this.hideLoadingScreen();
-    }
-  },
-  
-  hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-map-screen');
-    if (loadingScreen && loadingScreen.style.display !== 'none') {
-      loadingScreen.style.display = 'none';
-    }
-  }
-};
 
 // OPTIMIZED: High-performance utilities
 const utils = {
