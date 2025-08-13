@@ -1342,14 +1342,17 @@ window.addEventListener('beforeunload', () => {
                 
                 // Load regions (districts)
                 if (state.allRegionFeatures && state.allRegionFeatures.length > 0) {
-                    this.data.regions = state.allRegionFeatures.map(feature => ({
-                        name: feature.properties.name,
-                        nameLower: feature.properties.name.toLowerCase(),
-                        type: 'region',
-                        lat: feature.geometry.coordinates[1],
-                        lng: feature.geometry.coordinates[0],
-                        searchTokens: this.createSearchTokens(feature.properties.name)
-                    })).sort((a, b) => a.name.localeCompare(b.name));
+                    this.data.regions = state.allRegionFeatures
+                        .filter(feature => feature.geometry && feature.geometry.coordinates)
+                        .map(feature => ({
+                            name: feature.properties.name,
+                            nameLower: feature.properties.name.toLowerCase(),
+                            type: 'region',
+                            lat: feature.geometry.coordinates[1],
+                            lng: feature.geometry.coordinates[0],
+                            searchTokens: this.createSearchTokens(feature.properties.name)
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
                 }
                 
                 // Load localities
@@ -1357,43 +1360,52 @@ window.addEventListener('beforeunload', () => {
                     // Extract unique subregions
                     const subregionSet = new Set();
                     
-                    this.data.localities = state.allLocalityFeatures.map(feature => {
-                        const subregion = feature.properties.subRegion;
-                        if (subregion) {
-                            subregionSet.add(subregion);
-                        }
-                        
-                        return {
-                            name: feature.properties.name,
-                            nameLower: feature.properties.name.toLowerCase(),
-                            region: feature.properties.region,
-                            subregion: subregion,
-                            lat: feature.geometry.coordinates[1],
-                            lng: feature.geometry.coordinates[0],
-                            type: 'locality',
-                            searchTokens: this.createSearchTokens(feature.properties.name)
-                        };
-                    }).sort((a, b) => a.name.localeCompare(b.name));
+                    this.data.localities = state.allLocalityFeatures
+                        .filter(feature => feature.geometry && feature.geometry.coordinates)
+                        .map(feature => {
+                            const subregion = feature.properties.subRegion;
+                            if (subregion) {
+                                subregionSet.add(subregion);
+                            }
+                            
+                            return {
+                                name: feature.properties.name,
+                                nameLower: feature.properties.name.toLowerCase(),
+                                region: feature.properties.region,
+                                subregion: subregion,
+                                lat: feature.geometry.coordinates[1],
+                                lng: feature.geometry.coordinates[0],
+                                type: 'locality',
+                                searchTokens: this.createSearchTokens(feature.properties.name)
+                            };
+                        })
+                        .sort((a, b) => a.name.localeCompare(b.name));
                     
                     // Create subregions array
-                    this.data.subregions = Array.from(subregionSet).map(subregion => ({
-                        name: subregion,
-                        nameLower: subregion.toLowerCase(),
-                        type: 'subregion',
-                        searchTokens: this.createSearchTokens(subregion)
-                    })).sort((a, b) => a.name.localeCompare(b.name));
+                    this.data.subregions = Array.from(subregionSet)
+                        .filter(subregion => subregion) // Filter out null/undefined
+                        .map(subregion => ({
+                            name: subregion,
+                            nameLower: subregion.toLowerCase(),
+                            type: 'subregion',
+                            searchTokens: this.createSearchTokens(subregion)
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
                 }
                 
                 // Load settlements
                 if (state.allSettlementFeatures && state.allSettlementFeatures.length > 0) {
-                    this.data.settlements = state.allSettlementFeatures.map(feature => ({
-                        name: feature.properties.name,
-                        nameLower: feature.properties.name.toLowerCase(),
-                        type: 'settlement',
-                        lat: feature.geometry.coordinates[1],
-                        lng: feature.geometry.coordinates[0],
-                        searchTokens: this.createSearchTokens(feature.properties.name)
-                    })).sort((a, b) => a.name.localeCompare(b.name));
+                    this.data.settlements = state.allSettlementFeatures
+                        .filter(feature => feature.geometry && feature.geometry.coordinates)
+                        .map(feature => ({
+                            name: feature.properties.name,
+                            nameLower: feature.properties.name.toLowerCase(),
+                            type: 'settlement',
+                            lat: feature.geometry.coordinates[1],
+                            lng: feature.geometry.coordinates[0],
+                            searchTokens: this.createSearchTokens(feature.properties.name)
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
                 }
                 
                 console.log('Autocomplete data loaded:', {
@@ -1402,6 +1414,11 @@ window.addEventListener('beforeunload', () => {
                     localities: this.data.localities.length,
                     settlements: this.data.settlements.length
                 });
+                
+                // If we have data, trigger a refresh of the current search
+                if (this.elements.input && this.elements.input.value) {
+                    this.handleInput(this.elements.input.value);
+                }
             }
             
             createSearchTokens(text) {
@@ -1466,6 +1483,22 @@ window.addEventListener('beforeunload', () => {
             }
             
             showAllItems() {
+                // Make sure we have data before showing items
+                if (this.data.regions.length === 0 && 
+                    this.data.localities.length === 0 && 
+                    this.data.settlements.length === 0) {
+                    // Try to load data again
+                    this.loadDataFromState();
+                    
+                    // If still no data, return empty
+                    if (this.data.regions.length === 0 && 
+                        this.data.localities.length === 0 && 
+                        this.data.settlements.length === 0) {
+                        this.data.filteredResults = [];
+                        return;
+                    }
+                }
+                
                 const maxRegionsAndSubregions = 3;
                 const combinedRegions = [];
                 
@@ -2053,9 +2086,21 @@ window.addEventListener('beforeunload', () => {
             }
             
             refresh() {
+                console.log('Refreshing autocomplete data...');
                 this.loadDataFromState();
+                
+                // If dropdown is visible, update it
                 if (this.isDropdownVisible()) {
                     this.handleInput(this.elements.input.value);
+                }
+                
+                // If input is focused but empty, show all items
+                if (document.activeElement === this.elements.input && !this.elements.input.value) {
+                    this.showAllItems();
+                    this.renderResults();
+                    if (this.data.filteredResults.length > 0) {
+                        this.showDropdown();
+                    }
                 }
             }
             
