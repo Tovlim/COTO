@@ -3554,7 +3554,7 @@ function addSettlementMarkers() {
       logLayerOrder('Before adding settlement layers');
       
       // Add clustered settlements layer with new color
-      console.log('[DEBUG] Adding settlement-clusters layer with beforeId: settlement-subdivision-label');
+      console.log('[DEBUG] Adding settlement-clusters layer without beforeId');
       map.addLayer({
         id: 'settlement-clusters',
         type: 'symbol',
@@ -3572,12 +3572,12 @@ function addSettlementMarkers() {
           'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2
         }
-      }, 'settlement-subdivision-label'); // Insert at the very beginning of the layer stack
+      }); // Add without beforeId first
       
-      console.log('[DEBUG] settlement-clusters layer added with beforeId: settlement-subdivision-label');
+      console.log('[DEBUG] settlement-clusters layer added without beforeId');
       
       // Add individual settlement points layer with new color
-      console.log('[DEBUG] Adding settlement-points layer with beforeId: settlement-subdivision-label');
+      console.log('[DEBUG] Adding settlement-points layer without beforeId');
       map.addLayer({
         id: 'settlement-points',
         type: 'symbol',
@@ -3613,12 +3613,42 @@ function addSettlementMarkers() {
             isMobile ? 8.1 : 9.5, 1
           ]
         }
-      }, 'settlement-subdivision-label'); // Insert at the very beginning of the layer stack
+      }); // Add without beforeId first
       
-      console.log('[DEBUG] settlement-points layer added with beforeId: settlement-subdivision-label');
+      console.log('[DEBUG] settlement-points layer added without beforeId');
       
       // Log final layer order after adding settlements
       logLayerOrder('After adding settlement layers');
+      
+      // Now move settlement layers to the bottom of the stack
+      console.log('[DEBUG] Moving settlement layers to bottom of stack');
+      try {
+        // Find the first non-settlement layer to use as beforeId
+        const layers = map.getStyle().layers;
+        let firstNonSettlementLayer = null;
+        
+        for (const layer of layers) {
+          if (!layer.id.includes('settlement-clusters') && !layer.id.includes('settlement-points')) {
+            firstNonSettlementLayer = layer.id;
+            break;
+          }
+        }
+        
+        if (firstNonSettlementLayer) {
+          console.log('[DEBUG] Moving settlement layers before:', firstNonSettlementLayer);
+          if (map.getLayer('settlement-clusters')) {
+            map.moveLayer('settlement-clusters', firstNonSettlementLayer);
+          }
+          if (map.getLayer('settlement-points')) {
+            map.moveLayer('settlement-points', firstNonSettlementLayer);
+          }
+          logLayerOrder('After moving settlement layers');
+        } else {
+          console.log('[DEBUG] Could not find non-settlement layer to move before');
+        }
+      } catch (error) {
+        console.error('[DEBUG] Error moving layers:', error);
+      }
       
       mapLayers.invalidateCache();
     }
