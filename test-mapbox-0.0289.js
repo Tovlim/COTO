@@ -1756,6 +1756,8 @@ loadDataFromState() {
                     let location = '';
                     if (item.type === 'locality') {
                         location = [item.subregion, item.region].filter(Boolean).join(', ');
+                    } else if (item.type === 'settlement') {
+                        location = [item.subRegion, item.region].filter(Boolean).join(', ');
                     }
                     const typeLabel = item.type === 'locality' ? 'Locality' : 'Settlement';
                     
@@ -3489,7 +3491,7 @@ function loadLocalitiesFromGeoJSON() {
 
 // OPTIMIZED: Load and add settlement markers with new color
 function loadSettlements() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
