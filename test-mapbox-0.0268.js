@@ -3308,7 +3308,7 @@ function selectSettlementCheckbox(settlementName) {
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.002.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.001.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -3395,10 +3395,10 @@ function loadLocalitiesFromGeoJSON() {
       
       // Add region markers to map
       addNativeRegionMarkers();
-
-      // Add subregion markers to map - ADD THIS LINE
-      addNativeSubregionMarkers();
-            
+      
+      // Add subregion markers to map (if you want them on the map)
+      // addNativeSubregionMarkers(); // You can create this function if you want subregion markers on the map
+      
       // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
@@ -3860,116 +3860,6 @@ function setupRegionMarkerClicks() {
         essential: true
       });
     }
-
-// Add this new function to display subregion markers on the map
-function addNativeSubregionMarkers() {
-  if (!state.allSubregionFeatures || state.allSubregionFeatures.length === 0) return;
-  
-  mapLayers.addToBatch(() => {
-    if (mapLayers.hasSource('subregions-source')) {
-      map.getSource('subregions-source').setData({
-        type: "FeatureCollection",
-        features: state.allSubregionFeatures
-      });
-    } else {
-      map.addSource('subregions-source', {
-        type: 'geojson',
-        data: {
-          type: "FeatureCollection",
-          features: state.allSubregionFeatures
-        }
-      });
-      
-      map.addLayer({
-        id: 'subregion-points',
-        type: 'symbol',
-        source: 'subregions-source',
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
-          'text-size': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7, 11,
-            11, 15,
-            14, 17
-          ],
-          'text-allow-overlap': false,
-          'text-ignore-placement': false,
-          'text-optional': true,
-          'text-padding': 5,
-          'text-offset': [0, 0.5],
-          'text-anchor': 'center'
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#8f4500', // Slightly different color from regions
-          'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6, 0,
-            7, 1
-          ]
-        }
-      });
-      
-      mapLayers.invalidateCache();
-    }
-  });
-  
-  setupSubregionMarkerClicks();
-}
-
-// Add click handlers for subregion markers
-function setupSubregionMarkerClicks() {
-  const subregionClickHandler = (e) => {
-    const feature = e.features[0];
-    const subregionName = feature.properties.name;
-    
-    // Prevent rapid clicks
-    const currentTime = Date.now();
-    const markerKey = `subregion-${subregionName}`;
-    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
-      return;
-    }
-    
-    state.markerInteractionLock = true;
-    state.lastClickedMarker = markerKey;
-    state.lastClickTime = currentTime;
-    window.isMarkerClick = true;
-    
-    // Subregions use text-based search (like in autocomplete)
-    const hiddenListSearch = document.getElementById('hidden-list-search');
-    if (hiddenListSearch) {
-      hiddenListSearch.value = subregionName;
-      hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-      hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    
-    toggleShowWhenFilteredElements(true);
-    toggleSidebar('Left', true);
-    
-    // Fly to subregion center
-    map.flyTo({
-      center: feature.geometry.coordinates,
-      zoom: 10.5,
-      duration: 1000,
-      essential: true
-    });
-    
-    state.setTimer('subregionMarkerCleanup', () => {
-      window.isMarkerClick = false;
-      state.markerInteractionLock = false;
-    }, 800);
-  };
-  
-  map.on('click', 'subregion-points', subregionClickHandler);
-  map.on('mouseenter', 'subregion-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'subregion-points', () => map.getCanvas().style.cursor = '');
-}
     
     state.setTimer('markerCleanup', () => {
       window.isMarkerClick = false;
