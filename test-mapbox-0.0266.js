@@ -3308,7 +3308,7 @@ function selectSettlementCheckbox(settlementName) {
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.001.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.002.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
