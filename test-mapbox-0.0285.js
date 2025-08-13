@@ -3524,7 +3524,7 @@ function logLayerOrder(message) {
     layer.id.includes('settlement')
   ).map(layer => layer.id);
   
-  console.log(`[LAYER ORDER] ${message}:`, relevantLayers);
+  console.log(`[LAYER ORDER] ${message}:`, JSON.stringify(relevantLayers));
 }
 
 // Add settlement markers to map with updated color
@@ -3568,7 +3568,8 @@ function addSettlementMarkers() {
           'text-font': ['Open Sans Regular'],
           'text-size': 16,
           'text-allow-overlap': true,
-          'text-ignore-placement': true
+          'text-ignore-placement': true,
+          'symbol-sort-key': 1 // Lower values render first (behind)
         },
         paint: {
           'text-color': '#ffffff',
@@ -3602,7 +3603,8 @@ function addSettlementMarkers() {
           'text-optional': true,
           'text-padding': 4,
           'text-offset': [0, 1.5],
-          'text-anchor': 'top'
+          'text-anchor': 'top',
+          'symbol-sort-key': 1 // Lower values render first (behind)
         },
         paint: {
           'text-color': '#ffffff',
@@ -3798,7 +3800,8 @@ function addNativeMarkers() {
           'text-optional': true,
           'text-padding': 4,
           'text-offset': [0, 1.5],
-          'text-anchor': 'top'
+          'text-anchor': 'top',
+          'symbol-sort-key': 10 // Higher values render last (on top)
         },
         paint: {
           'text-color': '#ffffff',
@@ -3871,7 +3874,8 @@ function addNativeRegionMarkers() {
           'text-optional': true,
           'text-padding': 6,
           'text-offset': [0, 0],
-          'text-anchor': 'center'
+          'text-anchor': 'center',
+          'symbol-sort-key': 10 // Higher values render last (on top)
         },
         paint: {
           'text-color': '#ffffff',
