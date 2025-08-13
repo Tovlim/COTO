@@ -3960,27 +3960,27 @@ function addNativeSubregionMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            7, 11,
-            11, 15,
-            14, 17
+            6, 12,
+            10, 16,
+            14, 18
           ],
           'text-allow-overlap': false,
           'text-ignore-placement': false,
           'text-optional': true,
-          'text-padding': 5,
-          'text-offset': [0, 0.5],
+          'text-padding': 6,
+          'text-offset': [0, 0],
           'text-anchor': 'center'
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#8f4500', // Slightly different color from regions
+          'text-halo-color': '#6e3500',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
             ['linear'],
             ['zoom'],
-            6, 0,
-            7, 1
+            5, 0,
+            6, 1
           ]
         }
       });
