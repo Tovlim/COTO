@@ -331,8 +331,19 @@
   }
   
   function isCheckboxChecked(checkboxElement) {
+    // Method 1: Check for is-list-active class (Finsweet style)
     const label = checkboxElement.querySelector('label');
-    return label?.classList.contains('is-list-active') || false;
+    if (label?.classList.contains('is-list-active')) {
+      return true;
+    }
+    
+    // Method 2: Check actual checkbox input state (standard HTML)
+    const input = checkboxElement.querySelector('input[type="checkbox"]');
+    if (input?.checked) {
+      return true;
+    }
+    
+    return false;
   }
   
   function hideElement(element) {
