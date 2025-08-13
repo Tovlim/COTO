@@ -3462,6 +3462,8 @@ function loadLocalitiesFromGeoJSON() {
       console.log(`Extracted ${state.allSubregionFeatures.length} subregions from localities`);
       
       // Load settlements after locality/region layers are created for proper layer ordering
+      console.log('[DEBUG] About to call loadSettlements from loadLocalitiesFromGeoJSON');
+      logLayerOrder('Before loading settlements');
       loadSettlements();
       
       // Refresh autocomplete if it exists
@@ -3509,9 +3511,32 @@ function loadSettlements() {
     });
 }
 
+// Helper function to debug layer order
+function logLayerOrder(message) {
+  const layers = map.getStyle().layers;
+  const relevantLayers = layers.filter(layer => 
+    layer.id.includes('locality') || 
+    layer.id.includes('region') || 
+    layer.id.includes('subregion') || 
+    layer.id.includes('settlement')
+  ).map(layer => layer.id);
+  
+  console.log(`[LAYER ORDER] ${message}:`, relevantLayers);
+}
+
 // Add settlement markers to map with updated color
 function addSettlementMarkers() {
-  if (!state.allSettlementFeatures.length) return;
+  console.log('[DEBUG] addSettlementMarkers called');
+  console.log('[DEBUG] Settlement features count:', state.allSettlementFeatures?.length || 0);
+  
+  if (!state.allSettlementFeatures.length) {
+    console.log('[DEBUG] No settlement features to add');
+    return;
+  }
+  
+  // Check if locality-points layer exists
+  const localityLayerExists = map.getLayer('locality-points');
+  console.log('[DEBUG] locality-points layer exists:', !!localityLayerExists);
   
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('settlements-source')) {
@@ -3525,7 +3550,11 @@ function addSettlementMarkers() {
         clusterRadius: 40
       });
       
+      // Log layer order before adding settlements
+      logLayerOrder('Before adding settlement layers');
+      
       // Add clustered settlements layer with new color
+      console.log('[DEBUG] Adding settlement-clusters layer with beforeId: locality-points');
       map.addLayer({
         id: 'settlement-clusters',
         type: 'symbol',
@@ -3545,7 +3574,10 @@ function addSettlementMarkers() {
         }
       }, 'locality-points');
       
+      console.log('[DEBUG] settlement-clusters layer added');
+      
       // Add individual settlement points layer with new color
+      console.log('[DEBUG] Adding settlement-points layer with beforeId: locality-points');
       map.addLayer({
         id: 'settlement-points',
         type: 'symbol',
@@ -3582,6 +3614,11 @@ function addSettlementMarkers() {
           ]
         }
       }, 'locality-points');
+      
+      console.log('[DEBUG] settlement-points layer added');
+      
+      // Log final layer order after adding settlements
+      logLayerOrder('After adding settlement layers');
       
       mapLayers.invalidateCache();
     }
@@ -3650,7 +3687,12 @@ function setupSettlementMarkerClicks() {
 
 // OPTIMIZED: Native markers with batched operations
 function addNativeMarkers() {
-  if (!state.locationData.features.length) return;
+  console.log('[DEBUG] addNativeMarkers (localities) called');
+  if (!state.locationData.features.length) {
+    console.log('[DEBUG] No locality features to add');
+    return;
+  }
+  console.log('[DEBUG] Adding locality layers...');
   
   // Batch add source and layers
   mapLayers.addToBatch(() => {
@@ -3686,6 +3728,7 @@ function addNativeMarkers() {
       });
       
       // Add individual locality points layer WITHOUT highlighting (FIX #2)
+      console.log('[DEBUG] Adding locality-points layer');
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
@@ -3723,6 +3766,9 @@ function addNativeMarkers() {
         }
       });
       
+      console.log('[DEBUG] locality-points layer added');
+      logLayerOrder('After adding locality layers');
+      
       mapLayers.invalidateCache(); // Invalidate cache after adding layers
     }
   });
@@ -3735,7 +3781,12 @@ function addNativeMarkers() {
 
 // OPTIMIZED: Region markers with batched operations  
 function addNativeRegionMarkers() {
-  if (!state.allRegionFeatures.length) return;
+  console.log('[DEBUG] addNativeRegionMarkers called');
+  if (!state.allRegionFeatures.length) {
+    console.log('[DEBUG] No region features to add');
+    return;
+  }
+  console.log('[DEBUG] Adding region layers...');
   
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('regions-source')) {
