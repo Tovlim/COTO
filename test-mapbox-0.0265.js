@@ -1408,22 +1408,21 @@ window.addEventListener('beforeunload', () => {
                 this.elements.list = this.elements.wrapper.querySelector('.autocomplete-list');
             }
             
-            waitForData() {
-                // Check if data is already loaded
-                const checkData = () => {
-                    if (window.mapUtilities && window.mapUtilities.state) {
-                        const state = window.mapUtilities.state;
-                        // Wait for actual data to be loaded
-                        if (state.allLocalityFeatures.length > 0 || 
-                            state.allRegionFeatures.length > 0 || 
-                            state.allSettlementFeatures.length > 0) {
-                            this.loadDataFromState();
-                            return true;
-                        }
-                    }
-                    return false;
-                };
-                
+  waitForData() {
+  // Check if data is already loaded
+  const checkData = () => {
+    if (window.mapUtilities && window.mapUtilities.state) {
+      const state = window.mapUtilities.state;
+      // Wait for actual data to be loaded - now regions come from localities
+      if (state.allLocalityFeatures.length > 0 || 
+          state.allSettlementFeatures.length > 0) {
+        this.loadDataFromState();
+        return true;
+      }
+    }
+    return false;
+  };
+  
                 // Check immediately
                 if (checkData()) return;
                 
