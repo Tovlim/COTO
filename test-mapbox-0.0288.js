@@ -3556,12 +3556,8 @@ function addSettlementMarkers() {
       // Log layer order before adding settlements
       logLayerOrder('Before adding settlement layers');
       
-      // Add clustered settlements layer with new color - positioned at bottom
-      console.log('[DEBUG] Adding settlement-clusters layer at bottom of stack');
-      
-      // Find the first area layer or locality layer to add before it
-      const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
-      const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
+      // Add clustered settlements layer - positioned above areas but below other markers
+      console.log('[DEBUG] Adding settlement-clusters layer above areas');
       
       const layerConfig = {
         id: 'settlement-clusters',
@@ -3583,20 +3579,20 @@ function addSettlementMarkers() {
         }
       };
       
-      // Add with proper beforeId positioning
-      if (firstAreaLayer) {
-        map.addLayer(layerConfig, firstAreaLayer);
-        console.log('[DEBUG] Added settlement-clusters before area layer:', firstAreaLayer);
-      } else if (mapLayers.hasLayer('locality-clusters')) {
+      // Add before locality layers to stay below other markers, but without beforeId to stay above areas
+      if (mapLayers.hasLayer('locality-clusters')) {
         map.addLayer(layerConfig, 'locality-clusters');
         console.log('[DEBUG] Added settlement-clusters before locality-clusters');
+      } else if (mapLayers.hasLayer('region-points')) {
+        map.addLayer(layerConfig, 'region-points');
+        console.log('[DEBUG] Added settlement-clusters before region-points');
       } else {
         map.addLayer(layerConfig);
         console.log('[DEBUG] Added settlement-clusters without beforeId');
       }
       
-      // Add individual settlement points layer with new color - positioned at bottom
-      console.log('[DEBUG] Adding settlement-points layer at bottom of stack');
+      // Add individual settlement points layer - positioned above areas but below other markers
+      console.log('[DEBUG] Adding settlement-points layer above areas');
       
       const pointsLayerConfig = {
         id: 'settlement-points',
@@ -3636,13 +3632,13 @@ function addSettlementMarkers() {
         }
       };
       
-      // Add with proper beforeId positioning  
-      if (firstAreaLayer) {
-        map.addLayer(pointsLayerConfig, firstAreaLayer);
-        console.log('[DEBUG] Added settlement-points before area layer:', firstAreaLayer);
-      } else if (mapLayers.hasLayer('locality-clusters')) {
+      // Add before locality layers to stay below other markers, but without beforeId to stay above areas
+      if (mapLayers.hasLayer('locality-clusters')) {
         map.addLayer(pointsLayerConfig, 'locality-clusters');
         console.log('[DEBUG] Added settlement-points before locality-clusters');
+      } else if (mapLayers.hasLayer('region-points')) {
+        map.addLayer(pointsLayerConfig, 'region-points');
+        console.log('[DEBUG] Added settlement-points before region-points');
       } else {
         map.addLayer(pointsLayerConfig);
         console.log('[DEBUG] Added settlement-points without beforeId');
