@@ -631,12 +631,16 @@
             }
             
             triggerSettlementSelection(settlementName) {
-                // Settlements use text-based search like subregions
-                const hiddenListSearch = document.getElementById('hidden-list-search');
-                if (hiddenListSearch) {
-                    hiddenListSearch.value = settlementName;
-                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+                // Set marker click flag
+                window.isMarkerClick = true;
+                
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    window.mapUtilities.state.markerInteractionLock = false;
+                }
+                
+                // Use checkbox selection for settlements
+                if (window.selectSettlementCheckbox) {
+                    window.selectSettlementCheckbox(settlementName);
                 }
                 
                 if (window.mapUtilities?.toggleShowWhenFilteredElements) {
@@ -657,6 +661,11 @@
                         essential: true
                     });
                 }
+                
+                // Clean up flag
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                }, 800);
             }
             
             triggerDistrictSelection(districtName) {
@@ -1990,6 +1999,45 @@ function selectLocalityCheckbox(localityName) {
   });
 }
 
+function selectSettlementCheckbox(settlementName) {
+  const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
+  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
+  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
+  
+  // Batch checkbox operations
+  requestAnimationFrame(() => {
+    // Clear all checkboxes first
+    [...districtCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+      if (checkbox.checked) {
+        checkbox.checked = false;
+        utils.triggerEvent(checkbox, ['change', 'input']);
+        
+        const form = checkbox.closest('form');
+        if (form) {
+          form.dispatchEvent(new Event('change', {bubbles: true}));
+          form.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+      }
+    });
+    
+    // Find and check target checkbox
+    const targetCheckbox = settlementCheckboxes.find(checkbox => 
+      checkbox.getAttribute('fs-list-value') === settlementName
+    );
+    
+    if (targetCheckbox) {
+      targetCheckbox.checked = true;
+      utils.triggerEvent(targetCheckbox, ['change', 'input']);
+      
+      const form = targetCheckbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    }
+  });
+}
+
 // OPTIMIZED: Smart filter list discovery with caching
 const getAvailableFilterLists = (() => {
   let cachedLists = null;
@@ -2130,6 +2178,9 @@ function loadSettlements() {
       // Add settlements to map
       addSettlementMarkers();
       
+      // Generate settlement checkboxes
+      state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
+      
       console.log(`Loaded ${state.allSettlementFeatures.length} settlements`);
     })
     .catch(error => {
@@ -2238,25 +2289,11 @@ function setupSettlementMarkerClicks() {
     window.isMarkerClick = true;
     
     removeBoundaryHighlight();
-    
-    // For settlements, we'll use the hidden-list-search for text filtering
-    const hiddenListSearch = document.getElementById('hidden-list-search');
-    if (hiddenListSearch) {
-      hiddenListSearch.value = settlementName;
-      hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-      hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    
+    selectSettlementCheckbox(settlementName);
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // Fly to settlement
-    map.flyTo({
-      center: feature.geometry.coordinates,
-      zoom: 13.5,
-      duration: 1000,
-      essential: true
-    });
+    // No flying/reframing when clicking settlement markers - user already sees where it is
     
     state.setTimer('settlementMarkerCleanup', () => {
       window.isMarkerClick = false;
@@ -3904,6 +3941,64 @@ function loadDistrictTags() {
   loadingTracker.markComplete('districtTagsLoaded');
 }
 
+// Generate settlement checkboxes from loaded settlement data
+function generateSettlementCheckboxes() {
+  const container = $id('settlement-check-list');
+  if (!container) {
+    return;
+  }
+  
+  const template = container.querySelector('[checkbox-filter="settlement"]');
+  if (!template) {
+    return;
+  }
+  
+  // Extract unique settlement names from settlement features
+  const settlementNames = state.allSettlementFeatures
+    .map(feature => feature.properties.name)
+    .sort();
+  
+  if (settlementNames.length === 0) {
+    return;
+  }
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  settlementNames.forEach(settlementName => {
+    const checkbox = template.cloneNode(true);
+    
+    // Update attributes
+    const input = checkbox.querySelector('input[name="settlement"]');
+    if (input) input.setAttribute('fs-list-value', settlementName);
+    
+    const span = checkbox.querySelector('.test3.w-form-label');
+    if (span) span.textContent = settlementName;
+    
+    fragment.appendChild(checkbox);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(checkbox);
+  });
+  
+  container.appendChild(fragment);
+  
+  // Re-cache checkbox filter script if it exists
+  if (window.checkboxFilterScript?.recacheElements) {
+    state.setTimer('recacheSettlementCheckboxFilter', () => {
+      window.checkboxFilterScript.recacheElements();
+    }, 100);
+  }
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterSettlementGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
 // Generate locality checkboxes from map data
 function generateLocalityCheckboxes() {
   const container = $id('locality-check-list');
@@ -4315,6 +4410,7 @@ window.addEventListener('load', () => {
 // Make functions available globally for autocomplete integration
 window.selectDistrictCheckbox = selectDistrictCheckbox;
 window.selectLocalityCheckbox = selectLocalityCheckbox;
+window.selectSettlementCheckbox = selectSettlementCheckbox;
 window.applyFilterToMarkers = applyFilterToMarkers;
 window.highlightBoundary = highlightBoundary;
 window.frameDistrictBoundary = frameDistrictBoundary;
