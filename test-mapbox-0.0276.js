@@ -3212,13 +3212,14 @@ const toggleShowWhenFilteredElements = show => {
 // FIXED: Checkbox selection functions with proper settlement unchecking
 function selectRegionCheckbox(regionName) {
   const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
+  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
   // Batch checkbox operations
   requestAnimationFrame(() => {
-    // Clear all checkboxes first (including settlements)
-    [...regionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+    // Clear all checkboxes first (including settlements and subregions)
+    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
       if (checkbox.checked) {
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -3291,13 +3292,14 @@ function selectSubregionCheckbox(subregionName) {
 
 function selectLocalityCheckbox(localityName) {
   const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
+  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
   // Batch checkbox operations
   requestAnimationFrame(() => {
-    // Clear all checkboxes first (including settlements)
-    [...regionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+    // Clear all checkboxes first (including settlements and subregions)
+    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
       if (checkbox.checked) {
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -3330,13 +3332,14 @@ function selectLocalityCheckbox(localityName) {
 
 function selectSettlementCheckbox(settlementName) {
   const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
+  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
   // Batch checkbox operations
   requestAnimationFrame(() => {
-    // Clear all checkboxes first
-    [...regionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+    // Clear all checkboxes first (including subregions)
+    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
       if (checkbox.checked) {
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -3453,6 +3456,9 @@ function loadLocalitiesFromGeoJSON() {
       // Add localities to map
       addNativeMarkers();
       
+      // Add settlement markers first (bottom layer)
+      addSettlementMarkers();
+      
       // Add region markers to map
       addNativeRegionMarkers();
 
@@ -3499,8 +3505,7 @@ function loadSettlements() {
       state.settlementData = settlementData;
       state.allSettlementFeatures = settlementData.features;
       
-      // Add settlements to map
-      addSettlementMarkers();
+      // Settlement markers are added in loadLocalitiesFromGeoJSON for proper layer order
       
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
