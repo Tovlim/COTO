@@ -476,6 +476,9 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
             }
+            if (mapLayers.hasLayer('subregion-points')) {
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
+            }
             
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
@@ -509,6 +512,9 @@ function setupDeferredAreaControls() {
           if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
+            }
+            if (mapLayers.hasLayer('subregion-points')) {
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
             }
             
             const allLayers = map.getStyle().layers;
