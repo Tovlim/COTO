@@ -2760,8 +2760,7 @@ map.on("load", () => {
     // Load combined data
     state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
     
-    // Load settlements
-    state.setTimer('loadSettlements', loadSettlements, 200);
+    // Settlements are loaded after localities for proper layer ordering
     
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
@@ -3462,6 +3461,9 @@ function loadLocalitiesFromGeoJSON() {
       console.log(`Extracted ${state.allRegionFeatures.length} regions from localities`);
       console.log(`Extracted ${state.allSubregionFeatures.length} subregions from localities`);
       
+      // Load settlements after locality/region layers are created for proper layer ordering
+      loadSettlements();
+      
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
         state.setTimer('refreshAutocompleteAfterLocalities', window.refreshAutocomplete, 1000);
@@ -3541,7 +3543,7 @@ function addSettlementMarkers() {
           'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2
         }
-      });
+      }, 'locality-points');
       
       // Add individual settlement points layer with new color
       map.addLayer({
@@ -3579,26 +3581,9 @@ function addSettlementMarkers() {
             isMobile ? 8.1 : 9.5, 1
           ]
         }
-      });
+      }, 'locality-points');
       
       mapLayers.invalidateCache();
-      
-      // Move settlement layers to bottom for proper visual hierarchy
-      setTimeout(() => {
-        try {
-          // Move settlement layers before locality layers if they exist
-          if (map.getLayer('locality-points')) {
-            if (map.getLayer('settlement-clusters')) {
-              map.moveLayer('settlement-clusters', 'locality-points');
-            }
-            if (map.getLayer('settlement-points')) {
-              map.moveLayer('settlement-points', 'locality-points');
-            }
-          }
-        } catch (error) {
-          console.log('Layer reordering skipped:', error.message);
-        }
-      }, 100);
     }
   });
   
