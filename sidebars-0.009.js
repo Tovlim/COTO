@@ -275,6 +275,10 @@ function generateLocalityCheckboxes() {
       // Mark DOM cache as stale since we've added new elements
       domCache.markStale();
       
+      // Refresh the DOM cache to pick up new elements
+      domCache.refresh();
+      
+      console.log('[DEBUG] Setting up event listeners for locality checkboxes...');
       // Set up event listeners for the new checkboxes
       setupGeneratedCheckboxEvents();
     })
@@ -374,6 +378,10 @@ function generateSettlementCheckboxes() {
       // Mark DOM cache as stale since we've added new elements
       domCache.markStale();
       
+      // Refresh the DOM cache to pick up new elements
+      domCache.refresh();
+      
+      console.log('[DEBUG] Setting up event listeners for settlement checkboxes...');
       // Set up event listeners for the new checkboxes
       setupGeneratedCheckboxEvents();
     })
@@ -384,32 +392,62 @@ function generateSettlementCheckboxes() {
 
 // Set up event listeners for dynamically generated checkboxes
 function setupGeneratedCheckboxEvents() {
+  console.log('[DEBUG] Setting up generated checkbox events...');
+  
   // Find all checkboxes with data-auto-sidebar="true" that don't already have listeners
   const autoSidebarCheckboxes = $('[data-auto-sidebar="true"]');
+  console.log(`[DEBUG] Found ${autoSidebarCheckboxes.length} elements with data-auto-sidebar="true"`);
   
-  autoSidebarCheckboxes.forEach(element => {
+  let newListenersCount = 0;
+  
+  autoSidebarCheckboxes.forEach((element, index) => {
+    console.log(`[DEBUG] Processing element ${index}:`, {
+      id: element.id,
+      type: element.type,
+      hasListener: element.dataset.eventListenerAdded === 'true',
+      tagName: element.tagName
+    });
+    
     // Skip if already has event listener
-    if (element.dataset.eventListenerAdded === 'true') return;
+    if (element.dataset.eventListenerAdded === 'true') {
+      console.log(`[DEBUG] Element ${element.id} already has listener, skipping`);
+      return;
+    }
     
     // Add change event listener
-    eventManager.add(element, 'change', () => {
+    const changeHandler = () => {
+      console.log(`[DEBUG] Checkbox ${element.id} changed! Window width: ${window.innerWidth}`);
       if (window.innerWidth > 991) {
+        console.log('[DEBUG] Opening Left sidebar...');
         state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+      } else {
+        console.log('[DEBUG] Window too small, not opening sidebar');
       }
-    });
+    };
+    
+    const success = eventManager.add(element, 'change', changeHandler);
+    console.log(`[DEBUG] Added change listener to ${element.id}: ${success ? 'SUCCESS' : 'FAILED'}`);
     
     // Add input event listener for text/search inputs
     if (['text', 'search'].includes(element.type)) {
-      eventManager.add(element, 'input', () => {
+      const inputHandler = () => {
+        console.log(`[DEBUG] Input ${element.id} changed! Window width: ${window.innerWidth}`);
         if (window.innerWidth > 991) {
+          console.log('[DEBUG] Opening Left sidebar from input...');
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
-      });
+      };
+      
+      const inputSuccess = eventManager.add(element, 'input', inputHandler);
+      console.log(`[DEBUG] Added input listener to ${element.id}: ${inputSuccess ? 'SUCCESS' : 'FAILED'}`);
     }
     
     // Mark as having event listener
     element.dataset.eventListenerAdded = 'true';
+    newListenersCount++;
   });
+  
+  console.log(`[DEBUG] Added event listeners to ${newListenersCount} new elements`);
 }
 
 // ========================
