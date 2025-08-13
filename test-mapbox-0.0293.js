@@ -3615,9 +3615,9 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            8, 12,
-            12, 16,
-            16, 18
+            8, 10,
+            12, 14,
+            16, 16
           ],
           'text-allow-overlap': false,
           'text-ignore-placement': false,
