@@ -1228,14 +1228,6 @@ window.addEventListener('beforeunload', () => {
                 if (clearSearchWrap && clearSearchWrap.classList.contains('blurred')) {
                     clearSearchWrap.classList.remove('blurred');
                 }
-                
-                // Also clear hidden-list-search
-                const hiddenListSearch = document.getElementById('hidden-list-search');
-                if (hiddenListSearch) {
-                    hiddenListSearch.value = '';
-                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-                }
             });
             
             // Handle blur - add blurred classes back
@@ -3456,9 +3448,6 @@ function loadLocalitiesFromGeoJSON() {
       // Add localities to map
       addNativeMarkers();
       
-      // Add settlement markers first (bottom layer)
-      addSettlementMarkers();
-      
       // Add region markers to map
       addNativeRegionMarkers();
 
@@ -3505,7 +3494,8 @@ function loadSettlements() {
       state.settlementData = settlementData;
       state.allSettlementFeatures = settlementData.features;
       
-      // Settlement markers are added in loadLocalitiesFromGeoJSON for proper layer order
+      // Add settlements to map (will be inserted before localities for proper layer order)
+      addSettlementMarkers();
       
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
@@ -3551,7 +3541,7 @@ function addSettlementMarkers() {
           'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2
         }
-      });
+      }, 'locality-points');
       
       // Add individual settlement points layer with new color
       map.addLayer({
@@ -3589,7 +3579,7 @@ function addSettlementMarkers() {
             isMobile ? 8.1 : 9.5, 1
           ]
         }
-      });
+      }, 'locality-points');
       
       mapLayers.invalidateCache();
     }
@@ -4046,12 +4036,6 @@ function checkMapMarkersFiltering() {
   // Check if search box has content (indicates active search/filtering)
   const searchInput = document.getElementById('map-search');
   if (searchInput && searchInput.value.trim().length > 0) {
-    return true;
-  }
-  
-  // Check hidden-list-search too
-  const hiddenListSearch = document.getElementById('hidden-list-search');
-  if (hiddenListSearch && hiddenListSearch.value.trim().length > 0) {
     return true;
   }
   
