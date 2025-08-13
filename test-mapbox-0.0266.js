@@ -1437,24 +1437,38 @@ window.addEventListener('beforeunload', () => {
                 setTimeout(() => clearInterval(retryInterval), 30000);
             }
             
-            loadDataFromState() {
-                const state = window.mapUtilities.state;
-                
-                // Load regions (districts)
-                if (state.allRegionFeatures && state.allRegionFeatures.length > 0) {
-                    this.data.regions = state.allRegionFeatures
-                        .filter(feature => feature.geometry && feature.geometry.coordinates)
-                        .map(feature => ({
-                            name: feature.properties.name,
-                            nameLower: feature.properties.name.toLowerCase(),
-                            type: 'region',
-                            lat: feature.geometry.coordinates[1],
-                            lng: feature.geometry.coordinates[0],
-                            searchTokens: this.createSearchTokens(feature.properties.name)
-                        }))
-                        .sort((a, b) => a.name.localeCompare(b.name));
-                }
-                
+loadDataFromState() {
+  const state = window.mapUtilities.state;
+  
+  // Load regions (districts) - now from extracted data
+  if (state.allRegionFeatures && state.allRegionFeatures.length > 0) {
+    this.data.regions = state.allRegionFeatures
+      .filter(feature => feature.geometry && feature.geometry.coordinates)
+      .map(feature => ({
+        name: feature.properties.name,
+        nameLower: feature.properties.name.toLowerCase(),
+        type: 'region',
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0],
+        searchTokens: this.createSearchTokens(feature.properties.name)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+  
+  // Load subregions - now from extracted data
+  if (state.allSubregionFeatures && state.allSubregionFeatures.length > 0) {
+    this.data.subregions = state.allSubregionFeatures
+      .filter(feature => feature.geometry && feature.geometry.coordinates)
+      .map(feature => ({
+        name: feature.properties.name,
+        nameLower: feature.properties.name.toLowerCase(),
+        type: 'subregion',
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0],
+        searchTokens: this.createSearchTokens(feature.properties.name)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }                
                 // Load localities
                 if (state.allLocalityFeatures && state.allLocalityFeatures.length > 0) {
                     // Extract unique subregions
