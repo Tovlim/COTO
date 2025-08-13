@@ -3462,9 +3462,12 @@ function loadLocalitiesFromGeoJSON() {
       console.log(`Extracted ${state.allSubregionFeatures.length} subregions from localities`);
       
       // Load settlements after locality/region layers are created for proper layer ordering
-      console.log('[DEBUG] About to call loadSettlements from loadLocalitiesFromGeoJSON');
-      logLayerOrder('Before loading settlements');
-      loadSettlements();
+      // Use setTimeout to ensure batched layer operations complete first
+      setTimeout(() => {
+        console.log('[DEBUG] About to call loadSettlements from loadLocalitiesFromGeoJSON (after delay)');
+        logLayerOrder('Before loading settlements (delayed)');
+        loadSettlements();
+      }, 500);
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
@@ -3623,28 +3626,43 @@ function addSettlementMarkers() {
       // Now move settlement layers to the bottom of the stack
       console.log('[DEBUG] Moving settlement layers to bottom of stack');
       try {
-        // Find the first non-settlement layer to use as beforeId
-        const layers = map.getStyle().layers;
-        let firstNonSettlementLayer = null;
-        
-        for (const layer of layers) {
-          if (!layer.id.includes('settlement-clusters') && !layer.id.includes('settlement-points')) {
-            firstNonSettlementLayer = layer.id;
-            break;
-          }
-        }
-        
-        if (firstNonSettlementLayer) {
-          console.log('[DEBUG] Moving settlement layers before:', firstNonSettlementLayer);
+        // Try to move settlements before locality-points if it exists
+        if (map.getLayer('locality-points')) {
+          console.log('[DEBUG] Moving settlement layers before locality-points');
           if (map.getLayer('settlement-clusters')) {
-            map.moveLayer('settlement-clusters', firstNonSettlementLayer);
+            map.moveLayer('settlement-clusters', 'locality-points');
           }
           if (map.getLayer('settlement-points')) {
-            map.moveLayer('settlement-points', firstNonSettlementLayer);
+            map.moveLayer('settlement-points', 'locality-points');
           }
-          logLayerOrder('After moving settlement layers');
+          logLayerOrder('After moving settlement layers before locality-points');
         } else {
-          console.log('[DEBUG] Could not find non-settlement layer to move before');
+          // Fallback: find the first non-settlement layer
+          console.log('[DEBUG] locality-points not found, finding first non-settlement layer');
+          const layers = map.getStyle().layers;
+          let targetLayer = null;
+          
+          for (const layer of layers) {
+            if (!layer.id.includes('settlement-clusters') && 
+                !layer.id.includes('settlement-points') &&
+                !layer.id.includes('background')) { // Skip background layer
+              targetLayer = layer.id;
+              break;
+            }
+          }
+          
+          if (targetLayer) {
+            console.log('[DEBUG] Moving settlement layers before:', targetLayer);
+            if (map.getLayer('settlement-clusters')) {
+              map.moveLayer('settlement-clusters', targetLayer);
+            }
+            if (map.getLayer('settlement-points')) {
+              map.moveLayer('settlement-points', targetLayer);
+            }
+            logLayerOrder('After moving settlement layers');
+          } else {
+            console.log('[DEBUG] Could not find suitable layer to move before');
+          }
         }
       } catch (error) {
         console.error('[DEBUG] Error moving layers:', error);
