@@ -369,7 +369,7 @@ function setupDeferredAreaControls() {
         keyId: 'region-toggle-key', 
         wrapId: 'region-toggle-key-wrap',
         type: 'region',
-        layers: ['region-points'],
+        layers: ['region-points', 'subregion-points'],
         label: 'Region Markers & Boundaries'
       },
       {
@@ -3466,12 +3466,11 @@ function loadLocalitiesFromGeoJSON() {
       console.log(`Extracted ${state.allSubregionFeatures.length} subregions from localities`);
       
       // Load settlements after locality/region layers are created for proper layer ordering
-      // Use setTimeout to ensure batched layer operations complete first
-      setTimeout(() => {
+      // Use timer to ensure batched layer operations complete first
+      state.setTimer('loadSettlements', () => {
         console.log('[DEBUG] About to call loadSettlements from loadLocalitiesFromGeoJSON (after delay)');
-        logLayerOrder('Before loading settlements (delayed)');
         loadSettlements();
-      }, 500);
+      }, 300);
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
@@ -3546,14 +3545,25 @@ function addSettlementMarkers() {
     return;
   }
   
-  // Check if locality-points layer exists
-  const localityLayerExists = map.getLayer('locality-points');
-  console.log('[DEBUG] locality-points layer exists:', !!localityLayerExists);
+  // Find proper insertion point - before locality layers but after areas
+  const getBeforeLayerId = () => {
+    const markerLayers = ['locality-clusters', 'locality-points', 'region-points'];
+    const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
+    
+    if (existingMarkerLayer) {
+      console.log('[DEBUG] Will insert settlement layers before:', existingMarkerLayer);
+      return existingMarkerLayer;
+    }
+    
+    console.log('[DEBUG] No marker layers found, settlement layers will be positioned at top');
+    return null;
+  };
   
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('settlements-source')) {
       map.getSource('settlements-source').setData(state.settlementData);
     } else {
+      // Add source first
       map.addSource('settlements-source', {
         type: 'geojson',
         data: state.settlementData,
@@ -3562,12 +3572,9 @@ function addSettlementMarkers() {
         clusterRadius: 40
       });
       
-      // Log layer order before adding settlements
-      logLayerOrder('Before adding settlement layers');
+      const beforeId = getBeforeLayerId();
       
-      // Add clustered settlements layer - positioned above areas but below other markers
-      console.log('[DEBUG] Adding settlement-clusters layer above areas');
-      
+      // Add clustered settlements layer with proper positioning
       const layerConfig = {
         id: 'settlement-clusters',
         type: 'symbol',
@@ -3579,7 +3586,8 @@ function addSettlementMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'symbol-sort-key': 1 // Lower than locality layers (10) to render below
+          'symbol-sort-key': 1,
+          'visibility': 'visible'
         },
         paint: {
           'text-color': '#ffffff',
@@ -3588,21 +3596,14 @@ function addSettlementMarkers() {
         }
       };
       
-      // Add before locality layers to stay below other markers, but without beforeId to stay above areas
-      if (mapLayers.hasLayer('locality-clusters')) {
-        map.addLayer(layerConfig, 'locality-clusters');
-        console.log('[DEBUG] Added settlement-clusters before locality-clusters');
-      } else if (mapLayers.hasLayer('region-points')) {
-        map.addLayer(layerConfig, 'region-points');
-        console.log('[DEBUG] Added settlement-clusters before region-points');
+      if (beforeId) {
+        map.addLayer(layerConfig, beforeId);
       } else {
         map.addLayer(layerConfig);
-        console.log('[DEBUG] Added settlement-clusters without beforeId');
       }
+      console.log('[DEBUG] Added settlement-clusters layer', beforeId ? `before ${beforeId}` : 'at top');
       
-      // Add individual settlement points layer - positioned above areas but below other markers
-      console.log('[DEBUG] Adding settlement-points layer above areas');
-      
+      // Add individual settlement points layer with proper positioning
       const pointsLayerConfig = {
         id: 'settlement-points',
         type: 'symbol',
@@ -3625,7 +3626,8 @@ function addSettlementMarkers() {
           'text-padding': 4,
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
-          'symbol-sort-key': 2 // Lower than locality layers (10) to render below
+          'symbol-sort-key': 2,
+          'visibility': 'visible'
         },
         paint: {
           'text-color': '#ffffff',
@@ -3641,46 +3643,24 @@ function addSettlementMarkers() {
         }
       };
       
-      // Add before locality layers to stay below other markers, but without beforeId to stay above areas
-      if (mapLayers.hasLayer('locality-clusters')) {
-        map.addLayer(pointsLayerConfig, 'locality-clusters');
-        console.log('[DEBUG] Added settlement-points before locality-clusters');
-      } else if (mapLayers.hasLayer('region-points')) {
-        map.addLayer(pointsLayerConfig, 'region-points');
-        console.log('[DEBUG] Added settlement-points before region-points');
+      if (beforeId) {
+        map.addLayer(pointsLayerConfig, beforeId);
       } else {
         map.addLayer(pointsLayerConfig);
-        console.log('[DEBUG] Added settlement-points without beforeId');
       }
+      console.log('[DEBUG] Added settlement-points layer', beforeId ? `before ${beforeId}` : 'at top');
       
-      console.log('[DEBUG] settlement-points layer added with proper positioning');
-      
-      // Log final layer order after adding settlements
-      logLayerOrder('After adding settlement layers');
-      
-      // Hide Mapbox base map settlement layers first
-      console.log('[DEBUG] Hiding base map settlement layers');
+      // Hide Mapbox base map settlement layers immediately
       try {
         const baseSettlementLayers = ['settlement-subdivision-label', 'settlement-minor-label', 'settlement-major-label'];
         baseSettlementLayers.forEach(layerId => {
           if (map.getLayer(layerId)) {
             map.setLayoutProperty(layerId, 'visibility', 'none');
-            console.log('[DEBUG] Hid base layer:', layerId);
           }
         });
       } catch (error) {
         console.error('[DEBUG] Error hiding base layers:', error);
       }
-      
-      // Let the optimizeLayerOrder function handle proper settlement layer positioning
-      console.log('[DEBUG] Letting optimizeLayerOrder handle settlement positioning');
-      logLayerOrder('Before optimizeLayerOrder for settlements');
-      
-      // Use a small delay to ensure all layers are added before optimization
-      setTimeout(() => {
-        mapLayers.optimizeLayerOrder();
-        logLayerOrder('After optimizeLayerOrder for settlements');
-      }, 100);
       
       mapLayers.invalidateCache();
     }
