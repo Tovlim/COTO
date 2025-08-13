@@ -3395,10 +3395,10 @@ function loadLocalitiesFromGeoJSON() {
       
       // Add region markers to map
       addNativeRegionMarkers();
-      
-      // Add subregion markers to map (if you want them on the map)
-      // addNativeSubregionMarkers(); // You can create this function if you want subregion markers on the map
-      
+
+      // Add subregion markers to map - ADD THIS LINE
+      addNativeSubregionMarkers();
+            
       // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
