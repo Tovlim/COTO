@@ -224,42 +224,47 @@ function generateLocalityCheckboxes() {
         wrapperDiv.setAttribute('checkbox-filter', 'locality');
         wrapperDiv.className = 'checbox-item';
 
-        // Create the collection item div
-        const collectionItem = document.createElement('div');
-        collectionItem.className = 'collection-item-4 w-dyn-item';
-        collectionItem.setAttribute('role', 'listitem');
-
         // Create the label
         const label = document.createElement('label');
-        label.className = 'checbox-field-2 w-checkbox';
+        label.className = 'w-checkbox reporterwrap-copy';
+
+        // Create the checkbox indicator div
+        const checkboxDiv = document.createElement('div');
+        checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
 
         // Create the input
         const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.className = 'locality-checkbox w-checkbox-input';
+        input.setAttribute('data-auto-sidebar', 'true');
         input.setAttribute('fs-list-value', localityName);
-        input.setAttribute('fs-cmsfilter-field', 'locality');
+        input.setAttribute('fs-list-field', 'Locality');
+        input.type = 'checkbox';
         input.name = 'locality';
         input.setAttribute('data-name', 'locality');
-        input.value = localityName;
+        input.setAttribute('activate-filter-indicator', 'place');
         input.id = `locality-${localityName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-
-        // Create the checkbox indicator
-        const checkboxDiv = document.createElement('div');
-        checkboxDiv.className = 'w-checkbox-indicator';
+        input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
 
         // Create the span for the text
         const span = document.createElement('span');
-        span.className = 'checbox-label w-form-label';
+        span.className = 'test3 w-form-label';
         span.setAttribute('for', input.id);
         span.textContent = localityName;
 
+        // Create the count div structure
+        const countContainer = document.createElement('div');
+        countContainer.className = 'div-block-31834';
+        const countDiv = document.createElement('div');
+        countDiv.setAttribute('fs-list-element', 'facet-count');
+        countDiv.className = 'test33';
+        countDiv.textContent = '0';
+        countContainer.appendChild(countDiv);
+
         // Assemble the structure
-        label.appendChild(input);
         label.appendChild(checkboxDiv);
+        label.appendChild(input);
         label.appendChild(span);
-        collectionItem.appendChild(label);
-        wrapperDiv.appendChild(collectionItem);
+        label.appendChild(countContainer);
+        wrapperDiv.appendChild(label);
         fragment.appendChild(wrapperDiv);
       });
 
@@ -315,42 +320,47 @@ function generateSettlementCheckboxes() {
         wrapperDiv.setAttribute('checkbox-filter', 'settlement');
         wrapperDiv.className = 'checbox-item';
 
-        // Create the collection item div
-        const collectionItem = document.createElement('div');
-        collectionItem.className = 'collection-item-4 w-dyn-item';
-        collectionItem.setAttribute('role', 'listitem');
-
         // Create the label
         const label = document.createElement('label');
-        label.className = 'checbox-field-2 w-checkbox';
+        label.className = 'w-checkbox reporterwrap-copy';
+
+        // Create the checkbox indicator div
+        const checkboxDiv = document.createElement('div');
+        checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
 
         // Create the input
         const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.className = 'settlement-checkbox w-checkbox-input';
+        input.setAttribute('data-auto-sidebar', 'true');
         input.setAttribute('fs-list-value', settlementName);
-        input.setAttribute('fs-cmsfilter-field', 'settlement');
+        input.setAttribute('fs-list-field', 'Settlement');
+        input.type = 'checkbox';
         input.name = 'settlement';
         input.setAttribute('data-name', 'settlement');
-        input.value = settlementName;
+        input.setAttribute('activate-filter-indicator', 'place');
         input.id = `settlement-${settlementName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-
-        // Create the checkbox indicator
-        const checkboxDiv = document.createElement('div');
-        checkboxDiv.className = 'w-checkbox-indicator';
+        input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
 
         // Create the span for the text
         const span = document.createElement('span');
-        span.className = 'checbox-label w-form-label';
+        span.className = 'test3 w-form-label';
         span.setAttribute('for', input.id);
         span.textContent = settlementName;
 
+        // Create the count div structure
+        const countContainer = document.createElement('div');
+        countContainer.className = 'div-block-31834';
+        const countDiv = document.createElement('div');
+        countDiv.setAttribute('fs-list-element', 'facet-count');
+        countDiv.className = 'test33';
+        countDiv.textContent = '0';
+        countContainer.appendChild(countDiv);
+
         // Assemble the structure
-        label.appendChild(input);
         label.appendChild(checkboxDiv);
+        label.appendChild(input);
         label.appendChild(span);
-        collectionItem.appendChild(label);
-        wrapperDiv.appendChild(collectionItem);
+        label.appendChild(countContainer);
+        wrapperDiv.appendChild(label);
         fragment.appendChild(wrapperDiv);
       });
 
