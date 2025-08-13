@@ -903,14 +903,13 @@ function init() {
   }, 300);
 }
 
-// OPTIMIZED: Control positioning with better timing
-state.setTimer('controlPositioning', () => {
-  // Mark UI loading step complete (positioning is already handled by CSS)
-  loadingTracker.markComplete('uiPositioned');
-}, 300);
-
 // OPTIMIZED: Map load event handler with parallel operations
 map.on("load", () => {
+  // Control positioning with better timing (moved inside map load to ensure state exists)
+  state.setTimer('controlPositioning', () => {
+    // Mark UI loading step complete (positioning is already handled by CSS)
+    loadingTracker.markComplete('uiPositioned');
+  }, 300);
   try {
     init();
     
