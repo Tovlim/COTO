@@ -1520,6 +1520,8 @@ loadDataFromState() {
                             name: feature.properties.name,
                             nameLower: feature.properties.name.toLowerCase(),
                             type: 'settlement',
+                            region: feature.properties.region,
+                            subRegion: feature.properties.subRegion,
                             lat: feature.geometry.coordinates[1],
                             lng: feature.geometry.coordinates[0],
                             searchTokens: this.createSearchTokens(feature.properties.name)
@@ -3508,6 +3510,11 @@ function loadSettlements() {
       
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
+      
+      // Refresh autocomplete to include settlement data
+      if (window.refreshAutocomplete) {
+        state.setTimer('refreshAutocompleteAfterSettlements', window.refreshAutocomplete, 600);
+      }
       
       console.log(`Loaded ${state.allSettlementFeatures.length} settlements`);
     })
