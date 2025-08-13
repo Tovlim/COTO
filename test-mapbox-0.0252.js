@@ -177,6 +177,7 @@
                     districts: [],
                     subregions: [],
                     localities: [],
+                    settlements: [],
                     filteredResults: [],
                     selectedIndex: -1
                 };
@@ -305,6 +306,26 @@
                 this.data.localities = Array.from(localitiesMap.values())
                     .sort((a, b) => a.name.localeCompare(b.name));
                 
+                // Load settlements from GeoJSON
+                fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements.geojson')
+                    .then(response => response.json())
+                    .then(settlementData => {
+                        this.data.settlements = settlementData.features.map(feature => ({
+                            name: feature.properties.name,
+                            nameLower: feature.properties.name.toLowerCase(),
+                            type: 'settlement',
+                            lat: feature.geometry.coordinates[1],
+                            lng: feature.geometry.coordinates[0],
+                            searchTokens: this.createSearchTokens(feature.properties.name)
+                        })).sort((a, b) => a.name.localeCompare(b.name));
+                        
+                        console.log(`Settlements loaded: ${this.data.settlements.length}`);
+                    })
+                    .catch(error => {
+                        console.error('Failed to load settlements:', error);
+                        this.data.settlements = [];
+                    });
+                
                 console.log(`Data loaded in ${performance.now() - startTime}ms:`, {
                     districts: this.data.districts.length,
                     subregions: this.data.subregions.length,
@@ -405,8 +426,8 @@
                 
                 const scoredResults = [];
                 
-                // Search all categories
-                [...this.data.districts, ...this.data.subregions, ...this.data.localities].forEach(item => {
+                // Search all categories including settlements
+                [...this.data.districts, ...this.data.subregions, ...this.data.localities, ...this.data.settlements].forEach(item => {
                     const score = this.calculateMatchScore(searchLower, searchTokens, item);
                     if (score > this.config.scoreThreshold) {
                         scoredResults.push({ ...item, score });
@@ -418,8 +439,8 @@
                     if (Math.abs(b.score - a.score) > 0.1) {
                         return b.score - a.score;
                     }
-                    if (a.type !== 'locality' && b.type === 'locality') return -1;
-                    if (a.type === 'locality' && b.type !== 'locality') return 1;
+                    if (a.type !== 'locality' && a.type !== 'settlement' && (b.type === 'locality' || b.type === 'settlement')) return -1;
+                    if ((a.type === 'locality' || a.type === 'settlement') && b.type !== 'locality' && b.type !== 'settlement') return 1;
                     return a.name.localeCompare(b.name);
                 });
                 
@@ -508,14 +529,19 @@
                 a.dataset.type = item.type;
                 a.dataset.term = item.name;
                 
-                if (item.type === 'locality') {
-                    const location = [item.subregion, item.district].filter(Boolean).join(', ');
+                if (item.type === 'locality' || item.type === 'settlement') {
+                    let location = '';
+                    if (item.type === 'locality') {
+                        location = [item.subregion, item.district].filter(Boolean).join(', ');
+                    }
+                    const typeLabel = item.type === 'locality' ? 'Locality' : 'Settlement';
+                    
                     a.innerHTML = `
                         <div class="locality-info">
                             <div class="locality-name">${item.name}</div>
                             ${location ? `<div class="locality-region">${location}</div>` : ''}
                         </div>
-                        <span class="term-label">Locality</span>
+                        <span class="term-label">${typeLabel}</span>
                     `;
                 } else {
                     const typeLabel = item.type === 'district' ? 'Region' : 'Sub-Region';
@@ -599,6 +625,37 @@
                     this.triggerSubregionSelection(term);
                 } else if (type === 'locality') {
                     this.triggerLocalitySelection(term);
+                } else if (type === 'settlement') {
+                    this.triggerSettlementSelection(term);
+                }
+            }
+            
+            triggerSettlementSelection(settlementName) {
+                // Settlements use text-based search like subregions
+                const hiddenListSearch = document.getElementById('hidden-list-search');
+                if (hiddenListSearch) {
+                    hiddenListSearch.value = settlementName;
+                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                
+                if (window.mapUtilities?.toggleShowWhenFilteredElements) {
+                    window.mapUtilities.toggleShowWhenFilteredElements(true);
+                }
+                
+                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                    window.mapUtilities.toggleSidebar('Left', true);
+                }
+                
+                // Find settlement and fly to it
+                const settlement = this.data.settlements.find(s => s.name === settlementName);
+                if (window.map && settlement && settlement.lat && settlement.lng) {
+                    window.map.flyTo({
+                        center: [settlement.lng, settlement.lat],
+                        zoom: 13.5,
+                        duration: 1000,
+                        essential: true
+                    });
                 }
             }
             
@@ -864,6 +921,18 @@
                         .list-term.locality-term * { pointer-events: none; }
                         .list-term.locality-term .term-label { color: #a49c00; }
                         
+                        .list-term.settlement-term {
+                            font-weight: 500;
+                            color: #c51d3c;
+                            background-color: #fff5f5;
+                            border-left: 3px solid #c51d3c;
+                            padding: 10px 12px;
+                        }
+                        
+                        .list-term.settlement-term:hover { background-color: #ffe6e6; }
+                        .list-term.settlement-term * { pointer-events: none; }
+                        .list-term.settlement-term .term-label { color: #d63447; }
+                        
                         .locality-info {
                             flex-grow: 1;
                             display: flex;
@@ -919,10 +988,11 @@
             
             getStats() {
                 return {
-                    totalItems: this.data.districts.length + this.data.subregions.length + this.data.localities.length,
+                    totalItems: this.data.districts.length + this.data.subregions.length + this.data.localities.length + this.data.settlements.length,
                     districts: this.data.districts.length,
                     subregions: this.data.subregions.length,
                     localities: this.data.localities.length,
+                    settlements: this.data.settlements.length,
                     filteredResults: this.data.filteredResults.length,
                     cacheSize: this.cache.size
                 };
@@ -1407,7 +1477,9 @@ map.addControl(new MapResetControl(), 'top-right');
 class OptimizedMapState {
   constructor() {
     this.locationData = {type: "FeatureCollection", features: []};
+    this.settlementData = {type: "FeatureCollection", features: []};
     this.allLocalityFeatures = [];
+    this.allSettlementFeatures = [];
     this.allDistrictFeatures = [];
     this.timers = new Map();
     this.lastClickedMarker = null;
@@ -2039,6 +2111,183 @@ function getLocationData() {
   
   // Mark loading step complete
   loadingTracker.markComplete('locationDataLoaded');
+}
+
+// OPTIMIZED: Load and add settlement markers
+function loadSettlements() {
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements.geojson')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(settlementData => {
+      // Store settlement features
+      state.settlementData = settlementData;
+      state.allSettlementFeatures = settlementData.features;
+      
+      // Add settlements to map
+      addSettlementMarkers();
+      
+      console.log(`Loaded ${state.allSettlementFeatures.length} settlements`);
+    })
+    .catch(error => {
+      console.error('Failed to load settlements:', error);
+    });
+}
+
+// Add settlement markers to map
+function addSettlementMarkers() {
+  if (!state.allSettlementFeatures.length) return;
+  
+  mapLayers.addToBatch(() => {
+    if (mapLayers.hasSource('settlements-source')) {
+      map.getSource('settlements-source').setData(state.settlementData);
+    } else {
+      map.addSource('settlements-source', {
+        type: 'geojson',
+        data: state.settlementData,
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 40
+      });
+      
+      // Add clustered settlements layer
+      map.addLayer({
+        id: 'settlement-clusters',
+        type: 'symbol',
+        source: 'settlements-source',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': '{point_count_abbreviated}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': 16,
+          'text-allow-overlap': true,
+          'text-ignore-placement': true
+        },
+        paint: {
+          'text-color': '#ffffff',
+          'text-halo-color': '#c51d3c', // Red color for settlements
+          'text-halo-width': 2
+        }
+      });
+      
+      // Add individual settlement points layer
+      map.addLayer({
+        id: 'settlement-points',
+        type: 'symbol',
+        source: 'settlements-source',
+        filter: ['!', ['has', 'point_count']],
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Regular'],
+          'text-size': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 10,
+            12, 14,
+            16, 16
+          ],
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-optional': true,
+          'text-padding': 4,
+          'text-offset': [0, 1.5],
+          'text-anchor': 'top'
+        },
+        paint: {
+          'text-color': '#ffffff',
+          'text-halo-color': '#c51d3c', // Red color for settlements
+          'text-halo-width': 2,
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            isMobile ? 7.1 : 8.5, 0,
+            isMobile ? 8.1 : 9.5, 1
+          ]
+        }
+      });
+      
+      mapLayers.invalidateCache();
+    }
+  });
+  
+  setupSettlementMarkerClicks();
+}
+
+// Setup settlement marker click handlers
+function setupSettlementMarkerClicks() {
+  // Settlement point clicks
+  const settlementClickHandler = (e) => {
+    const feature = e.features[0];
+    const settlementName = feature.properties.name;
+    
+    // Prevent rapid clicks
+    const currentTime = Date.now();
+    const markerKey = `settlement-${settlementName}`;
+    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      return;
+    }
+    
+    state.markerInteractionLock = true;
+    state.lastClickedMarker = markerKey;
+    state.lastClickTime = currentTime;
+    window.isMarkerClick = true;
+    
+    removeBoundaryHighlight();
+    
+    // For settlements, we'll use the hidden-list-search for text filtering
+    const hiddenListSearch = document.getElementById('hidden-list-search');
+    if (hiddenListSearch) {
+      hiddenListSearch.value = settlementName;
+      hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
+      hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    toggleShowWhenFilteredElements(true);
+    toggleSidebar('Left', true);
+    
+    // Fly to settlement
+    map.flyTo({
+      center: feature.geometry.coordinates,
+      zoom: 13.5,
+      duration: 1000,
+      essential: true
+    });
+    
+    state.setTimer('settlementMarkerCleanup', () => {
+      window.isMarkerClick = false;
+      state.markerInteractionLock = false;
+    }, 800);
+  };
+  
+  // Cluster clicks
+  const settlementClusterClickHandler = (e) => {
+    removeBoundaryHighlight();
+    
+    const features = map.queryRenderedFeatures(e.point, {
+      layers: ['settlement-clusters']
+    });
+    
+    map.flyTo({
+      center: features[0].geometry.coordinates,
+      zoom: map.getZoom() + 2.5,
+      duration: 800
+    });
+  };
+  
+  // Add event listeners
+  map.on('click', 'settlement-points', settlementClickHandler);
+  map.on('click', 'settlement-clusters', settlementClusterClickHandler);
+  
+  // Cursor management
+  ['settlement-clusters', 'settlement-points'].forEach(layerId => {
+    map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
+  });
 }
 
 // OPTIMIZED: Native markers with batched operations
@@ -3940,6 +4189,9 @@ map.on("load", () => {
     
     // Load combined data
     state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    
+    // Load settlements
+    state.setTimer('loadSettlements', loadSettlements, 200);
     
     // Load district tags
     state.setTimer('loadDistrictTags', loadDistrictTags, 800);
