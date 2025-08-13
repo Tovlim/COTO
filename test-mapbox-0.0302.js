@@ -1542,6 +1542,9 @@ loadDataFromState() {
                     settlements: this.data.settlements.length
                 });
                 
+                // Debug: Log first few items to verify hierarchical order
+                console.log('First few subregions:', this.data.subregions.slice(0, 3).map(s => s.name));
+                
                 // If we have data, trigger a refresh of the current search
                 if (this.elements.input && this.elements.input.value) {
                     this.handleInput(this.elements.input.value);
@@ -1631,19 +1634,31 @@ loadDataFromState() {
                 
                 // 1. Show top 2-3 regions first (most important geographic areas)
                 const maxRegions = Math.min(3, this.data.regions.length);
-                results.push(...this.data.regions.slice(0, maxRegions));
+                const selectedRegions = this.data.regions.slice(0, maxRegions);
+                results.push(...selectedRegions);
                 
                 // 2. Show top 2-3 subregions (subdivisions of regions)
                 const maxSubregions = Math.min(3, this.data.subregions.length);
-                results.push(...this.data.subregions.slice(0, maxSubregions));
+                const selectedSubregions = this.data.subregions.slice(0, maxSubregions);
+                results.push(...selectedSubregions);
                 
                 // 3. Show 4-5 major localities (important cities/towns)
                 const maxLocalities = Math.min(5, this.data.localities.length);
-                results.push(...this.data.localities.slice(0, maxLocalities));
+                const selectedLocalities = this.data.localities.slice(0, maxLocalities);
+                results.push(...selectedLocalities);
                 
                 // 4. Show 2-3 settlements (smaller communities)
                 const maxSettlements = Math.min(3, this.data.settlements.length);
-                results.push(...this.data.settlements.slice(0, maxSettlements));
+                const selectedSettlements = this.data.settlements.slice(0, maxSettlements);
+                results.push(...selectedSettlements);
+                
+                // Debug: Log what we're showing
+                console.log('Hierarchical results:', {
+                    regions: selectedRegions.map(r => r.name),
+                    subregions: selectedSubregions.map(s => s.name),
+                    localities: selectedLocalities.slice(0, 2).map(l => l.name),
+                    settlements: selectedSettlements.map(s => s.name)
+                });
                 
                 this.data.filteredResults = results;
             }
@@ -2221,15 +2236,19 @@ loadDataFromState() {
             
             refresh() {
                 console.log('Refreshing autocomplete data...');
+                
+                // Clear any cached results to force fresh data
+                this.cache.clear();
+                this.data.filteredResults = [];
+                
+                // Reload data from state
                 this.loadDataFromState();
                 
                 // If dropdown is visible, update it
                 if (this.isDropdownVisible()) {
                     this.handleInput(this.elements.input.value);
-                }
-                
-                // If input is focused but empty, show all items
-                if (document.activeElement === this.elements.input && !this.elements.input.value) {
+                } else if (document.activeElement === this.elements.input && !this.elements.input.value) {
+                    // If input is focused but empty, show all items with new data
                     this.showAllItems();
                     this.renderResults();
                     if (this.data.filteredResults.length > 0) {
