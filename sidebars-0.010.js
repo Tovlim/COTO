@@ -281,6 +281,12 @@ function generateLocalityCheckboxes() {
       console.log('[DEBUG] Setting up event listeners for locality checkboxes...');
       // Set up event listeners for the new checkboxes
       setupGeneratedCheckboxEvents();
+      
+      // Refresh search script cache to include new checkboxes
+      if (window.checkboxFilterScript) {
+        console.log('[DEBUG] Refreshing search script cache for locality checkboxes...');
+        window.checkboxFilterScript.recacheElements();
+      }
     })
     .catch(error => {
       console.error('Failed to load locality data:', error);
@@ -384,6 +390,12 @@ function generateSettlementCheckboxes() {
       console.log('[DEBUG] Setting up event listeners for settlement checkboxes...');
       // Set up event listeners for the new checkboxes
       setupGeneratedCheckboxEvents();
+      
+      // Refresh search script cache to include new checkboxes
+      if (window.checkboxFilterScript) {
+        console.log('[DEBUG] Refreshing search script cache for settlement checkboxes...');
+        window.checkboxFilterScript.recacheElements();
+      }
     })
     .catch(error => {
       console.error('Failed to load settlement data:', error);
