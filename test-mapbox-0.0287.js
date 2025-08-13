@@ -2967,7 +2967,7 @@ class OptimizedMapLayers {
   
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
-    const markerLayers = ['locality-clusters', 'locality-points', 'region-points', 'settlement-clusters', 'settlement-points'];
+    const markerLayers = ['settlement-clusters', 'settlement-points', 'locality-clusters', 'locality-points', 'region-points'];
     
     // Check if all expected layers exist first
     const existingLayers = markerLayers.filter(id => this.hasLayer(id));
@@ -3556,9 +3556,14 @@ function addSettlementMarkers() {
       // Log layer order before adding settlements
       logLayerOrder('Before adding settlement layers');
       
-      // Add clustered settlements layer with new color
-      console.log('[DEBUG] Adding settlement-clusters layer without beforeId');
-      map.addLayer({
+      // Add clustered settlements layer with new color - positioned at bottom
+      console.log('[DEBUG] Adding settlement-clusters layer at bottom of stack');
+      
+      // Find the first area layer or locality layer to add before it
+      const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
+      const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
+      
+      const layerConfig = {
         id: 'settlement-clusters',
         type: 'symbol',
         source: 'settlements-source',
@@ -3569,20 +3574,31 @@ function addSettlementMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'symbol-z-order': 'source' // Render in source order
+          'symbol-sort-key': 1 // Lower than locality layers (10) to render below
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#6a7a9c', // Updated color
+          'text-halo-color': '#6a7a9c',
           'text-halo-width': 2
         }
-      }); // Add without beforeId first
+      };
       
-      console.log('[DEBUG] settlement-clusters layer added without beforeId');
+      // Add with proper beforeId positioning
+      if (firstAreaLayer) {
+        map.addLayer(layerConfig, firstAreaLayer);
+        console.log('[DEBUG] Added settlement-clusters before area layer:', firstAreaLayer);
+      } else if (mapLayers.hasLayer('locality-clusters')) {
+        map.addLayer(layerConfig, 'locality-clusters');
+        console.log('[DEBUG] Added settlement-clusters before locality-clusters');
+      } else {
+        map.addLayer(layerConfig);
+        console.log('[DEBUG] Added settlement-clusters without beforeId');
+      }
       
-      // Add individual settlement points layer with new color
-      console.log('[DEBUG] Adding settlement-points layer without beforeId');
-      map.addLayer({
+      // Add individual settlement points layer with new color - positioned at bottom
+      console.log('[DEBUG] Adding settlement-points layer at bottom of stack');
+      
+      const pointsLayerConfig = {
         id: 'settlement-points',
         type: 'symbol',
         source: 'settlements-source',
@@ -3594,9 +3610,9 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            8, 10,
-            12, 14,
-            16, 16
+            8, 8,
+            12, 10,
+            16, 12
           ],
           'text-allow-overlap': false,
           'text-ignore-placement': false,
@@ -3604,11 +3620,11 @@ function addSettlementMarkers() {
           'text-padding': 4,
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
-          'symbol-z-order': 'source' // Render in source order
+          'symbol-sort-key': 2 // Lower than locality layers (10) to render below
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#6a7a9c', // Updated color
+          'text-halo-color': '#6a7a9c',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -3618,9 +3634,21 @@ function addSettlementMarkers() {
             isMobile ? 8.1 : 9.5, 1
           ]
         }
-      }); // Add without beforeId first
+      };
       
-      console.log('[DEBUG] settlement-points layer added without beforeId');
+      // Add with proper beforeId positioning  
+      if (firstAreaLayer) {
+        map.addLayer(pointsLayerConfig, firstAreaLayer);
+        console.log('[DEBUG] Added settlement-points before area layer:', firstAreaLayer);
+      } else if (mapLayers.hasLayer('locality-clusters')) {
+        map.addLayer(pointsLayerConfig, 'locality-clusters');
+        console.log('[DEBUG] Added settlement-points before locality-clusters');
+      } else {
+        map.addLayer(pointsLayerConfig);
+        console.log('[DEBUG] Added settlement-points without beforeId');
+      }
+      
+      console.log('[DEBUG] settlement-points layer added with proper positioning');
       
       // Log final layer order after adding settlements
       logLayerOrder('After adding settlement layers');
@@ -3639,50 +3667,15 @@ function addSettlementMarkers() {
         console.error('[DEBUG] Error hiding base layers:', error);
       }
       
-      // Now move settlement layers to the bottom of the stack
-      console.log('[DEBUG] Moving settlement layers to bottom of stack');
-      try {
-        // Try to move settlements before locality-points if it exists
-        if (map.getLayer('locality-points')) {
-          console.log('[DEBUG] Moving settlement layers before locality-points');
-          if (map.getLayer('settlement-clusters')) {
-            map.moveLayer('settlement-clusters', 'locality-points');
-          }
-          if (map.getLayer('settlement-points')) {
-            map.moveLayer('settlement-points', 'locality-points');
-          }
-          logLayerOrder('After moving settlement layers before locality-points');
-        } else {
-          // Fallback: find the first non-settlement layer
-          console.log('[DEBUG] locality-points not found, finding first non-settlement layer');
-          const layers = map.getStyle().layers;
-          let targetLayer = null;
-          
-          for (const layer of layers) {
-            if (!layer.id.includes('settlement-clusters') && 
-                !layer.id.includes('settlement-points') &&
-                !layer.id.includes('background')) { // Skip background layer
-              targetLayer = layer.id;
-              break;
-            }
-          }
-          
-          if (targetLayer) {
-            console.log('[DEBUG] Moving settlement layers before:', targetLayer);
-            if (map.getLayer('settlement-clusters')) {
-              map.moveLayer('settlement-clusters', targetLayer);
-            }
-            if (map.getLayer('settlement-points')) {
-              map.moveLayer('settlement-points', targetLayer);
-            }
-            logLayerOrder('After moving settlement layers');
-          } else {
-            console.log('[DEBUG] Could not find suitable layer to move before');
-          }
-        }
-      } catch (error) {
-        console.error('[DEBUG] Error moving layers:', error);
-      }
+      // Let the optimizeLayerOrder function handle proper settlement layer positioning
+      console.log('[DEBUG] Letting optimizeLayerOrder handle settlement positioning');
+      logLayerOrder('Before optimizeLayerOrder for settlements');
+      
+      // Use a small delay to ensure all layers are added before optimization
+      setTimeout(() => {
+        mapLayers.optimizeLayerOrder();
+        logLayerOrder('After optimizeLayerOrder for settlements');
+      }, 100);
       
       mapLayers.invalidateCache();
     }
