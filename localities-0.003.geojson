@@ -887,7 +887,7 @@
       "properties": {
         "name": "Al-Mughraqa",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -951,7 +951,7 @@
       "properties": {
         "name": "Al-Zahra",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -3607,7 +3607,7 @@
       "properties": {
         "name": "Gaza",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -10155,7 +10155,7 @@
       "properties": {
         "name": "a-Shati' R.C.",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
