@@ -1626,28 +1626,26 @@ loadDataFromState() {
                     }
                 }
                 
-                const maxRegionsAndSubregions = 3;
-                const combinedRegions = [];
+                // Hierarchical display: Regions → Subregions → Localities → Settlements
+                const results = [];
                 
-                let regionIndex = 0;
-                let subregionIndex = 0;
+                // 1. Show top 2-3 regions first (most important geographic areas)
+                const maxRegions = Math.min(3, this.data.regions.length);
+                results.push(...this.data.regions.slice(0, maxRegions));
                 
-                while (combinedRegions.length < maxRegionsAndSubregions && 
-                       (regionIndex < this.data.regions.length || subregionIndex < this.data.subregions.length)) {
-                    if (regionIndex < this.data.regions.length && combinedRegions.length < maxRegionsAndSubregions) {
-                        combinedRegions.push(this.data.regions[regionIndex]);
-                        regionIndex++;
-                    }
-                    if (subregionIndex < this.data.subregions.length && combinedRegions.length < maxRegionsAndSubregions) {
-                        combinedRegions.push(this.data.subregions[subregionIndex]);
-                        subregionIndex++;
-                    }
-                }
+                // 2. Show top 2-3 subregions (subdivisions of regions)
+                const maxSubregions = Math.min(3, this.data.subregions.length);
+                results.push(...this.data.subregions.slice(0, maxSubregions));
                 
-                this.data.filteredResults = [
-                    ...combinedRegions,
-                    ...this.data.localities.slice(0, this.config.maxResults)
-                ];
+                // 3. Show 4-5 major localities (important cities/towns)
+                const maxLocalities = Math.min(5, this.data.localities.length);
+                results.push(...this.data.localities.slice(0, maxLocalities));
+                
+                // 4. Show 2-3 settlements (smaller communities)
+                const maxSettlements = Math.min(3, this.data.settlements.length);
+                results.push(...this.data.settlements.slice(0, maxSettlements));
+                
+                this.data.filteredResults = results;
             }
             
             performSearch(searchText) {
