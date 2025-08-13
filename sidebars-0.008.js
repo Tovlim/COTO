@@ -274,6 +274,9 @@ function generateLocalityCheckboxes() {
 
       // Mark DOM cache as stale since we've added new elements
       domCache.markStale();
+      
+      // Set up event listeners for the new checkboxes
+      setupGeneratedCheckboxEvents();
     })
     .catch(error => {
       console.error('Failed to load locality data:', error);
@@ -370,10 +373,43 @@ function generateSettlementCheckboxes() {
 
       // Mark DOM cache as stale since we've added new elements
       domCache.markStale();
+      
+      // Set up event listeners for the new checkboxes
+      setupGeneratedCheckboxEvents();
     })
     .catch(error => {
       console.error('Failed to load settlement data:', error);
     });
+}
+
+// Set up event listeners for dynamically generated checkboxes
+function setupGeneratedCheckboxEvents() {
+  // Find all checkboxes with data-auto-sidebar="true" that don't already have listeners
+  const autoSidebarCheckboxes = $('[data-auto-sidebar="true"]');
+  
+  autoSidebarCheckboxes.forEach(element => {
+    // Skip if already has event listener
+    if (element.dataset.eventListenerAdded === 'true') return;
+    
+    // Add change event listener
+    eventManager.add(element, 'change', () => {
+      if (window.innerWidth > 991) {
+        state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+      }
+    });
+    
+    // Add input event listener for text/search inputs
+    if (['text', 'search'].includes(element.type)) {
+      eventManager.add(element, 'input', () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      });
+    }
+    
+    // Mark as having event listener
+    element.dataset.eventListenerAdded = 'true';
+  });
 }
 
 // ========================
