@@ -3292,8 +3292,10 @@ function selectSettlementCheckbox(settlementName) {
     }
   });
 }
+// REMOVE or comment out this entire function - no longer needed
+// function loadRegionsFromGeoJSON() { ... }
 
-// NEW: Load localities from GeoJSON
+// MODIFY loadLocalitiesFromGeoJSON to also extract regions
 function loadLocalitiesFromGeoJSON() {
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.001.geojson')
     .then(response => {
@@ -3307,26 +3309,68 @@ function loadLocalitiesFromGeoJSON() {
       state.locationData = localityData;
       state.allLocalityFeatures = localityData.features;
       
+      // Extract unique regions from localities with their coordinates
+      const regionMap = new Map();
+      
+      localityData.features.forEach(feature => {
+        const regionName = feature.properties.region;
+        if (regionName && !regionMap.has(regionName)) {
+          // For each region, collect all localities to calculate centroid
+          regionMap.set(regionName, []);
+        }
+        if (regionName) {
+          regionMap.get(regionName).push(feature.geometry.coordinates);
+        }
+      });
+      
+      // Create region features from the extracted data
+      state.allRegionFeatures = Array.from(regionMap.entries()).map(([regionName, coordinates]) => {
+        // Calculate centroid of all localities in this region
+        let totalLat = 0, totalLng = 0;
+        coordinates.forEach(coord => {
+          totalLng += coord[0];
+          totalLat += coord[1];
+        });
+        
+        return {
+          type: "Feature",
+          properties: {
+            name: regionName
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
+          }
+        };
+      });
+      
       // Add localities to map
       addNativeMarkers();
       
-      // Generate locality checkboxes
+      // Add region markers to map
+      addNativeRegionMarkers();
+      
+      // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
+      state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
       
       console.log(`Loaded ${state.allLocalityFeatures.length} localities from GeoJSON`);
+      console.log(`Extracted ${state.allRegionFeatures.length} regions from localities`);
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
         state.setTimer('refreshAutocompleteAfterLocalities', window.refreshAutocomplete, 1000);
       }
       
-      // Mark loading step complete
+      // Mark loading steps complete
       loadingTracker.markComplete('localitiesLoaded');
+      loadingTracker.markComplete('regionsLoaded');
       loadingTracker.markComplete('locationDataLoaded');
     })
     .catch(error => {
       console.error('Failed to load localities:', error);
       loadingTracker.markComplete('localitiesLoaded');
+      loadingTracker.markComplete('regionsLoaded');
       loadingTracker.markComplete('locationDataLoaded');
     });
 }
