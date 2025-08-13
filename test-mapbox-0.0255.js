@@ -932,15 +932,19 @@
                         
                         .list-term.settlement-term {
                             font-weight: 500;
-                            color: #c51d3c;
-                            background-color: #fff5f5;
-                            border-left: 3px solid #c51d3c;
+                            color: #6a7a9c;
+                            background-color: #f5f7fa;
+                            border-left: 3px solid #6a7a9c;
                             padding: 10px 12px;
                         }
                         
-                        .list-term.settlement-term:hover { background-color: #ffe6e6; }
+                        .list-term.settlement-term:hover { background-color: #e8ecf2; }
                         .list-term.settlement-term * { pointer-events: none; }
-                        .list-term.settlement-term .term-label { color: #d63447; }
+                        .list-term.settlement-term .term-label { color: #6a7a9c; }
+                        
+                        .list-term.settlement-term .locality-name {
+                            color: #6a7a9c;
+                        }
                         
                         .locality-info {
                             flex-grow: 1;
@@ -1692,7 +1696,7 @@ class OptimizedMapLayers {
   
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
-    const markerLayers = ['locality-clusters', 'locality-points', 'district-points'];
+    const markerLayers = ['locality-clusters', 'locality-points', 'district-points', 'settlement-clusters', 'settlement-points'];
     const currentOrder = this.map.getStyle().layers.map(l => l.id);
     
     // Check if reordering is needed
@@ -1922,15 +1926,16 @@ const toggleShowWhenFilteredElements = show => {
   });
 };
 
-// OPTIMIZED: Checkbox selection functions with batched operations
+// FIXED: Checkbox selection functions with proper settlement unchecking
 function selectDistrictCheckbox(districtName) {
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
+  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
   // Batch checkbox operations
   requestAnimationFrame(() => {
-    // Clear all checkboxes first (batch operation)
-    [...districtCheckboxes, ...localityCheckboxes].forEach(checkbox => {
+    // Clear all checkboxes first (including settlements)
+    [...districtCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
       if (checkbox.checked) {
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -1964,11 +1969,12 @@ function selectDistrictCheckbox(districtName) {
 function selectLocalityCheckbox(localityName) {
   const districtCheckboxes = $('[checkbox-filter="district"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
+  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
   // Batch checkbox operations
   requestAnimationFrame(() => {
-    // Clear all checkboxes first
-    [...districtCheckboxes, ...localityCheckboxes].forEach(checkbox => {
+    // Clear all checkboxes first (including settlements)
+    [...districtCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
       if (checkbox.checked) {
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -2161,7 +2167,7 @@ function getLocationData() {
   loadingTracker.markComplete('locationDataLoaded');
 }
 
-// OPTIMIZED: Load and add settlement markers
+// OPTIMIZED: Load and add settlement markers with new color
 function loadSettlements() {
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements.geojson')
     .then(response => {
@@ -2188,7 +2194,7 @@ function loadSettlements() {
     });
 }
 
-// Add settlement markers to map
+// Add settlement markers to map with updated color
 function addSettlementMarkers() {
   if (!state.allSettlementFeatures.length) return;
   
@@ -2204,7 +2210,7 @@ function addSettlementMarkers() {
         clusterRadius: 40
       });
       
-      // Add clustered settlements layer
+      // Add clustered settlements layer with new color
       map.addLayer({
         id: 'settlement-clusters',
         type: 'symbol',
@@ -2219,12 +2225,12 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#c51d3c', // Red color for settlements
+          'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2
         }
       });
       
-      // Add individual settlement points layer
+      // Add individual settlement points layer with new color
       map.addLayer({
         id: 'settlement-points',
         type: 'symbol',
@@ -2250,7 +2256,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#c51d3c', // Red color for settlements
+          'text-halo-color': '#6a7a9c', // Updated color
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -3552,6 +3558,13 @@ function setupDeferredAreaControls() {
         type: 'locality',
         layers: ['locality-clusters', 'locality-points'],
         label: 'Locality Markers'
+      },
+      {
+        keyId: 'settlement-toggle-key', 
+        wrapId: 'settlement-toggle-key-wrap',
+        type: 'settlement',
+        layers: ['settlement-clusters', 'settlement-points'],
+        label: 'Settlement Markers'
       }
     ];
     
@@ -3623,6 +3636,12 @@ function setupDeferredAreaControls() {
                 map.setLayoutProperty(layerId, 'visibility', visibility);
               }
             });
+          } else if (control.type === 'settlement') {
+            control.layers.forEach(layerId => {
+              if (mapLayers.hasLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+              }
+            });
           }
         };
         
@@ -3656,6 +3675,13 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('locality-points')) {
               map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
             }
+          } else if (control.type === 'settlement') {
+            if (mapLayers.hasLayer('settlement-clusters')) {
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#8896b8');
+            }
+            if (mapLayers.hasLayer('settlement-points')) {
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#8896b8');
+            }
           }
         };
         
@@ -3683,6 +3709,13 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('locality-points')) {
               map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
             }
+          } else if (control.type === 'settlement') {
+            if (mapLayers.hasLayer('settlement-clusters')) {
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#6a7a9c');
+            }
+            if (mapLayers.hasLayer('settlement-points')) {
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#6a7a9c');
+            }
           }
         };
         
@@ -3706,188 +3739,6 @@ function setupDeferredAreaControls() {
     requestIdleCallback(loadAreaControls, { timeout: 3000 });
   } else {
     setTimeout(loadAreaControls, 2000);
-  }
-}
-
-// OPTIMIZED: Area key controls with better performance (OLD - REMOVED)
-function setupAreaKeyControls() {
-  if (state.flags.areaControlsSetup) return;
-  
-  const areaControls = [
-    {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
-    {keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap'},
-    {keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap'},
-    {keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap'}
-  ];
-  
-  const markerControls = [
-    {
-      keyId: 'district-toggle-key', 
-      wrapId: 'district-toggle-key-wrap',
-      type: 'district',
-      layers: ['district-points'],
-      label: 'District Markers & Boundaries'
-    },
-    {
-      keyId: 'locality-toggle-key', 
-      wrapId: 'locality-toggle-key-wrap',
-      type: 'locality',
-      layers: ['locality-clusters', 'locality-points'],
-      label: 'Locality Markers'
-    }
-  ];
-  
-  let areaSetupCount = 0;
-  let markerSetupCount = 0;
-  
-  // Setup area controls
-  areaControls.forEach(control => {
-    const checkbox = $id(control.keyId);
-    if (!checkbox) return;
-    
-    checkbox.checked = false;
-    
-    if (!checkbox.dataset.mapboxListenerAdded) {
-      eventManager.add(checkbox, 'change', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
-        
-        const visibility = checkbox.checked ? 'none' : 'visible';
-        map.setLayoutProperty(control.layerId, 'visibility', visibility);
-      });
-      checkbox.dataset.mapboxListenerAdded = 'true';
-    }
-    
-    const wrapperDiv = $id(control.wrapId);
-    if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
-      eventManager.add(wrapperDiv, 'mouseenter', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
-      });
-      
-      eventManager.add(wrapperDiv, 'mouseleave', () => {
-        if (!mapLayers.hasLayer(control.layerId)) return;
-        map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
-      });
-      
-      wrapperDiv.dataset.mapboxHoverAdded = 'true';
-    }
-    
-    areaSetupCount++;
-  });
-  
-  // Setup marker controls with direct DOM listeners (keeping highlighting for toggle key)
-  markerControls.forEach(control => {
-    const checkbox = $id(control.keyId);
-    if (!checkbox) return;
-    
-    checkbox.checked = false;
-    
-    if (!checkbox.dataset.mapboxListenerAdded) {
-      // Use direct DOM event listeners for marker controls
-      const changeHandler = (e) => {
-        const visibility = e.target.checked ? 'none' : 'visible';
-        
-        if (control.type === 'district') {
-          // Handle district markers
-          control.layers.forEach(layerId => {
-            if (mapLayers.hasLayer(layerId)) {
-              map.setLayoutProperty(layerId, 'visibility', visibility);
-            }
-          });
-          
-          // Handle district boundaries
-          const allLayers = map.getStyle().layers;
-          allLayers.forEach(layer => {
-            if (layer.id.includes('-fill') || layer.id.includes('-border')) {
-              map.setLayoutProperty(layer.id, 'visibility', visibility);
-            }
-          });
-          
-        } else if (control.type === 'locality') {
-          // Handle locality markers
-          control.layers.forEach(layerId => {
-            if (mapLayers.hasLayer(layerId)) {
-              map.setLayoutProperty(layerId, 'visibility', visibility);
-            }
-          });
-        }
-      };
-      
-      checkbox.addEventListener('change', changeHandler);
-      checkbox.dataset.mapboxListenerAdded = 'true';
-    }
-    
-    const wrapperDiv = $id(control.wrapId);
-    if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
-      // Use direct DOM event listeners for marker control hovers (keeping highlighting)
-      const mouseEnterHandler = () => {
-        if (control.type === 'district') {
-          if (mapLayers.hasLayer('district-points')) {
-            map.setPaintProperty('district-points', 'text-halo-color', '#8f4500');
-          }
-          
-          const allLayers = map.getStyle().layers;
-          allLayers.forEach(layer => {
-            if (layer.id.includes('-fill')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-              map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
-            }
-            if (layer.id.includes('-border')) {
-              map.setPaintProperty(layer.id, 'line-color', '#6e3500');
-              map.setPaintProperty(layer.id, 'line-opacity', 0.6);
-            }
-          });
-        } else if (control.type === 'locality') {
-          if (mapLayers.hasLayer('locality-clusters')) {
-            map.setPaintProperty('locality-clusters', 'text-halo-color', '#a49c00');
-          }
-          if (mapLayers.hasLayer('locality-points')) {
-            map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
-          }
-        }
-      };
-      
-      const mouseLeaveHandler = () => {
-        if (control.type === 'district') {
-          if (mapLayers.hasLayer('district-points')) {
-            map.setPaintProperty('district-points', 'text-halo-color', '#6e3500');
-          }
-          
-          const allLayers = map.getStyle().layers;
-          allLayers.forEach(layer => {
-            if (layer.id.includes('-fill')) {
-              map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
-              map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
-            }
-            if (layer.id.includes('-border')) {
-              map.setPaintProperty(layer.id, 'line-color', '#888888');
-              map.setPaintProperty(layer.id, 'line-opacity', 0.4);
-            }
-          });
-        } else if (control.type === 'locality') {
-          if (mapLayers.hasLayer('locality-clusters')) {
-            map.setPaintProperty('locality-clusters', 'text-halo-color', '#7e7800');
-          }
-          if (mapLayers.hasLayer('locality-points')) {
-            map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
-          }
-        }
-      };
-      
-      wrapperDiv.addEventListener('mouseenter', mouseEnterHandler);
-      wrapperDiv.addEventListener('mouseleave', mouseLeaveHandler);
-      wrapperDiv.dataset.mapboxHoverAdded = 'true';
-    }
-    
-    markerSetupCount++;
-  });
-  
-  // Mark as complete if we got most controls
-  if (areaSetupCount >= areaControls.length - 1 && markerSetupCount >= markerControls.length - 1) {
-    state.flags.areaControlsSetup = true;
-    
-    // Mark loading step complete
-    loadingTracker.markComplete('controlsSetup');
   }
 }
 
