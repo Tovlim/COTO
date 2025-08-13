@@ -747,17 +747,28 @@ function generateRegionCheckboxes() {
   // Extract unique region names
   const regionNames = [...new Set(state.allRegionFeatures.map(feature => feature.properties.name))].sort();
   
-  if (regionNames.length === 0) {
+  // Extract unique subregion names
+  const subregionNames = state.allSubregionFeatures ? 
+    [...new Set(state.allSubregionFeatures.map(feature => feature.properties.name))].sort() : [];
+  
+  if (regionNames.length === 0 && subregionNames.length === 0) {
     return;
   }
   
+  // Combine both lists for alphabetical display
+  const allItems = [
+    ...regionNames.map(name => ({ name, type: 'region' })),
+    ...subregionNames.map(name => ({ name, type: 'subregion' }))
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  
   // Batch generate checkboxes using document fragment
   const fragment = document.createDocumentFragment();
-  regionNames.forEach(regionName => {
+  allItems.forEach(item => {
     // Create the wrapper div
     const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'region');
-    wrapperDiv.className = 'checbox-item';
+    wrapperDiv.setAttribute('checkbox-filter', item.type);
+    wrapperDiv.setAttribute('role', 'listitem');
+    wrapperDiv.className = 'collection-item-3 w-dyn-item';
     
     // Create the label
     const label = document.createElement('label');
@@ -770,22 +781,22 @@ function generateRegionCheckboxes() {
     // Create the actual input
     const input = document.createElement('input');
     input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', regionName);
-    input.setAttribute('fs-list-field', 'Region');
+    input.setAttribute('fs-list-value', item.name);
+    input.setAttribute('fs-list-field', item.type === 'region' ? 'Region' : 'SubRegion');
     input.type = 'checkbox';
-    input.name = 'region';
-    input.setAttribute('data-name', 'region');
+    input.name = item.type;
+    input.setAttribute('data-name', item.type);
     input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `region-${regionName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.id = item.type;
     input.style.opacity = '0';
     input.style.position = 'absolute';
     input.style.zIndex = '-1';
     
     // Create the span label
     const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = regionName;
+    span.className = 'checkbox-text w-form-label';
+    span.setAttribute('for', item.type);
+    span.textContent = item.name;
     
     // Create the count div structure
     const countWrapper = document.createElement('div');
@@ -819,92 +830,6 @@ function generateRegionCheckboxes() {
   domCache.markStale();
 }
 
-// Generate subregion checkboxes from map data
-function generateSubregionCheckboxes() {
-  const container = $id('subregion-check-list');
-  if (!container) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Extract unique subregion names
-  const subregionNames = [...new Set(state.allSubregionFeatures.map(feature => feature.properties.name))].sort();
-  
-  if (subregionNames.length === 0) {
-    return;
-  }
-  
-  // Batch generate checkboxes using document fragment
-  const fragment = document.createDocumentFragment();
-  subregionNames.forEach(subregionName => {
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'subregion');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', subregionName);
-    input.setAttribute('fs-list-field', 'SubRegion');
-    input.type = 'checkbox';
-    input.name = 'subregion';
-    input.setAttribute('data-name', 'subregion');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `subregion-${subregionName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    
-    // Style the input
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = subregionName;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    fragment.appendChild(wrapperDiv);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  });
-  
-  container.appendChild(fragment);
-  
-  // Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterSubregionGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
-  domCache.markStale();
-}
 
 // OPTIMIZED: Setup events for generated checkboxes with better performance
 function setupCheckboxEvents(checkboxContainer) {
@@ -3537,8 +3462,6 @@ function loadLocalitiesFromGeoJSON() {
       // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
-      // Generate subregion checkboxes:
-      state.setTimer('generateSubregionCheckboxes', generateSubregionCheckboxes, 500);
       
       console.log(`Loaded ${state.allLocalityFeatures.length} localities from GeoJSON`);
       console.log(`Extracted ${state.allRegionFeatures.length} regions from localities`);
