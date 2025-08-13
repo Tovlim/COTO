@@ -819,6 +819,93 @@ function generateRegionCheckboxes() {
   domCache.markStale();
 }
 
+// Generate subregion checkboxes from map data
+function generateSubregionCheckboxes() {
+  const container = $id('subregion-check-list');
+  if (!container) {
+    return;
+  }
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Extract unique subregion names
+  const subregionNames = [...new Set(state.allSubregionFeatures.map(feature => feature.properties.name))].sort();
+  
+  if (subregionNames.length === 0) {
+    return;
+  }
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  subregionNames.forEach(subregionName => {
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'subregion');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', subregionName);
+    input.setAttribute('fs-list-field', 'SubRegion');
+    input.type = 'checkbox';
+    input.name = 'subregion';
+    input.setAttribute('data-name', 'subregion');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `subregion-${subregionName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    
+    // Style the input
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = subregionName;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    fragment.appendChild(wrapperDiv);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  });
+  
+  container.appendChild(fragment);
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterSubregionGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
 // OPTIMIZED: Setup events for generated checkboxes with better performance
 function setupCheckboxEvents(checkboxContainer) {
   // Handle data-auto-sidebar="true"
@@ -1117,6 +1204,7 @@ window.addEventListener('load', () => {
 function setupGlobalExports() {
   // Make functions available globally for autocomplete integration
   window.selectRegionCheckbox = selectRegionCheckbox;
+  window.selectSubregionCheckbox = selectSubregionCheckbox;
   window.selectLocalityCheckbox = selectLocalityCheckbox;
   window.selectSettlementCheckbox = selectSettlementCheckbox;
   window.applyFilterToMarkers = applyFilterToMarkers;
@@ -1947,12 +2035,15 @@ loadDataFromState() {
             }
             
             triggerSubregionSelection(subregionName) {
-                // Subregions use text-based search, not checkbox selection
-                const hiddenListSearch = document.getElementById('hidden-list-search');
-                if (hiddenListSearch) {
-                    hiddenListSearch.value = subregionName;
-                    hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-                    hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
+                window.isMarkerClick = true;
+                
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    window.mapUtilities.state.markerInteractionLock = false;
+                }
+                
+                // Use checkbox selection like regions do
+                if (window.selectSubregionCheckbox) {
+                    window.selectSubregionCheckbox(subregionName);
                 }
                 
                 if (window.mapUtilities?.toggleShowWhenFilteredElements) {
@@ -1980,6 +2071,10 @@ loadDataFromState() {
                         }
                     }
                 }, 100);
+                
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                }, 800);
             }
             
             triggerLocalitySelection(localityName) {
@@ -3229,6 +3324,46 @@ function selectRegionCheckbox(regionName) {
   });
 }
 
+function selectSubregionCheckbox(subregionName) {
+  const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
+  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
+  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
+  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
+  
+  // Batch checkbox operations
+  requestAnimationFrame(() => {
+    // Clear all checkboxes first (including settlements)
+    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+      if (checkbox.checked) {
+        checkbox.checked = false;
+        utils.triggerEvent(checkbox, ['change', 'input']);
+        
+        const form = checkbox.closest('form');
+        if (form) {
+          form.dispatchEvent(new Event('change', {bubbles: true}));
+          form.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+      }
+    });
+    
+    // Find and check the target subregion checkbox
+    const targetCheckbox = subregionCheckboxes.find(checkbox => 
+      checkbox.getAttribute('fs-list-value') === subregionName
+    );
+    
+    if (targetCheckbox) {
+      targetCheckbox.checked = true;
+      utils.triggerEvent(targetCheckbox, ['change', 'input']);
+      
+      const form = targetCheckbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    }
+  });
+}
+
 function selectLocalityCheckbox(localityName) {
   const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
@@ -3402,8 +3537,8 @@ function loadLocalitiesFromGeoJSON() {
       // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
-      // If you want subregion checkboxes:
-      // state.setTimer('generateSubregionCheckboxes', generateSubregionCheckboxes, 500);
+      // Generate subregion checkboxes:
+      state.setTimer('generateSubregionCheckboxes', generateSubregionCheckboxes, 500);
       
       console.log(`Loaded ${state.allLocalityFeatures.length} localities from GeoJSON`);
       console.log(`Extracted ${state.allRegionFeatures.length} regions from localities`);
@@ -3952,13 +4087,8 @@ function setupSubregionMarkerClicks() {
     state.lastClickTime = currentTime;
     window.isMarkerClick = true;
     
-    // Subregions use text-based search (like in autocomplete)
-    const hiddenListSearch = document.getElementById('hidden-list-search');
-    if (hiddenListSearch) {
-      hiddenListSearch.value = subregionName;
-      hiddenListSearch.dispatchEvent(new Event('input', { bubbles: true }));
-      hiddenListSearch.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    // Use checkbox selection like regions do
+    selectSubregionCheckbox(subregionName);
     
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
@@ -4013,6 +4143,7 @@ function applyFilterToMarkers(shouldReframe = true) {
   
   // Get checked checkboxes
   const checkedRegions = $('[checkbox-filter="region"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
+  const checkedSubregions = $('[checkbox-filter="subregion"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
   const checkedLocalities = $('[checkbox-filter="locality"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
   const checkedSettlements = $('[checkbox-filter="settlement"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
   
@@ -4022,6 +4153,20 @@ function applyFilterToMarkers(shouldReframe = true) {
   if (checkedLocalities.length > 0) {
     const filteredLocalities = state.allLocalityFeatures.filter(f => 
       checkedLocalities.includes(f.properties.name)
+    );
+    
+    if (mapLayers.hasSource('localities-source')) {
+      map.getSource('localities-source').setData({
+        type: "FeatureCollection",
+        features: filteredLocalities
+      });
+    }
+    
+    visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
+  } else if (checkedSubregions.length > 0) {
+    // Filter by subregion
+    const filteredLocalities = state.allLocalityFeatures.filter(f => 
+      checkedSubregions.includes(f.properties.subRegion)
     );
     
     if (mapLayers.hasSource('localities-source')) {
