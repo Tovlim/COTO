@@ -987,7 +987,6 @@ const monitorTags = (() => {
 function init() {
   // Core initialization (parallel where possible)
   loadLocalitiesFromGeoJSON();
-  loadRegionsFromGeoJSON();
   setupEvents();
   
   // Layer optimization
@@ -3329,41 +3328,6 @@ function loadLocalitiesFromGeoJSON() {
       console.error('Failed to load localities:', error);
       loadingTracker.markComplete('localitiesLoaded');
       loadingTracker.markComplete('locationDataLoaded');
-    });
-}
-
-// NEW: Load regions from GeoJSON
-function loadRegionsFromGeoJSON() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/regions.geojson')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(regionData => {
-      // Store region features
-      state.allRegionFeatures = regionData.features;
-      
-      // Add region markers to map
-      addNativeRegionMarkers();
-      
-      // Generate region checkboxes
-      state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
-      
-      console.log(`Loaded ${state.allRegionFeatures.length} regions from GeoJSON`);
-      
-      // Refresh autocomplete if it exists
-      if (window.refreshAutocomplete) {
-        state.setTimer('refreshAutocompleteAfterRegions', window.refreshAutocomplete, 1000);
-      }
-      
-      // Mark loading step complete
-      loadingTracker.markComplete('regionsLoaded');
-    })
-    .catch(error => {
-      console.error('Failed to load regions:', error);
-      loadingTracker.markComplete('regionsLoaded');
     });
 }
 
