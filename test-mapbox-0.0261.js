@@ -244,10 +244,9 @@ function addRegionBoundaryToMap(name, regionFeature) {
   // Get layer positioning
   const areaLayers = ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'];
   const firstAreaLayer = areaLayers.find(layerId => mapLayers.hasLayer(layerId));
-  const beforeId = firstAreaLayer || 'locality-clusters';
   
-  // Add fill layer
-  map.addLayer({
+  // Don't specify beforeId if the layer doesn't exist yet
+  const layerConfig = {
     id: boundary.fillId,
     type: 'fill',
     source: boundary.sourceId,
@@ -256,10 +255,19 @@ function addRegionBoundaryToMap(name, regionFeature) {
       'fill-color': '#1a1b1e',
       'fill-opacity': 0.15
     }
-  }, beforeId);
+  };
+  
+  // Only add beforeId if the layer exists
+  if (firstAreaLayer) {
+    map.addLayer(layerConfig, firstAreaLayer);
+  } else if (mapLayers.hasLayer('locality-clusters')) {
+    map.addLayer(layerConfig, 'locality-clusters');
+  } else {
+    map.addLayer(layerConfig);
+  }
   
   // Add border layer
-  map.addLayer({
+  const borderConfig = {
     id: boundary.borderId,
     type: 'line',
     source: boundary.sourceId,
@@ -269,7 +277,16 @@ function addRegionBoundaryToMap(name, regionFeature) {
       'line-width': 1,
       'line-opacity': 0.4
     }
-  }, beforeId);
+  };
+  
+  // Only add beforeId if the layer exists
+  if (firstAreaLayer) {
+    map.addLayer(borderConfig, firstAreaLayer);
+  } else if (mapLayers.hasLayer('locality-clusters')) {
+    map.addLayer(borderConfig, 'locality-clusters');
+  } else {
+    map.addLayer(borderConfig);
+  }
   
   // Update cache
   mapLayers.sourceCache.set(boundary.sourceId, true);
@@ -309,8 +326,7 @@ function addAreaOverlayToMap(name, areaFeature) {
   });
   
   // Add layer
-  const beforeId = 'locality-clusters';
-  map.addLayer({
+  const layerConfig = {
     id: config.layerId,
     type: 'fill',
     source: config.sourceId,
@@ -320,7 +336,14 @@ function addAreaOverlayToMap(name, areaFeature) {
       'fill-opacity': 0.5,
       'fill-outline-color': config.color
     }
-  }, beforeId);
+  };
+  
+  // Only add beforeId if the layer exists
+  if (mapLayers.hasLayer('locality-clusters')) {
+    map.addLayer(layerConfig, 'locality-clusters');
+  } else {
+    map.addLayer(layerConfig);
+  }
   
   // Update cache
   mapLayers.sourceCache.set(config.sourceId, true);
@@ -1286,12 +1309,32 @@ window.addEventListener('beforeunload', () => {
             
             waitForData() {
                 // Check if data is already loaded
-                if (window.mapUtilities && window.mapUtilities.state) {
-                    this.loadDataFromState();
-                } else {
-                    // Wait for data to be loaded
-                    setTimeout(() => this.waitForData(), 100);
-                }
+                const checkData = () => {
+                    if (window.mapUtilities && window.mapUtilities.state) {
+                        const state = window.mapUtilities.state;
+                        // Wait for actual data to be loaded
+                        if (state.allLocalityFeatures.length > 0 || 
+                            state.allRegionFeatures.length > 0 || 
+                            state.allSettlementFeatures.length > 0) {
+                            this.loadDataFromState();
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                
+                // Check immediately
+                if (checkData()) return;
+                
+                // Otherwise wait and retry
+                const retryInterval = setInterval(() => {
+                    if (checkData()) {
+                        clearInterval(retryInterval);
+                    }
+                }, 500);
+                
+                // Stop trying after 30 seconds
+                setTimeout(() => clearInterval(retryInterval), 30000);
             }
             
             loadDataFromState() {
@@ -2754,11 +2797,15 @@ class OptimizedMapLayers {
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
     const markerLayers = ['locality-clusters', 'locality-points', 'region-points', 'settlement-clusters', 'settlement-points'];
+    
+    // Check if all expected layers exist first
+    const existingLayers = markerLayers.filter(id => this.hasLayer(id));
+    if (existingLayers.length === 0) return;
+    
     const currentOrder = this.map.getStyle().layers.map(l => l.id);
     
     // Check if reordering is needed
-    const markerIndices = markerLayers
-      .filter(id => this.hasLayer(id))
+    const markerIndices = existingLayers
       .map(id => currentOrder.indexOf(id));
       
     const needsReorder = markerIndices.some((index, i) => {
@@ -2766,18 +2813,16 @@ class OptimizedMapLayers {
     });
     
     if (needsReorder) {
-      markerLayers.forEach(layerId => {
-        if (this.hasLayer(layerId)) {
-          try {
-            const layer = this.map.getStyle().layers.find(l => l.id === layerId);
-            if (layer) {
-              this.map.removeLayer(layerId);
-              this.map.addLayer(layer);
-              this.layerCache.delete(layerId); // Invalidate cache
-            }
-          } catch (e) {
-            // Silent error handling in production
+      existingLayers.forEach(layerId => {
+        try {
+          const layer = this.map.getStyle().layers.find(l => l.id === layerId);
+          if (layer) {
+            this.map.removeLayer(layerId);
+            this.map.addLayer(layer);
+            this.layerCache.delete(layerId); // Invalidate cache
           }
+        } catch (e) {
+          // Silent error handling in production
         }
       });
     }
@@ -3124,6 +3169,11 @@ function loadLocalitiesFromGeoJSON() {
       
       console.log(`Loaded ${state.allLocalityFeatures.length} localities from GeoJSON`);
       
+      // Refresh autocomplete if it exists
+      if (window.refreshAutocomplete) {
+        state.setTimer('refreshAutocompleteAfterLocalities', window.refreshAutocomplete, 1000);
+      }
+      
       // Mark loading step complete
       loadingTracker.markComplete('localitiesLoaded');
       loadingTracker.markComplete('locationDataLoaded');
@@ -3155,6 +3205,11 @@ function loadRegionsFromGeoJSON() {
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
       
       console.log(`Loaded ${state.allRegionFeatures.length} regions from GeoJSON`);
+      
+      // Refresh autocomplete if it exists
+      if (window.refreshAutocomplete) {
+        state.setTimer('refreshAutocompleteAfterRegions', window.refreshAutocomplete, 1000);
+      }
       
       // Mark loading step complete
       loadingTracker.markComplete('regionsLoaded');
