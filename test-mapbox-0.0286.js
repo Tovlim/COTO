@@ -3569,7 +3569,7 @@ function addSettlementMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'symbol-sort-key': 1 // Lower values render first (behind)
+          'symbol-z-order': 'source' // Render in source order
         },
         paint: {
           'text-color': '#ffffff',
@@ -3604,7 +3604,7 @@ function addSettlementMarkers() {
           'text-padding': 4,
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
-          'symbol-sort-key': 1 // Lower values render first (behind)
+          'symbol-z-order': 'source' // Render in source order
         },
         paint: {
           'text-color': '#ffffff',
@@ -3624,6 +3624,20 @@ function addSettlementMarkers() {
       
       // Log final layer order after adding settlements
       logLayerOrder('After adding settlement layers');
+      
+      // Hide Mapbox base map settlement layers first
+      console.log('[DEBUG] Hiding base map settlement layers');
+      try {
+        const baseSettlementLayers = ['settlement-subdivision-label', 'settlement-minor-label', 'settlement-major-label'];
+        baseSettlementLayers.forEach(layerId => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', 'none');
+            console.log('[DEBUG] Hid base layer:', layerId);
+          }
+        });
+      } catch (error) {
+        console.error('[DEBUG] Error hiding base layers:', error);
+      }
       
       // Now move settlement layers to the bottom of the stack
       console.log('[DEBUG] Moving settlement layers to bottom of stack');
