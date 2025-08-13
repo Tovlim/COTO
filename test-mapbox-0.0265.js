@@ -2661,6 +2661,7 @@ class OptimizedMapState {
     this.allLocalityFeatures = [];
     this.allSettlementFeatures = [];
     this.allRegionFeatures = [];
+    this.allSubregionFeatures = []; // ADD THIS LINE
     this.timers = new Map();
     this.lastClickedMarker = null;
     this.lastClickTime = 0;
@@ -3291,8 +3292,7 @@ function selectSettlementCheckbox(settlementName) {
     }
   });
 }
-
-// MODIFY loadLocalitiesFromGeoJSON to also extract regions
+// MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.001.geojson')
     .then(response => {
@@ -3308,15 +3308,27 @@ function loadLocalitiesFromGeoJSON() {
       
       // Extract unique regions from localities with their coordinates
       const regionMap = new Map();
+      // Extract unique subregions from localities with their coordinates
+      const subregionMap = new Map();
       
       localityData.features.forEach(feature => {
         const regionName = feature.properties.region;
+        const subregionName = feature.properties.subRegion;
+        
+        // Process regions
         if (regionName && !regionMap.has(regionName)) {
-          // For each region, collect all localities to calculate centroid
           regionMap.set(regionName, []);
         }
         if (regionName) {
           regionMap.get(regionName).push(feature.geometry.coordinates);
+        }
+        
+        // Process subregions
+        if (subregionName && !subregionMap.has(subregionName)) {
+          subregionMap.set(subregionName, []);
+        }
+        if (subregionName) {
+          subregionMap.get(subregionName).push(feature.geometry.coordinates);
         }
       });
       
@@ -3332,7 +3344,30 @@ function loadLocalitiesFromGeoJSON() {
         return {
           type: "Feature",
           properties: {
-            name: regionName
+            name: regionName,
+            type: "region"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
+          }
+        };
+      });
+      
+      // Create subregion features from the extracted data
+      state.allSubregionFeatures = Array.from(subregionMap.entries()).map(([subregionName, coordinates]) => {
+        // Calculate centroid of all localities in this subregion
+        let totalLat = 0, totalLng = 0;
+        coordinates.forEach(coord => {
+          totalLng += coord[0];
+          totalLat += coord[1];
+        });
+        
+        return {
+          type: "Feature",
+          properties: {
+            name: subregionName,
+            type: "subregion"
           },
           geometry: {
             type: "Point",
@@ -3347,12 +3382,18 @@ function loadLocalitiesFromGeoJSON() {
       // Add region markers to map
       addNativeRegionMarkers();
       
+      // Add subregion markers to map (if you want them on the map)
+      // addNativeSubregionMarkers(); // You can create this function if you want subregion markers on the map
+      
       // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
+      // If you want subregion checkboxes:
+      // state.setTimer('generateSubregionCheckboxes', generateSubregionCheckboxes, 500);
       
       console.log(`Loaded ${state.allLocalityFeatures.length} localities from GeoJSON`);
       console.log(`Extracted ${state.allRegionFeatures.length} regions from localities`);
+      console.log(`Extracted ${state.allSubregionFeatures.length} subregions from localities`);
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
