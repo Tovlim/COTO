@@ -4158,9 +4158,12 @@ function setupSubregionMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // Fly to subregion center
+    // Get fresh coordinates from the clicked feature
+    const coords = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
+    
+    // Fly to subregion center using fresh coordinates
     map.flyTo({
-      center: feature.geometry.coordinates,
+      center: coords,
       zoom: 10.5,
       duration: 1000,
       essential: true
