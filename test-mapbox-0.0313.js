@@ -2002,6 +2002,7 @@ loadDataFromState() {
             }
             
             triggerSubregionSelection(subregionName) {
+                console.log('[DEBUG] triggerSubregionSelection called for:', subregionName);
                 window.isMarkerClick = true;
                 
                 if (window.mapUtilities && window.mapUtilities.state) {
@@ -2010,6 +2011,7 @@ loadDataFromState() {
                 
                 // Use checkbox selection like regions do
                 if (window.selectSubregionCheckbox) {
+                    console.log('[DEBUG] Calling selectSubregionCheckbox for:', subregionName);
                     window.selectSubregionCheckbox(subregionName);
                 }
                 
@@ -4226,6 +4228,8 @@ function applyFilterToMarkers(shouldReframe = true) {
     
     visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
   } else if (checkedSubregions.length > 0) {
+    console.log('[DEBUG] Subregion filtering:', checkedSubregions);
+    
     // Filter by subregion
     const filteredLocalities = state.allLocalityFeatures.filter(f => 
       checkedSubregions.includes(f.properties.subRegion)
@@ -4240,17 +4244,24 @@ function applyFilterToMarkers(shouldReframe = true) {
     
     // For single subregion selection, use the subregion centroid instead of all localities
     if (checkedSubregions.length === 1 && state.allSubregionFeatures) {
+      console.log('[DEBUG] Single subregion selected:', checkedSubregions[0]);
+      console.log('[DEBUG] Available subregion features:', state.allSubregionFeatures.map(f => f.properties.name));
+      
       const subregionFeature = state.allSubregionFeatures.find(f => 
         f.properties.name === checkedSubregions[0]
       );
+      
       if (subregionFeature) {
+        console.log('[DEBUG] Found subregion feature, using centroid:', subregionFeature.geometry.coordinates);
         // Use the subregion centroid for zooming
         visibleCoordinates = [subregionFeature.geometry.coordinates];
       } else {
+        console.log('[DEBUG] Subregion feature not found, using locality coordinates');
         // Fallback to locality coordinates
         visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
       }
     } else {
+      console.log('[DEBUG] Multiple subregions or fallback - using all locality coordinates');
       // Multiple subregions or fallback - use all locality coordinates
       visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
     }
@@ -4281,10 +4292,12 @@ function applyFilterToMarkers(shouldReframe = true) {
   
   // Only reframe the map if shouldReframe is true
   if (shouldReframe && visibleCoordinates.length > 0) {
+    console.log('[DEBUG] Reframing with coordinates:', visibleCoordinates);
     const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
     
     const bounds = new mapboxgl.LngLatBounds();
     visibleCoordinates.forEach(coord => bounds.extend(coord));
+    console.log('[DEBUG] Bounds:', bounds);
     
     map.fitBounds(bounds, {
       padding: {
@@ -4587,7 +4600,7 @@ function setupSidebars() {
       return;
     }
     
-    if (attempt < maxAttempts) {
+    if (attempt < maxAttempts) {ff
       const delay = [50, 150, 250, 500][attempt - 1] || 500;
       state.setTimer(`sidebarSetup-${attempt}`, () => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
