@@ -2002,7 +2002,6 @@ loadDataFromState() {
             }
             
             triggerSubregionSelection(subregionName) {
-                console.log('[DEBUG] triggerSubregionSelection called for:', subregionName);
                 window.isMarkerClick = true;
                 
                 if (window.mapUtilities && window.mapUtilities.state) {
@@ -2011,7 +2010,6 @@ loadDataFromState() {
                 
                 // Use checkbox selection like regions do
                 if (window.selectSubregionCheckbox) {
-                    console.log('[DEBUG] Calling selectSubregionCheckbox for:', subregionName);
                     window.selectSubregionCheckbox(subregionName);
                 }
                 
@@ -2025,7 +2023,6 @@ loadDataFromState() {
                 
                 // Trigger filtering with reframe for subregions - increased delay to ensure checkbox update
                 setTimeout(() => {
-                    console.log('[DEBUG] About to call applyFilterToMarkers after checkbox update');
                     if (window.mapUtilities && window.mapUtilities.state) {
                         const state = window.mapUtilities.state;
                         state.flags.forceFilteredReframe = true;
@@ -3299,49 +3296,43 @@ function selectRegionCheckbox(regionName) {
 }
 
 function selectSubregionCheckbox(subregionName) {
-  console.log('[DEBUG] selectSubregionCheckbox called for:', subregionName);
   const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
   const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
-  // Clear all checkboxes first (including settlements) - do this synchronously
-  [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
-    if (checkbox.checked) {
-      checkbox.checked = false;
-      utils.triggerEvent(checkbox, ['change', 'input']);
+  // Batch checkbox operations
+  requestAnimationFrame(() => {
+    // Clear all checkboxes first (including settlements)
+    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+      if (checkbox.checked) {
+        checkbox.checked = false;
+        utils.triggerEvent(checkbox, ['change', 'input']);
+        
+        const form = checkbox.closest('form');
+        if (form) {
+          form.dispatchEvent(new Event('change', {bubbles: true}));
+          form.dispatchEvent(new Event('input', {bubbles: true}));
+        }
+      }
+    });
+    
+    // Find and check the target subregion checkbox
+    const targetCheckbox = subregionCheckboxes.find(checkbox => 
+      checkbox.getAttribute('fs-list-value') === subregionName
+    );
+    
+    if (targetCheckbox) {
+      targetCheckbox.checked = true;
+      utils.triggerEvent(targetCheckbox, ['change', 'input']);
       
-      const form = checkbox.closest('form');
+      const form = targetCheckbox.closest('form');
       if (form) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
     }
   });
-  
-  // Find and check the target subregion checkbox - do this synchronously
-  const targetCheckbox = subregionCheckboxes.find(checkbox => 
-    checkbox.getAttribute('fs-list-value') === subregionName
-  );
-  
-  if (targetCheckbox) {
-    console.log('[DEBUG] Found and checking subregion checkbox for:', subregionName);
-    targetCheckbox.checked = true;
-    utils.triggerEvent(targetCheckbox, ['change', 'input']);
-    
-    const form = targetCheckbox.closest('form');
-    if (form) {
-      form.dispatchEvent(new Event('change', {bubbles: true}));
-      form.dispatchEvent(new Event('input', {bubbles: true}));
-    }
-    
-    // Verify the checkbox was actually checked
-    setTimeout(() => {
-      console.log(`[DEBUG] Verification - ${subregionName} checkbox is now: ${targetCheckbox.checked ? 'CHECKED' : 'UNCHECKED'}`);
-    }, 50);
-  } else {
-    console.log('[DEBUG] Subregion checkbox not found for:', subregionName);
-  }
 }
 
 function selectLocalityCheckbox(localityName) {
@@ -4212,18 +4203,18 @@ function applyFilterToMarkers(shouldReframe = true) {
     return;
   }
   
-  // Get checked checkboxes
-  const checkedRegions = $('[checkbox-filter="region"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
-  const checkedSubregions = $('[checkbox-filter="subregion"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
-  const checkedLocalities = $('[checkbox-filter="locality"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
-  const checkedSettlements = $('[checkbox-filter="settlement"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
+  // Get checked checkboxes - force fresh DOM query
+  const checkedRegions = Array.from(document.querySelectorAll('[checkbox-filter="region"] input:checked')).map(cb => cb.getAttribute('fs-list-value'));
+  const checkedSubregions = Array.from(document.querySelectorAll('[checkbox-filter="subregion"] input:checked')).map(cb => cb.getAttribute('fs-list-value'));
+  const checkedLocalities = Array.from(document.querySelectorAll('[checkbox-filter="locality"] input:checked')).map(cb => cb.getAttribute('fs-list-value'));
+  const checkedSettlements = Array.from(document.querySelectorAll('[checkbox-filter="settlement"] input:checked')).map(cb => cb.getAttribute('fs-list-value'));
   
   // Debug: Log all subregion checkboxes and their states
   console.log('[DEBUG] All subregion checkboxes:');
-  $('[checkbox-filter="subregion"] input[fs-list-value]').forEach(cb => {
+  Array.from(document.querySelectorAll('[checkbox-filter="subregion"] input[fs-list-value]')).forEach(cb => {
     console.log(`  - ${cb.getAttribute('fs-list-value')}: ${cb.checked ? 'CHECKED' : 'unchecked'}`);
   });
-  console.log('[DEBUG] Checked subregions array:', checkedSubregions);
+  console.log('[DEBUG] Checked subregions array contents:', JSON.stringify(checkedSubregions));
   
   let visibleCoordinates = [];
   
@@ -4242,7 +4233,8 @@ function applyFilterToMarkers(shouldReframe = true) {
     
     visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
   } else if (checkedSubregions.length > 0) {
-    console.log('[DEBUG] Subregion filtering:', checkedSubregions);
+    console.log('[DEBUG] Subregion filtering - checkedSubregions:', JSON.stringify(checkedSubregions));
+    console.log('[DEBUG] checkedSubregions[0] value:', checkedSubregions[0]);
     
     // Filter by subregion
     const filteredLocalities = state.allLocalityFeatures.filter(f => 
@@ -4258,19 +4250,22 @@ function applyFilterToMarkers(shouldReframe = true) {
     
     // For single subregion selection, use the subregion centroid instead of all localities
     if (checkedSubregions.length === 1 && state.allSubregionFeatures) {
-      console.log('[DEBUG] Single subregion selected:', checkedSubregions[0]);
+      const selectedSubregion = checkedSubregions[0];
+      console.log('[DEBUG] Single subregion selected:', selectedSubregion);
+      console.log('[DEBUG] Looking for subregion feature with name:', selectedSubregion);
       console.log('[DEBUG] Available subregion features:', state.allSubregionFeatures.map(f => f.properties.name));
       
       const subregionFeature = state.allSubregionFeatures.find(f => 
-        f.properties.name === checkedSubregions[0]
+        f.properties.name === selectedSubregion
       );
       
       if (subregionFeature) {
-        console.log('[DEBUG] Found subregion feature, using centroid:', subregionFeature.geometry.coordinates);
+        console.log('[DEBUG] Found subregion feature:', subregionFeature.properties.name);
+        console.log('[DEBUG] Using centroid:', subregionFeature.geometry.coordinates);
         // Use the subregion centroid for zooming
         visibleCoordinates = [subregionFeature.geometry.coordinates];
       } else {
-        console.log('[DEBUG] Subregion feature not found, using locality coordinates');
+        console.log('[DEBUG] Subregion feature not found for:', selectedSubregion);
         // Fallback to locality coordinates
         visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
       }
