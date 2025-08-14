@@ -2659,6 +2659,90 @@ class BoundsCalculator {
   }
 }
 
+// OPTIMIZED: Parallel data loader with caching and error handling
+class DataLoader {
+  constructor() {
+    this.cache = new Map();
+    this.loadingPromises = new Map();
+  }
+  
+  // Parallel fetch with caching and compression support
+  async fetchGeoJSON(url, cacheKey = null) {
+    const key = cacheKey || url;
+    
+    // Return cached data if available
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
+    }
+    
+    // Return existing promise if already loading
+    if (this.loadingPromises.has(key)) {
+      return this.loadingPromises.get(key);
+    }
+    
+    // Create new loading promise
+    const promise = fetch(url, {
+      headers: {
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      this.cache.set(key, data);
+      this.loadingPromises.delete(key);
+      return data;
+    })
+    .catch(error => {
+      this.loadingPromises.delete(key);
+      console.error(`Failed to load ${url}:`, error);
+      throw error;
+    });
+    
+    this.loadingPromises.set(key, promise);
+    return promise;
+  }
+  
+  // Load all GeoJSON data in parallel
+  async loadAllData() {
+    const urls = {
+      localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.003.geojson',
+      settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson'
+    };
+    
+    try {
+      // Start all fetches in parallel
+      const promises = Object.entries(urls).map(async ([key, url]) => {
+        const data = await this.fetchGeoJSON(url, key);
+        return { key, data };
+      });
+      
+      // Wait for all to complete
+      const results = await Promise.all(promises);
+      
+      // Return organized data
+      const organizedData = {};
+      results.forEach(({ key, data }) => {
+        organizedData[key] = data;
+      });
+      
+      return organizedData;
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      throw error;
+    }
+  }
+  
+  clearCache() {
+    this.cache.clear();
+  }
+}
+
 // OPTIMIZED: Debounced source update utility
 class SourceUpdateManager {
   constructor() {
@@ -2705,10 +2789,1117 @@ class SourceUpdateManager {
   }
 }
 
-// OPTIMIZED: Global DOM cache instance
+// OPTIMIZED: Normalized data store to eliminate redundancy
+class DataStore {
+  constructor() {
+    this.entities = {
+      regions: new Map(),
+      subregions: new Map(), 
+      localities: new Map(),
+      settlements: new Map()
+    };
+    
+    this.indexes = {
+      byRegion: new Map(),
+      bySubregion: new Map(),
+      coordinates: new Map(),
+      searchIndex: new Map()
+    };
+    
+    this.geoJsonCache = {
+      localities: null,
+      settlements: null,
+      regions: null,
+      subregions: null
+    };
+  }
+  
+  // Add entities with automatic indexing
+  addEntity(type, id, data) {
+    this.entities[type].set(id, data);
+    
+    // Build indexes
+    if (data.region) {
+      if (!this.indexes.byRegion.has(data.region)) {
+        this.indexes.byRegion.set(data.region, new Set());
+      }
+      this.indexes.byRegion.get(data.region).add(id);
+    }
+    
+    if (data.subRegion) {
+      if (!this.indexes.bySubregion.has(data.subRegion)) {
+        this.indexes.bySubregion.set(data.subRegion, new Set());
+      }
+      this.indexes.bySubregion.get(data.subRegion).add(id);
+    }
+    
+    if (data.coordinates) {
+      this.indexes.coordinates.set(id, data.coordinates);
+    }
+    
+    // Build search index
+    const searchTerms = [data.name, data.region, data.subRegion].filter(Boolean);
+    searchTerms.forEach(term => {
+      const normalized = term.toLowerCase();
+      if (!this.indexes.searchIndex.has(normalized)) {
+        this.indexes.searchIndex.set(normalized, new Set());
+      }
+      this.indexes.searchIndex.get(normalized).add(id);
+    });
+  }
+  
+  // Get entities with efficient filtering
+  getEntities(type, filter = null) {
+    if (!filter) {
+      return Array.from(this.entities[type].values());
+    }
+    
+    if (filter.region) {
+      const ids = this.indexes.byRegion.get(filter.region) || new Set();
+      return Array.from(ids).map(id => this.entities[type].get(id)).filter(Boolean);
+    }
+    
+    if (filter.subregion) {
+      const ids = this.indexes.bySubregion.get(filter.subregion) || new Set();
+      return Array.from(ids).map(id => this.entities[type].get(id)).filter(Boolean);
+    }
+    
+    return Array.from(this.entities[type].values());
+  }
+  
+  // Get cached GeoJSON or generate on demand
+  getGeoJSON(type, filter = null) {
+    const cacheKey = `${type}-${JSON.stringify(filter)}`;
+    
+    if (this.geoJsonCache[cacheKey]) {
+      return this.geoJsonCache[cacheKey];
+    }
+    
+    const entities = this.getEntities(type, filter);
+    const features = entities.map(entity => ({
+      type: 'Feature',
+      properties: { ...entity },
+      geometry: {
+        type: 'Point',
+        coordinates: entity.coordinates
+      }
+    }));
+    
+    const geoJson = {
+      type: 'FeatureCollection',
+      features
+    };
+    
+    this.geoJsonCache[cacheKey] = geoJson;
+    return geoJson;
+  }
+  
+  // Fast search with indexed lookup
+  search(query, type = null) {
+    const normalized = query.toLowerCase();
+    const results = new Set();
+    
+    // Exact match
+    if (this.indexes.searchIndex.has(normalized)) {
+      this.indexes.searchIndex.get(normalized).forEach(id => results.add(id));
+    }
+    
+    // Partial matches
+    for (const [term, ids] of this.indexes.searchIndex.entries()) {
+      if (term.includes(normalized) || normalized.includes(term)) {
+        ids.forEach(id => results.add(id));
+      }
+    }
+    
+    // Convert IDs to entities
+    const entities = [];
+    results.forEach(id => {
+      for (const [entityType, entityMap] of Object.entries(this.entities)) {
+        if (!type || entityType === type) {
+          const entity = entityMap.get(id);
+          if (entity) {
+            entities.push({ ...entity, type: entityType });
+          }
+        }
+      }
+    });
+    
+    return entities;
+  }
+  
+  clearCache() {
+    this.geoJsonCache = {};
+  }
+}
+
+// OPTIMIZED: Advanced search index using Trie for fast autocomplete
+class AdvancedSearchIndex {
+  constructor() {
+    this.trie = {};
+    this.fuzzyIndex = new Map();
+    this.scoreCache = new Map();
+  }
+  
+  // Add term to trie structure
+  addToTrie(term, entityId, entityType) {
+    const normalized = term.toLowerCase().trim();
+    let current = this.trie;
+    
+    for (let i = 0; i < normalized.length; i++) {
+      const char = normalized[i];
+      if (!current[char]) {
+        current[char] = { entities: new Set(), children: {} };
+      }
+      current[char].entities.add({ id: entityId, type: entityType, term: normalized });
+      current = current[char].children;
+    }
+    
+    // Build fuzzy index for character-level matching
+    const chars = [...new Set(normalized.split(''))];
+    chars.forEach(char => {
+      if (!this.fuzzyIndex.has(char)) {
+        this.fuzzyIndex.set(char, new Set());
+      }
+      this.fuzzyIndex.get(char).add({ id: entityId, type: entityType, term: normalized });
+    });
+  }
+  
+  // Fast prefix search using trie
+  searchPrefix(query, maxResults = 50) {
+    const normalized = query.toLowerCase().trim();
+    if (!normalized) return [];
+    
+    let current = this.trie;
+    
+    // Navigate to prefix
+    for (let i = 0; i < normalized.length; i++) {
+      const char = normalized[i];
+      if (!current[char]) {
+        return [];
+      }
+      current = current[char];
+    }
+    
+    // Collect all entities under this prefix
+    const results = new Set();
+    const collectEntities = (node) => {
+      if (node.entities) {
+        node.entities.forEach(entity => {
+          if (results.size < maxResults) {
+            results.add(entity);
+          }
+        });
+      }
+      
+      Object.values(node.children || {}).forEach(child => {
+        if (results.size < maxResults) {
+          collectEntities(child);
+        }
+      });
+    };
+    
+    collectEntities(current);
+    return Array.from(results);
+  }
+  
+  // Fuzzy search with scoring
+  searchFuzzy(query, threshold = 0.3, maxResults = 20) {
+    const cacheKey = `${query}-${threshold}-${maxResults}`;
+    if (this.scoreCache.has(cacheKey)) {
+      return this.scoreCache.get(cacheKey);
+    }
+    
+    const normalized = query.toLowerCase().trim();
+    const queryChars = [...new Set(normalized.split(''))];
+    const candidates = new Map();
+    
+    // Find candidates using character overlap
+    queryChars.forEach(char => {
+      if (this.fuzzyIndex.has(char)) {
+        this.fuzzyIndex.get(char).forEach(entity => {
+          if (!candidates.has(entity.id)) {
+            candidates.set(entity.id, { entity, score: 0 });
+          }
+          candidates.get(entity.id).score++;
+        });
+      }
+    });
+    
+    // Calculate similarity scores
+    const results = [];
+    candidates.forEach(({ entity, score }) => {
+      const similarity = this.calculateSimilarity(normalized, entity.term);
+      if (similarity >= threshold) {
+        results.push({
+          ...entity,
+          score: similarity,
+          charScore: score / queryChars.length
+        });
+      }
+    });
+    
+    // Sort by combined score
+    results.sort((a, b) => {
+      const scoreA = a.score * 0.7 + a.charScore * 0.3;
+      const scoreB = b.score * 0.7 + b.charScore * 0.3;
+      return scoreB - scoreA;
+    });
+    
+    const finalResults = results.slice(0, maxResults);
+    this.scoreCache.set(cacheKey, finalResults);
+    return finalResults;
+  }
+  
+  // Optimized similarity calculation
+  calculateSimilarity(str1, str2) {
+    const len1 = str1.length;
+    const len2 = str2.length;
+    const maxLen = Math.max(len1, len2);
+    
+    if (maxLen === 0) return 1;
+    if (str1 === str2) return 1;
+    if (str1.includes(str2) || str2.includes(str1)) return 0.8;
+    
+    // Simple character-based similarity for performance
+    const chars1 = new Set(str1.split(''));
+    const chars2 = new Set(str2.split(''));
+    const intersection = new Set([...chars1].filter(x => chars2.has(x)));
+    
+    return intersection.size / Math.max(chars1.size, chars2.size);
+  }
+  
+  // Combined search (prefix + fuzzy)
+  search(query, options = {}) {
+    const { 
+      maxResults = 50, 
+      fuzzyThreshold = 0.3,
+      prefixWeight = 0.7,
+      fuzzyWeight = 0.3
+    } = options;
+    
+    const prefixResults = this.searchPrefix(query, Math.floor(maxResults * prefixWeight));
+    const fuzzyResults = this.searchFuzzy(query, fuzzyThreshold, Math.floor(maxResults * fuzzyWeight));
+    
+    // Combine and deduplicate
+    const combined = new Map();
+    
+    prefixResults.forEach(result => {
+      combined.set(result.id, { ...result, matchType: 'prefix' });
+    });
+    
+    fuzzyResults.forEach(result => {
+      if (!combined.has(result.id)) {
+        combined.set(result.id, { ...result, matchType: 'fuzzy' });
+      }
+    });
+    
+    return Array.from(combined.values()).slice(0, maxResults);
+  }
+  
+  clearCache() {
+    this.scoreCache.clear();
+  }
+}
+
+// OPTIMIZED: Web Worker manager for heavy calculations
+class WorkerManager {
+  constructor() {
+    this.workers = new Map();
+    this.taskQueue = [];
+    this.maxWorkers = navigator.hardwareConcurrency || 4;
+    this.activeWorkers = 0;
+  }
+  
+  // Create a worker from function code
+  createWorker(name, workerFunction) {
+    if (this.workers.has(name)) {
+      return this.workers.get(name);
+    }
+    
+    try {
+      const blob = new Blob([`(${workerFunction.toString()})()`], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      const worker = new Worker(workerUrl);
+      
+      worker.onmessage = (e) => this.handleWorkerMessage(name, e);
+      worker.onerror = (e) => this.handleWorkerError(name, e);
+      
+      this.workers.set(name, {
+        worker,
+        busy: false,
+        tasks: new Map()
+      });
+      
+      URL.revokeObjectURL(workerUrl);
+      return this.workers.get(name);
+    } catch (error) {
+      console.warn('Web Worker not supported:', error);
+      return null;
+    }
+  }
+  
+  // Execute task in worker
+  async executeInWorker(workerName, taskData, taskId = null) {
+    const workerInfo = this.workers.get(workerName);
+    if (!workerInfo) {
+      // Fallback to main thread
+      return this.executeInMainThread(taskData);
+    }
+    
+    const id = taskId || Math.random().toString(36).substr(2, 9);
+    
+    return new Promise((resolve, reject) => {
+      workerInfo.tasks.set(id, { resolve, reject, startTime: Date.now() });
+      workerInfo.worker.postMessage({ id, ...taskData });
+    });
+  }
+  
+  // Handle worker responses
+  handleWorkerMessage(workerName, event) {
+    const { id, result, error } = event.data;
+    const workerInfo = this.workers.get(workerName);
+    
+    if (workerInfo?.tasks.has(id)) {
+      const { resolve, reject } = workerInfo.tasks.get(id);
+      workerInfo.tasks.delete(id);
+      
+      if (error) {
+        reject(new Error(error));
+      } else {
+        resolve(result);
+      }
+    }
+  }
+  
+  // Handle worker errors
+  handleWorkerError(workerName, error) {
+    console.error(`Worker ${workerName} error:`, error);
+    const workerInfo = this.workers.get(workerName);
+    
+    if (workerInfo) {
+      workerInfo.tasks.forEach(({ reject }) => {
+        reject(error);
+      });
+      workerInfo.tasks.clear();
+    }
+  }
+  
+  // Fallback for when workers aren't available
+  executeInMainThread(taskData) {
+    // This would contain the same logic as the worker but run on main thread
+    switch (taskData.type) {
+      case 'bounds_calculation':
+        return this.calculateBounds(taskData.coordinates);
+      case 'fuzzy_search':
+        return this.performFuzzySearch(taskData.query, taskData.data);
+      default:
+        return Promise.resolve(null);
+    }
+  }
+  
+  // Bounds calculation helper
+  calculateBounds(coordinates) {
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity, maxLng = -Infinity;
+    
+    coordinates.forEach(([lng, lat]) => {
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+    });
+    
+    return {
+      southwest: [minLng, minLat],
+      northeast: [maxLng, maxLat]
+    };
+  }
+  
+  // Fuzzy search helper
+  performFuzzySearch(query, data) {
+    // Simple fuzzy search implementation
+    const results = data.filter(item => {
+      const score = this.calculateSimilarity(query.toLowerCase(), item.name.toLowerCase());
+      return score > 0.3;
+    });
+    
+    return results.slice(0, 50);
+  }
+  
+  calculateSimilarity(str1, str2) {
+    const chars1 = new Set(str1.split(''));
+    const chars2 = new Set(str2.split(''));
+    const intersection = new Set([...chars1].filter(x => chars2.has(x)));
+    return intersection.size / Math.max(chars1.size, chars2.size);
+  }
+  
+  // Terminate all workers
+  terminate() {
+    this.workers.forEach(({ worker }) => {
+      worker.terminate();
+    });
+    this.workers.clear();
+  }
+}
+
+// Enhanced Worker function for multiple heavy calculations
+function enhancedMapWorker() {
+  self.onmessage = function(e) {
+    const { id, type, data } = e.data;
+    
+    try {
+      let result;
+      
+      switch(type) {
+        case 'bounds_calculation':
+          result = calculateBounds(data.coordinates);
+          break;
+          
+        case 'search_indexing':
+          result = buildSearchIndex(data.items);
+          break;
+          
+        case 'distance_calculation':
+          result = calculateDistances(data.points, data.center);
+          break;
+          
+        case 'geojson_processing':
+          result = processGeoJSON(data.features);
+          break;
+          
+        case 'cluster_calculation':
+          result = calculateClusters(data.points, data.zoom);
+          break;
+          
+        default:
+          throw new Error(`Unknown worker type: ${type}`);
+      }
+      
+      self.postMessage({ id, result });
+    } catch (error) {
+      self.postMessage({ id, error: error.message });
+    }
+  };
+  
+  // Bounds calculation helper
+  function calculateBounds(coordinates) {
+    let minLat = Infinity, maxLat = -Infinity;
+    let minLng = Infinity, maxLng = -Infinity;
+    
+    coordinates.forEach(([lng, lat]) => {
+      minLat = Math.min(minLat, lat);
+      maxLat = Math.max(maxLat, lat);
+      minLng = Math.min(minLng, lng);
+      maxLng = Math.max(maxLng, lng);
+    });
+    
+    return {
+      southwest: [minLng, minLat],
+      northeast: [maxLng, maxLat]
+    };
+  }
+  
+  // Search index building helper
+  function buildSearchIndex(items) {
+    const index = {};
+    items.forEach((item, idx) => {
+      const terms = item.name.toLowerCase().split(/\s+/);
+      terms.forEach(term => {
+        if (!index[term]) index[term] = [];
+        index[term].push(idx);
+      });
+    });
+    return index;
+  }
+  
+  // Distance calculation helper
+  function calculateDistances(points, center) {
+    return points.map(point => {
+      const distance = haversineDistance(center, point.coordinates);
+      return { ...point, distance };
+    });
+  }
+  
+  // Haversine distance formula
+  function haversineDistance([lng1, lat1], [lng2, lat2]) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+  
+  // GeoJSON processing helper
+  function processGeoJSON(features) {
+    return features.map(feature => ({
+      id: feature.properties.id || feature.properties.name,
+      name: feature.properties.name,
+      type: feature.geometry.type,
+      coordinates: feature.geometry.coordinates,
+      bounds: feature.geometry.type === 'Point' ? 
+        null : calculateBounds(flattenCoordinates(feature.geometry.coordinates))
+    }));
+  }
+  
+  // Cluster calculation helper
+  function calculateClusters(points, zoom) {
+    const clusters = [];
+    const processed = new Set();
+    const radius = 50 / Math.pow(2, zoom); // Adjust radius based on zoom
+    
+    points.forEach((point, i) => {
+      if (processed.has(i)) return;
+      
+      const cluster = [point];
+      processed.add(i);
+      
+      for (let j = i + 1; j < points.length; j++) {
+        if (processed.has(j)) continue;
+        
+        const distance = haversineDistance(point.coordinates, points[j].coordinates);
+        if (distance < radius) {
+          cluster.push(points[j]);
+          processed.add(j);
+        }
+      }
+      
+      if (cluster.length === 1) {
+        clusters.push(cluster[0]);
+      } else {
+        const centerLat = cluster.reduce((sum, p) => sum + p.coordinates[1], 0) / cluster.length;
+        const centerLng = cluster.reduce((sum, p) => sum + p.coordinates[0], 0) / cluster.length;
+        clusters.push({
+          type: 'cluster',
+          coordinates: [centerLng, centerLat],
+          count: cluster.length,
+          items: cluster
+        });
+      }
+    });
+    
+    return clusters;
+  }
+  
+  // Helper to flatten nested coordinate arrays
+  function flattenCoordinates(coords) {
+    if (typeof coords[0] === 'number') return [coords];
+    return coords.reduce((acc, coord) => {
+      return acc.concat(flattenCoordinates(coord));
+    }, []);
+  }
+}
+
+// OPTIMIZED: Progressive loading and lazy initialization manager
+class ProgressiveLoader {
+  constructor() {
+    this.loadingSteps = [];
+    this.currentStep = 0;
+    this.stepPromises = new Map();
+    this.criticalPath = new Set(['map', 'ui', 'search']);
+    this.deferredFeatures = new Set(['settlements', 'advanced-search', 'analytics']);
+  }
+  
+  // Define loading pipeline with enhanced prioritization
+  defineSteps(steps) {
+    this.loadingSteps = steps.map((step, index) => ({
+      ...step,
+      index,
+      loaded: false,
+      dependencies: step.dependencies || [],
+      priority: this.calculatePriority(step),
+      estimatedTime: step.estimatedTime || 1000,
+      retryCount: 0,
+      maxRetries: step.maxRetries || 3
+    }));
+    
+    // Sort by priority for critical path optimization
+    this.loadingSteps.sort((a, b) => b.priority - a.priority);
+  }
+  
+  // Calculate step priority based on criticality and dependencies
+  calculatePriority(step) {
+    let priority = 0;
+    
+    // Critical path gets highest priority
+    if (this.criticalPath.has(step.name)) {
+      priority += 100;
+    }
+    
+    // UI-related steps get higher priority
+    if (step.name.includes('ui') || step.name.includes('interface')) {
+      priority += 50;
+    }
+    
+    // Steps with fewer dependencies load first
+    priority -= (step.dependencies?.length || 0) * 10;
+    
+    // User-facing features get higher priority
+    if (step.userFacing) {
+      priority += 30;
+    }
+    
+    return priority;
+  }
+  
+  // Enhanced lazy loading with intersection observer
+  setupLazyLoading() {
+    if (!('IntersectionObserver' in window)) {
+      console.warn('IntersectionObserver not supported, falling back to immediate loading');
+      return this.loadAllSteps();
+    }
+    
+    const lazyObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const stepName = entry.target.getAttribute('data-lazy-step');
+          if (stepName) {
+            this.loadStep(stepName);
+            lazyObserver.unobserve(entry.target);
+          }
+        }
+      });
+    }, {
+      rootMargin: '50px', // Load 50px before coming into view
+      threshold: 0.1
+    });
+    
+    // Observe elements that trigger lazy loading
+    document.querySelectorAll('[data-lazy-step]').forEach(el => {
+      lazyObserver.observe(el);
+    });
+    
+    return lazyObserver;
+  }
+  
+  // Load steps in chunks to prevent UI blocking
+  async loadInChunks(chunkSize = 3) {
+    const chunks = [];
+    for (let i = 0; i < this.loadingSteps.length; i += chunkSize) {
+      chunks.push(this.loadingSteps.slice(i, i + chunkSize));
+    }
+    
+    for (const chunk of chunks) {
+      // Load chunk in parallel but wait for completion before next chunk
+      await Promise.all(chunk.map(step => this.loadStep(step.name)));
+      
+      // Small delay to prevent UI blocking
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+  
+  // Load step with dependencies
+  async loadStep(stepName, force = false) {
+    if (this.stepPromises.has(stepName) && !force) {
+      return this.stepPromises.get(stepName);
+    }
+    
+    const step = this.loadingSteps.find(s => s.name === stepName);
+    if (!step) {
+      throw new Error(`Step ${stepName} not found`);
+    }
+    
+    if (step.loaded && !force) {
+      return Promise.resolve();
+    }
+    
+    // Load dependencies first
+    const depPromises = step.dependencies.map(dep => this.loadStep(dep));
+    await Promise.all(depPromises);
+    
+    // Create loading promise
+    const promise = this.executeStep(step);
+    this.stepPromises.set(stepName, promise);
+    
+    try {
+      await promise;
+      step.loaded = true;
+      this.currentStep = Math.max(this.currentStep, step.index + 1);
+      
+      // Trigger step completion event
+      const event = new CustomEvent('stepLoaded', {
+        detail: { stepName, step: step.index + 1, total: this.loadingSteps.length }
+      });
+      document.dispatchEvent(event);
+      
+    } catch (error) {
+      console.error(`Failed to load step ${stepName}:`, error);
+      throw error;
+    }
+    
+    return promise;
+  }
+  
+  // Execute individual step
+  async executeStep(step) {
+    const startTime = performance.now();
+    
+    try {
+      if (step.loader) {
+        await step.loader();
+      }
+      
+      if (step.initializer) {
+        await step.initializer();
+      }
+      
+      const duration = performance.now() - startTime;
+      
+      // Report performance
+      if (window.gtag) {
+        gtag('event', 'step_loaded', {
+          step_name: step.name,
+          duration_ms: Math.round(duration),
+          is_critical: this.criticalPath.has(step.name)
+        });
+      }
+      
+    } catch (error) {
+      throw new Error(`Step ${step.name} failed: ${error.message}`);
+    }
+  }
+  
+  // Load critical path first
+  async loadCriticalPath() {
+    const criticalSteps = this.loadingSteps.filter(step => 
+      this.criticalPath.has(step.name)
+    ).sort((a, b) => a.index - b.index);
+    
+    for (const step of criticalSteps) {
+      await this.loadStep(step.name);
+    }
+  }
+  
+  // Load deferred features in background
+  loadDeferredFeatures() {
+    const deferredSteps = this.loadingSteps.filter(step => 
+      this.deferredFeatures.has(step.name)
+    );
+    
+    // Use requestIdleCallback for non-critical loading
+    if ('requestIdleCallback' in window) {
+      deferredSteps.forEach((step, index) => {
+        requestIdleCallback(() => {
+          this.loadStep(step.name).catch(console.error);
+        }, { timeout: 5000 + (index * 1000) });
+      });
+    } else {
+      // Fallback with setTimeout
+      deferredSteps.forEach((step, index) => {
+        setTimeout(() => {
+          this.loadStep(step.name).catch(console.error);
+        }, 2000 + (index * 1000));
+      });
+    }
+  }
+  
+  // Get loading progress
+  getProgress() {
+    const loadedSteps = this.loadingSteps.filter(s => s.loaded).length;
+    return {
+      current: loadedSteps,
+      total: this.loadingSteps.length,
+      percentage: (loadedSteps / this.loadingSteps.length) * 100
+    };
+  }
+}
+
+// OPTIMIZED: Performance monitoring and optimization
+class PerformanceMonitor {
+  constructor() {
+    this.metrics = new Map();
+    this.observers = [];
+    this.enabled = false;
+  }
+  
+  enable() {
+    this.enabled = true;
+    this.setupObservers();
+  }
+  
+  setupObservers() {
+    // Performance Observer for navigation and resource timing
+    if ('PerformanceObserver' in window) {
+      try {
+        const observer = new PerformanceObserver((list) => {
+          list.getEntries().forEach(entry => this.recordMetric(entry));
+        });
+        
+        observer.observe({ entryTypes: ['navigation', 'resource', 'measure', 'mark'] });
+        this.observers.push(observer);
+      } catch (e) {
+        console.warn('PerformanceObserver not fully supported');
+      }
+    }
+    
+    // Long Task Observer
+    if ('PerformanceObserver' in window) {
+      try {
+        const longTaskObserver = new PerformanceObserver((list) => {
+          list.getEntries().forEach(entry => {
+            if (entry.duration > 50) {
+              this.recordLongTask(entry);
+            }
+          });
+        });
+        
+        longTaskObserver.observe({ entryTypes: ['longtask'] });
+        this.observers.push(longTaskObserver);
+      } catch (e) {
+        // Long task observer not supported
+      }
+    }
+  }
+  
+  recordMetric(entry) {
+    if (!this.enabled) return;
+    
+    const key = `${entry.entryType}_${entry.name}`;
+    this.metrics.set(key, {
+      ...entry,
+      timestamp: Date.now()
+    });
+    
+    // Report critical metrics
+    if (entry.entryType === 'navigation') {
+      this.reportNavigationTiming(entry);
+    }
+  }
+  
+  recordLongTask(entry) {
+    console.warn('Long task detected:', entry.duration + 'ms');
+    
+    if (window.gtag) {
+      gtag('event', 'long_task', {
+        duration_ms: Math.round(entry.duration),
+        start_time: entry.startTime
+      });
+    }
+  }
+  
+  reportNavigationTiming(entry) {
+    const metrics = {
+      dns_lookup: entry.domainLookupEnd - entry.domainLookupStart,
+      tcp_connect: entry.connectEnd - entry.connectStart,
+      request_response: entry.responseEnd - entry.requestStart,
+      dom_processing: entry.domContentLoadedEventEnd - entry.responseEnd,
+      load_complete: entry.loadEventEnd - entry.loadEventStart
+    };
+    
+    Object.entries(metrics).forEach(([name, value]) => {
+      if (value > 0 && window.gtag) {
+        gtag('event', 'performance_timing', {
+          timing_name: name,
+          duration_ms: Math.round(value)
+        });
+      }
+    });
+  }
+  
+  // Manual timing measurement
+  startTiming(name) {
+    if (this.enabled) {
+      performance.mark(`${name}_start`);
+    }
+  }
+  
+  endTiming(name) {
+    if (this.enabled) {
+      performance.mark(`${name}_end`);
+      performance.measure(name, `${name}_start`, `${name}_end`);
+    }
+  }
+  
+  getMetrics() {
+    return Object.fromEntries(this.metrics);
+  }
+  
+  // Enhanced memory monitoring
+  monitorMemoryUsage() {
+    if ('memory' in performance) {
+      const memory = performance.memory;
+      const memoryMetrics = {
+        used: memory.usedJSHeapSize,
+        total: memory.totalJSHeapSize,
+        limit: memory.jsHeapSizeLimit,
+        usage_percentage: (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100
+      };
+      
+      this.metrics.set('memory', memoryMetrics);
+      
+      // Warn if memory usage is high
+      if (memoryMetrics.usage_percentage > 80) {
+        console.warn('High memory usage detected:', memoryMetrics);
+        this.triggerMemoryCleanup();
+      }
+      
+      return memoryMetrics;
+    }
+    return null;
+  }
+  
+  // Performance analytics with user timing
+  trackUserInteraction(action, duration) {
+    const timestamp = Date.now();
+    const metric = {
+      action,
+      duration,
+      timestamp,
+      memory: this.monitorMemoryUsage()
+    };
+    
+    this.metrics.set(`user_interaction_${timestamp}`, metric);
+    
+    // Analytics integration
+    if (window.gtag) {
+      gtag('event', 'user_interaction', {
+        action_name: action,
+        duration_ms: duration,
+        memory_usage: metric.memory?.usage_percentage || 0
+      });
+    }
+  }
+  
+  // Frame rate monitoring
+  startFrameRateMonitoring() {
+    let frameCount = 0;
+    let lastTime = performance.now();
+    
+    const measureFrameRate = (currentTime) => {
+      frameCount++;
+      
+      if (currentTime - lastTime >= 1000) {
+        const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+        this.metrics.set('fps', fps);
+        
+        // Log warning if FPS is low
+        if (fps < 30) {
+          console.warn('Low FPS detected:', fps);
+        }
+        
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+      
+      if (this.enabled) {
+        requestAnimationFrame(measureFrameRate);
+      }
+    };
+    
+    requestAnimationFrame(measureFrameRate);
+  }
+  
+  // Automatic optimization triggers
+  triggerMemoryCleanup() {
+    // Clear various caches
+    if (window.domCache) {
+      window.domCache.clearCache();
+    }
+    
+    if (window.boundsCalculator) {
+      window.boundsCalculator.clearCache();
+    }
+    
+    if (window.dataStore) {
+      window.dataStore.clearCache();
+    }
+    
+    // Force garbage collection if available (Chrome DevTools)
+    if (window.gc) {
+      window.gc();
+    }
+  }
+  
+  // Performance bottleneck detection
+  detectBottlenecks() {
+    const bottlenecks = [];
+    
+    // Check long tasks
+    const longTasks = Array.from(this.metrics.entries())
+      .filter(([key]) => key.startsWith('longtask_'))
+      .map(([, value]) => value);
+    
+    if (longTasks.length > 5) {
+      bottlenecks.push({
+        type: 'excessive_long_tasks',
+        count: longTasks.length,
+        avgDuration: longTasks.reduce((sum, task) => sum + task.duration, 0) / longTasks.length
+      });
+    }
+    
+    // Check memory usage
+    const memoryMetric = this.metrics.get('memory');
+    if (memoryMetric && memoryMetric.usage_percentage > 70) {
+      bottlenecks.push({
+        type: 'high_memory_usage',
+        percentage: memoryMetric.usage_percentage
+      });
+    }
+    
+    // Check FPS
+    const fps = this.metrics.get('fps');
+    if (fps && fps < 30) {
+      bottlenecks.push({
+        type: 'low_fps',
+        fps: fps
+      });
+    }
+    
+    return bottlenecks;
+  }
+  
+  // Generate performance report
+  generateReport() {
+    const bottlenecks = this.detectBottlenecks();
+    const memoryUsage = this.monitorMemoryUsage();
+    
+    return {
+      timestamp: new Date().toISOString(),
+      metrics: Object.fromEntries(this.metrics),
+      bottlenecks,
+      memory: memoryUsage,
+      recommendations: this.generateRecommendations(bottlenecks)
+    };
+  }
+  
+  generateRecommendations(bottlenecks) {
+    const recommendations = [];
+    
+    bottlenecks.forEach(bottleneck => {
+      switch(bottleneck.type) {
+        case 'excessive_long_tasks':
+          recommendations.push('Consider breaking up large JavaScript operations into smaller chunks');
+          break;
+        case 'high_memory_usage':
+          recommendations.push('Clear unnecessary caches and optimize data structures');
+          break;
+        case 'low_fps':
+          recommendations.push('Reduce visual complexity or optimize animations');
+          break;
+      }
+    });
+    
+    return recommendations;
+  }
+  
+  disable() {
+    this.enabled = false;
+    this.observers.forEach(observer => observer.disconnect());
+    this.observers = [];
+  }
+}
+
+// OPTIMIZED: Global instances
 const domCache = new OptimizedDOMCache();
 const boundsCalculator = new BoundsCalculator();
 const sourceUpdater = new SourceUpdateManager();
+const dataLoader = new DataLoader();
+const dataStore = new DataStore();
+const searchIndex = new AdvancedSearchIndex();
+const workerManager = new WorkerManager();
+const progressiveLoader = new ProgressiveLoader();
+const performanceMonitor = new PerformanceMonitor();
 const $ = (selector) => domCache.$(selector);
 const $1 = (selector) => domCache.$1(selector);  
 const $id = (id) => domCache.$id(id);
@@ -2719,6 +3910,153 @@ class OptimizedEventManager {
     this.listeners = new Map(); // elementId -> [{event, handler, options}]
     this.delegatedListeners = new Map(); // event -> [{selector, handler}]
     this.debounceTimers = new Map();
+    this.setupGlobalDelegation();
+  }
+  
+  // Setup global event delegation for common patterns
+  setupGlobalDelegation() {
+    // Delegate all checkbox and form interactions
+    document.addEventListener('change', this.handleGlobalChange.bind(this), { passive: true });
+    document.addEventListener('input', this.handleGlobalInput.bind(this), { passive: true });
+    document.addEventListener('click', this.handleGlobalClick.bind(this), { passive: false });
+    
+    // Mobile optimizations
+    if ('ontouchstart' in window) {
+      document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
+      document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
+    }
+    
+    // Intersection Observer for performance
+    if ('IntersectionObserver' in window) {
+      this.setupIntersectionObserver();
+    }
+    
+    // Resize optimization
+    this.setupOptimizedResize();
+  }
+  
+  // Global change handler with delegation
+  handleGlobalChange(event) {
+    const target = event.target;
+    
+    // Handle checkbox filters
+    if (target.matches('[checkbox-filter] input[type="checkbox"]') ||
+        target.matches('[fs-cmsfilter-element="filters"] input') ||
+        target.matches('[fs-cmsfilter-element="filters"] select')) {
+      this.debounce('filterUpdate', () => {
+        if (window.handleFilterUpdate) {
+          window.handleFilterUpdate();
+        }
+      }, 50);
+    }
+    
+    // Handle sidebar toggles
+    if (target.matches('[data-auto-sidebar="true"]') ||
+        target.matches('[data-auto-second-left-sidebar="true"]')) {
+      if (window.innerWidth > 991) {
+        const sidebarType = target.matches('[data-auto-second-left-sidebar="true"]') ? 'SecondLeft' : 'Left';
+        this.debounce('sidebarUpdate', () => {
+          if (window.toggleSidebar) {
+            window.toggleSidebar(sidebarType, true);
+          }
+        }, 50);
+      }
+    }
+  }
+  
+  // Global input handler with delegation  
+  handleGlobalInput(event) {
+    const target = event.target;
+    
+    // Handle search inputs
+    if (target.matches('[searchbox-filter]')) {
+      this.debounce(`search-${target.id || 'default'}`, () => {
+        // Trigger search functionality
+        const searchEvent = new CustomEvent('optimizedSearch', {
+          detail: { value: target.value, element: target }
+        });
+        target.dispatchEvent(searchEvent);
+      }, 150);
+    }
+    
+    // Handle other input types that need sidebar updates
+    if (target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(target.type)) {
+      if (window.innerWidth > 991) {
+        this.debounce('sidebarUpdate', () => {
+          if (window.toggleSidebar) {
+            window.toggleSidebar('Left', true);
+          }
+        }, 50);
+      }
+    }
+  }
+  
+  // Global click handler with delegation
+  handleGlobalClick(event) {
+    const target = event.target;
+    
+    // Handle filter application buttons
+    if (target.matches('[apply-map-filter="true"], .filterrefresh, #filter-button')) {
+      if (event.type === 'keypress' && event.key !== 'Enter') return;
+      if (window.isMarkerClick) return;
+      
+      event.preventDefault();
+      
+      if (window.mapUtilities?.state) {
+        const state = window.mapUtilities.state;
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
+        
+        this.debounce('applyFilter', () => {
+          if (window.applyFilterToMarkers) {
+            window.applyFilterToMarkers(true);
+            setTimeout(() => {
+              state.flags.forceFilteredReframe = false;
+              state.flags.isRefreshButtonAction = false;
+            }, 1000);
+          }
+        }, 50);
+      }
+    }
+  }
+  
+  // Touch and intersection observer methods
+  handleTouchStart(event) {
+    if (event.target.closest('button, .clickable, [role="button"]')) {
+      event.target.closest('button, .clickable, [role="button"]').classList.add('touching');
+    }
+  }
+  
+  handleTouchEnd(event) {
+    if (event.target.closest('button, .clickable, [role="button"]')) {
+      event.target.closest('button, .clickable, [role="button"]').classList.remove('touching');
+    }
+  }
+  
+  setupIntersectionObserver() {
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.target.hasAttribute('data-lazy-load')) {
+          if (entry.isIntersecting) {
+            const event = new CustomEvent('enterViewport');
+            entry.target.dispatchEvent(event);
+          }
+        }
+      });
+    }, { threshold: 0.1 });
+  }
+  
+  setupOptimizedResize() {
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        boundsCalculator.clearCache();
+        domCache.refresh();
+        const resizeEvent = new CustomEvent('optimizedResize');
+        window.dispatchEvent(resizeEvent);
+      }, 250);
+    }, { passive: true });
   }
   
   // Add tracked event listener
@@ -2818,6 +4156,94 @@ class OptimizedEventManager {
     this.listeners.clear();
     this.delegatedListeners.clear();
     this.debounceTimers.clear();
+  }
+
+  // Enhanced form delegation for better performance
+  setupEnhancedFormDelegation() {
+    // Checkbox delegation with type detection
+    this.addDelegated('change', 'input[type="checkbox"]', (event, target) => {
+      const checkboxId = target.id;
+      if (checkboxId.includes('settlement-') || checkboxId.includes('locality-') || 
+          checkboxId.includes('subregion-') || checkboxId.includes('area-')) {
+        this.handleCheckboxChange(event, target);
+      }
+    });
+
+    // Autocomplete input delegation
+    this.addDelegated('input', '.autocomplete-input', (event, target) => {
+      this.handleAutocompleteInput(event, target);
+    });
+
+    // Button action delegation
+    this.addDelegated('click', 'button[data-action]', (event, target) => {
+      const action = target.getAttribute('data-action');
+      this.handleButtonClick(action, event, target);
+    });
+  }
+
+  handleCheckboxChange(event, checkbox) {
+    const value = checkbox.value;
+    const type = checkbox.id.split('-')[0]; // settlement, locality, etc.
+    
+    if (checkbox.checked) {
+      if (window.selectCheckbox) {
+        window.selectCheckbox(type, value);
+      }
+    } else {
+      if (window.unselectCheckbox) {
+        window.unselectCheckbox(type, value);
+      }
+    }
+  }
+
+  handleAutocompleteInput(event, input) {
+    const query = input.value.trim();
+    const autocompleteType = input.getAttribute('data-autocomplete-type');
+    
+    if (window.advancedSearchIndex) {
+      const results = window.advancedSearchIndex.search(query);
+      this.displayAutocompleteResults(input, results, autocompleteType);
+    }
+  }
+
+  handleButtonClick(action, event, button) {
+    event.preventDefault();
+    
+    switch(action) {
+      case 'toggle-sidebar':
+        const side = button.getAttribute('data-side') || 'Left';
+        if (window.toggleSidebar) {
+          window.toggleSidebar(side);
+        }
+        break;
+      case 'clear-filters':
+        if (window.clearAllFilters) {
+          window.clearAllFilters();
+        }
+        break;
+      case 'reset-view':
+        if (window.resetMapView) {
+          window.resetMapView();
+        }
+        break;
+      default:
+        console.warn('Unknown button action:', action);
+    }
+  }
+
+  displayAutocompleteResults(input, results, type) {
+    const container = input.parentElement?.querySelector('.autocomplete-results');
+    if (!container) return;
+
+    container.innerHTML = '';
+    results.slice(0, 10).forEach(result => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.textContent = result.term;
+      item.setAttribute('data-value', result.id);
+      item.setAttribute('data-type', result.type);
+      container.appendChild(item);
+    });
   }
 }
 
@@ -4595,4 +6021,155 @@ function setupSidebars() {
   };
   
   attemptSetup();
+}
+
+// ENHANCED: Comprehensive optimization system initialization
+function initializeOptimizationSystems() {
+  // Enable performance monitoring
+  if (window.performanceMonitor) {
+    window.performanceMonitor.enable();
+    window.performanceMonitor.startFrameRateMonitoring();
+    
+    // Set up periodic memory monitoring
+    setInterval(() => {
+      window.performanceMonitor.monitorMemoryUsage();
+    }, 30000); // Every 30 seconds
+  }
+  
+  // Initialize progressive loader with defined steps
+  if (window.progressiveLoader) {
+    const loadingSteps = [
+      {
+        name: 'map',
+        userFacing: true,
+        estimatedTime: 2000,
+        dependencies: [],
+        loader: () => Promise.resolve() // Map already loaded
+      },
+      {
+        name: 'ui',
+        userFacing: true,
+        estimatedTime: 1000,
+        dependencies: ['map'],
+        loader: () => Promise.resolve() // UI already set up
+      },
+      {
+        name: 'search',
+        userFacing: true,
+        estimatedTime: 1500,
+        dependencies: ['ui'],
+        loader: async () => {
+          if (window.searchIndex && window.dataStore.localities.length > 0) {
+            await window.searchIndex.buildIndex(window.dataStore.localities);
+          }
+        }
+      },
+      {
+        name: 'advanced-search',
+        userFacing: false,
+        estimatedTime: 3000,
+        dependencies: ['search'],
+        loader: async () => {
+          if (window.advancedSearchIndex) {
+            // Build advanced search index for all data types
+            window.dataStore.localities.forEach(item => {
+              window.advancedSearchIndex.addToTrie(item.name, item.id, 'locality');
+            });
+            window.dataStore.settlements.forEach(item => {
+              window.advancedSearchIndex.addToTrie(item.name, item.id, 'settlement');
+            });
+          }
+        }
+      },
+      {
+        name: 'settlements',
+        userFacing: false,
+        estimatedTime: 4000,
+        dependencies: ['map'],
+        loader: () => Promise.resolve() // Settlements already loaded
+      },
+      {
+        name: 'analytics',
+        userFacing: false,
+        estimatedTime: 500,
+        dependencies: [],
+        loader: () => {
+          // Initialize analytics if needed
+          return Promise.resolve();
+        }
+      }
+    ];
+    
+    window.progressiveLoader.defineSteps(loadingSteps);
+    window.progressiveLoader.setupLazyLoading();
+    
+    // Load critical path immediately
+    window.progressiveLoader.loadCriticalPath().then(() => {
+      console.log('Critical path loading complete');
+      
+      // Load deferred features in background
+      window.progressiveLoader.loadDeferredFeatures();
+    });
+  }
+  
+  // Set up enhanced event delegation
+  if (window.eventManager) {
+    window.eventManager.setupEnhancedFormDelegation();
+  }
+  
+  // Initialize Web Workers for heavy calculations
+  if (window.workerManager) {
+    // Pre-create workers for common tasks
+    window.workerManager.createWorker('enhancedMapWorker', enhancedMapWorker.toString());
+  }
+  
+  // Set up data loader for future requests
+  if (window.dataLoader) {
+    // Cache commonly requested URLs
+    const commonUrls = {
+      localities: 'https://example.com/localities.geojson', // Replace with actual URLs
+      settlements: 'https://example.com/settlements.geojson'
+    };
+    
+    // Preload critical data if not already loaded
+    Object.entries(commonUrls).forEach(([key, url]) => {
+      if (!window.dataStore[key] || window.dataStore[key].length === 0) {
+        window.dataLoader.preloadData(key, url);
+      }
+    });
+  }
+  
+  // Global error handling for optimization systems
+  window.addEventListener('error', (event) => {
+    if (window.performanceMonitor) {
+      window.performanceMonitor.trackUserInteraction('error', 0);
+    }
+    console.error('Optimization system error:', event.error);
+  });
+  
+  // Periodic performance checks
+  setInterval(() => {
+    if (window.performanceMonitor && window.performanceMonitor.enabled) {
+      const bottlenecks = window.performanceMonitor.detectBottlenecks();
+      if (bottlenecks.length > 0) {
+        console.warn('Performance bottlenecks detected:', bottlenecks);
+        
+        // Auto-optimize if possible
+        bottlenecks.forEach(bottleneck => {
+          if (bottleneck.type === 'high_memory_usage') {
+            window.performanceMonitor.triggerMemoryCleanup();
+          }
+        });
+      }
+    }
+  }, 60000); // Every 60 seconds
+  
+  console.log('🚀 Comprehensive optimization systems initialized');
+}
+
+// Initialize optimization systems when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeOptimizationSystems);
+} else {
+  initializeOptimizationSystems();
 }
