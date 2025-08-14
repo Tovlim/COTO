@@ -2023,8 +2023,9 @@ loadDataFromState() {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // Trigger filtering with reframe for subregions
+                // Trigger filtering with reframe for subregions - increased delay to ensure checkbox update
                 setTimeout(() => {
+                    console.log('[DEBUG] About to call applyFilterToMarkers after checkbox update');
                     if (window.mapUtilities && window.mapUtilities.state) {
                         const state = window.mapUtilities.state;
                         state.flags.forceFilteredReframe = true;
@@ -2039,7 +2040,7 @@ loadDataFromState() {
                             }, 1000);
                         }
                     }
-                }, 100);
+                }, 200);
                 
                 setTimeout(() => {
                     window.isMarkerClick = false;
@@ -3298,43 +3299,44 @@ function selectRegionCheckbox(regionName) {
 }
 
 function selectSubregionCheckbox(subregionName) {
+  console.log('[DEBUG] selectSubregionCheckbox called for:', subregionName);
   const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
   const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
   const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
   const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
   
-  // Batch checkbox operations
-  requestAnimationFrame(() => {
-    // Clear all checkboxes first (including settlements)
-    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
-      if (checkbox.checked) {
-        checkbox.checked = false;
-        utils.triggerEvent(checkbox, ['change', 'input']);
-        
-        const form = checkbox.closest('form');
-        if (form) {
-          form.dispatchEvent(new Event('change', {bubbles: true}));
-          form.dispatchEvent(new Event('input', {bubbles: true}));
-        }
-      }
-    });
-    
-    // Find and check the target subregion checkbox
-    const targetCheckbox = subregionCheckboxes.find(checkbox => 
-      checkbox.getAttribute('fs-list-value') === subregionName
-    );
-    
-    if (targetCheckbox) {
-      targetCheckbox.checked = true;
-      utils.triggerEvent(targetCheckbox, ['change', 'input']);
+  // Clear all checkboxes first (including settlements) - do this synchronously
+  [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+    if (checkbox.checked) {
+      checkbox.checked = false;
+      utils.triggerEvent(checkbox, ['change', 'input']);
       
-      const form = targetCheckbox.closest('form');
+      const form = checkbox.closest('form');
       if (form) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
     }
   });
+  
+  // Find and check the target subregion checkbox - do this synchronously
+  const targetCheckbox = subregionCheckboxes.find(checkbox => 
+    checkbox.getAttribute('fs-list-value') === subregionName
+  );
+  
+  if (targetCheckbox) {
+    console.log('[DEBUG] Found and checking subregion checkbox for:', subregionName);
+    targetCheckbox.checked = true;
+    utils.triggerEvent(targetCheckbox, ['change', 'input']);
+    
+    const form = targetCheckbox.closest('form');
+    if (form) {
+      form.dispatchEvent(new Event('change', {bubbles: true}));
+      form.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+  } else {
+    console.log('[DEBUG] Subregion checkbox not found for:', subregionName);
+  }
 }
 
 function selectLocalityCheckbox(localityName) {
@@ -4600,7 +4602,7 @@ function setupSidebars() {
       return;
     }
     
-    if (attempt < maxAttempts) {ff
+    if (attempt < maxAttempts) {
       const delay = [50, 150, 250, 500][attempt - 1] || 500;
       state.setTimer(`sidebarSetup-${attempt}`, () => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
