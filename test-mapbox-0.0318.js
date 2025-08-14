@@ -2040,7 +2040,7 @@ loadDataFromState() {
                             }, 1000);
                         }
                     }
-                }, 200);
+                }, 400);
                 
                 setTimeout(() => {
                     window.isMarkerClick = false;
@@ -3334,6 +3334,11 @@ function selectSubregionCheckbox(subregionName) {
       form.dispatchEvent(new Event('change', {bubbles: true}));
       form.dispatchEvent(new Event('input', {bubbles: true}));
     }
+    
+    // Verify the checkbox was actually checked
+    setTimeout(() => {
+      console.log(`[DEBUG] Verification - ${subregionName} checkbox is now: ${targetCheckbox.checked ? 'CHECKED' : 'UNCHECKED'}`);
+    }, 50);
   } else {
     console.log('[DEBUG] Subregion checkbox not found for:', subregionName);
   }
@@ -4212,6 +4217,13 @@ function applyFilterToMarkers(shouldReframe = true) {
   const checkedSubregions = $('[checkbox-filter="subregion"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
   const checkedLocalities = $('[checkbox-filter="locality"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
   const checkedSettlements = $('[checkbox-filter="settlement"] input:checked').map(cb => cb.getAttribute('fs-list-value'));
+  
+  // Debug: Log all subregion checkboxes and their states
+  console.log('[DEBUG] All subregion checkboxes:');
+  $('[checkbox-filter="subregion"] input[fs-list-value]').forEach(cb => {
+    console.log(`  - ${cb.getAttribute('fs-list-value')}: ${cb.checked ? 'CHECKED' : 'unchecked'}`);
+  });
+  console.log('[DEBUG] Checked subregions array:', checkedSubregions);
   
   let visibleCoordinates = [];
   
