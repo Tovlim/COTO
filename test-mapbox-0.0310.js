@@ -257,9 +257,13 @@ function addRegionBoundaryToMap(name, regionFeature) {
     }
   };
   
-  // Only add beforeId if the layer exists
+  // Only add beforeId if the layer exists - check settlement layers first
   if (firstAreaLayer) {
     map.addLayer(layerConfig, firstAreaLayer);
+  } else if (mapLayers.hasLayer('settlement-clusters')) {
+    map.addLayer(layerConfig, 'settlement-clusters');
+  } else if (mapLayers.hasLayer('settlement-points')) {
+    map.addLayer(layerConfig, 'settlement-points');
   } else if (mapLayers.hasLayer('locality-clusters')) {
     map.addLayer(layerConfig, 'locality-clusters');
   } else {
@@ -279,9 +283,13 @@ function addRegionBoundaryToMap(name, regionFeature) {
     }
   };
   
-  // Only add beforeId if the layer exists
+  // Only add beforeId if the layer exists - check settlement layers first
   if (firstAreaLayer) {
     map.addLayer(borderConfig, firstAreaLayer);
+  } else if (mapLayers.hasLayer('settlement-clusters')) {
+    map.addLayer(borderConfig, 'settlement-clusters');
+  } else if (mapLayers.hasLayer('settlement-points')) {
+    map.addLayer(borderConfig, 'settlement-points');
   } else if (mapLayers.hasLayer('locality-clusters')) {
     map.addLayer(borderConfig, 'locality-clusters');
   } else {
@@ -338,8 +346,12 @@ function addAreaOverlayToMap(name, areaFeature) {
     }
   };
   
-  // Only add beforeId if the layer exists
-  if (mapLayers.hasLayer('locality-clusters')) {
+  // Only add beforeId if the layer exists - check settlement layers first, then locality
+  if (mapLayers.hasLayer('settlement-clusters')) {
+    map.addLayer(layerConfig, 'settlement-clusters');
+  } else if (mapLayers.hasLayer('settlement-points')) {
+    map.addLayer(layerConfig, 'settlement-points');
+  } else if (mapLayers.hasLayer('locality-clusters')) {
     map.addLayer(layerConfig, 'locality-clusters');
   } else {
     map.addLayer(layerConfig);
