@@ -537,10 +537,10 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#5f6980');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#444B5C');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#5f6980');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#444B5C');
             }
           }
         };
@@ -2189,29 +2189,29 @@ loadDataFromState() {
                         .list-term.locality-term {
                             font-weight: 500;
                             color: #7e7800;
-                            background-color: #fffef5;
+                            background-color: #f9f8e6;
                             border-left: 3px solid #7e7800;
                             padding: 10px 12px;
                         }
                         
-                        .list-term.locality-term:hover { background-color: #f9f8e6; }
+                        .list-term.locality-term:hover { background-color: #f0eecc; }
                         .list-term.locality-term * { pointer-events: none; }
                         .list-term.locality-term .term-label { color: #a49c00; }
                         
                         .list-term.settlement-term {
                             font-weight: 500;
-                            color: #5f6980;
+                            color: #444B5C;
                             background-color: #f5f7fa;
-                            border-left: 3px solid #5f6980;
+                            border-left: 3px solid #444B5C;
                             padding: 10px 12px;
                         }
                         
                         .list-term.settlement-term:hover { background-color: #e8ecf2; }
                         .list-term.settlement-term * { pointer-events: none; }
-                        .list-term.settlement-term .term-label { color: #5f6980; }
+                        .list-term.settlement-term .term-label { color: #444B5C; }
                         
                         .list-term.settlement-term .locality-name {
-                            color: #5f6980;
+                            color: #444B5C;
                         }
                         
                         .locality-info {
@@ -3629,7 +3629,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#5f6980',
+          'text-halo-color': '#444B5C',
           'text-halo-width': 2
         }
       };
@@ -3669,7 +3669,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#5f6980',
+          'text-halo-color': '#444B5C',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
