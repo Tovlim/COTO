@@ -4238,7 +4238,22 @@ function applyFilterToMarkers(shouldReframe = true) {
       });
     }
     
-    visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
+    // For single subregion selection, use the subregion centroid instead of all localities
+    if (checkedSubregions.length === 1 && state.allSubregionFeatures) {
+      const subregionFeature = state.allSubregionFeatures.find(f => 
+        f.properties.name === checkedSubregions[0]
+      );
+      if (subregionFeature) {
+        // Use the subregion centroid for zooming
+        visibleCoordinates = [subregionFeature.geometry.coordinates];
+      } else {
+        // Fallback to locality coordinates
+        visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
+      }
+    } else {
+      // Multiple subregions or fallback - use all locality coordinates
+      visibleCoordinates = filteredLocalities.map(f => f.geometry.coordinates);
+    }
   } else if (checkedRegions.length > 0) {
     // Filter by region
     const filteredLocalities = state.allLocalityFeatures.filter(f => 
