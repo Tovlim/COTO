@@ -3,16 +3,16 @@ function setupEvents() {
   const eventHandlers = [
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
       if (window.innerWidth > 991) {
-        state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
       }
     }},
     {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
       if (window.innerWidth > 991) {
-        state.setTimer('autoSecondSidebar', () => toggleSidebar('SecondLeft', true), 50);
+        state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
       }
     }},
-    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => state.setTimer('selectChange', handleFilterUpdate, 50)},
-    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => state.setTimer('filterChange', handleFilterUpdate, 50)}
+    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => state.setTimer('filterUpdate', handleFilterUpdate, 50)},
+    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => state.setTimer('filterUpdate', handleFilterUpdate, 50)}
   ];
   
   eventHandlers.forEach(({selector, events, handler}) => {
@@ -568,7 +568,6 @@ function setupDeferredAreaControls() {
     // Mark as complete
     if (setupCount > 0) {
       state.flags.areaControlsSetup = true;
-      console.log('Area controls loaded');
     }
   };
   
@@ -857,7 +856,7 @@ function setupCheckboxEvents(checkboxContainer) {
     ['change', 'input'].forEach(eventType => {
       eventManager.add(element, eventType, () => {
         if (window.innerWidth > 991) {
-          state.setTimer('checkboxAutoSidebar', () => toggleSidebar('Left', true), 50);
+          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
         }
       });
     });
@@ -866,7 +865,7 @@ function setupCheckboxEvents(checkboxContainer) {
   // Handle fs-cmsfilter-element filters
   const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
   filterElements.forEach(element => {
-    eventManager.add(element, 'change', () => state.setTimer('checkboxFilter', handleFilterUpdate, 50));
+    eventManager.add(element, 'change', () => state.setTimer('filterUpdate', handleFilterUpdate, 50));
   });
   
   // Handle activate-filter-indicator functionality
@@ -1313,7 +1312,6 @@ window.addEventListener('beforeunload', () => {
             return loadPromise;
         }
         
-        console.log(`Loading autocomplete... (triggered by: ${trigger})`);
         autocompleteLoadState = 'loading';
         
         // Create a promise for the loading process
@@ -1324,7 +1322,6 @@ window.addEventListener('beforeunload', () => {
                     // Initialize the actual autocomplete
                     initializeFullAutocomplete();
                     autocompleteLoadState = 'loaded';
-                    console.log('Autocomplete loaded successfully');
                     resolve();
                 } catch (error) {
                     console.error('Failed to load autocomplete:', error);
@@ -1420,7 +1417,6 @@ window.addEventListener('beforeunload', () => {
                 // Load data from window state when available
                 this.waitForData();
                 
-                console.log('High-performance autocomplete initialized');
             }
             
             setupDropdownStructure() {
@@ -2569,10 +2565,21 @@ class OptimizedDOMCache {
     return this.selectorCache.get(selector);
   }
   
-  // Multiple element getters with caching
+  // Multiple element getters with smart caching (avoid caching dynamic selectors)
   $(selector) {
-    if (!this.listCache.has(selector)) {
-      this.listCache.set(selector, Array.from(document.querySelectorAll(selector)));
+    // OPTIMIZED: Don't cache checkbox states or dynamic content
+    const isDynamicSelector = selector.includes(':checked') || 
+                             selector.includes(':selected') || 
+                             selector.includes(':focus') ||
+                             selector.includes(':hover') ||
+                             selector.includes(':active');
+    
+    if (isDynamicSelector || !this.listCache.has(selector)) {
+      const elements = Array.from(document.querySelectorAll(selector));
+      if (!isDynamicSelector) {
+        this.listCache.set(selector, elements);
+      }
+      return elements;
     }
     return this.listCache.get(selector);
   }
@@ -2602,8 +2609,106 @@ class OptimizedDOMCache {
   }
 }
 
+// OPTIMIZED: Bounds calculation utility with caching
+class BoundsCalculator {
+  constructor() {
+    this.boundsCache = new Map();
+  }
+  
+  // Create bounds from coordinates with caching
+  fromCoordinates(coordinates, cacheKey = null) {
+    if (cacheKey && this.boundsCache.has(cacheKey)) {
+      return this.boundsCache.get(cacheKey);
+    }
+    
+    const bounds = new mapboxgl.LngLatBounds();
+    coordinates.forEach(coord => bounds.extend(coord));
+    
+    if (cacheKey) {
+      this.boundsCache.set(cacheKey, bounds);
+    }
+    
+    return bounds;
+  }
+  
+  // Create bounds from GeoJSON coordinates with recursive handling
+  fromGeoJSON(geoJsonCoords, cacheKey = null) {
+    if (cacheKey && this.boundsCache.has(cacheKey)) {
+      return this.boundsCache.get(cacheKey);
+    }
+    
+    const bounds = new mapboxgl.LngLatBounds();
+    const addCoords = coords => {
+      if (Array.isArray(coords) && coords.length > 0) {
+        if (typeof coords[0] === 'number') bounds.extend(coords);
+        else coords.forEach(addCoords);
+      }
+    };
+    
+    addCoords(geoJsonCoords);
+    
+    if (cacheKey) {
+      this.boundsCache.set(cacheKey, bounds);
+    }
+    
+    return bounds;
+  }
+  
+  clearCache() {
+    this.boundsCache.clear();
+  }
+}
+
+// OPTIMIZED: Debounced source update utility
+class SourceUpdateManager {
+  constructor() {
+    this.pendingUpdates = new Map();
+    this.updateTimers = new Map();
+  }
+  
+  // Debounced source data update
+  updateSource(sourceId, data, delay = 100) {
+    // Store the latest data for this source
+    this.pendingUpdates.set(sourceId, data);
+    
+    // Clear existing timer for this source
+    if (this.updateTimers.has(sourceId)) {
+      clearTimeout(this.updateTimers.get(sourceId));
+    }
+    
+    // Set new debounced update
+    const timer = setTimeout(() => {
+      const source = map.getSource(sourceId);
+      if (source && this.pendingUpdates.has(sourceId)) {
+        source.setData(this.pendingUpdates.get(sourceId));
+        this.pendingUpdates.delete(sourceId);
+        this.updateTimers.delete(sourceId);
+      }
+    }, delay);
+    
+    this.updateTimers.set(sourceId, timer);
+  }
+  
+  // Immediate source update (bypass debouncing)
+  updateSourceImmediate(sourceId, data) {
+    // Clear any pending update
+    if (this.updateTimers.has(sourceId)) {
+      clearTimeout(this.updateTimers.get(sourceId));
+      this.updateTimers.delete(sourceId);
+    }
+    this.pendingUpdates.delete(sourceId);
+    
+    const source = map.getSource(sourceId);
+    if (source) {
+      source.setData(data);
+    }
+  }
+}
+
 // OPTIMIZED: Global DOM cache instance
 const domCache = new OptimizedDOMCache();
+const boundsCalculator = new BoundsCalculator();
+const sourceUpdater = new SourceUpdateManager();
 const $ = (selector) => domCache.$(selector);
 const $1 = (selector) => domCache.$1(selector);  
 const $id = (id) => domCache.$id(id);
@@ -3180,16 +3285,11 @@ function frameRegionBoundary(regionName) {
   const source = map.getSource(boundarySourceId);
   
   if (source && source._data) {
-    // Region has boundaries - frame them
-    const bounds = new mapboxgl.LngLatBounds();
-    const addCoords = coords => {
-      if (Array.isArray(coords) && coords.length > 0) {
-        if (typeof coords[0] === 'number') bounds.extend(coords);
-        else coords.forEach(addCoords);
-      }
-    };
+    // Region has boundaries - frame them with cached bounds
+    const cacheKey = `region-${regionName}`;
+    const allCoordinates = source._data.features.flatMap(feature => feature.geometry.coordinates);
+    const bounds = boundsCalculator.fromGeoJSON(allCoordinates, cacheKey);
     
-    source._data.features.forEach(feature => addCoords(feature.geometry.coordinates));
     map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
     return true; // Successfully framed
   }
@@ -3255,16 +3355,18 @@ const toggleShowWhenFilteredElements = show => {
 };
 
 // FIXED: Checkbox selection functions with proper settlement unchecking
-function selectRegionCheckbox(regionName) {
-  const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
-  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
+// OPTIMIZED: Unified checkbox selection function
+function selectCheckbox(type, value) {
+  const checkboxTypes = ['region', 'subregion', 'locality', 'settlement'];
   
-  // Batch checkbox operations
   requestAnimationFrame(() => {
-    // Clear all checkboxes first (including settlements and subregions)
-    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
+    // Get all checkbox groups - using native queries to avoid caching
+    const allCheckboxes = checkboxTypes.flatMap(checkboxType => 
+      Array.from(document.querySelectorAll(`[checkbox-filter="${checkboxType}"] input[fs-list-value]`))
+    );
+    
+    // Clear all checkboxes first
+    allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -3277,9 +3379,10 @@ function selectRegionCheckbox(regionName) {
       }
     });
     
-    // Find and check target checkbox
-    const targetCheckbox = regionCheckboxes.find(checkbox => 
-      checkbox.getAttribute('fs-list-value') === regionName
+    // Find and check the target checkbox
+    const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
+    const targetCheckbox = targetCheckboxes.find(checkbox => 
+      checkbox.getAttribute('fs-list-value') === value
     );
     
     if (targetCheckbox) {
@@ -3293,126 +3396,23 @@ function selectRegionCheckbox(regionName) {
       }
     }
   });
+}
+
+// Wrapper functions for backward compatibility
+function selectRegionCheckbox(regionName) {
+  selectCheckbox('region', regionName);
 }
 
 function selectSubregionCheckbox(subregionName) {
-  const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
-  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
-  
-  // Batch checkbox operations
-  requestAnimationFrame(() => {
-    // Clear all checkboxes first (including settlements)
-    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
-      if (checkbox.checked) {
-        checkbox.checked = false;
-        utils.triggerEvent(checkbox, ['change', 'input']);
-        
-        const form = checkbox.closest('form');
-        if (form) {
-          form.dispatchEvent(new Event('change', {bubbles: true}));
-          form.dispatchEvent(new Event('input', {bubbles: true}));
-        }
-      }
-    });
-    
-    // Find and check the target subregion checkbox
-    const targetCheckbox = subregionCheckboxes.find(checkbox => 
-      checkbox.getAttribute('fs-list-value') === subregionName
-    );
-    
-    if (targetCheckbox) {
-      targetCheckbox.checked = true;
-      utils.triggerEvent(targetCheckbox, ['change', 'input']);
-      
-      const form = targetCheckbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
+  selectCheckbox('subregion', subregionName);
 }
 
 function selectLocalityCheckbox(localityName) {
-  const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
-  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
-  
-  // Batch checkbox operations
-  requestAnimationFrame(() => {
-    // Clear all checkboxes first (including settlements and subregions)
-    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
-      if (checkbox.checked) {
-        checkbox.checked = false;
-        utils.triggerEvent(checkbox, ['change', 'input']);
-        
-        const form = checkbox.closest('form');
-        if (form) {
-          form.dispatchEvent(new Event('change', {bubbles: true}));
-          form.dispatchEvent(new Event('input', {bubbles: true}));
-        }
-      }
-    });
-    
-    // Find and check target checkbox
-    const targetCheckbox = localityCheckboxes.find(checkbox => 
-      checkbox.getAttribute('fs-list-value') === localityName
-    );
-    
-    if (targetCheckbox) {
-      targetCheckbox.checked = true;
-      utils.triggerEvent(targetCheckbox, ['change', 'input']);
-      
-      const form = targetCheckbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
+  selectCheckbox('locality', localityName);
 }
 
 function selectSettlementCheckbox(settlementName) {
-  const regionCheckboxes = $('[checkbox-filter="region"] input[fs-list-value]');
-  const subregionCheckboxes = $('[checkbox-filter="subregion"] input[fs-list-value]');
-  const localityCheckboxes = $('[checkbox-filter="locality"] input[fs-list-value]');
-  const settlementCheckboxes = $('[checkbox-filter="settlement"] input[fs-list-value]');
-  
-  // Batch checkbox operations
-  requestAnimationFrame(() => {
-    // Clear all checkboxes first (including subregions)
-    [...regionCheckboxes, ...subregionCheckboxes, ...localityCheckboxes, ...settlementCheckboxes].forEach(checkbox => {
-      if (checkbox.checked) {
-        checkbox.checked = false;
-        utils.triggerEvent(checkbox, ['change', 'input']);
-        
-        const form = checkbox.closest('form');
-        if (form) {
-          form.dispatchEvent(new Event('change', {bubbles: true}));
-          form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-    });
-    
-    // Find and check target checkbox
-    const targetCheckbox = settlementCheckboxes.find(checkbox => 
-      checkbox.getAttribute('fs-list-value') === settlementName
-    );
-    
-    if (targetCheckbox) {
-      targetCheckbox.checked = true;
-      utils.triggerEvent(targetCheckbox, ['change', 'input']);
-      
-      const form = targetCheckbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
-      }
-    }
-  });
+  selectCheckbox('settlement', settlementName);
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
@@ -3511,14 +3511,10 @@ function loadLocalitiesFromGeoJSON() {
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
       
-      console.log(`Loaded ${state.allLocalityFeatures.length} localities from GeoJSON`);
-      console.log(`Extracted ${state.allRegionFeatures.length} regions from localities`);
-      console.log(`Extracted ${state.allSubregionFeatures.length} subregions from localities`);
       
       // Load settlements after locality/region layers are created for proper layer ordering
       // Use timer to ensure batched layer operations complete first
       state.setTimer('loadSettlements', () => {
-        console.log('[DEBUG] About to call loadSettlements from loadLocalitiesFromGeoJSON (after delay)');
         loadSettlements();
       }, 300);
       
@@ -3565,7 +3561,6 @@ function loadSettlements() {
         state.setTimer('refreshAutocompleteAfterSettlements', window.refreshAutocomplete, 600);
       }
       
-      console.log(`Loaded ${state.allSettlementFeatures.length} settlements`);
     })
     .catch(error => {
       console.error('Failed to load settlements:', error);
@@ -3587,11 +3582,8 @@ function logLayerOrder(message) {
 
 // Add settlement markers to map with updated color
 function addSettlementMarkers() {
-  console.log('[DEBUG] addSettlementMarkers called');
-  console.log('[DEBUG] Settlement features count:', state.allSettlementFeatures?.length || 0);
   
   if (!state.allSettlementFeatures.length) {
-    console.log('[DEBUG] No settlement features to add');
     return;
   }
   
@@ -3601,11 +3593,9 @@ function addSettlementMarkers() {
     const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
     
     if (existingMarkerLayer) {
-      console.log('[DEBUG] Will insert settlement layers before:', existingMarkerLayer);
       return existingMarkerLayer;
     }
     
-    console.log('[DEBUG] No marker layers found, settlement layers will be positioned at top');
     return null;
   };
   
@@ -3651,7 +3641,6 @@ function addSettlementMarkers() {
       } else {
         map.addLayer(layerConfig);
       }
-      console.log('[DEBUG] Added settlement-clusters layer', beforeId ? `before ${beforeId}` : 'at top');
       
       // Add individual settlement points layer with proper positioning
       const pointsLayerConfig = {
@@ -3698,7 +3687,6 @@ function addSettlementMarkers() {
       } else {
         map.addLayer(pointsLayerConfig);
       }
-      console.log('[DEBUG] Added settlement-points layer', beforeId ? `before ${beforeId}` : 'at top');
       
       // Hide Mapbox base map settlement layers immediately
       try {
@@ -3779,12 +3767,9 @@ function setupSettlementMarkerClicks() {
 
 // OPTIMIZED: Native markers with batched operations
 function addNativeMarkers() {
-  console.log('[DEBUG] addNativeMarkers (localities) called');
   if (!state.locationData.features.length) {
-    console.log('[DEBUG] No locality features to add');
     return;
   }
-  console.log('[DEBUG] Adding locality layers...');
   
   // Batch add source and layers
   mapLayers.addToBatch(() => {
@@ -3820,7 +3805,6 @@ function addNativeMarkers() {
       });
       
       // Add individual locality points layer WITHOUT highlighting (FIX #2)
-      console.log('[DEBUG] Adding locality-points layer');
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
@@ -3859,7 +3843,6 @@ function addNativeMarkers() {
         }
       });
       
-      console.log('[DEBUG] locality-points layer added');
       logLayerOrder('After adding locality layers');
       
       mapLayers.invalidateCache(); // Invalidate cache after adding layers
@@ -3874,12 +3857,9 @@ function addNativeMarkers() {
 
 // OPTIMIZED: Region markers with batched operations  
 function addNativeRegionMarkers() {
-  console.log('[DEBUG] addNativeRegionMarkers called');
   if (!state.allRegionFeatures.length) {
-    console.log('[DEBUG] No region features to add');
     return;
   }
-  console.log('[DEBUG] Adding region layers...');
   
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('regions-source')) {
@@ -4218,7 +4198,7 @@ function applyFilterToMarkers(shouldReframe = true) {
     );
     
     if (mapLayers.hasSource('localities-source')) {
-      map.getSource('localities-source').setData({
+      sourceUpdater.updateSource('localities-source', {
         type: "FeatureCollection",
         features: filteredLocalities
       });
@@ -4232,7 +4212,7 @@ function applyFilterToMarkers(shouldReframe = true) {
     );
     
     if (mapLayers.hasSource('localities-source')) {
-      map.getSource('localities-source').setData({
+      sourceUpdater.updateSource('localities-source', {
         type: "FeatureCollection",
         features: filteredLocalities
       });
@@ -4263,7 +4243,7 @@ function applyFilterToMarkers(shouldReframe = true) {
     );
     
     if (mapLayers.hasSource('localities-source')) {
-      map.getSource('localities-source').setData({
+      sourceUpdater.updateSource('localities-source', {
         type: "FeatureCollection",
         features: filteredLocalities
       });
@@ -4273,7 +4253,7 @@ function applyFilterToMarkers(shouldReframe = true) {
   } else {
     // No filtering - show all
     if (mapLayers.hasSource('localities-source')) {
-      map.getSource('localities-source').setData({
+      sourceUpdater.updateSource('localities-source', {
         type: "FeatureCollection",
         features: state.allLocalityFeatures
       });
@@ -4285,8 +4265,8 @@ function applyFilterToMarkers(shouldReframe = true) {
   if (shouldReframe && visibleCoordinates.length > 0) {
     const animationDuration = state.flags.isInitialLoad ? 600 : 1000;
     
-    const bounds = new mapboxgl.LngLatBounds();
-    visibleCoordinates.forEach(coord => bounds.extend(coord));
+    // Use cached bounds calculation
+    const bounds = boundsCalculator.fromCoordinates(visibleCoordinates);
     
     map.fitBounds(bounds, {
       padding: {
@@ -4582,7 +4562,7 @@ function setupSidebars() {
     
     if (leftReady && secondLeftReady && rightReady) {
       setupInitialMargins();
-      state.setTimer('setupControls', setupControls, 50);
+      state.setTimer('controlsInit', setupControls, 50);
       
       // Mark UI loading step complete
       loadingTracker.markComplete('sidebarSetup');
@@ -4594,7 +4574,7 @@ function setupSidebars() {
       state.setTimer(`sidebarSetup-${attempt}`, () => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
-      state.setTimer('setupControls', setupControls, 50);
+      state.setTimer('controlsInit', setupControls, 50);
       
       // Mark UI loading step complete even if some sidebars missing
       loadingTracker.markComplete('sidebarSetup');
