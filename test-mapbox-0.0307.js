@@ -500,10 +500,10 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#444B5C');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#6a7a9c');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#444B5C');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#6a7a9c');
             }
           }
         };
@@ -537,10 +537,10 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#6a7a9c');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#444B5C');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#6a7a9c');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#444B5C');
             }
           }
         };
@@ -3629,7 +3629,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#6a7a9c',
+          'text-halo-color': '#444B5C',
           'text-halo-width': 2
         }
       };
@@ -3669,7 +3669,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#6a7a9c',
+          'text-halo-color': '#444B5C',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
