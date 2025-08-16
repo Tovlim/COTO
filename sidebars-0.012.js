@@ -509,23 +509,31 @@
   // ====================================================================
   // FILTERED ELEMENTS
   // ====================================================================
-  const toggleShowWhenFilteredElements = show => {
+  const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
     
-    elements.forEach(element => {
-      element.style.display = show ? 'block' : 'none';
-      element.style.visibility = show ? 'visible' : 'hidden';
-      element.style.opacity = show ? '1' : '0';
-      element.style.pointerEvents = show ? 'auto' : 'none';
-    });
+    const applyStyles = () => {
+      elements.forEach(element => {
+        element.style.display = show ? 'block' : 'none';
+        element.style.visibility = show ? 'visible' : 'hidden';
+        element.style.opacity = show ? '1' : '0';
+        element.style.pointerEvents = show ? 'auto' : 'none';
+      });
+    };
+    
+    if (show && !skipDelay && !state.flags.pageLoadDelayComplete) {
+      state.setTimer('showFilteredElementsDelay', applyStyles, 1000);
+    } else {
+      applyStyles();
+    }
   };
   
-  const checkAndToggleFilteredElements = () => {
+  const checkAndToggleFilteredElements = (skipDelay = false) => {
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
     
-    toggleShowWhenFilteredElements(shouldShow);
+    toggleShowWhenFilteredElements(shouldShow, skipDelay);
     return shouldShow;
   };
   
@@ -545,7 +553,7 @@
         }
         
         const observer = new MutationObserver(() => {
-          checkAndToggleFilteredElements();
+          checkAndToggleFilteredElements(true);
         });
         observer.observe(tagParent, {childList: true, subtree: true});
         
@@ -556,7 +564,7 @@
       allCheckboxes.forEach(checkbox => {
         if (!checkbox.dataset.filteredElementListener) {
           eventManager.add(checkbox, 'change', () => {
-            setTimeout(checkAndToggleFilteredElements, 50);
+            setTimeout(() => checkAndToggleFilteredElements(true), 50);
           });
           checkbox.dataset.filteredElementListener = 'true';
         }
@@ -566,10 +574,10 @@
       forms.forEach(form => {
         if (!form.dataset.filteredElementListener) {
           eventManager.add(form, 'change', () => {
-            setTimeout(checkAndToggleFilteredElements, 100);
+            setTimeout(() => checkAndToggleFilteredElements(true), 100);
           });
           eventManager.add(form, 'input', () => {
-            setTimeout(checkAndToggleFilteredElements, 100);
+            setTimeout(() => checkAndToggleFilteredElements(true), 100);
           });
           form.dataset.filteredElementListener = 'true';
         }
@@ -579,7 +587,7 @@
         if (pollingTimer) clearTimeout(pollingTimer);
         
         pollingTimer = setTimeout(() => {
-          checkAndToggleFilteredElements();
+          checkAndToggleFilteredElements(true);
           startPolling();
         }, 1000);
       };
@@ -894,7 +902,7 @@
     
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
-        setTimeout(checkAndToggleFilteredElements, 100);
+        setTimeout(() => checkAndToggleFilteredElements(true), 100);
       });
     });
     
@@ -987,7 +995,10 @@
     }, 500);
     
     setupSidebars();
-    state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+    state.setTimer('loadCheckFiltered', () => {
+      state.flags.pageLoadDelayComplete = true;
+      checkAndToggleFilteredElements();
+    }, 1200);
   });
   
   window.addEventListener('beforeunload', () => {
