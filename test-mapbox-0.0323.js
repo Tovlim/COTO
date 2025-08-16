@@ -1603,9 +1603,13 @@ loadDataFromState() {
                 // Keyboard navigation
                 this.elements.input.addEventListener('keydown', (e) => this.handleKeydown(e));
                 
-                // Prevent blur when interacting with dropdown
+                // Prevent blur only when clicking on dropdown items (not the whole wrapper)
                 this.elements.wrapper.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
+                    // Only prevent default if clicking on an actual dropdown item
+                    // This allows normal blur behavior when clicking elsewhere
+                    if (e.target.closest('.dropdown-item, .subregion-select, .locality-item, .settlementlistitem')) {
+                        e.preventDefault();
+                    }
                 });
                 
                 // Click handling
@@ -2096,7 +2100,16 @@ loadDataFromState() {
                 if (this.elements.input.value) {
                     this.elements.input.value = '';
                     this.hideDropdown();
-                    this.elements.input.focus();
+                    
+                    // Only refocus on desktop or if not on iOS Safari
+                    // iOS Safari has issues with programmatic focus after UI interactions
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    const isMobileSafari = isIOS && /WebKit/.test(navigator.userAgent) && !/CriOS/.test(navigator.userAgent);
+                    
+                    if (!isMobileSafari) {
+                        this.elements.input.focus();
+                    }
+                    
                     this.showAllItems();
                     this.renderResults();
                     this.showDropdown();
