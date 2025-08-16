@@ -11,7 +11,7 @@ if (!window.SharedCore) {
 }
 
 // Import from SharedCore
-const { domCache, eventManager, state, geoCache, utils, sidebarCache, toggleSidebar, closeSidebar } = window.SharedCore;
+const { domCache, eventManager, state, geoCache, utils, sidebarCache, toggleSidebar, closeSidebar, checkAndToggleFilteredElements, monitorTags } = window.SharedCore;
 const { $, $1, $id } = window.SharedCore;
 
 // ====================================================================
@@ -2741,33 +2741,26 @@ const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'yi'];
 // Check if current language is RTL
 const isRTL = rtlLanguages.includes(lang);
 
-// Apply RTL styles if needed
-if (isRTL) {
+// Initialize Mapbox GL with correct access token
+mapboxgl.accessToken = "pk.eyJ1Ijoibml0YWloYXJkeSIsImEiOiJjbWRzNGIxemIwMHVsMm1zaWp3aDl2Y3RsIn0.l_GLzIUCO84SF5_4TcmF3g";
+
+// Enhanced RTL text support for multiple languages
+if (rtlLanguages.includes(lang)) {
   document.documentElement.setAttribute('dir', 'rtl');
-  mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js');
+  mapboxgl.setRTLTextPlugin(
+    "https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.3.0/mapbox-gl-rtl-text.js",
+    null,
+    true // Lazy load the plugin
+  );
 }
 
-// Initialize Mapbox GL
-mapboxgl.accessToken = 'pk.eyJ1IjoidG92bGltIiwiYSI6ImNsdTV3eW50aTBkeDgybHIwYmdtNGZybjYifQ.OUUBtDbNZXvdHAbGg7YzkQ';
-
-// Create the map
+// Create the map with correct style
 const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v12',
+  container: "map",
+  style: "mapbox://styles/nitaihardy/cmdp8fjw100ex01s83b2d6jzf",
   center: isMobile ? [34.85, 31.7] : [35.22, 31.85], // Mobile: both West Bank & Gaza, Desktop: West Bank focused
   zoom: isMobile ? 7.1 : 8.33,
-  maxBounds: [[33.0, 29.0], [36.5, 33.5]],
-  maxZoom: 18,
-  minZoom: 6,
-  attributionControl: false,
-  locale: lang,
-  preserveDrawingBuffer: true,
-  trackResize: true,
-  refreshExpiredTiles: false,
-  collectResourceTiming: false,
-  crossSourceCollisions: false,
-  fadeDuration: 200,
-  optimizeForTerrain: true
+  language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
 // Add scale control
@@ -3092,12 +3085,8 @@ function setupGlobalExports() {
     sourceUpdater,
     dataLoader,
     dataStore,
-    searchIndex,
     workerManager,
-    progressiveLoader,
-    performanceMonitor,
-    mapLayers,
-    mapUtils
+    progressiveLoader
   };
 }
 
