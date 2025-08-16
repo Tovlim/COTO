@@ -2343,15 +2343,394 @@ function enhancedMapWorker() {
 // MAPBOX-SPECIFIC CLASSES (NOT IN SHARED-CORE)
 // ====================================================================
 
+// OPTIMIZED: Bounds calculator with caching for map viewport calculations
+class BoundsCalculator {
+  constructor() {
+    this.boundsCache = new Map();
+  }
+  
+  // Create bounds from coordinates with caching
+  fromCoordinates(coordinates, cacheKey = null) {
+    if (cacheKey && this.boundsCache.has(cacheKey)) {
+      return this.boundsCache.get(cacheKey);
+    }
+    
+    const bounds = new mapboxgl.LngLatBounds();
+    coordinates.forEach(coord => bounds.extend(coord));
+    
+    if (cacheKey) {
+      this.boundsCache.set(cacheKey, bounds);
+    }
+    
+    return bounds;
+  }
+  
+  // Create bounds from GeoJSON coordinates with recursive handling
+  fromGeoJSON(geoJsonCoords, cacheKey = null) {
+    if (cacheKey && this.boundsCache.has(cacheKey)) {
+      return this.boundsCache.get(cacheKey);
+    }
+    
+    const bounds = new mapboxgl.LngLatBounds();
+    const addCoords = coords => {
+      if (Array.isArray(coords) && coords.length > 0) {
+        if (typeof coords[0] === 'number') bounds.extend(coords);
+        else coords.forEach(addCoords);
+      }
+    };
+    
+    addCoords(geoJsonCoords);
+    
+    if (cacheKey) {
+      this.boundsCache.set(cacheKey, bounds);
+    }
+    
+    return bounds;
+  }
+  
+  clearCache() {
+    this.boundsCache.clear();
+  }
+}
+
+// OPTIMIZED: Parallel data loader with caching and error handling
+class DataLoader {
+  constructor() {
+    this.cache = new Map();
+    this.loadingPromises = new Map();
+  }
+  
+  // Parallel fetch with caching and compression support
+  async fetchGeoJSON(url, cacheKey = null) {
+    const key = cacheKey || url;
+    
+    // Return cached data if available
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
+    }
+    
+    // Return existing promise if already loading
+    if (this.loadingPromises.has(key)) {
+      return this.loadingPromises.get(key);
+    }
+    
+    // Create new loading promise
+    const promise = fetch(url, {
+      headers: {
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      this.cache.set(key, data);
+      this.loadingPromises.delete(key);
+      return data;
+    })
+    .catch(error => {
+      this.loadingPromises.delete(key);
+      console.error(`Failed to load ${url}:`, error);
+      throw error;
+    });
+    
+    this.loadingPromises.set(key, promise);
+    return promise;
+  }
+  
+  // Load all GeoJSON data in parallel
+  async loadAllData() {
+    const urls = {
+      localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.003.geojson',
+      settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson'
+    };
+    
+    try {
+      // Start all fetches in parallel
+      const promises = Object.entries(urls).map(async ([key, url]) => {
+        const data = await this.fetchGeoJSON(url, key);
+        return { key, data };
+      });
+      
+      // Wait for all to complete
+      const results = await Promise.all(promises);
+      
+      // Return organized data
+      const organizedData = {};
+      results.forEach(({ key, data }) => {
+        organizedData[key] = data;
+      });
+      
+      return organizedData;
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      throw error;
+    }
+  }
+  
+  clearCache() {
+    this.cache.clear();
+  }
+}
+
+// OPTIMIZED: Debounced source update utility
+class SourceUpdateManager {
+  constructor() {
+    this.pendingUpdates = new Map();
+    this.updateTimers = new Map();
+  }
+  
+  // Debounced source data update
+  updateSource(sourceId, data, delay = 100) {
+    // Store the latest data for this source
+    this.pendingUpdates.set(sourceId, data);
+    
+    // Clear existing timer for this source
+    if (this.updateTimers.has(sourceId)) {
+      clearTimeout(this.updateTimers.get(sourceId));
+    }
+    
+    // Set new debounced update
+    const timer = setTimeout(() => {
+      const source = map.getSource(sourceId);
+      if (source && this.pendingUpdates.has(sourceId)) {
+        source.setData(this.pendingUpdates.get(sourceId));
+        this.pendingUpdates.delete(sourceId);
+        this.updateTimers.delete(sourceId);
+      }
+    }, delay);
+    
+    this.updateTimers.set(sourceId, timer);
+  }
+  
+  // Immediate source update (bypass debouncing)
+  updateSourceImmediate(sourceId, data) {
+    // Clear any pending update
+    if (this.updateTimers.has(sourceId)) {
+      clearTimeout(this.updateTimers.get(sourceId));
+      this.updateTimers.delete(sourceId);
+    }
+    this.pendingUpdates.delete(sourceId);
+    
+    const source = map.getSource(sourceId);
+    if (source) {
+      source.setData(data);
+    }
+  }
+}
+
+// OPTIMIZED: Normalized data store to eliminate redundancy
+class DataStore {
+  constructor() {
+    this.entities = {
+      regions: new Map(),
+      subregions: new Map(), 
+      localities: new Map(),
+      settlements: new Map()
+    };
+    
+    this.indexes = {
+      byRegion: new Map(),
+      bySubregion: new Map(),
+      coordinates: new Map(),
+      searchIndex: new Map()
+    };
+    
+    this.geoJsonCache = {
+      localities: null,
+      settlements: null,
+      regions: null,
+      subregions: null
+    };
+  }
+  
+  // Add entities with automatic indexing
+  addEntity(type, id, data) {
+    this.entities[type].set(id, data);
+    
+    // Build indexes
+    if (data.region) {
+      if (!this.indexes.byRegion.has(data.region)) {
+        this.indexes.byRegion.set(data.region, new Set());
+      }
+      this.indexes.byRegion.get(data.region).add(id);
+    }
+    
+    if (data.subRegion) {
+      if (!this.indexes.bySubregion.has(data.subRegion)) {
+        this.indexes.bySubregion.set(data.subRegion, new Set());
+      }
+      this.indexes.bySubregion.get(data.subRegion).add(id);
+    }
+    
+    if (data.coordinates) {
+      this.indexes.coordinates.set(id, data.coordinates);
+    }
+    
+    // Build search index
+    const searchTerms = [data.name, data.region, data.subRegion].filter(Boolean);
+    searchTerms.forEach(term => {
+      const normalized = term.toLowerCase();
+      if (!this.indexes.searchIndex.has(normalized)) {
+        this.indexes.searchIndex.set(normalized, new Set());
+      }
+      this.indexes.searchIndex.get(normalized).add(id);
+    });
+  }
+  
+  // Get entities with efficient filtering
+  getEntities(type, filter = null) {
+    if (!filter) {
+      return Array.from(this.entities[type].values());
+    }
+    
+    if (filter.region) {
+      const ids = this.indexes.byRegion.get(filter.region) || new Set();
+      return Array.from(ids).map(id => this.entities[type].get(id)).filter(Boolean);
+    }
+    
+    if (filter.subregion) {
+      const ids = this.indexes.bySubregion.get(filter.subregion) || new Set();
+      return Array.from(ids).map(id => this.entities[type].get(id)).filter(Boolean);
+    }
+    
+    return Array.from(this.entities[type].values());
+  }
+  
+  clearCache() {
+    this.geoJsonCache = {};
+  }
+}
+
+// OPTIMIZED: Web Worker manager for heavy calculations
+class WorkerManager {
+  constructor() {
+    this.workers = new Map();
+    this.taskQueue = [];
+    this.maxWorkers = navigator.hardwareConcurrency || 4;
+    this.activeWorkers = 0;
+  }
+  
+  // Create a worker from function code
+  createWorker(name, workerFunction) {
+    if (this.workers.has(name)) {
+      return this.workers.get(name);
+    }
+    
+    try {
+      const blob = new Blob([`(${workerFunction.toString()})()`], { type: 'application/javascript' });
+      const workerUrl = URL.createObjectURL(blob);
+      const worker = new Worker(workerUrl);
+      
+      worker.onmessage = (e) => this.handleWorkerMessage(name, e);
+      worker.onerror = (e) => this.handleWorkerError(name, e);
+      
+      this.workers.set(name, {
+        worker,
+        busy: false,
+        tasks: new Map()
+      });
+      
+      URL.revokeObjectURL(workerUrl);
+      return this.workers.get(name);
+    } catch (error) {
+      console.warn('Web Worker not supported:', error);
+      return null;
+    }
+  }
+  
+  // Execute task in worker
+  async executeInWorker(workerName, taskData, taskId = null) {
+    const workerInfo = this.workers.get(workerName);
+    if (!workerInfo) {
+      // Fallback to main thread
+      return this.executeInMainThread(taskData);
+    }
+    
+    const id = taskId || Math.random().toString(36).substr(2, 9);
+    
+    return new Promise((resolve, reject) => {
+      workerInfo.tasks.set(id, { resolve, reject, startTime: Date.now() });
+      workerInfo.worker.postMessage({ id, ...taskData });
+    });
+  }
+  
+  // Handle worker responses
+  handleWorkerMessage(workerName, event) {
+    const { id, result, error } = event.data;
+    const workerInfo = this.workers.get(workerName);
+    
+    if (workerInfo && workerInfo.tasks.has(id)) {
+      const task = workerInfo.tasks.get(id);
+      workerInfo.tasks.delete(id);
+      
+      if (error) {
+        task.reject(new Error(error));
+      } else {
+        task.resolve(result);
+      }
+    }
+  }
+  
+  // Handle worker errors
+  handleWorkerError(workerName, error) {
+    console.error(`Worker ${workerName} error:`, error);
+    const workerInfo = this.workers.get(workerName);
+    if (workerInfo) {
+      // Reject all pending tasks
+      workerInfo.tasks.forEach(task => {
+        task.reject(new Error(`Worker error: ${error.message}`));
+      });
+      workerInfo.tasks.clear();
+    }
+  }
+  
+  // Fallback execution in main thread
+  executeInMainThread(taskData) {
+    // Simple fallback for clustering calculations
+    if (taskData.type === 'cluster') {
+      // Basic clustering algorithm fallback
+      return Promise.resolve([]);
+    }
+    return Promise.resolve(null);
+  }
+  
+  terminate() {
+    this.workers.forEach(({ worker }) => {
+      worker.terminate();
+    });
+    this.workers.clear();
+  }
+}
+
+// Simple ProgressiveLoader stub (not in original file)
+class ProgressiveLoader {
+  constructor() {
+    this.loadQueue = [];
+  }
+  
+  add(item) {
+    this.loadQueue.push(item);
+  }
+  
+  process() {
+    // Simple progressive loading
+    const batch = this.loadQueue.splice(0, 10);
+    return Promise.resolve(batch);
+  }
+}
+
 // Create map-specific instances
 const boundsCalculator = new BoundsCalculator();
 const sourceUpdater = new SourceUpdateManager();
 const dataLoader = new DataLoader();
 const dataStore = new DataStore();
-const searchIndex = new AdvancedSearchIndex();
 const workerManager = new WorkerManager();
 const progressiveLoader = new ProgressiveLoader();
-const performanceMonitor = new PerformanceMonitor();
 
 // Detect language and RTL support
 const lang = navigator.language.split('-')[0];
