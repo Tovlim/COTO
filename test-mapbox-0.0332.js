@@ -4403,23 +4403,40 @@ class MapResetControl {
     this._container = document.createElement('div');
     this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
     
-    const button = document.createElement('button');
-    button.className = 'mapboxgl-ctrl-icon';
-    button.type = 'button';
-    button.title = 'Reset map view';
-    button.innerHTML = '⟲';
-    button.style.fontSize = '20px';
-    button.style.lineHeight = '29px';
+    this._button = document.createElement('button');
+    this._button.className = 'mapboxgl-ctrl-icon';
+    this._button.type = 'button';
+    this._button.title = 'Reset view';
+    this._button.setAttribute('aria-label', 'Reset view');
     
-    button.onclick = () => {
-      map.flyTo({
+    // Add custom reset icon styling
+    this._button.style.cssText = `
+      background-image: url("https://cdn.prod.website-files.com/6824fc6dd9bace7c31d8a0d9/688f42ee2ee6b3760ab68bac_reset%20icon.svg");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 15px 15px;
+      background-color: #272727;
+    `;
+    
+    this._button.addEventListener('click', () => {
+      // Reset to default position (responsive for mobile/desktop)
+      this._map.flyTo({
         center: isMobile ? [34.85, 31.7] : [35.22, 31.85],
         zoom: isMobile ? 7.1 : 8.33,
-        duration: 1000
+        duration: 1000,
+        essential: true
       });
-    };
+      
+      // Reset locality markers to show all
+      if (this._map.getSource('localities-source')) {
+        this._map.getSource('localities-source').setData({type: "FeatureCollection", features: state.allLocalityFeatures});
+      }
+      
+      // Remove any boundary highlight
+      removeBoundaryHighlight();
+    });
     
-    this._container.appendChild(button);
+    this._container.appendChild(this._button);
     return this._container;
   }
   
