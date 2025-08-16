@@ -278,380 +278,12 @@
   }
   
   // ====================================================================
-  // MODULE LOADING SYSTEM
-  // ====================================================================
-  class PageDetector {
-    constructor() {
-      this.detectionMethods = [
-        () => document.body.dataset.page,
-        () => document.body.className.match(/page-(\w+)/)?.[1],
-        () => document.querySelector('meta[name="page-type"]')?.content,
-        () => this.detectFromURL()
-      ];
-    }
-    
-    detectFromURL() {
-      const path = window.location.pathname;
-      const segments = path.split('/').filter(s => s);
-      
-      // Common page patterns
-      const patterns = {
-        'map': /map|location|geo/i,
-        'dashboard': /dashboard|admin|control/i,
-        'profile': /profile|account|user/i,
-        'search': /search|find|filter/i,
-        'home': /^$|index|home/i
-      };
-      
-      for (const [pageType, pattern] of Object.entries(patterns)) {
-        if (pattern.test(segments.join('/'))) {
-          return pageType;
-        }
-      }
-      
-      return segments[0] || 'home';
-    }
-    
-    getPageType() {
-      for (const method of this.detectionMethods) {
-        const result = method();
-        if (result) return result;
-      }
-      return 'default';
-    }
-    
-    getPageFeatures() {
-      const features = [];
-      
-      // Feature detection based on DOM elements
-      const featureMap = {
-        'map': () => $id('map-container') || $1('.map-wrapper'),
-        'filtering': () => $1('[fs-cmsfilter-element]') || $('.filter-checkbox').length > 0,
-        'search': () => $1('input[type="search"]') || $1('.search-input'),
-        'charts': () => $1('.chart-container') || $1('[data-chart]'),
-        'forms': () => $('form').length > 0,
-        'gallery': () => $1('.gallery') || $('.image-grid').length > 0,
-        'video': () => $1('video') || $1('.video-player'),
-        'data-table': () => $1('.data-table') || $1('[data-table]')
-      };
-      
-      Object.entries(featureMap).forEach(([feature, detector]) => {
-        if (detector()) features.push(feature);
-      });
-      
-      return features;
-    }
-  }
-
-  class ModuleLoader {
-    constructor() {
-      this.modules = new Map();
-      this.loadedModules = new Set();
-      this.loadingModules = new Set();
-      this.dependencies = new Map();
-      this.hooks = new Map();
-      this.basePath = this.getBasePath();
-    }
-    
-    getBasePath() {
-      const scripts = document.querySelectorAll('script[src*="shared-core"]');
-      if (scripts.length > 0) {
-        const scriptPath = scripts[0].src;
-        return scriptPath.substring(0, scriptPath.lastIndexOf('/') + 1);
-      }
-      return '/js/';
-    }
-    
-    register(name, config) {
-      if (typeof config === 'string') {
-        config = { src: config };
-      }
-      
-      this.modules.set(name, {
-        src: config.src,
-        dependencies: config.dependencies || [],
-        features: config.features || [],
-        pages: config.pages || [],
-        init: config.init || null,
-        cleanup: config.cleanup || null,
-        condition: config.condition || null,
-        priority: config.priority || 0,
-        ...config
-      });
-      
-      if (config.dependencies) {
-        this.dependencies.set(name, config.dependencies);
-      }
-      
-      return this;
-    }
-    
-    async load(name, force = false) {
-      if (this.loadedModules.has(name) && !force) {
-        this.trigger('module:already-loaded', { name });
-        return Promise.resolve();
-      }
-      
-      if (this.loadingModules.has(name)) {
-        return this.waitForModule(name);
-      }
-      
-      const module = this.modules.get(name);
-      if (!module) {
-        console.warn(`Module '${name}' not registered`);
-        return Promise.reject(new Error(`Module '${name}' not found`));
-      }
-      
-      // Check condition
-      if (module.condition && !module.condition()) {
-        console.log(`Module '${name}' condition not met, skipping`);
-        return Promise.resolve();
-      }
-      
-      this.loadingModules.add(name);
-      this.trigger('module:loading', { name, module });
-      
-      try {
-        // Load dependencies first
-        if (module.dependencies.length > 0) {
-          await Promise.all(module.dependencies.map(dep => this.load(dep)));
-        }
-        
-        // Load the module script
-        await this.loadScript(module.src, name);
-        
-        // Run initialization if provided
-        if (module.init) {
-          await Promise.resolve(module.init());
-        }
-        
-        this.loadedModules.add(name);
-        this.loadingModules.delete(name);
-        
-        this.trigger('module:loaded', { name, module });
-        console.log(`Module '${name}' loaded successfully`);
-        
-      } catch (error) {
-        this.loadingModules.delete(name);
-        this.trigger('module:error', { name, error });
-        console.error(`Failed to load module '${name}':`, error);
-        throw error;
-      }
-    }
-    
-    loadScript(src, name) {
-      return new Promise((resolve, reject) => {
-        // Check if already loaded by src
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = src.startsWith('http') ? src : this.basePath + src;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`Failed to load ${src}`));
-        script.dataset.module = name;
-        
-        document.head.appendChild(script);
-      });
-    }
-    
-    waitForModule(name) {
-      return new Promise((resolve) => {
-        const checkLoaded = () => {
-          if (this.loadedModules.has(name)) {
-            resolve();
-          } else {
-            setTimeout(checkLoaded, 50);
-          }
-        };
-        checkLoaded();
-      });
-    }
-    
-    async loadForPage(pageType, features = []) {
-      const modulesToLoad = [];
-      
-      this.modules.forEach((module, name) => {
-        let shouldLoad = false;
-        
-        // Check page-specific modules
-        if (module.pages.length > 0) {
-          shouldLoad = module.pages.includes(pageType) || module.pages.includes('*');
-        }
-        
-        // Check feature-specific modules
-        if (module.features.length > 0) {
-          shouldLoad = shouldLoad || module.features.some(feature => features.includes(feature));
-        }
-        
-        // Load if no specific requirements (universal modules)
-        if (module.pages.length === 0 && module.features.length === 0) {
-          shouldLoad = true;
-        }
-        
-        if (shouldLoad) {
-          modulesToLoad.push({ name, priority: module.priority });
-        }
-      });
-      
-      // Sort by priority (higher numbers load first)
-      modulesToLoad.sort((a, b) => b.priority - a.priority);
-      
-      // Load modules in batches by priority
-      const priorityGroups = new Map();
-      modulesToLoad.forEach(({ name, priority }) => {
-        if (!priorityGroups.has(priority)) {
-          priorityGroups.set(priority, []);
-        }
-        priorityGroups.get(priority).push(name);
-      });
-      
-      for (const [priority, modules] of [...priorityGroups.entries()].sort((a, b) => b[0] - a[0])) {
-        await Promise.all(modules.map(name => this.load(name)));
-      }
-    }
-    
-    unload(name) {
-      if (!this.loadedModules.has(name)) return;
-      
-      const module = this.modules.get(name);
-      if (module && module.cleanup) {
-        module.cleanup();
-      }
-      
-      // Remove script tag
-      const script = document.querySelector(`script[data-module="${name}"]`);
-      if (script) {
-        script.remove();
-      }
-      
-      this.loadedModules.delete(name);
-      this.trigger('module:unloaded', { name });
-    }
-    
-    isLoaded(name) {
-      return this.loadedModules.has(name);
-    }
-    
-    getLoadedModules() {
-      return Array.from(this.loadedModules);
-    }
-    
-    // Event system for module lifecycle
-    on(event, callback) {
-      if (!this.hooks.has(event)) {
-        this.hooks.set(event, []);
-      }
-      this.hooks.get(event).push(callback);
-      return this;
-    }
-    
-    trigger(event, data = {}) {
-      const callbacks = this.hooks.get(event);
-      if (callbacks) {
-        callbacks.forEach(callback => {
-          try {
-            callback(data);
-          } catch (error) {
-            console.error(`Error in ${event} hook:`, error);
-          }
-        });
-      }
-    }
-    
-    // Cleanup all modules
-    cleanup() {
-      this.loadedModules.forEach(name => {
-        const module = this.modules.get(name);
-        if (module && module.cleanup) {
-          module.cleanup();
-        }
-      });
-      this.loadedModules.clear();
-      this.loadingModules.clear();
-    }
-  }
-
-  // ====================================================================
-  // ENHANCED STATE MANAGEMENT
-  // ====================================================================
-  class EnhancedState extends SimpleState {
-    constructor() {
-      super();
-      this.modules = new Map();
-      this.pageData = {};
-      this.crossPageData = this.loadCrossPageData();
-    }
-    
-    // Module-specific state management
-    setModuleData(moduleName, key, value) {
-      if (!this.modules.has(moduleName)) {
-        this.modules.set(moduleName, {});
-      }
-      this.modules.get(moduleName)[key] = value;
-    }
-    
-    getModuleData(moduleName, key) {
-      const moduleData = this.modules.get(moduleName);
-      return moduleData ? moduleData[key] : undefined;
-    }
-    
-    // Cross-page data persistence
-    saveCrossPageData(key, value, expiry = null) {
-      this.crossPageData[key] = {
-        value,
-        timestamp: Date.now(),
-        expiry: expiry ? Date.now() + expiry : null
-      };
-      
-      try {
-        localStorage.setItem('sharedcore_cross_page', JSON.stringify(this.crossPageData));
-      } catch (e) {
-        console.warn('Failed to save cross-page data:', e);
-      }
-    }
-    
-    getCrossPageData(key) {
-      const data = this.crossPageData[key];
-      if (!data) return null;
-      
-      if (data.expiry && Date.now() > data.expiry) {
-        delete this.crossPageData[key];
-        this.saveCrossPageData(); // Update storage
-        return null;
-      }
-      
-      return data.value;
-    }
-    
-    loadCrossPageData() {
-      try {
-        const stored = localStorage.getItem('sharedcore_cross_page');
-        return stored ? JSON.parse(stored) : {};
-      } catch (e) {
-        console.warn('Failed to load cross-page data:', e);
-        return {};
-      }
-    }
-    
-    cleanup() {
-      super.cleanup();
-      this.modules.clear();
-    }
-  }
-
-  // ====================================================================
   // GLOBAL INSTANCES
   // ====================================================================
   const domCache = new OptimizedDOMCache();
   const eventManager = new OptimizedEventManager();
-  const state = new EnhancedState();
+  const state = new SimpleState();
   const geoCache = new GeoJSONCache();
-  const pageDetector = new PageDetector();
-  const moduleLoader = new ModuleLoader();
   
   // Shortcuts
   const $ = (selector) => domCache.$(selector);
@@ -1291,32 +923,15 @@
   }
   
   // ====================================================================
-  // ENHANCED INITIALIZATION
+  // INITIALIZATION
   // ====================================================================
-  async function initializeCore() {
-    console.log('SharedCore: Starting initialization...');
-    
-    // Phase 1: Detect page context
-    const pageType = pageDetector.getPageType();
-    const features = pageDetector.getPageFeatures();
-    
-    console.log(`SharedCore: Detected page type: ${pageType}, features: [${features.join(', ')}]`);
-    state.pageData = { type: pageType, features };
-    
-    // Phase 2: Load page-specific modules
-    try {
-      await moduleLoader.loadForPage(pageType, features);
-      console.log(`SharedCore: Loaded modules for ${pageType} page`);
-    } catch (error) {
-      console.error('SharedCore: Module loading failed:', error);
-    }
-    
-    // Phase 3: Core functionality (original initialization)
+  function initializeCore() {
+    // Generate checkboxes
     Promise.all([
       generateLocalityCheckboxes(),
       generateSettlementCheckboxes()
     ]).then(() => {
-      console.log('SharedCore: All checkboxes generated');
+      console.log('All checkboxes generated');
     });
     
     setupSidebars();
@@ -1325,15 +940,6 @@
     state.setTimer('initMonitorTags', () => {
       monitorTags();
     }, 100);
-    
-    // Phase 4: Trigger post-init hooks
-    moduleLoader.trigger('core:initialized', { pageType, features });
-    console.log('SharedCore: Initialization complete');
-  }
-
-  // Convenience function for registering modules before initialization
-  function registerModule(name, config) {
-    return moduleLoader.register(name, config);
   }
   
   // ====================================================================
@@ -1346,11 +952,6 @@
     state,
     geoCache,
     utils,
-    
-    // Module system
-    moduleLoader,
-    pageDetector,
-    registerModule,
     
     // jQuery-like shortcuts
     $,
@@ -1365,27 +966,9 @@
     // Filtered elements
     checkAndToggleFilteredElements,
     toggleShowWhenFilteredElements,
-    monitorTags,
     
     // Initialization
     init: initializeCore,
-    
-    // Module management shortcuts
-    loadModule: (name, force = false) => moduleLoader.load(name, force),
-    unloadModule: (name) => moduleLoader.unload(name),
-    isModuleLoaded: (name) => moduleLoader.isLoaded(name),
-    getLoadedModules: () => moduleLoader.getLoadedModules(),
-    getPageType: () => pageDetector.getPageType(),
-    getPageFeatures: () => pageDetector.getPageFeatures(),
-    
-    // Cross-page data management
-    saveCrossPageData: (key, value, expiry) => state.saveCrossPageData(key, value, expiry),
-    getCrossPageData: (key) => state.getCrossPageData(key),
-    
-    // Module event hooks
-    onModuleLoaded: (callback) => moduleLoader.on('module:loaded', callback),
-    onModuleError: (callback) => moduleLoader.on('module:error', callback),
-    onCoreReady: (callback) => moduleLoader.on('core:initialized', callback),
     
     // For map page
     getGeoJSONData: async function() {
@@ -1396,86 +979,6 @@
     }
   };
   
-  // ====================================================================
-  // USAGE EXAMPLES & MODULE REGISTRATION
-  // ====================================================================
-  /*
-  
-  EXAMPLE: Register modules for different pages and features
-  
-  // Register a map-specific module
-  SharedCore.registerModule('leaflet-map', {
-    src: 'modules/map.js',
-    pages: ['map', 'location'],
-    features: ['map'],
-    dependencies: ['leaflet'],
-    priority: 10,
-    init: function() {
-      console.log('Map module initialized');
-    }
-  });
-  
-  // Register a data visualization module  
-  SharedCore.registerModule('charts', {
-    src: 'modules/charts.js',
-    features: ['charts'],
-    dependencies: ['d3'],
-    condition: () => document.querySelector('.chart-container'),
-    init: function() {
-      window.initCharts();
-    }
-  });
-  
-  // Register a universal utility module
-  SharedCore.registerModule('analytics', {
-    src: 'modules/analytics.js',
-    pages: ['*'], // Load on all pages
-    priority: 5
-  });
-  
-  // Register external library dependency
-  SharedCore.registerModule('leaflet', {
-    src: 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.js',
-    priority: 100 // Load first
-  });
-  
-  EXAMPLE: Manual module loading
-  
-  // Load a specific module
-  SharedCore.loadModule('custom-feature').then(() => {
-    console.log('Module loaded!');
-  });
-  
-  // Check if module is loaded
-  if (SharedCore.isModuleLoaded('charts')) {
-    // Module is available
-  }
-  
-  EXAMPLE: Cross-page data sharing
-  
-  // Save data that persists across page navigation
-  SharedCore.saveCrossPageData('userPreferences', {theme: 'dark'});
-  
-  // Retrieve data on another page
-  const prefs = SharedCore.getCrossPageData('userPreferences');
-  
-  EXAMPLE: Page detection
-  
-  const pageType = SharedCore.getPageType(); // 'map', 'dashboard', etc.
-  const features = SharedCore.getPageFeatures(); // ['filtering', 'search']
-  
-  EXAMPLE: Module lifecycle hooks
-  
-  SharedCore.onModuleLoaded(({name, module}) => {
-    console.log(`Module ${name} loaded successfully`);
-  });
-  
-  SharedCore.onCoreReady(({pageType, features}) => {
-    console.log('SharedCore initialization complete');
-  });
-  
-  */
-
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
@@ -1499,7 +1002,6 @@
   });
   
   window.addEventListener('beforeunload', () => {
-    moduleLoader.cleanup();
     eventManager.cleanup();
     state.cleanup();
     sidebarCache.invalidate();
