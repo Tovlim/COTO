@@ -2092,8 +2092,10 @@ loadDataFromState() {
             
             handleBlur() {
                 // Blurred classes are already handled by the stub
-                // Just hide the dropdown
-                this.hideDropdown();
+                // Delay hiding dropdown to allow click events to process first
+                setTimeout(() => {
+                    this.hideDropdown();
+                }, 150);
             }
             
             handleClear() {
