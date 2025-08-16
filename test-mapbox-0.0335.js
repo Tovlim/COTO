@@ -2095,7 +2095,7 @@ loadDataFromState() {
                 // Delay hiding dropdown to allow click events to process first
                 setTimeout(() => {
                     this.hideDropdown();
-                }, 150);
+                }, 0);
             }
             
             handleClear() {
