@@ -1610,7 +1610,7 @@ loadDataFromState() {
                 this.elements.wrapper.addEventListener('mousedown', (e) => {
                     // Only prevent default if clicking on an actual dropdown item
                     // This allows normal blur behavior when clicking elsewhere
-                    if (e.target.closest('.dropdown-item, .subregion-select, .locality-item, .settlementlistitem')) {
+                    if (e.target.closest('.list-term')) {
                         this.isClickingDropdownItem = true;
                         e.preventDefault();
                     }
