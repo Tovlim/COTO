@@ -1373,6 +1373,9 @@ window.addEventListener('beforeunload', () => {
                     selectedIndex: -1
                 };
                 
+                // Click state tracking
+                this.isClickingDropdownItem = false;
+                
                 // Virtual scrolling state
                 this.virtualScroll = {
                     scrollTop: 0,
@@ -1608,8 +1611,14 @@ loadDataFromState() {
                     // Only prevent default if clicking on an actual dropdown item
                     // This allows normal blur behavior when clicking elsewhere
                     if (e.target.closest('.dropdown-item, .subregion-select, .locality-item, .settlementlistitem')) {
+                        this.isClickingDropdownItem = true;
                         e.preventDefault();
                     }
+                });
+                
+                // Reset flag on mouseup
+                this.elements.wrapper.addEventListener('mouseup', () => {
+                    this.isClickingDropdownItem = false;
                 });
                 
                 // Click handling
@@ -1885,6 +1894,9 @@ loadDataFromState() {
                 if (term) {
                     this.selectTerm(term, type);
                 }
+                
+                // Reset flag after handling click
+                this.isClickingDropdownItem = false;
             }
             
             selectTerm(term, type) {
@@ -2092,10 +2104,12 @@ loadDataFromState() {
             
             handleBlur() {
                 // Blurred classes are already handled by the stub
-                // Delay hiding dropdown to allow click events to process first
-                setTimeout(() => {
-                    this.hideDropdown();
-                }, 0);
+                // Check if we're currently clicking on a dropdown item
+                if (this.isClickingDropdownItem) {
+                    return; // Don't hide dropdown if clicking on item
+                }
+                // Hide dropdown immediately
+                this.hideDropdown();
             }
             
             handleClear() {
