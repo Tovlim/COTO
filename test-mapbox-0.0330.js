@@ -1959,6 +1959,60 @@ function setupControls() {
     }
   });
   
+  // Setup sidebar controls
+  const setupSidebarControls = (selector, sidebarSide, eventType = 'click') => {
+    const elements = $(selector);
+    elements.forEach(element => {
+      if (element.dataset.sidebarSetup === 'true') return;
+      
+      const handler = () => {
+        const sidebar = $id(`${sidebarSide}Sidebar`);
+        if (!sidebar) return;
+        
+        const openRightSidebar = element.getAttribute('open-right-sidebar');
+        const openSecondLeftSidebar = element.getAttribute('open-second-left-sidebar');
+        
+        // Handle Right sidebar specifically
+        if (sidebarSide === 'Right') {
+          if (openRightSidebar === 'open-only') {
+            toggleSidebar('Right', true);
+          } else if (openRightSidebar === 'true') {
+            const currentlyShowing = sidebar.classList.contains('is-show');
+            toggleSidebar('Right', !currentlyShowing);
+          }
+        }
+        // Handle SecondLeft sidebar specifically  
+        else if (sidebarSide === 'SecondLeft') {
+          if (openSecondLeftSidebar === 'open-only') {
+            toggleSidebar('SecondLeft', true);
+          } else if (openSecondLeftSidebar === 'true') {
+            toggleSidebar('SecondLeft', !sidebar.classList.contains('is-show'));
+          }
+        }
+        // Handle Left sidebar and other cases
+        else {
+          toggleSidebar(sidebarSide, !sidebar.classList.contains('is-show'));
+        }
+      };
+      
+      if (eventType === 'change' && (element.type === 'radio' || element.type === 'checkbox')) {
+        eventManager.add(element, 'change', () => element.checked && handler());
+      } else {
+        eventManager.add(element, eventType, (e) => {
+          e.stopPropagation(); 
+          handler();
+        });
+      }
+      
+      element.dataset.sidebarSetup = 'true';
+    });
+  };
+  
+  setupSidebarControls('[open-right-sidebar="true"], [open-right-sidebar="open-only"]', 'Right');
+  setupSidebarControls('[open-second-left-sidebar="true"], [open-second-left-sidebar="open-only"]', 'SecondLeft');
+  setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
+  setupSidebarControls('.OpenSecondLeftSidebar, [OpenSecondLeftSidebar], [opensecondleftsidebar]', 'SecondLeft', 'change');
+  
   // Position controls to prevent layout shift
   const topRightCtrl = $('.mapboxgl-ctrl-top-right')[0];
   if (topRightCtrl && !topRightCtrl.dataset.positioned) {
@@ -1973,15 +2027,9 @@ function setupControls() {
 
 // OPTIMIZED: Sidebar setup (integrates with shared-core)
 function setupSidebars() {
-  // Use shared-core implementation if available
-  if (window.SharedCore && window.SharedCore.setupSidebars) {
-    window.SharedCore.setupSidebars();
-    loadingTracker.markComplete('sidebarSetup');
-    return;
-  }
-  
-  // Fallback implementation
-  const sidebars = ['LeftSidebar', 'SecondLeftSidebar'];
+  // The shared-core handles sidebar functionality through its initialization
+  // We only need to set up map-specific sidebar close buttons here
+  const sidebars = ['LeftSidebar', 'SecondLeftSidebar', 'RightSidebar'];
   
   sidebars.forEach(sidebarId => {
     const sidebar = $id(sidebarId);
@@ -1989,7 +2037,8 @@ function setupSidebars() {
     
     if (sidebar && closeBtn && !closeBtn.dataset.mapboxSetup) {
       eventManager.add(closeBtn, 'click', () => {
-        closeSidebar(sidebarId.replace('Sidebar', ''));
+        const side = sidebarId.replace('Sidebar', '');
+        closeSidebar(side);
       });
       closeBtn.dataset.mapboxSetup = 'true';
     }
@@ -2707,20 +2756,38 @@ class WorkerManager {
   }
 }
 
-// Simple ProgressiveLoader stub (not in original file)
+// Simple ProgressiveLoader with steps support
 class ProgressiveLoader {
   constructor() {
     this.loadQueue = [];
+    this.loadingSteps = [];
+    this.currentStep = 0;
   }
   
   add(item) {
     this.loadQueue.push(item);
   }
   
+  defineSteps(steps) {
+    this.loadingSteps = steps;
+  }
+  
   process() {
     // Simple progressive loading
     const batch = this.loadQueue.splice(0, 10);
     return Promise.resolve(batch);
+  }
+  
+  async executeSteps() {
+    for (const step of this.loadingSteps) {
+      try {
+        if (step.loader) {
+          await step.loader();
+        }
+      } catch (error) {
+        console.warn(`Progressive loader step ${step.name} failed:`, error);
+      }
+    }
   }
 }
 
@@ -2986,7 +3053,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Enhanced tag monitoring initialization
   state.setTimer('initMonitorTags', () => {
-    monitorTags();
+    if (window.SharedCore && window.SharedCore.monitorTags) {
+      window.SharedCore.monitorTags();
+    }
     
     // Mark monitoring as part of events setup
     state.setTimer('monitoringCheck', () => {
@@ -3081,6 +3150,7 @@ function setupGlobalExports() {
   // Shared utilities for other scripts (integration optimization)
   window.mapUtilities = {
     ...window.mapUtilities, // Include shared-core utilities
+    state, // Add the enhanced state for autocomplete access
     boundsCalculator,
     sourceUpdater,
     dataLoader,
