@@ -1,59 +1,34 @@
-// ====================================================================
-// MAPBOX SCRIPT - REFACTORED FOR SHARED-CORE.JS COMPATIBILITY
-// ====================================================================
-// IMPORTANT: This script requires shared-core.js to be loaded first!
-// Dependencies: SharedCore global object with eventManager, state, DOM helpers
-//
-// REFACTORING SUMMARY:
-// ✅ Removed: Duplicated event management (uses SharedCore.eventManager)
-// ✅ Removed: Duplicated sidebar management (uses SharedCore.toggleSidebar)
-// ✅ Removed: Duplicated DOM caching (uses SharedCore.$, $1, $id)
-// ✅ Removed: Duplicated state management (uses SharedCore.state)
-// ✅ Removed: Duplicated filtered elements logic (uses SharedCore.checkAndToggleFilteredElements)
-// ✅ Updated: Checkbox generation to delegate to SharedCore
-// ✅ Added: Initialization order checks and coordination
-// ✅ Kept: Map-specific functionality (Mapbox GL, markers, layers, controls)
-//
-// POTENTIAL ISSUES TO MONITOR:
-// - Timer ID conflicts between SharedCore and map timers
-// - Event handler coordination between both scripts
-// - DOM ready timing dependencies
-// - Sidebar state synchronization with map interactions
-// ====================================================================
-
-// Initialization order check and coordination
-if (!window.SharedCore) {
-  console.error('CRITICAL: SharedCore not found! Ensure shared-core.js loads before this script.');
-}
-
-// Coordination helper to ensure SharedCore availability
-function waitForSharedCore(callback, maxRetries = 50) {
-  let retries = 0;
-  const checkAndCallback = () => {
-    if (window.SharedCore) {
-      callback();
-    } else if (retries < maxRetries) {
-      retries++;
-      setTimeout(checkAndCallback, 100);
-    } else {
-      console.error('SharedCore failed to load after maximum retries');
-    }
-  };
-  checkAndCallback();
-}
-
-// Map-specific event setup - uses SharedCore event system
-function setupMapEvents() {
-  // Check for SharedCore availability with retry
-  if (!window.SharedCore) {
-    console.warn('SharedCore not available - deferring map events setup');
-    setTimeout(setupMapEvents, 100);
-    return;
-  }
+// OPTIMIZED: Event setup with consolidated handlers and better management
+function setupEvents() {
+  const eventHandlers = [
+    {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      if (window.innerWidth > 991) {
+        state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
+      }
+    }},
+    {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      if (window.innerWidth > 991) {
+        state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
+      }
+    }},
+    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => state.setTimer('filterUpdate', handleFilterUpdate, 50)},
+    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => state.setTimer('filterUpdate', handleFilterUpdate, 50)}
+  ];
   
-  const { eventManager, state, $ } = window.SharedCore;
+  eventHandlers.forEach(({selector, events, handler}) => {
+    const elements = $(selector);
+    elements.forEach(element => {
+      events.forEach(event => {
+        if (event === 'input' && ['text', 'search'].includes(element.type)) {
+          eventManager.add(element, event, handler);
+        } else if (event !== 'input' || element.type !== 'text') {
+          eventManager.add(element, event, handler);
+        }
+      });
+    });
+  });
   
-  // Map-specific apply filter elements (SharedCore handles general sidebar events)
+  // OPTIMIZED: Consolidated apply-map-filter setup with event delegation
   const filterElements = $('[apply-map-filter="true"], .filterrefresh, #filter-button');
   filterElements.forEach(element => {
     let events;
@@ -68,26 +43,73 @@ function setupMapEvents() {
         if (eventType === 'keypress' && e.key !== 'Enter') return;
         if (window.isMarkerClick) return;
         
+        // Handle all filter elements
         e.preventDefault();
+        
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
         
         const delay = eventType === 'input' ? 200 : 50;
         
-        state.setTimer('mapApplyFilter', () => {
+        state.setTimer('applyFilter', () => {
           applyFilterToMarkers(true); // true = full reframing
+          state.setTimer('applyFilterCleanup', () => {
+            state.flags.forceFilteredReframe = false;
+            state.flags.isRefreshButtonAction = false;
+          }, 1000);
         }, delay);
       });
     });
   });
   
-  // Map-specific Finsweet event listeners
+  // Global event listeners with better management
   ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
     eventManager.add(document, event, (e) => {
-      if (window.isMarkerClick || window.markerInteractionLock) return;
-      handleMapFilterUpdate();
+      if (window.isMarkerClick || state.markerInteractionLock) return;
+      handleFilterUpdate();
+      
+      // FIXED: Also check and toggle filtered elements when Finsweet events fire
+      setTimeout(checkAndToggleFilteredElements, 50);
     });
   });
   
-  // Link click handlers for map-specific behavior
+  // FIXED: Additional Finsweet event listeners for filtered elements
+  ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset'].forEach(event => {
+    eventManager.add(document, event, () => {
+      setTimeout(checkAndToggleFilteredElements, 100);
+    });
+  });
+  
+  // Firefox form handling with event delegation
+  if (navigator.userAgent.toLowerCase().includes('firefox')) {
+    const forms = $('form');
+    forms.forEach(form => {
+      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
+      const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
+      
+      if (hasFilterElements || isNearMap) {
+        eventManager.add(form, 'submit', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          state.flags.forceFilteredReframe = true;
+          state.flags.isRefreshButtonAction = true;
+          
+          state.setTimer('firefoxSubmit', () => {
+            applyFilterToMarkers();
+            state.setTimer('firefoxSubmitCleanup', () => {
+              state.flags.forceFilteredReframe = false;
+              state.flags.isRefreshButtonAction = false;
+            }, 1000);
+          }, 50);
+          
+          return false;
+        }, {capture: true});
+      }
+    });
+  }
+  
+  // Link click handlers with event delegation
   const links = $('a:not(.filterrefresh):not([fs-cmsfilter-element])');
   links.forEach(link => {
     eventManager.add(link, 'click', () => {
@@ -95,7 +117,7 @@ function setupMapEvents() {
           !link.classList.contains('w-pagination-next') && 
           !link.classList.contains('w-pagination-previous')) {
         window.isLinkClick = true;
-        state.setTimer('mapLinkCleanup', () => window.isLinkClick = false, 500);
+        state.setTimer('linkCleanup', () => window.isLinkClick = false, 500);
       }
     });
   });
@@ -104,19 +126,8 @@ function setupMapEvents() {
   loadingTracker.markComplete('eventsSetup');
 }
 
-// Map-specific filter update logic
-function handleMapFilterUpdate() {
-  if (typeof applyFilterToMarkers === 'function') {
-    applyFilterToMarkers();
-  }
-}
-
-// Map-specific dropdown listeners using SharedCore
+// OPTIMIZED: Smart dropdown listeners with better timing
 function setupDropdownListeners() {
-  if (!window.SharedCore) return;
-  
-  const { eventManager, state, $ } = window.SharedCore;
-  
   if (state.flags.dropdownListenersSetup) return;
   state.flags.dropdownListenersSetup = true;
   
@@ -125,9 +136,16 @@ function setupDropdownListeners() {
     eventManager.add(element, 'click', (e) => {
       if (window.isMarkerClick) return;
       
-      state.setTimer('mapDropdownClick', () => {
-        state.setTimer('mapDropdownApplyFilter', () => {
+      state.setTimer('dropdownClick', () => {
+        state.flags.forceFilteredReframe = true;
+        state.flags.isRefreshButtonAction = true;
+        
+        state.setTimer('dropdownApplyFilter', () => {
           applyFilterToMarkers();
+          state.setTimer('dropdownCleanup', () => {
+            state.flags.forceFilteredReframe = false;
+            state.flags.isRefreshButtonAction = false;
+          }, 1000);
         }, 150);
       }, 100);
     });
@@ -561,87 +579,453 @@ function setupDeferredAreaControls() {
   }
 }
 
-// Settlement checkbox generation - delegates to SharedCore
+// Generate settlement checkboxes from loaded settlement data
 function generateSettlementCheckboxes() {
-  if (window.SharedCore && window.SharedCore.generateSettlementCheckboxes) {
-    // Use SharedCore's implementation
-    window.SharedCore.generateSettlementCheckboxes();
-  } else {
-    console.warn('SharedCore settlement checkbox generation not available');
-  }
-}
-
-// Locality checkbox generation - delegates to SharedCore
-function generateLocalityCheckboxes() {
-  if (window.SharedCore && window.SharedCore.generateLocalityCheckboxes) {
-    // Use SharedCore's implementation
-    window.SharedCore.generateLocalityCheckboxes();
-  } else {
-    console.warn('SharedCore locality checkbox generation not available');
-  }
-}
-
-// Region checkbox generation - handled by custom logic for map-specific regions
-function generateRegionCheckboxes() {
-  // For now, keep region generation as-is since it's more complex with subregions
-  // and map-specific data that may not be in SharedCore
-  if (!window.SharedCore) return;
-  
-  const { $id, state } = window.SharedCore;
-  
-  const container = $id('region-check-list');
-  if (!container) return;
-  
-  // This function handles map-specific region data that may differ from SharedCore
-  // Could be refactored later to use SharedCore patterns
-  console.log('Region checkbox generation - using map-specific implementation');
-}
-
-
-// Checkbox events setup - delegates to SharedCore
-function setupCheckboxEvents(checkboxContainer) {
-  // SharedCore handles general checkbox events
-  // Only map-specific event handling should remain here if needed
-  console.log('Using SharedCore for checkbox event management');
-}
-
-// Use SharedCore's filtered elements functionality
-const checkAndToggleFilteredElements = () => {
-  if (window.SharedCore && window.SharedCore.checkAndToggleFilteredElements) {
-    return window.SharedCore.checkAndToggleFilteredElements();
-  }
-  return false;
-};
-
-// Monitoring setup - delegates to SharedCore
-const monitorTags = () => {
-  // SharedCore handles tag monitoring, just ensure it's called
-  if (window.SharedCore) {
-    console.log('Using SharedCore for tag monitoring');
-  }
-};
-
-// Map initialization with SharedCore coordination
-function init() {
-  // Ensure SharedCore is available before proceeding
-  if (!window.SharedCore) {
-    console.warn('SharedCore not available - deferring map initialization');
-    setTimeout(init, 100);
+  const container = $id('settlement-check-list');
+  if (!container) {
     return;
   }
   
-  const { state } = window.SharedCore;
+  // Clear the container
+  container.innerHTML = '';
   
-  // Core map initialization (parallel where possible)
+  // Extract unique settlement names from settlement features
+  const settlementNames = state.allSettlementFeatures
+    .map(feature => feature.properties.name)
+    .sort();
+  
+  if (settlementNames.length === 0) {
+    return;
+  }
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  settlementNames.forEach(settlementName => {
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'settlement');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', settlementName);
+    input.setAttribute('fs-list-field', 'Settlement');
+    input.type = 'checkbox';
+    input.name = 'settlement';
+    input.setAttribute('data-name', 'settlement');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `settlement-${settlementName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = settlementName;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    fragment.appendChild(wrapperDiv);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  });
+  
+  container.appendChild(fragment);
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterSettlementGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
+// Generate locality checkboxes from map data
+function generateLocalityCheckboxes() {
+  const container = $id('locality-check-list');
+  if (!container) {
+    return;
+  }
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Extract unique locality names from map data
+  const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
+  
+  if (localityNames.length === 0) {
+    return;
+  }
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  localityNames.forEach(localityName => {
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'locality');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', localityName);
+    input.setAttribute('fs-list-field', 'Locality');
+    input.type = 'checkbox';
+    input.name = 'locality';
+    input.setAttribute('data-name', 'locality');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `locality-${localityName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = localityName;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    fragment.appendChild(wrapperDiv);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  });
+  
+  container.appendChild(fragment);
+  
+  // FIXED: Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
+// Generate region checkboxes from map data
+function generateRegionCheckboxes() {
+  const container = $id('region-check-list');
+  if (!container) {
+    return;
+  }
+  
+  // Clear the container
+  container.innerHTML = '';
+  
+  // Extract unique region names
+  const regionNames = [...new Set(state.allRegionFeatures.map(feature => feature.properties.name))].sort();
+  
+  // Extract unique subregion names
+  const subregionNames = state.allSubregionFeatures ? 
+    [...new Set(state.allSubregionFeatures.map(feature => feature.properties.name))].sort() : [];
+  
+  if (regionNames.length === 0 && subregionNames.length === 0) {
+    return;
+  }
+  
+  // Combine both lists for alphabetical display
+  const allItems = [
+    ...regionNames.map(name => ({ name, type: 'region' })),
+    ...subregionNames.map(name => ({ name, type: 'subregion' }))
+  ].sort((a, b) => a.name.localeCompare(b.name));
+  
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  allItems.forEach(item => {
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', item.type);
+    wrapperDiv.setAttribute('role', 'listitem');
+    wrapperDiv.className = 'collection-item-3 w-dyn-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', item.name);
+    input.setAttribute('fs-list-field', item.type === 'region' ? 'Region' : 'SubRegion');
+    input.type = 'checkbox';
+    input.name = item.type;
+    input.setAttribute('data-name', item.type);
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = item.type;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'checkbox-text w-form-label';
+    span.setAttribute('for', item.type);
+    span.textContent = item.name;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    fragment.appendChild(wrapperDiv);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  });
+  
+  container.appendChild(fragment);
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterRegionGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+}
+
+
+// OPTIMIZED: Setup events for generated checkboxes with better performance
+function setupCheckboxEvents(checkboxContainer) {
+  // Handle data-auto-sidebar="true"
+  const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
+  autoSidebarElements.forEach(element => {
+    ['change', 'input'].forEach(eventType => {
+      eventManager.add(element, eventType, () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
+        }
+      });
+    });
+  });
+  
+  // Handle fs-cmsfilter-element filters
+  const filterElements = checkboxContainer.querySelectorAll('[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select');
+  filterElements.forEach(element => {
+    eventManager.add(element, 'change', () => state.setTimer('filterUpdate', handleFilterUpdate, 50));
+  });
+  
+  // Handle activate-filter-indicator functionality
+  const indicatorActivators = checkboxContainer.querySelectorAll('[activate-filter-indicator]');
+  indicatorActivators.forEach(activator => {
+    const groupName = activator.getAttribute('activate-filter-indicator');
+    if (!groupName) return;
+    
+    // Function to toggle indicators for this group
+    const toggleIndicators = (shouldShow) => {
+      const indicators = $(`[filter-indicator="${groupName}"]`);
+      indicators.forEach(indicator => {
+        indicator.style.display = shouldShow ? 'flex' : 'none';
+      });
+    };
+    
+    // Function to check if any activator in this group is active
+    const hasActiveFilters = () => {
+      const groupActivators = $(`[activate-filter-indicator="${groupName}"]`);
+      return groupActivators.some(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          return el.checked;
+        } else if (el.tagName.toLowerCase() === 'select') {
+          return el.selectedIndex > 0;
+        } else {
+          return el.value.trim() !== '';
+        }
+      });
+    };
+    
+    // Add change event listener for checkboxes
+    if (activator.type === 'checkbox' || activator.type === 'radio') {
+      eventManager.add(activator, 'change', () => {
+        const shouldShow = hasActiveFilters();
+        toggleIndicators(shouldShow);
+      });
+    }
+  });
+}
+
+// SIMPLIFIED: Only use hiddentagparent method for filtering detection
+const checkAndToggleFilteredElements = () => {
+  // Check for hiddentagparent (Finsweet official filtering indicator)
+  const hiddenTagParent = document.getElementById('hiddentagparent');
+  const shouldShow = !!hiddenTagParent;
+  
+  toggleShowWhenFilteredElements(shouldShow);
+  return shouldShow;
+};
+
+// FIXED: Enhanced tag monitoring with proper cleanup and no recursion
+const monitorTags = (() => {
+  let isSetup = false; // Flag to prevent multiple setups
+  let pollingTimer = null; // Store polling timer for cleanup
+  
+  return () => {
+    // Prevent multiple setups
+    if (isSetup) {
+      return;
+    }
+    
+    // Initial check
+    checkAndToggleFilteredElements();
+    
+    // Don't use cached query for tagparent
+    const tagParent = document.getElementById('tagparent');
+    if (tagParent) {
+      // Clean up existing observer if it exists
+      if (tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+      }
+      
+      const observer = new MutationObserver(() => {
+        // Immediate check when DOM changes
+        checkAndToggleFilteredElements();
+      });
+      observer.observe(tagParent, {childList: true, subtree: true});
+      
+      // Store observer for cleanup
+      tagParent._mutationObserver = observer;
+    }
+    
+    // Additional monitoring: Watch for checkbox changes
+    const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+      if (!checkbox.dataset.filteredElementListener) {
+        eventManager.add(checkbox, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 50);
+        });
+        checkbox.dataset.filteredElementListener = 'true';
+      }
+    });
+    
+    // Additional monitoring: Watch for form changes that might indicate filtering
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      if (!form.dataset.filteredElementListener) {
+        eventManager.add(form, 'change', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        eventManager.add(form, 'input', () => {
+          setTimeout(checkAndToggleFilteredElements, 100);
+        });
+        form.dataset.filteredElementListener = 'true';
+      }
+    });
+    
+    // FIXED: Fallback polling that doesn't recursively call monitorTags
+    const startPolling = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+      }
+      
+      pollingTimer = setTimeout(() => {
+        checkAndToggleFilteredElements(); // Just check, don't setup again
+        startPolling(); // Continue polling
+      }, 1000);
+    };
+    
+    // Start the polling
+    startPolling();
+    
+    // Mark as setup
+    isSetup = true;
+    
+    // Cleanup function (can be called to reset)
+    const cleanup = () => {
+      if (pollingTimer) {
+        clearTimeout(pollingTimer);
+        pollingTimer = null;
+      }
+      
+      const tagParent = document.getElementById('tagparent');
+      if (tagParent && tagParent._mutationObserver) {
+        tagParent._mutationObserver.disconnect();
+        tagParent._mutationObserver = null;
+      }
+      
+      isSetup = false;
+    };
+    
+    // Store cleanup function for external access
+    window.cleanupTagMonitoring = cleanup;
+  };
+})();
+
+// OPTIMIZED: Smart initialization with parallel loading
+function init() {
+  // Core initialization (parallel where possible)
   loadLocalitiesFromGeoJSON();
-  setupMapEvents();
+  setupEvents();
   
-  // Layer optimization using local state if not available in SharedCore
-  const timerState = window.SharedCore.state || { setTimer: (id, fn, delay) => setTimeout(fn, delay) };
-  timerState.setTimer('mapInitialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
+  // Layer optimization
+  state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
   
   const handleMapEvents = () => {
-    // Map events handled by optimized layer management
+    state.clearTimer('mapEventHandler');
+    state.setTimer('mapEventHandler', () => {
+      // Map events handled by optimized layer management
+    }, 10);
   };
   
   map.on('moveend', handleMapEvents);
@@ -649,78 +1033,80 @@ function init() {
   
   // Staggered setup with smart timing
   [300, 800].forEach(delay => 
-    timerState.setTimer(`mapDropdownSetup-${delay}`, setupDropdownListeners, delay)
+    state.setTimer(`dropdownSetup-${delay}`, setupDropdownListeners, delay)
   );
+  
+  state.flags.mapInitialized = true;
   
   // Mark loading step complete
   loadingTracker.markComplete('mapInitialized');
   
-  // Initial filtering check with SharedCore coordination
-  timerState.setTimer('mapInitialFiltering', () => {
-    const hasFiltering = checkMapMarkersFiltering();
-    if (hasFiltering) {
-      applyFilterToMarkers();
+  // Initial filtering check
+  state.setTimer('initialFiltering', () => {
+    if (state.flags.isInitialLoad) {
+      const hasFiltering = checkMapMarkersFiltering();
+      if (hasFiltering) {
+        applyFilterToMarkers();
+      }
+      state.flags.isInitialLoad = false;
     }
     
-    // Use SharedCore's filtered elements check
+    // FIXED: Always check filtered elements on initial load
     checkAndToggleFilteredElements();
   }, 300);
 }
 
-// Map-specific DOM ready handlers - coordinates with SharedCore
+// OPTIMIZED: DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
-  // Wait for SharedCore to be available
-  const initializeMapUI = () => {
-    if (!window.SharedCore) {
-      setTimeout(initializeMapUI, 50);
-      return;
+  setupSidebars();
+  setupBackToTopButton();
+  
+  // FIXED: Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
+  state.setTimer('initMonitorTags', () => {
+    monitorTags();
+    
+    // Mark monitoring as part of events setup
+    state.setTimer('monitoringCheck', () => {
+      if (!loadingTracker.states.eventsSetup) {
+        loadingTracker.markComplete('eventsSetup');
+      }
+    }, 1000);
+  }, 100);
+  
+  // Early UI readiness checks
+  state.setTimer('earlyUICheck', () => {
+    // Check if controls are positioned early
+    if (!loadingTracker.states.uiPositioned) {
+      const ctrl = $1('.mapboxgl-ctrl-top-right');
+      if (ctrl && ctrl.style.top) {
+        loadingTracker.markComplete('uiPositioned');
+      }
     }
     
-    const { state, $1, $id } = window.SharedCore;
-    
-    // SharedCore handles sidebar and back-to-top setup, just coordinate timing
-    state.setTimer('mapInitMonitorTags', () => {
-      monitorTags();
-      
-      // Mark monitoring as part of events setup
-      state.setTimer('mapMonitoringCheck', () => {
-        if (!loadingTracker.states.eventsSetup) {
-          loadingTracker.markComplete('eventsSetup');
-        }
-      }, 1000);
-    }, 100);
-    
-    // Early UI readiness checks for map-specific elements
-    state.setTimer('mapEarlyUICheck', () => {
-      // Check if map controls are positioned
-      if (!loadingTracker.states.uiPositioned) {
-        const ctrl = $1('.mapboxgl-ctrl-top-right');
-        if (ctrl && ctrl.style.top) {
-          loadingTracker.markComplete('uiPositioned');
-        }
+    // Check if back to top is ready early
+    if (!loadingTracker.states.backToTopSetup) {
+      const button = $id('jump-to-top');
+      const scrollContainer = $id('scroll-wrap');
+      if (button && scrollContainer) {
+        loadingTracker.markComplete('backToTopSetup');
       }
-    }, 2000);
-  };
-  
-  initializeMapUI();
+    }
+  }, 2000);
 });
 
 window.addEventListener('load', () => {
-  // Map-specific load handling - SharedCore handles general UI setup
-  if (window.SharedCore && window.SharedCore.state) {
-    const { state } = window.SharedCore;
-    
-    state.setTimer('mapLoadFallbackInit', () => {
-      // Check if map initialization is needed
-      if (window.map && map.loaded()) {
-        try { 
-          init(); 
-        } catch (error) { 
-          console.warn('Map initialization error:', error);
-        }
+  setupSidebars();
+  setupBackToTopButton();
+  
+  state.setTimer('loadFallbackInit', () => {
+    if (!state.allLocalityFeatures.length && map.loaded()) {
+      try { 
+        init(); 
+      } catch (error) { 
+        // Silent error handling in production
       }
-    }, 100);
-  }
+    }
+  }, 100);
   
   // OPTIMIZED: Auto-trigger reframing with smart logic
   const checkAndReframe = () => {
@@ -1217,9 +1603,13 @@ loadDataFromState() {
                 // Keyboard navigation
                 this.elements.input.addEventListener('keydown', (e) => this.handleKeydown(e));
                 
-                // Prevent blur when interacting with dropdown
+                // Prevent blur only when clicking on dropdown items (not the whole wrapper)
                 this.elements.wrapper.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
+                    // Only prevent default if clicking on an actual dropdown item
+                    // This allows normal blur behavior when clicking elsewhere
+                    if (e.target.closest('.dropdown-item, .subregion-select, .locality-item, .settlementlistitem')) {
+                        e.preventDefault();
+                    }
                 });
                 
                 // Click handling
@@ -1710,7 +2100,16 @@ loadDataFromState() {
                 if (this.elements.input.value) {
                     this.elements.input.value = '';
                     this.hideDropdown();
-                    this.elements.input.focus();
+                    
+                    // Only refocus on desktop or if not on iOS Safari
+                    // iOS Safari has issues with programmatic focus after UI interactions
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    const isMobileSafari = isIOS && /WebKit/.test(navigator.userAgent) && !/CriOS/.test(navigator.userAgent);
+                    
+                    if (!isMobileSafari) {
+                        this.elements.input.focus();
+                    }
+                    
                     this.showAllItems();
                     this.renderResults();
                     this.showDropdown();
