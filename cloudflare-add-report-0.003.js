@@ -116,7 +116,10 @@
     for (let i = 1; i <= 15; i++) {
       const imageEl = document.querySelector(`[display-image="${i}"]`);
       if (imageEl) {
+        console.log(`Setting up controls for image ${i}`);
         addStaticImageControls(imageEl, i);
+      } else {
+        console.log(`Image element ${i} not found`);
       }
     }
     
@@ -124,7 +127,10 @@
     for (let i = 1; i <= MAX_VIDEOS; i++) {
       const videoEl = document.querySelector(`[display-video="${i}"]`);
       if (videoEl) {
+        console.log(`Setting up controls for video ${i}`);
         addStaticVideoControls(videoEl, i);
+      } else {
+        console.log(`Video element ${i} not found`);
       }
     }
   }
@@ -686,7 +692,7 @@
     }
   }
   
-  // Display video
+  // Display video with better error handling
   function displayVideo(position, url) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const wrapEl = document.querySelector('[display-video="wrap"]');
@@ -694,13 +700,34 @@
     if (videoEl && wrapEl) {
       const iframe = videoEl.querySelector('iframe');
       if (iframe) {
-        // Set both data-src and src
+        // Clear any existing src first
+        iframe.src = '';
         iframe.setAttribute('data-src', url);
         
-        // For Cloudflare Stream, add a small delay to allow processing
-        setTimeout(() => {
+        // Try setting the src with retries for video processing
+        let retryCount = 0;
+        const maxRetries = 5;
+        
+        const tryLoadVideo = () => {
+          retryCount++;
+          console.log(`Attempting to load video (attempt ${retryCount}): ${url}`);
+          
           iframe.src = url;
-        }, 2000); // 2 second delay to allow video processing
+          
+          // Listen for load errors
+          iframe.onerror = () => {
+            if (retryCount < maxRetries) {
+              console.log(`Video load failed, retrying in ${retryCount * 2} seconds...`);
+              setTimeout(tryLoadVideo, retryCount * 2000); // Exponential backoff
+            } else {
+              console.log('Video failed to load after all retries');
+              showVideoError(iframe, uploadData?.uid || 'unknown');
+            }
+          };
+        };
+        
+        // Start first attempt after 3 seconds
+        setTimeout(tryLoadVideo, 3000);
       }
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
@@ -708,6 +735,41 @@
       // Show controls for this video
       showVideoControls(position);
     }
+  }
+  
+  // Show video error message
+  function showVideoError(iframe, uid) {
+    iframe.style.display = 'none';
+    
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      background: #f5f5f5;
+      color: #666;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px;
+    `;
+    errorDiv.innerHTML = `
+      <div>
+        <div>Video is still processing...</div>
+        <div style="font-size: 12px; margin-top: 10px;">
+          <button onclick="location.reload()" style="
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+          ">Refresh Page</button>
+        </div>
+      </div>
+    `;
+    
+    iframe.parentNode.appendChild(errorDiv);
   }
   
   // Show image controls
