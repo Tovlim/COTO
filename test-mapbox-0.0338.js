@@ -601,6 +601,10 @@ function generateSettlementCheckboxes() {
   // Batch generate checkboxes using document fragment
   const fragment = document.createDocumentFragment();
   settlementNames.forEach(settlementName => {
+    // Find the settlement feature to get the slug
+    const settlementFeature = state.allSettlementFeatures.find(feature => feature.properties.name === settlementName);
+    const settlementSlug = settlementFeature?.properties?.slug || settlementName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
     // Create the wrapper div
     const wrapperDiv = document.createElement('div');
     wrapperDiv.setAttribute('checkbox-filter', 'settlement');
@@ -609,6 +613,13 @@ function generateSettlementCheckboxes() {
     // Create the label
     const label = document.createElement('label');
     label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the link element
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/settlement/${settlementSlug}`;
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
     
     // Create the custom checkbox div
     const customCheckbox = document.createElement('div');
@@ -646,6 +657,7 @@ function generateSettlementCheckboxes() {
     countWrapper.appendChild(countDiv);
     
     // Assemble the structure
+    label.appendChild(link);
     label.appendChild(customCheckbox);
     label.appendChild(input);
     label.appendChild(span);
@@ -686,6 +698,10 @@ function generateLocalityCheckboxes() {
   // Batch generate checkboxes using document fragment
   const fragment = document.createDocumentFragment();
   localityNames.forEach(localityName => {
+    // Find the locality feature to get the slug
+    const localityFeature = state.allLocalityFeatures.find(feature => feature.properties.name === localityName);
+    const localitySlug = localityFeature?.properties?.slug || localityName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
     // Create the wrapper div
     const wrapperDiv = document.createElement('div');
     wrapperDiv.setAttribute('checkbox-filter', 'locality');
@@ -694,6 +710,13 @@ function generateLocalityCheckboxes() {
     // Create the label
     const label = document.createElement('label');
     label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the link element
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/locality/${localitySlug}`;
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
     
     // Create the custom checkbox div
     const customCheckbox = document.createElement('div');
@@ -731,6 +754,7 @@ function generateLocalityCheckboxes() {
     countWrapper.appendChild(countDiv);
     
     // Assemble the structure
+    label.appendChild(link);
     label.appendChild(customCheckbox);
     label.appendChild(input);
     label.appendChild(span);
@@ -2740,8 +2764,8 @@ class DataLoader {
   // Load all GeoJSON data in parallel
   async loadAllData() {
     const urls = {
-      localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.003.geojson',
-      settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson'
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.005.geojson',
+      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
     };
     
     try {
@@ -4854,7 +4878,7 @@ function selectSettlementCheckbox(settlementName) {
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.003.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.005.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -4976,7 +5000,7 @@ function loadLocalitiesFromGeoJSON() {
 
 // OPTIMIZED: Load and add settlement markers with new color
 function loadSettlements() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
