@@ -385,7 +385,7 @@
           } else {
             updateTextInput(type, uploadStates[type].count, upload.url);
             if (type === 'video') {
-              displayVideo(uploadStates[type].count, upload.url);
+              displayVideo(uploadStates[type].count, upload.iframeUrl || upload.url);
             } else {
               displayImage(uploadStates[type].count, upload.url);
             }
@@ -535,35 +535,25 @@
   // Handle video upload response
   async function handleVideoUploadResponse(uploadData, resolve, reject) {
     try {
-      // Get video details from secure worker endpoint
-      const user = firebase.auth().currentUser;
-      const idToken = await user.getIdToken();
+      // For videos, we'll store the watch URL in the text input but use iframe for display
+      const watchUrl = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/watch`;
+      const iframeUrl = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
       
-      const response = await fetch(WORKER_ENDPOINT + '/get-video-details', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          uid: uploadData.uid
-        })
+      // Return both URLs - watch for form submission, iframe for display
+      resolve({ 
+        url: watchUrl, 
+        iframeUrl: iframeUrl,
+        response: { uid: uploadData.uid } 
       });
-      
-      if (response.ok) {
-        const videoData = await response.json();
-        // Use iframe URL for embedding instead of watch URL
-        const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
-        resolve({ url, response: { uid: uploadData.uid } });
-      } else {
-        // Fallback iframe URL if details request fails
-        const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
-        resolve({ url, response: { uid: uploadData.uid } });
-      }
     } catch (error) {
-      // Fallback iframe URL if any error occurs
-      const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
-      resolve({ url, response: { uid: uploadData.uid } });
+      // Fallback URLs if any error occurs
+      const watchUrl = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/watch`;
+      const iframeUrl = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
+      resolve({ 
+        url: watchUrl, 
+        iframeUrl: iframeUrl,
+        response: { uid: uploadData.uid } 
+      });
     }
   }
   
@@ -704,8 +694,13 @@
     if (videoEl && wrapEl) {
       const iframe = videoEl.querySelector('iframe');
       if (iframe) {
+        // Set both data-src and src
         iframe.setAttribute('data-src', url);
-        iframe.src = url; // Set src as well for immediate loading
+        
+        // For Cloudflare Stream, add a small delay to allow processing
+        setTimeout(() => {
+          iframe.src = url;
+        }, 2000); // 2 second delay to allow video processing
       }
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
