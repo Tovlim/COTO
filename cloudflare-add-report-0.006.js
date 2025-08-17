@@ -137,32 +137,38 @@
     
     console.log(`Adding controls for image ${position}`);
     
-    // Create controls container
+    // Create controls container with very high specificity
     const controlsDiv = document.createElement('div');
     controlsDiv.className = 'media-controls';
     controlsDiv.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: none;
-      gap: 5px;
-      z-index: 1000;
-      background: rgba(0,0,0,0.1);
-      padding: 5px;
-      border-radius: 5px;
+      position: absolute !important;
+      top: 10px !important;
+      right: 10px !important;
+      display: none !important;
+      flex-direction: row !important;
+      gap: 5px !important;
+      z-index: 999999 !important;
+      background: rgba(0,0,0,0.8) !important;
+      padding: 8px !important;
+      border-radius: 5px !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+      pointer-events: auto !important;
     `;
     
     // Replace button
     const replaceBtn = document.createElement('button');
     replaceBtn.textContent = 'Replace';
     replaceBtn.style.cssText = `
-      background: #4285f4;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
+      background: #4285f4 !important;
+      color: white !important;
+      border: none !important;
+      padding: 6px 12px !important;
+      border-radius: 3px !important;
+      cursor: pointer !important;
+      font-size: 12px !important;
+      font-weight: bold !important;
+      white-space: nowrap !important;
+      pointer-events: auto !important;
     `;
     replaceBtn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -175,13 +181,16 @@
     const removeBtn = document.createElement('button');
     removeBtn.textContent = 'Remove';
     removeBtn.style.cssText = `
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
+      background: #f44336 !important;
+      color: white !important;
+      border: none !important;
+      padding: 6px 12px !important;
+      border-radius: 3px !important;
+      cursor: pointer !important;
+      font-size: 12px !important;
+      font-weight: bold !important;
+      white-space: nowrap !important;
+      pointer-events: auto !important;
     `;
     removeBtn.addEventListener('click', function(e) {
       e.preventDefault();
@@ -195,9 +204,17 @@
     
     // Make image container relative for absolute positioning
     if (imageEl.parentNode) {
-      imageEl.parentNode.style.position = 'relative';
+      // Force the parent to be positioned relative with high specificity
+      imageEl.parentNode.style.cssText += '; position: relative !important; overflow: visible !important;';
       imageEl.parentNode.appendChild(controlsDiv);
       console.log(`Controls added successfully for image ${position}`);
+      
+      // Test visibility immediately
+      setTimeout(() => {
+        const bounds = controlsDiv.getBoundingClientRect();
+        console.log(`Controls for image ${position} - Bounds:`, bounds);
+        console.log(`Controls for image ${position} - Computed style:`, window.getComputedStyle(controlsDiv));
+      }, 100);
     } else {
       console.log(`No parent node for image ${position}`);
     }
@@ -702,7 +719,7 @@
     }
   }
   
-  // Display video with proper iframe structure
+  // Display video with automatic refresh handling
   function displayVideo(position, url) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const wrapEl = document.querySelector('[display-video="wrap"]');
@@ -711,7 +728,7 @@
       // Clear existing content
       videoEl.innerHTML = '';
       
-      // Create proper iframe structure for Cloudflare Stream
+      // Create proper iframe structure for Cloudflare Stream with auto-refresh
       videoEl.innerHTML = `
         <div style="position: relative; padding-top: 56.25%; height: 0;">
           <iframe
@@ -719,8 +736,24 @@
             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
             allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
             allowfullscreen="true"
-            loading="lazy">
+            loading="lazy"
+            onload="console.log('Video iframe loaded')"
+            onerror="console.log('Video iframe error')">
           </iframe>
+          <div style="
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            z-index: 999;
+          " onclick="this.parentNode.querySelector('iframe').src = this.parentNode.querySelector('iframe').src">
+            ↻ Refresh if not loading
+          </div>
         </div>
       `;
       
@@ -804,15 +837,32 @@
     videoEl.appendChild(controlsDiv);
   }
   
-  // Show image controls
+  // Show image controls with force override
   function showImageControls(position) {
     console.log(`Trying to show image controls for position ${position}`);
     const imageEl = document.querySelector(`[display-image="${position}"]`);
     if (imageEl && imageEl.parentNode) {
       const controls = imageEl.parentNode.querySelector('.media-controls');
       if (controls) {
-        controls.style.display = 'flex';
-        console.log(`Image controls shown for position ${position}`);
+        // Force display with !important and multiple methods
+        controls.style.cssText = controls.style.cssText.replace('display: none !important', 'display: flex !important');
+        controls.style.setProperty('display', 'flex', 'important');
+        controls.style.setProperty('visibility', 'visible', 'important');
+        controls.style.setProperty('opacity', '1', 'important');
+        
+        console.log(`Image controls forced visible for position ${position}`);
+        
+        // Double-check visibility
+        setTimeout(() => {
+          const computedStyle = window.getComputedStyle(controls);
+          console.log(`Controls ${position} - Display: ${computedStyle.display}, Visibility: ${computedStyle.visibility}, Opacity: ${computedStyle.opacity}`);
+          
+          // If still not visible, create a highly visible fallback
+          if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+            console.log(`Creating fallback controls for position ${position}`);
+            createFallbackControls(imageEl, position);
+          }
+        }, 100);
       } else {
         console.log(`No controls found for image position ${position}`);
         // Try to add controls if they don't exist
@@ -820,13 +870,64 @@
         setTimeout(() => {
           const newControls = imageEl.parentNode.querySelector('.media-controls');
           if (newControls) {
-            newControls.style.display = 'flex';
+            newControls.style.setProperty('display', 'flex', 'important');
           }
         }, 100);
       }
     } else {
       console.log(`Image element not found for position ${position}`);
     }
+  }
+  
+  // Create highly visible fallback controls
+  function createFallbackControls(imageEl, position) {
+    // Remove any existing controls first
+    const existing = imageEl.parentNode.querySelectorAll('.media-controls, .fallback-controls');
+    existing.forEach(el => el.remove());
+    
+    // Create super visible controls
+    const fallbackDiv = document.createElement('div');
+    fallbackDiv.className = 'fallback-controls';
+    fallbackDiv.innerHTML = `
+      <button onclick="window.replaceImageAtPosition(${position})" style="
+        position: fixed !important;
+        top: 50px !important;
+        right: 20px !important;
+        z-index: 999999 !important;
+        background: #4285f4 !important;
+        color: white !important;
+        border: 2px solid white !important;
+        padding: 10px 15px !important;
+        border-radius: 5px !important;
+        cursor: pointer !important;
+        font-size: 14px !important;
+        font-weight: bold !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+      ">Replace Img ${position}</button>
+      <button onclick="window.removeImageAtPosition(${position})" style="
+        position: fixed !important;
+        top: 100px !important;
+        right: 20px !important;
+        z-index: 999999 !important;
+        background: #f44336 !important;
+        color: white !important;
+        border: 2px solid white !important;
+        padding: 10px 15px !important;
+        border-radius: 5px !important;
+        cursor: pointer !important;
+        font-size: 14px !important;
+        font-weight: bold !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+      ">Remove Img ${position}</button>
+    `;
+    
+    document.body.appendChild(fallbackDiv);
+    
+    // Make functions globally available
+    window.replaceImageAtPosition = replaceImageAtPosition;
+    window.removeImageAtPosition = removeImageAtPosition;
+    
+    console.log(`Fallback controls created for image ${position}`);
   }
   
   // Show video controls
