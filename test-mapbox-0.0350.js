@@ -677,6 +677,11 @@ function generateSettlementCheckboxes() {
   
   // Invalidate DOM cache since we added new elements
   domCache.markStale();
+  
+  // Refresh search script cache if available
+  if (window.checkboxFilterScript) {
+    window.checkboxFilterScript.recacheElements();
+  }
 }
 
 // Generate locality checkboxes from map data
@@ -775,6 +780,11 @@ function generateLocalityCheckboxes() {
   
   // Invalidate DOM cache since we added new elements
   domCache.markStale();
+  
+  // Refresh search script cache if available
+  if (window.checkboxFilterScript) {
+    window.checkboxFilterScript.recacheElements();
+  }
 }
 
 // Generate region checkboxes from map data
@@ -871,6 +881,11 @@ function generateRegionCheckboxes() {
   
   // Invalidate DOM cache since we added new elements
   domCache.markStale();
+  
+  // Refresh search script cache if available
+  if (window.checkboxFilterScript) {
+    window.checkboxFilterScript.recacheElements();
+  }
 }
 
 
