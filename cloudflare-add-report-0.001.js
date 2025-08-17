@@ -64,6 +64,7 @@
   function init() {
     setupFileInputs();
     setupClickHandlers();
+    setupIndividualControls();
   }
   
   // Create hidden file inputs and setup
@@ -107,6 +108,139 @@
     mainImageInput.addEventListener('change', function(e) {
       handleFileSelection(e.target.files, 'main-image');
     });
+  }
+  
+  // Setup individual replace/remove controls for each slot
+  function setupIndividualControls() {
+    // Setup image controls (1-15, where 1 is main image)
+    for (let i = 1; i <= 15; i++) {
+      const imageEl = document.querySelector(`[display-image="${i}"]`);
+      if (imageEl) {
+        addStaticImageControls(imageEl, i);
+      }
+    }
+    
+    // Setup video controls (1-5)
+    for (let i = 1; i <= MAX_VIDEOS; i++) {
+      const videoEl = document.querySelector(`[display-video="${i}"]`);
+      if (videoEl) {
+        addStaticVideoControls(videoEl, i);
+      }
+    }
+  }
+  
+  // Add static image controls that are always present
+  function addStaticImageControls(imageEl, position) {
+    // Create controls container
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'media-controls';
+    controlsDiv.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
+      gap: 5px;
+      z-index: 10;
+    `;
+    
+    // Replace button
+    const replaceBtn = document.createElement('button');
+    replaceBtn.textContent = 'Replace';
+    replaceBtn.style.cssText = `
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    replaceBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      replaceImageAtPosition(position);
+    });
+    
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = `
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    removeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      removeImageAtPosition(position);
+    });
+    
+    controlsDiv.appendChild(replaceBtn);
+    controlsDiv.appendChild(removeBtn);
+    
+    // Make image container relative for absolute positioning
+    if (imageEl.parentNode) {
+      imageEl.parentNode.style.position = 'relative';
+      imageEl.parentNode.appendChild(controlsDiv);
+    }
+  }
+  
+  // Add static video controls that are always present
+  function addStaticVideoControls(videoEl, position) {
+    // Create controls container
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'media-controls';
+    controlsDiv.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: none;
+      gap: 5px;
+      z-index: 10;
+    `;
+    
+    // Replace button
+    const replaceBtn = document.createElement('button');
+    replaceBtn.textContent = 'Replace';
+    replaceBtn.style.cssText = `
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    replaceBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      replaceVideoAtPosition(position);
+    });
+    
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = `
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    removeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      removeVideoAtPosition(position);
+    });
+    
+    controlsDiv.appendChild(replaceBtn);
+    controlsDiv.appendChild(removeBtn);
+    
+    // Make video container relative for absolute positioning
+    videoEl.style.position = 'relative';
+    videoEl.appendChild(controlsDiv);
   }
   
   // Setup click handlers for upload buttons
@@ -418,21 +552,17 @@
       
       if (response.ok) {
         const videoData = await response.json();
-        let url;
-        if (videoData && videoData.preview) {
-          url = videoData.preview.replace('/manifest/video.mpd', '/watch');
-        } else {
-          url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/watch`;
-        }
+        // Use iframe URL for embedding instead of watch URL
+        const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
         resolve({ url, response: { uid: uploadData.uid } });
       } else {
-        // Fallback URL if details request fails
-        const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/watch`;
+        // Fallback iframe URL if details request fails
+        const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
         resolve({ url, response: { uid: uploadData.uid } });
       }
     } catch (error) {
-      // Fallback URL if any error occurs
-      const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/watch`;
+      // Fallback iframe URL if any error occurs
+      const url = `https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uploadData.uid}/iframe`;
       resolve({ url, response: { uid: uploadData.uid } });
     }
   }
@@ -546,8 +676,8 @@
       imageEl.style.display = 'block';
       wrapEl.style.display = 'grid';
       
-      // Add replace and remove buttons
-      addImageControls(imageEl, 'main-image', url);
+      // Show controls for this image
+      showImageControls(1);
     }
   }
   
@@ -561,8 +691,8 @@
       imageEl.style.display = 'block';
       wrapEl.style.display = 'grid';
       
-      // Add replace and remove buttons
-      addImageControls(imageEl, 'image', url, position);
+      // Show controls for this image
+      showImageControls(position + 1);
     }
   }
   
@@ -580,163 +710,83 @@
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
       
-      // Add replace and remove buttons
-      addVideoControls(videoEl, position, url);
+      // Show controls for this video
+      showVideoControls(position);
     }
   }
   
-  // Add image control buttons (replace/remove)
-  function addImageControls(imageEl, type, url, position) {
-    // Remove existing controls
-    const existingControls = imageEl.parentNode.querySelector('.media-controls');
-    if (existingControls) {
-      existingControls.remove();
-    }
-    
-    // Create controls container
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'media-controls';
-    controlsDiv.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      gap: 5px;
-      z-index: 10;
-    `;
-    
-    // Replace button
-    const replaceBtn = document.createElement('button');
-    replaceBtn.textContent = 'Replace';
-    replaceBtn.style.cssText = `
-      background: #4285f4;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    replaceBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      replaceImage(type, position);
-    });
-    
-    // Remove button
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.style.cssText = `
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    removeBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      removeImage(type, position);
-    });
-    
-    controlsDiv.appendChild(replaceBtn);
-    controlsDiv.appendChild(removeBtn);
-    
-    // Make image container relative for absolute positioning
-    if (imageEl.parentNode) {
-      imageEl.parentNode.style.position = 'relative';
-      imageEl.parentNode.appendChild(controlsDiv);
+  // Show image controls
+  function showImageControls(position) {
+    const imageEl = document.querySelector(`[display-image="${position}"]`);
+    if (imageEl && imageEl.parentNode) {
+      const controls = imageEl.parentNode.querySelector('.media-controls');
+      if (controls) {
+        controls.style.display = 'flex';
+      }
     }
   }
   
-  // Add video control buttons (replace/remove)
-  function addVideoControls(videoEl, position, url) {
-    // Remove existing controls
-    const existingControls = videoEl.querySelector('.media-controls');
-    if (existingControls) {
-      existingControls.remove();
+  // Show video controls
+  function showVideoControls(position) {
+    const videoEl = document.querySelector(`[display-video="${position}"]`);
+    if (videoEl) {
+      const controls = videoEl.querySelector('.media-controls');
+      if (controls) {
+        controls.style.display = 'flex';
+      }
     }
-    
-    // Create controls container
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'media-controls';
-    controlsDiv.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      gap: 5px;
-      z-index: 10;
-    `;
-    
-    // Replace button
-    const replaceBtn = document.createElement('button');
-    replaceBtn.textContent = 'Replace';
-    replaceBtn.style.cssText = `
-      background: #4285f4;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    replaceBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      replaceVideo(position);
-    });
-    
-    // Remove button
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.style.cssText = `
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    removeBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      removeVideo(position);
-    });
-    
-    controlsDiv.appendChild(replaceBtn);
-    controlsDiv.appendChild(removeBtn);
-    
-    // Make video container relative for absolute positioning
-    videoEl.style.position = 'relative';
-    videoEl.appendChild(controlsDiv);
   }
   
-  // Replace image function
-  function replaceImage(type, position) {
-    if (type === 'main-image') {
-      // Reset main image count and trigger upload
+  // Hide image controls
+  function hideImageControls(position) {
+    const imageEl = document.querySelector(`[display-image="${position}"]`);
+    if (imageEl && imageEl.parentNode) {
+      const controls = imageEl.parentNode.querySelector('.media-controls');
+      if (controls) {
+        controls.style.display = 'none';
+      }
+    }
+  }
+  
+  // Hide video controls
+  function hideVideoControls(position) {
+    const videoEl = document.querySelector(`[display-video="${position}"]`);
+    if (videoEl) {
+      const controls = videoEl.querySelector('.media-controls');
+      if (controls) {
+        controls.style.display = 'none';
+      }
+    }
+  }
+  
+  // Replace image at specific position
+  function replaceImageAtPosition(position) {
+    if (position === 1) {
+      // Main image
       uploadStates['main-image'].count = 0;
+      window.imageReplacePosition = 1;
+      window.imageReplaceType = 'main-image';
       document.getElementById('cloudflare-main-image-input').click();
     } else {
-      // For regular images, we need to track which position to replace
+      // Regular image
       window.imageReplacePosition = position;
+      window.imageReplaceType = 'image';
       document.getElementById('cloudflare-image-input').click();
     }
   }
   
-  // Replace video function
-  function replaceVideo(position) {
-    // Track which position to replace
+  // Replace video at specific position
+  function replaceVideoAtPosition(position) {
     window.videoReplacePosition = position;
     document.getElementById('cloudflare-video-input').click();
   }
   
-  // Remove image function
-  function removeImage(type, position) {
-    if (type === 'main-image') {
+  // Remove image at specific position
+  function removeImageAtPosition(position) {
+    if (position === 1) {
+      // Main image
       const imageEl = document.querySelector('[display-image="1"]');
       const textInput = document.querySelector('[cloudflare="main-image"]');
-      const wrapEl = document.querySelector('[display-image="wrap"]');
       
       if (imageEl) {
         imageEl.src = 'https://cdn.prod.website-files.com/plugins/Basic/assets/placeholder.60f9b1840c.svg';
@@ -746,21 +796,13 @@
         textInput.value = '';
       }
       
-      // Remove controls
-      const controls = imageEl?.parentNode?.querySelector('.media-controls');
-      if (controls) {
-        controls.remove();
-      }
-      
-      // Reset count
+      hideImageControls(1);
       uploadStates['main-image'].count = 0;
       
-      // Check if we should hide the wrap
-      checkAndHideImageWrap();
-      
     } else {
-      const imageEl = document.querySelector(`[display-image="${position + 1}"]`);
-      const textInput = document.querySelector(`[cloudflare="image-${position}"]`);
+      // Regular image
+      const imageEl = document.querySelector(`[display-image="${position}"]`);
+      const textInput = document.querySelector(`[cloudflare="image-${position - 1}"]`); // -1 because image inputs start from 1
       
       if (imageEl) {
         imageEl.src = 'https://cdn.prod.website-files.com/plugins/Basic/assets/placeholder.60f9b1840c.svg';
@@ -770,25 +812,17 @@
         textInput.value = '';
       }
       
-      // Remove controls
-      const controls = imageEl?.parentNode?.querySelector('.media-controls');
-      if (controls) {
-        controls.remove();
-      }
-      
-      // Adjust count
+      hideImageControls(position);
       uploadStates.image.count = Math.max(0, uploadStates.image.count - 1);
-      
-      // Check if we should hide the wrap
-      checkAndHideImageWrap();
     }
+    
+    checkAndHideImageWrap();
   }
   
-  // Remove video function
-  function removeVideo(position) {
+  // Remove video at specific position
+  function removeVideoAtPosition(position) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const textInput = document.querySelector(`[cloudflare="video-${position}"]`);
-    const wrapEl = document.querySelector('[display-video="wrap"]');
     
     if (videoEl) {
       const iframe = videoEl.querySelector('iframe');
@@ -802,16 +836,9 @@
       textInput.value = '';
     }
     
-    // Remove controls
-    const controls = videoEl?.querySelector('.media-controls');
-    if (controls) {
-      controls.remove();
-    }
-    
-    // Adjust count
+    hideVideoControls(position);
     uploadStates.video.count = Math.max(0, uploadStates.video.count - 1);
     
-    // Check if we should hide the wrap
     checkAndHideVideoWrap();
   }
   
