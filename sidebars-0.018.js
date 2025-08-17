@@ -17,8 +17,8 @@
     CACHE_VERSION: '1.0.0',
     CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
     GEOJSON_URLS: {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.005.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
+      localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.003.geojson',
+      settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.001.geojson'
     }
   };
   
@@ -323,23 +323,15 @@
     try {
       const data = await geoCache.fetch(type);
       
-      // Extract unique features with valid names
-      const uniqueFeatures = [];
-      const seenNames = new Set();
+      // Extract unique names
+      const names = data.features
+        .map(feature => feature.properties.name)
+        .filter(name => name && name.trim() !== '')
+        .sort()
+        .filter((name, index, array) => array.indexOf(name) === index);
       
-      data.features.forEach(feature => {
-        const name = feature.properties.name;
-        if (name && name.trim() !== '' && !seenNames.has(name)) {
-          seenNames.add(name);
-          uniqueFeatures.push(feature);
-        }
-      });
-      
-      // Sort by name
-      uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
-      
-      if (uniqueFeatures.length === 0) {
-        console.warn(`No valid ${type} features found in GeoJSON data`);
+      if (names.length === 0) {
+        console.warn(`No valid ${type} names found in GeoJSON data`);
         return;
       }
       
@@ -349,25 +341,13 @@
       // Generate checkboxes using document fragment
       const fragment = document.createDocumentFragment();
       
-      uniqueFeatures.forEach(feature => {
-        const name = feature.properties.name;
-        const slug = feature.properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
-        
+      names.forEach(name => {
         const wrapperDiv = document.createElement('div');
         wrapperDiv.setAttribute('checkbox-filter', type);
         wrapperDiv.className = 'checbox-item';
         
         const label = document.createElement('label');
         label.className = 'w-checkbox reporterwrap-copy';
-        
-        // Create the link element
-        const link = document.createElement('a');
-        link.setAttribute('open', '');
-        link.href = `/${urlPrefix}/${slug}`;
-        link.target = '_blank';
-        link.className = 'open-in-new-tab w-inline-block';
-        link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
         
         const checkboxDiv = document.createElement('div');
         checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
@@ -396,7 +376,6 @@
         countDiv.textContent = '0';
         countContainer.appendChild(countDiv);
         
-        label.appendChild(link);
         label.appendChild(checkboxDiv);
         label.appendChild(input);
         label.appendChild(span);
