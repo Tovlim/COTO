@@ -618,6 +618,7 @@ function generateSettlementCheckboxes() {
     const link = document.createElement('a');
     link.setAttribute('open', '');
     link.href = `/settlement/${settlementSlug}`;
+    link.target = '_blank';
     link.className = 'open-in-new-tab w-inline-block';
     link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
     
@@ -715,6 +716,7 @@ function generateLocalityCheckboxes() {
     const link = document.createElement('a');
     link.setAttribute('open', '');
     link.href = `/locality/${localitySlug}`;
+    link.target = '_blank';
     link.className = 'open-in-new-tab w-inline-block';
     link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
     
