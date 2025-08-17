@@ -323,15 +323,23 @@
     try {
       const data = await geoCache.fetch(type);
       
-      // Extract unique names
-      const names = data.features
-        .map(feature => feature.properties.name)
-        .filter(name => name && name.trim() !== '')
-        .sort()
-        .filter((name, index, array) => array.indexOf(name) === index);
+      // Extract unique features with valid names
+      const uniqueFeatures = [];
+      const seenNames = new Set();
       
-      if (names.length === 0) {
-        console.warn(`No valid ${type} names found in GeoJSON data`);
+      data.features.forEach(feature => {
+        const name = feature.properties.name;
+        if (name && name.trim() !== '' && !seenNames.has(name)) {
+          seenNames.add(name);
+          uniqueFeatures.push(feature);
+        }
+      });
+      
+      // Sort by name
+      uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
+      
+      if (uniqueFeatures.length === 0) {
+        console.warn(`No valid ${type} features found in GeoJSON data`);
         return;
       }
       
@@ -341,11 +349,9 @@
       // Generate checkboxes using document fragment
       const fragment = document.createDocumentFragment();
       
-      names.forEach(name => {
-        // Find the feature to get the slug
-        const feature = data.features.find(f => f.properties.name === name);
-        // Use the slug directly from the GeoJSON if available
-        const slug = feature?.properties?.slug;
+      uniqueFeatures.forEach(feature => {
+        const name = feature.properties.name;
+        const slug = feature.properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
         
         const wrapperDiv = document.createElement('div');
