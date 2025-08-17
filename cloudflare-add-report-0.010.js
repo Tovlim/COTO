@@ -337,6 +337,11 @@
       return;
     }
     
+    // Check if this is a replacement operation
+    const isReplacement = (type === 'video' && window.videoReplacePosition) || 
+                         (type === 'image' && window.imageReplacePosition) ||
+                         (type === 'main-image' && window.imageReplacePosition === 1);
+    
     const validFiles = [];
     const invalidFiles = [];
     const allowedTypes = (type === 'video') ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
@@ -351,15 +356,16 @@
       maxCount = MAX_IMAGES;
     }
     
-    // Check if we have space for new files
-    const remainingSlots = maxCount - uploadStates[type].count;
-    if (remainingSlots <= 0 && type !== 'main-image') {
+    // For replacements, allow the upload regardless of current count
+    // For new uploads, check if we have space for new files
+    const remainingSlots = isReplacement ? files.length : maxCount - uploadStates[type].count;
+    if (remainingSlots <= 0 && type !== 'main-image' && !isReplacement) {
       showError(type, `Maximum ${maxCount} ${type.replace('-', ' ')}${maxCount > 1 ? 's' : ''} already uploaded`);
       return;
     }
     
     Array.from(files).forEach((file, index) => {
-      if (type === 'main-image' || index < remainingSlots) {
+      if (isReplacement || type === 'main-image' || index < remainingSlots) {
         if (allowedTypes.includes(file.type)) {
           validFiles.push(file);
         } else {
@@ -373,8 +379,8 @@
       showError(type, `Invalid file types: ${invalidFiles.map(f => f.name).join(', ')}`);
     }
     
-    // Show warning if too many files selected
-    if (files.length > remainingSlots && type !== 'main-image') {
+    // Show warning if too many files selected (only for new uploads)
+    if (files.length > remainingSlots && type !== 'main-image' && !isReplacement) {
       const typeDisplay = type.replace('-', ' ');
       showError(type, `Only ${remainingSlots} more ${typeDisplay}(s) can be uploaded. ${files.length - remainingSlots} file(s) ignored.`);
     }
@@ -416,15 +422,31 @@
       // Update URLs in text inputs and display media
       if (successfulUploads.length > 0) {
         successfulUploads.forEach(upload => {
-          uploadStates[type].count++;
-          if (type === 'main-image') {
+          // Handle replacement vs new upload
+          if (type === 'video' && window.videoReplacePosition) {
+            const position = window.videoReplacePosition;
+            updateTextInput(type, position, upload.url);
+            displayVideo(position, upload.iframeUrl || upload.url);
+            window.videoReplacePosition = null; // Clear replacement flag
+          } else if (type === 'image' && window.imageReplacePosition && window.imageReplacePosition > 1) {
+            const position = window.imageReplacePosition;
+            updateTextInput('image', position - 1, upload.url); // -1 because image inputs start from 1
+            displayImage(position - 1, upload.url);
+            window.imageReplacePosition = null; // Clear replacement flag
+          } else if (type === 'main-image' || (window.imageReplacePosition === 1)) {
             updateMainImageTextInput(upload.url);
             displayMainImage(upload.url);
+            if (window.imageReplacePosition === 1) {
+              window.imageReplacePosition = null; // Clear replacement flag
+            }
           } else {
-            updateTextInput(type, uploadStates[type].count, upload.url);
+            // Regular new upload
+            uploadStates[type].count++;
             if (type === 'video') {
+              updateTextInput(type, uploadStates[type].count, upload.url);
               displayVideo(uploadStates[type].count, upload.iframeUrl || upload.url);
             } else {
+              updateTextInput(type, uploadStates[type].count, upload.url);
               displayImage(uploadStates[type].count, upload.url);
             }
           }
@@ -907,11 +929,14 @@
   
   // Hide image controls
   function hideImageControls(position) {
-    const imageEl = document.querySelector(`[display-image="${position}"]`);
-    if (imageEl && imageEl.parentNode) {
-      const controls = imageEl.parentNode.querySelector('.media-controls');
+    // Find the wrapper with the controls for this position
+    const wrapper = document.querySelector(`[data-image-position="${position}"]`);
+    if (wrapper) {
+      const controls = wrapper.querySelector('.media-controls');
       if (controls) {
-        controls.style.display = 'none';
+        controls.style.setProperty('display', 'none', 'important');
+        controls.style.setProperty('visibility', 'hidden', 'important');
+        controls.style.setProperty('opacity', '0', 'important');
       }
     }
   }
@@ -968,7 +993,7 @@
       uploadStates['main-image'].count = 0;
       
     } else {
-      // Regular image
+      // Regular image - position 2-15 maps to image inputs 1-14
       const imageEl = document.querySelector(`[display-image="${position}"]`);
       const textInput = document.querySelector(`[cloudflare="image-${position - 1}"]`); // -1 because image inputs start from 1
       
@@ -981,7 +1006,17 @@
       }
       
       hideImageControls(position);
-      uploadStates.image.count = Math.max(0, uploadStates.image.count - 1);
+      
+      // For regular images, we need to find which upload this corresponds to and adjust count accordingly
+      // Since images can be at any position, we should count visible images instead
+      let visibleImageCount = 0;
+      for (let i = 2; i <= 15; i++) { // Check positions 2-15 (regular images)
+        const img = document.querySelector(`[display-image="${i}"]`);
+        if (img && img.style.display === 'block') {
+          visibleImageCount++;
+        }
+      }
+      uploadStates.image.count = visibleImageCount;
     }
     
     checkAndHideImageWrap();
