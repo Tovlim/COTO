@@ -129,16 +129,14 @@
   
   // Add static image controls that are always present (check for existing wrapper)
   function addStaticImageControls(imageEl, position) {
-    // Check if the image already has a wrapper with controls OR is already wrapped
-    if (imageEl.parentNode.querySelector('.media-controls') || imageEl.parentNode.hasAttribute('data-has-wrapper')) {
+    // Check if this specific image already has a direct wrapper with controls
+    if (imageEl.parentNode.hasAttribute('data-image-wrapper') && 
+        imageEl.parentNode.querySelector('.media-controls')) {
       console.log(`Controls already exist for image ${position}`);
       return;
     }
     
     console.log(`Adding controls for image ${position}`);
-    
-    // Mark the parent as having a wrapper to prevent duplicate attempts
-    imageEl.parentNode.setAttribute('data-has-wrapper', 'true');
     
     // Create a wrapper div for this specific image
     const wrapper = document.createElement('div');
@@ -899,8 +897,8 @@
   function showImageControls(position) {
     console.log(`Showing controls for image ${position}`);
     
-    // Find wrapper for this position
-    const wrapper = document.querySelector(`[data-image-position="${position}"]`);
+    // Find wrapper for this position - look for the wrapper div that contains this image
+    const wrapper = document.querySelector(`[data-image-wrapper="${position}"]`);
     if (wrapper) {
       const controls = wrapper.querySelector('.media-controls');
       if (controls) {
@@ -930,7 +928,7 @@
   // Hide image controls
   function hideImageControls(position) {
     // Find the wrapper with the controls for this position
-    const wrapper = document.querySelector(`[data-image-position="${position}"]`);
+    const wrapper = document.querySelector(`[data-image-wrapper="${position}"]`);
     if (wrapper) {
       const controls = wrapper.querySelector('.media-controls');
       if (controls) {
