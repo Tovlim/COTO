@@ -724,39 +724,75 @@
     }
   }
   
-  // Display video with simple uploaded message
+  // Display video with thumbnail and uploaded message
   function displayVideo(position, url) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const wrapEl = document.querySelector('[display-video="wrap"]');
     
     if (videoEl && wrapEl) {
+      // Extract UID from URL for thumbnail
+      const uidMatch = url.match(/\/([a-f0-9]{32})\//);
+      const uid = uidMatch ? uidMatch[1] : null;
+      
       // Clear existing content
       videoEl.innerHTML = '';
       
-      // Create simple uploaded message
-      videoEl.innerHTML = `
-        <div style="
-          position: relative; 
-          padding-top: 56.25%; 
-          height: 0; 
-          background: #f5f5f5; 
-          border-radius: 8px; 
-          overflow: hidden;
-          border: 2px dashed #ddd;
-        ">
-          <div style="
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #666;
-          ">
-            <div style="font-size: 18px; margin-bottom: 5px;">✓</div>
-            <div style="font-size: 14px; font-weight: 500;">Video Uploaded</div>
+      if (uid) {
+        // Create thumbnail display with uploaded message
+        videoEl.innerHTML = `
+          <div style="position: relative; padding-top: 56.25%; height: 0; background: #000; border-radius: 8px; overflow: hidden;">
+            <img 
+              src="https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s&height=600"
+              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+              alt="Video thumbnail"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div style="
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              background: #333;
+              display: none;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 14px;
+            ">Video Thumbnail</div>
+            <div style="
+              position: absolute;
+              bottom: 8px;
+              left: 8px;
+              background: rgba(0,0,0,0.8);
+              color: white;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+            ">Video Uploaded</div>
           </div>
-        </div>
-      `;
+        `;
+      } else {
+        // Fallback if no UID found
+        videoEl.innerHTML = `
+          <div style="
+            position: relative; 
+            padding-top: 56.25%; 
+            height: 0; 
+            background: #333; 
+            border-radius: 8px; 
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+          ">
+            <div style="text-align: center;">
+              <div style="font-size: 14px;">Video Uploaded</div>
+            </div>
+          </div>
+        `;
+      }
       
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
@@ -837,49 +873,24 @@
     videoEl.appendChild(controlsDiv);
   }
   
-  // Show image controls with specific targeting (prevent infinite loop)
+  // Show image controls - SIMPLIFIED VERSION (no infinite loop)
   function showImageControls(position) {
-    console.log(`Trying to show image controls for position ${position}`);
+    console.log(`Showing controls for image ${position}`);
     
-    // Find controls specifically for this image position
-    const controls = document.querySelector(`[data-image-position="${position}"]`);
-    
-    if (controls) {
-      // Force display with !important and multiple methods
-      controls.style.cssText = controls.style.cssText.replace('display: none !important', 'display: flex !important');
-      controls.style.setProperty('display', 'flex', 'important');
-      controls.style.setProperty('visibility', 'visible', 'important');
-      controls.style.setProperty('opacity', '1', 'important');
-      
-      console.log(`Image controls forced visible for position ${position}`);
-    } else {
-      console.log(`No controls found for image position ${position} - trying to create`);
-      
-      // Try to find the image and add controls (only once)
-      const imageEl = document.querySelector(`[display-image="${position}"]`);
-      if (imageEl) {
-        // Check if we're already in the process of adding controls
-        if (!imageEl.hasAttribute('data-controls-adding')) {
-          imageEl.setAttribute('data-controls-adding', 'true');
-          addStaticImageControls(imageEl, position);
-          
-          // Clean up the flag after a delay
-          setTimeout(() => {
-            imageEl.removeAttribute('data-controls-adding');
-            
-            // Try showing controls again, but only once
-            const newControls = document.querySelector(`[data-image-position="${position}"]`);
-            if (newControls) {
-              newControls.style.setProperty('display', 'flex', 'important');
-              newControls.style.setProperty('visibility', 'visible', 'important');
-              newControls.style.setProperty('opacity', '1', 'important');
-              console.log(`Image controls created and shown for position ${position}`);
-            }
-          }, 200);
-        } else {
-          console.log(`Already adding controls for position ${position}, skipping`);
-        }
+    // Find wrapper for this position
+    const wrapper = document.querySelector(`[data-image-position="${position}"]`);
+    if (wrapper) {
+      const controls = wrapper.querySelector('.media-controls');
+      if (controls) {
+        controls.style.setProperty('display', 'flex', 'important');
+        controls.style.setProperty('visibility', 'visible', 'important');
+        controls.style.setProperty('opacity', '1', 'important');
+        console.log(`Controls shown for image ${position}`);
+      } else {
+        console.log(`No controls found in wrapper for image ${position}`);
       }
+    } else {
+      console.log(`No wrapper found for image ${position}`);
     }
   }
   
