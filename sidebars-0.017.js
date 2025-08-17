@@ -344,7 +344,8 @@
       names.forEach(name => {
         // Find the feature to get the slug
         const feature = data.features.find(f => f.properties.name === name);
-        const slug = feature?.properties?.slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        // Use the slug directly from the GeoJSON if available
+        const slug = feature?.properties?.slug;
         const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
         
         const wrapperDiv = document.createElement('div');
