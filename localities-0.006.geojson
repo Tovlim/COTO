@@ -14,7 +14,7 @@
         "name": "'Abda",
         "slug": "abda",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -31,7 +31,7 @@
         "name": "'Abud",
         "slug": "abud",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -48,7 +48,7 @@
         "name": "'Abwein",
         "slug": "abwein",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -65,7 +65,7 @@
         "name": "'Ajjul",
         "slug": "ajjul",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -82,7 +82,7 @@
         "name": "'Anabta",
         "slug": "anabta",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -99,7 +99,7 @@
         "name": "'Anata",
         "slug": "anata",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -116,7 +116,7 @@
         "name": "'Anin",
         "slug": "anin",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -133,7 +133,7 @@
         "name": "'Arrana",
         "slug": "arrana",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -150,7 +150,7 @@
         "name": "'Arura",
         "slug": "arura",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -167,7 +167,7 @@
         "name": "'Asira al Qibliya",
         "slug": "asira-al-qibliya",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -184,7 +184,7 @@
         "name": "'Attil",
         "slug": "attil",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -201,7 +201,7 @@
         "name": "'Awarta",
         "slug": "awarta",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -218,7 +218,7 @@
         "name": "'Azmut",
         "slug": "azmut",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -235,7 +235,7 @@
         "name": "'Azzun",
         "slug": "azzun",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -252,7 +252,7 @@
         "name": "'Ein 'Arik",
         "slug": "ein-arik",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -269,7 +269,7 @@
         "name": "'Ein Qiniya",
         "slug": "ein-qiniya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -286,7 +286,7 @@
         "name": "'Ein Shibli",
         "slug": "ein-shibli",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -303,7 +303,7 @@
         "name": "'Ein Siniya",
         "slug": "ein-siniya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -320,7 +320,7 @@
         "name": "'Ein Yabrud",
         "slug": "ein-yabrud",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -337,7 +337,7 @@
         "name": "'Ein ad Duyuk al Foqa",
         "slug": "ein-ad-duyuk-al-foqa",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -354,7 +354,7 @@
         "name": "'Ein as Sultan RC",
         "slug": "ein-as-sultan-rc",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -371,7 +371,7 @@
         "name": "'Illar",
         "slug": "illar",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -388,7 +388,7 @@
         "name": "'Iraq Burin",
         "slug": "iraq-burin",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -405,7 +405,7 @@
         "name": "'Irqan Turad",
         "slug": "irqan-turad",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -422,7 +422,7 @@
         "name": "'Izbat Salman",
         "slug": "izbat-salman",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -439,7 +439,7 @@
         "name": "'Izbat Salman",
         "slug": "izbat-salman-1c32a",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -456,7 +456,7 @@
         "name": "'Tuqu",
         "slug": "tuqu",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -473,7 +473,7 @@
         "name": "'Urif",
         "slug": "urif",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -490,7 +490,7 @@
         "name": "Abasan al-Kabira",
         "slug": "abasan-al-kabira",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -507,7 +507,7 @@
         "name": "Abasan al-Saghira",
         "slug": "abasan-al-saghira",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -524,7 +524,7 @@
         "name": "Abu Dis",
         "slug": "abu-dis",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -541,7 +541,7 @@
         "name": "Abu Falah",
         "slug": "abu-falah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -558,7 +558,7 @@
         "name": "Abu Ghalyah",
         "slug": "abu-ghalyah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -575,7 +575,7 @@
         "name": "Abu Qash",
         "slug": "abu-qash",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -592,7 +592,7 @@
         "name": "Abu Shukheidim",
         "slug": "abu-shukheidim",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -609,7 +609,7 @@
         "name": "Abu Suhweila",
         "slug": "abu-suhweila",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -626,7 +626,7 @@
         "name": "Abu Tur",
         "slug": "abu-tur",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -643,7 +643,7 @@
         "name": "Abu a-Nuwar",
         "slug": "abu-a-nuwar",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -660,7 +660,7 @@
         "name": "Abu al-'Asja",
         "slug": "abu-al-asja",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -677,7 +677,7 @@
         "name": "Abu al-'Urqan",
         "slug": "abu-al-urqan",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -694,7 +694,7 @@
         "name": "Abu al-Ghuzlan",
         "slug": "abu-al-ghuzlan",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -711,7 +711,7 @@
         "name": "Abu al-Hilu",
         "slug": "abu-al-hilu",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -728,7 +728,7 @@
         "name": "Ajjah",
         "slug": "ajjah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -745,7 +745,7 @@
         "name": "Al 'Ubeidiya",
         "slug": "al-ubeidiya",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -762,7 +762,7 @@
         "name": "Al Am'ari RC",
         "slug": "al-amari-rc",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -779,7 +779,7 @@
         "name": "Al Baqar",
         "slug": "al-baqar",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -796,7 +796,7 @@
         "name": "Al Bireh",
         "slug": "al-bireh",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -813,7 +813,7 @@
         "name": "Al Bireh",
         "slug": "al-bireh-8b466",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -830,8 +830,8 @@
         "name": "Al Farisiyah",
         "slug": "al-farisiyah",
         "type": "locality",
-        "region": "tubas",
-        "subRegion": "jordan-valley"
+        "region": "Tubas",
+        "subRegion": "Jordan Valley"
       }
     },
     {
@@ -847,7 +847,7 @@
         "name": "Al Lubban Al Gharbi",
         "slug": "al-lubban-al-gharbi",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -864,7 +864,7 @@
         "name": "Al Muarrajat",
         "slug": "al-muarrajat",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -892,7 +892,7 @@
         "name": "Al-Bayuk",
         "slug": "al-bayuk",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -909,7 +909,7 @@
         "name": "Al-Fukhari",
         "slug": "al-fukhari",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -926,7 +926,7 @@
         "name": "Al-Mawasi",
         "slug": "al-mawasi",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -943,7 +943,7 @@
         "name": "Al-Mughraqa",
         "slug": "al-mughraqa",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -960,7 +960,7 @@
         "name": "Al-Musaddar",
         "slug": "al-musaddar",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -977,7 +977,7 @@
         "name": "Al-Nasr",
         "slug": "al-nasr",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -994,7 +994,7 @@
         "name": "Al-Qarara",
         "slug": "al-qarara",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -1011,7 +1011,7 @@
         "name": "Al-Zahra",
         "slug": "al-zahra",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -1028,7 +1028,7 @@
         "name": "Al-‘Auja",
         "slug": "al-auja",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -1045,7 +1045,7 @@
         "name": "Am Dhair",
         "slug": "am-dhair",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -1062,7 +1062,7 @@
         "name": "Ammuriyah",
         "slug": "ammuriyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1079,7 +1079,7 @@
         "name": "Anab al-Kabir",
         "slug": "anab-al-kabir",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1096,7 +1096,7 @@
         "name": "Anzah",
         "slug": "anzah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1113,7 +1113,7 @@
         "name": "Aqbat Jaber RC",
         "slug": "aqbat-jaber-rc",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -1130,7 +1130,7 @@
         "name": "Aqqabah",
         "slug": "aqqabah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -1147,7 +1147,7 @@
         "name": "Aqraba",
         "slug": "aqraba",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1164,7 +1164,7 @@
         "name": "Arab Abu Fardah",
         "slug": "arab-abu-fardah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1181,7 +1181,7 @@
         "name": "Arab a-Ramadin a-Shamali",
         "slug": "arab-a-ramadin-a-shamali",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1198,7 +1198,7 @@
         "name": "Arab a-Ramadin al-Janubi",
         "slug": "arab-a-ramadin-al-janubi",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1215,7 +1215,7 @@
         "name": "Arab a-Rashayidah",
         "slug": "arab-a-rashayidah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -1232,7 +1232,7 @@
         "name": "Arab a-Suweitat",
         "slug": "arab-a-suweitat",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1249,7 +1249,7 @@
         "name": "Arab al-Fureijat",
         "slug": "arab-al-fureijat",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1266,7 +1266,7 @@
         "name": "Arab al-Hamdun",
         "slug": "arab-al-hamdun",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1283,7 +1283,7 @@
         "name": "Arab al-Jahalin",
         "slug": "arab-al-jahalin",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -1300,7 +1300,7 @@
         "name": "Araba",
         "slug": "araba",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1317,7 +1317,7 @@
         "name": "Arabunah",
         "slug": "arabunah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1334,7 +1334,7 @@
         "name": "Armenian Quarter",
         "slug": "armenian-quarter",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -1351,7 +1351,7 @@
         "name": "Asirah a-Shamaliyah",
         "slug": "asirah-a-shamaliyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1368,7 +1368,7 @@
         "name": "Askar R.C.",
         "slug": "askar-r-c",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1385,7 +1385,7 @@
         "name": "Aslah",
         "slug": "aslah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1402,7 +1402,7 @@
         "name": "At Tuwani",
         "slug": "at-tuwani",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1419,7 +1419,7 @@
         "name": "Atarah",
         "slug": "atarah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -1436,7 +1436,7 @@
         "name": "Aydah R.C.",
         "slug": "aydah-r-c",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -1453,7 +1453,7 @@
         "name": "Az-Zawayda",
         "slug": "az-zawayda",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -1470,7 +1470,7 @@
         "name": "Azzun 'Atmah",
         "slug": "azzun-atmah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1487,7 +1487,7 @@
         "name": "Bab a-Zahreh",
         "slug": "bab-a-zahreh",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -1504,7 +1504,7 @@
         "name": "Badu a-Mu'arrajat",
         "slug": "badu-a-muarrajat",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -1521,7 +1521,7 @@
         "name": "Bal'a",
         "slug": "bala",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -1538,7 +1538,7 @@
         "name": "Balata R.C.",
         "slug": "balata-r-c",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1555,7 +1555,7 @@
         "name": "Bani Na'im",
         "slug": "bani-naim",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1572,7 +1572,7 @@
         "name": "Baqah a-Sharqiyah",
         "slug": "baqah-a-sharqiyah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -1589,7 +1589,7 @@
         "name": "Baqat al-Hatab",
         "slug": "baqat-al-hatab",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1606,7 +1606,7 @@
         "name": "Bardalah",
         "slug": "bardalah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -1623,7 +1623,7 @@
         "name": "Barghasha",
         "slug": "barghasha",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1640,7 +1640,7 @@
         "name": "Barta'ah a-Sharqiyah",
         "slug": "bartaah-a-sharqiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -1657,7 +1657,7 @@
         "name": "Battir",
         "slug": "battir",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -1674,7 +1674,7 @@
         "name": "Battir",
         "slug": "battir-22f6a",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -1691,7 +1691,7 @@
         "name": "Bayt Jala",
         "slug": "bayt-jala",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -1708,7 +1708,7 @@
         "name": "Beit 'Amra",
         "slug": "beit-amra",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1725,7 +1725,7 @@
         "name": "Beit 'Anan",
         "slug": "beit-anan",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -1742,7 +1742,7 @@
         "name": "Beit 'Awwa",
         "slug": "beit-awwa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1759,7 +1759,7 @@
         "name": "Beit 'Einun",
         "slug": "beit-einun",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -1776,7 +1776,7 @@
         "name": "Beit 'Ur a-Tahta",
         "slug": "beit-ur-a-tahta",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -1793,7 +1793,7 @@
         "name": "Beit 'Ur al-Fauqa",
         "slug": "beit-ur-al-fauqa",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -1810,7 +1810,7 @@
         "name": "Beit Amin",
         "slug": "beit-amin",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -1827,7 +1827,7 @@
         "name": "Beit Dajan",
         "slug": "beit-dajan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1844,7 +1844,7 @@
         "name": "Beit Duqu",
         "slug": "beit-duqu",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -1861,7 +1861,7 @@
         "name": "Beit Fajjar",
         "slug": "beit-fajjar",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -1878,7 +1878,7 @@
         "name": "Beit Furik",
         "slug": "beit-furik",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1895,7 +1895,7 @@
         "name": "Beit Furik",
         "slug": "beit-furik-57edb",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1912,7 +1912,7 @@
         "name": "Beit Hanina",
         "slug": "beit-hanina",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -1929,7 +1929,7 @@
         "name": "Beit Hanina al-Balad",
         "slug": "beit-hanina-al-balad",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -1946,7 +1946,7 @@
         "name": "Beit Hanoun",
         "slug": "beit-hanoun",
         "type": "locality",
-        "region": "north-gaza",
+        "region": "North Gaza",
         "subRegion": null
       }
     },
@@ -1963,7 +1963,7 @@
         "name": "Beit Hasan",
         "slug": "beit-hasan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1980,7 +1980,7 @@
         "name": "Beit Iba",
         "slug": "beit-iba",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -1997,7 +1997,7 @@
         "name": "Beit Ijza",
         "slug": "beit-ijza",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2014,7 +2014,7 @@
         "name": "Beit Iksa",
         "slug": "beit-iksa",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2031,7 +2031,7 @@
         "name": "Beit Imrin",
         "slug": "beit-imrin",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2048,7 +2048,7 @@
         "name": "Beit Jala",
         "slug": "beit-jala",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -2065,7 +2065,7 @@
         "name": "Beit Kahil",
         "slug": "beit-kahil",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2082,7 +2082,7 @@
         "name": "Beit Lahiya",
         "slug": "beit-lahiya",
         "type": "locality",
-        "region": "north-gaza",
+        "region": "North Gaza",
         "subRegion": null
       }
     },
@@ -2099,7 +2099,7 @@
         "name": "Beit Lid",
         "slug": "beit-lid",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -2116,7 +2116,7 @@
         "name": "Beit Liqya",
         "slug": "beit-liqya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2133,7 +2133,7 @@
         "name": "Beit Maqdum",
         "slug": "beit-maqdum",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2150,7 +2150,7 @@
         "name": "Beit Mirsim",
         "slug": "beit-mirsim",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2167,7 +2167,7 @@
         "name": "Beit Nuba",
         "slug": "beit-nuba",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2184,7 +2184,7 @@
         "name": "Beit Qad",
         "slug": "beit-qad",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -2201,7 +2201,7 @@
         "name": "Beit Rima",
         "slug": "beit-rima",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2218,7 +2218,7 @@
         "name": "Beit Safafa",
         "slug": "beit-safafa",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -2235,7 +2235,7 @@
         "name": "Beit Sahur",
         "slug": "beit-sahur",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -2252,7 +2252,7 @@
         "name": "Beit Sira",
         "slug": "beit-sira",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2269,7 +2269,7 @@
         "name": "Beit Surik",
         "slug": "beit-surik",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2286,7 +2286,7 @@
         "name": "Beit Ta'mar",
         "slug": "beit-tamar",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -2303,7 +2303,7 @@
         "name": "Beit Ula",
         "slug": "beit-ula",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2320,7 +2320,7 @@
         "name": "Beit Ummar",
         "slug": "beit-ummar",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2337,7 +2337,7 @@
         "name": "Beit Wazan",
         "slug": "beit-wazan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2354,7 +2354,7 @@
         "name": "Beit a-Rush a-Tahta",
         "slug": "beit-a-rush-a-tahta",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2371,7 +2371,7 @@
         "name": "Beit a-Rush al-Foqa",
         "slug": "beit-a-rush-al-foqa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2388,7 +2388,7 @@
         "name": "Beita",
         "slug": "beita",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2405,7 +2405,7 @@
         "name": "Beitillu",
         "slug": "beitillu",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2422,7 +2422,7 @@
         "name": "Beitin",
         "slug": "beitin",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2439,7 +2439,7 @@
         "name": "Beituniya",
         "slug": "beituniya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2456,7 +2456,7 @@
         "name": "Bethlehem",
         "slug": "bethlehem",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -2473,7 +2473,7 @@
         "name": "Bidu",
         "slug": "bidu",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2490,7 +2490,7 @@
         "name": "Bidya",
         "slug": "bidya",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -2507,7 +2507,7 @@
         "name": "Bil'in",
         "slug": "bilin",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2524,7 +2524,7 @@
         "name": "Bir Musallam",
         "slug": "bir-musallam",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2541,7 +2541,7 @@
         "name": "Bir Nabala",
         "slug": "bir-nabala",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2558,7 +2558,7 @@
         "name": "Bir Zeit",
         "slug": "bir-zeit",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2575,7 +2575,7 @@
         "name": "Bir al-Basha",
         "slug": "bir-al-basha",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -2592,7 +2592,7 @@
         "name": "Bir al-Maskub",
         "slug": "bir-al-maskub-0ba5c",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2609,7 +2609,7 @@
         "name": "Bir al-Maskub",
         "slug": "bir-al-maskub",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2626,7 +2626,7 @@
         "name": "Birin",
         "slug": "birin",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2643,7 +2643,7 @@
         "name": "Birqin",
         "slug": "birqin",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -2660,7 +2660,7 @@
         "name": "Biyar al-'Arus",
         "slug": "biyar-al-arus",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -2677,7 +2677,7 @@
         "name": "Bizzariya",
         "slug": "bizzariya",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2694,7 +2694,7 @@
         "name": "Bruqin",
         "slug": "bruqin",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -2711,7 +2711,7 @@
         "name": "Budrus",
         "slug": "budrus",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2728,7 +2728,7 @@
         "name": "Bureid'ah",
         "slug": "bureidah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -2745,7 +2745,7 @@
         "name": "Burham",
         "slug": "burham",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2762,7 +2762,7 @@
         "name": "Burin",
         "slug": "burin",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2779,7 +2779,7 @@
         "name": "Burin",
         "slug": "burin-1d515",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2796,7 +2796,7 @@
         "name": "Burqah",
         "slug": "burqah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -2813,7 +2813,7 @@
         "name": "Burqah",
         "slug": "burqah-14bd1",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2830,7 +2830,7 @@
         "name": "Christian Quarter",
         "slug": "christian-quarter",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -2847,7 +2847,7 @@
         "name": "Dahiyat Sabah al-Kheir",
         "slug": "dahiyat-sabah-al-kheir",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -2864,7 +2864,7 @@
         "name": "Dahiyat al-Bareed",
         "slug": "dahiyat-al-bareed",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -2881,7 +2881,7 @@
         "name": "Dar Abu Basal",
         "slug": "dar-abu-basal",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -2898,7 +2898,7 @@
         "name": "Dar Salah",
         "slug": "dar-salah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -2915,7 +2915,7 @@
         "name": "Deir 'Ammar",
         "slug": "deir-ammar",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2932,7 +2932,7 @@
         "name": "Deir 'Ammar R.C.",
         "slug": "deir-ammar-r-c",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2949,7 +2949,7 @@
         "name": "Deir Abu Da'if",
         "slug": "deir-abu-daif",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -2966,7 +2966,7 @@
         "name": "Deir Abu Mash'al",
         "slug": "deir-abu-mashal",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -2983,7 +2983,7 @@
         "name": "Deir Ballut",
         "slug": "deir-ballut",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -3000,7 +3000,7 @@
         "name": "Deir Dobwan",
         "slug": "deir-dobwan",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3017,7 +3017,7 @@
         "name": "Deir Ghassaneh",
         "slug": "deir-ghassaneh",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3034,7 +3034,7 @@
         "name": "Deir Ghazala",
         "slug": "deir-ghazala",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -3051,7 +3051,7 @@
         "name": "Deir Hajla",
         "slug": "deir-hajla",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -3068,7 +3068,7 @@
         "name": "Deir Ibzi'",
         "slug": "deir-ibzi",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3085,7 +3085,7 @@
         "name": "Deir Istiya",
         "slug": "deir-istiya",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -3102,7 +3102,7 @@
         "name": "Deir Istiya",
         "slug": "deir-istiya-12a36",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -3119,7 +3119,7 @@
         "name": "Deir Jarir",
         "slug": "deir-jarir",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3136,7 +3136,7 @@
         "name": "Deir Nidham",
         "slug": "deir-nidham",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3153,7 +3153,7 @@
         "name": "Deir Qadis",
         "slug": "deir-qadis",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3170,7 +3170,7 @@
         "name": "Deir Quruntul",
         "slug": "deir-quruntul",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -3187,7 +3187,7 @@
         "name": "Deir Razih",
         "slug": "deir-razih",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3204,7 +3204,7 @@
         "name": "Deir Samit",
         "slug": "deir-samit",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3221,7 +3221,7 @@
         "name": "Deir Sharaf",
         "slug": "deir-sharaf",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -3238,7 +3238,7 @@
         "name": "Deir a-Sudan",
         "slug": "deir-a-sudan",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3255,7 +3255,7 @@
         "name": "Deir al-'Asal al-Foqa",
         "slug": "deir-al-asal-al-foqa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3272,7 +3272,7 @@
         "name": "Deir al-Balah",
         "slug": "deir-al-balah",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -3289,7 +3289,7 @@
         "name": "Deir al-Balah R.C.",
         "slug": "deir-al-balah-r-c",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -3306,7 +3306,7 @@
         "name": "Deir al-Ghusun",
         "slug": "deir-al-ghusun",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -3323,7 +3323,7 @@
         "name": "Deir al-Hatab",
         "slug": "deir-al-hatab",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -3340,7 +3340,7 @@
         "name": "Deir al-Qilt",
         "slug": "deir-al-qilt",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -3357,7 +3357,7 @@
         "name": "Dhaher al-'Abed",
         "slug": "dhaher-al-abed",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -3374,7 +3374,7 @@
         "name": "Dhaher al-Malih",
         "slug": "dhaher-al-malih",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -3391,7 +3391,7 @@
         "name": "Dharat an Nada",
         "slug": "dharat-an-nada",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -3408,7 +3408,7 @@
         "name": "Dhinnaba",
         "slug": "dhinnaba",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -3425,7 +3425,7 @@
         "name": "Dier al-'Asal a-Tahta",
         "slug": "dier-al-asal-a-tahta",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3442,7 +3442,7 @@
         "name": "Duma",
         "slug": "duma",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -3459,7 +3459,7 @@
         "name": "Duma",
         "slug": "duma-daf01",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3476,7 +3476,7 @@
         "name": "Dura",
         "slug": "dura",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3493,7 +3493,7 @@
         "name": "Dura al-Qare'",
         "slug": "dura-al-qare",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3510,7 +3510,7 @@
         "name": "Ein Beit al-Maa R.C.",
         "slug": "ein-beit-al-maa-r-c",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -3527,7 +3527,7 @@
         "name": "Ein Sakut",
         "slug": "ein-sakut",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -3544,7 +3544,7 @@
         "name": "Ein Samia",
         "slug": "ein-samia",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3561,7 +3561,7 @@
         "name": "Ein Yabrud",
         "slug": "ein-yabrud-ed242",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -3578,7 +3578,7 @@
         "name": "Ein a-Duyuk a-Tahta",
         "slug": "ein-a-duyuk-a-tahta",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -3595,7 +3595,7 @@
         "name": "Ein al-Beida",
         "slug": "ein-al-beida",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -3612,7 +3612,7 @@
         "name": "Einabus",
         "slug": "einabus",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -3629,7 +3629,7 @@
         "name": "Fahmah",
         "slug": "fahmah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -3646,7 +3646,7 @@
         "name": "Fahmah al-Jadidah",
         "slug": "fahmah-al-jadidah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -3663,7 +3663,7 @@
         "name": "Fakht al-Jul",
         "slug": "fakht-al-jul",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -3680,7 +3680,7 @@
         "name": "Falamyah",
         "slug": "falamyah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -3697,7 +3697,7 @@
         "name": "Faqqu'a",
         "slug": "faqqua",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -3714,7 +3714,7 @@
         "name": "Far'ata",
         "slug": "farata",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -3731,7 +3731,7 @@
         "name": "Far'on",
         "slug": "faron",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -3748,7 +3748,7 @@
         "name": "Farkha",
         "slug": "farkha",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -3765,7 +3765,7 @@
         "name": "Fasayil",
         "slug": "fasayil",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -3782,7 +3782,7 @@
         "name": "Fasayil",
         "slug": "fasayil-a51b6",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -3799,7 +3799,7 @@
         "name": "Fqeiqis",
         "slug": "fqeiqis",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3816,7 +3816,7 @@
         "name": "Furush Beit Dajan",
         "slug": "furush-beit-dajan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -3830,10 +3830,10 @@
         ]
       },
       "properties": {
-        "name": "Gaza",
-        "slug": "gaza",
+        "name": "Gaza City",
+        "slug": "gaza-city",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -3850,7 +3850,7 @@
         "name": "Hablah",
         "slug": "hablah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -3867,7 +3867,7 @@
         "name": "Hadab al-Fawwar",
         "slug": "hadab-al-fawwar",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3884,7 +3884,7 @@
         "name": "Hajjah",
         "slug": "hajjah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -3901,7 +3901,7 @@
         "name": "Halhul",
         "slug": "halhul",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3929,7 +3929,7 @@
         "name": "Hamrush",
         "slug": "hamrush",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3946,7 +3946,7 @@
         "name": "Haribat a-Nabi",
         "slug": "haribat-a-nabi",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3963,7 +3963,7 @@
         "name": "Haribat a-Nabi",
         "slug": "haribat-a-nabi-fec9c",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -3980,7 +3980,7 @@
         "name": "Haris",
         "slug": "haris",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -3997,7 +3997,7 @@
         "name": "Harmalah",
         "slug": "harmalah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4014,7 +4014,7 @@
         "name": "Hebron",
         "slug": "hebron",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4031,7 +4031,7 @@
         "name": "Hindaza",
         "slug": "hindaza",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4048,7 +4048,7 @@
         "name": "Hitta",
         "slug": "hitta",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4065,7 +4065,7 @@
         "name": "Hizma",
         "slug": "hizma",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -4082,7 +4082,7 @@
         "name": "Huraiz",
         "slug": "huraiz",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4099,7 +4099,7 @@
         "name": "Husan",
         "slug": "husan",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4116,7 +4116,7 @@
         "name": "Huwarah",
         "slug": "huwarah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -4133,7 +4133,7 @@
         "name": "I'zeiz",
         "slug": "izeiz",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4150,7 +4150,7 @@
         "name": "Idhna",
         "slug": "idhna",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4167,7 +4167,7 @@
         "name": "Ijnisinya",
         "slug": "ijnisinya",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -4184,7 +4184,7 @@
         "name": "Iktaba",
         "slug": "iktaba",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4201,7 +4201,7 @@
         "name": "Immatin",
         "slug": "immatin",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4218,7 +4218,7 @@
         "name": "Imreihah",
         "slug": "imreihah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4235,7 +4235,7 @@
         "name": "Imreish",
         "slug": "imreish",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4252,7 +4252,7 @@
         "name": "Irtas",
         "slug": "irtas",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4269,7 +4269,7 @@
         "name": "Iskaka",
         "slug": "iskaka",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -4286,7 +4286,7 @@
         "name": "Iskeik",
         "slug": "iskeik",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4303,7 +4303,7 @@
         "name": "Izbat Abu Adam",
         "slug": "izbat-abu-adam",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -4320,7 +4320,7 @@
         "name": "Izbat Abu Hamada",
         "slug": "izbat-abu-hamada",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4337,7 +4337,7 @@
         "name": "Izbat Abu Khameish",
         "slug": "izbat-abu-khameish",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4354,7 +4354,7 @@
         "name": "Izbat Jal'ud",
         "slug": "izbat-jalud",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4371,7 +4371,7 @@
         "name": "Izbat Shufah",
         "slug": "izbat-shufah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4388,7 +4388,7 @@
         "name": "Izbat a-Tabib",
         "slug": "izbat-a-tabib",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4405,7 +4405,7 @@
         "name": "Izbat al-Ashqar",
         "slug": "izbat-al-ashqar",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4422,7 +4422,7 @@
         "name": "Izbat al-Khilal",
         "slug": "izbat-al-khilal",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4439,7 +4439,7 @@
         "name": "Jaba'",
         "slug": "jaba",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4456,7 +4456,7 @@
         "name": "Jaba'",
         "slug": "jaba-e0989",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -4473,7 +4473,7 @@
         "name": "Jaba'",
         "slug": "jaba-ac75d",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -4490,7 +4490,7 @@
         "name": "Jabal al-Mukabber",
         "slug": "jabal-al-mukabber",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -4507,7 +4507,7 @@
         "name": "Jabalia",
         "slug": "jabalia",
         "type": "locality",
-        "region": "north-gaza",
+        "region": "North Gaza",
         "subRegion": null
       }
     },
@@ -4524,7 +4524,7 @@
         "name": "Jabalya R.C.",
         "slug": "jabalya-r-c",
         "type": "locality",
-        "region": "north-gaza",
+        "region": "North Gaza",
         "subRegion": null
       }
     },
@@ -4541,7 +4541,7 @@
         "name": "Jafa a-Nun",
         "slug": "jafa-a-nun",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -4558,7 +4558,7 @@
         "name": "Jala",
         "slug": "jala",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4575,7 +4575,7 @@
         "name": "Jalbun",
         "slug": "jalbun",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4592,7 +4592,7 @@
         "name": "Jalqamus",
         "slug": "jalqamus",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4609,7 +4609,7 @@
         "name": "Jalud",
         "slug": "jalud",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -4626,7 +4626,7 @@
         "name": "Jamma'in",
         "slug": "jammain",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -4643,7 +4643,7 @@
         "name": "Jammala",
         "slug": "jammala",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -4660,7 +4660,7 @@
         "name": "Jayus",
         "slug": "jayus",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4677,7 +4677,7 @@
         "name": "Jenin",
         "slug": "jenin",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4694,7 +4694,7 @@
         "name": "Jenin",
         "slug": "jenin-59ca3",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4711,7 +4711,7 @@
         "name": "Jenin R.C.",
         "slug": "jenin-r-c",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -4728,7 +4728,7 @@
         "name": "Jericho",
         "slug": "jericho",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -4745,7 +4745,7 @@
         "name": "Jerusalem",
         "slug": "jerusalem",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -4762,7 +4762,7 @@
         "name": "Jibya",
         "slug": "jibya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -4779,7 +4779,7 @@
         "name": "Jifna",
         "slug": "jifna",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -4796,7 +4796,7 @@
         "name": "Jiljilya",
         "slug": "jiljilya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -4813,7 +4813,7 @@
         "name": "Jinsafut",
         "slug": "jinsafut",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4830,7 +4830,7 @@
         "name": "Jit",
         "slug": "jit",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -4847,7 +4847,7 @@
         "name": "Jub a-Dib",
         "slug": "jub-a-dib",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4864,7 +4864,7 @@
         "name": "Juhdum",
         "slug": "juhdum",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4881,7 +4881,7 @@
         "name": "Jurat a-Sham'a",
         "slug": "jurat-a-shama",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -4898,7 +4898,7 @@
         "name": "Jurish",
         "slug": "jurish",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -4915,7 +4915,7 @@
         "name": "Jurun al-Louz",
         "slug": "jurun-al-louz",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -4932,7 +4932,7 @@
         "name": "Kafa",
         "slug": "kafa",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4949,7 +4949,7 @@
         "name": "Kafr 'Abush",
         "slug": "kafr-abush",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -4966,7 +4966,7 @@
         "name": "Kafr 'Aqab",
         "slug": "kafr-aqab",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -4983,7 +4983,7 @@
         "name": "Kafr Ein",
         "slug": "kafr-ein",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -5000,7 +5000,7 @@
         "name": "Kafr Jammal",
         "slug": "kafr-jammal",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -5017,7 +5017,7 @@
         "name": "Kafr Laqif",
         "slug": "kafr-laqif",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -5034,7 +5034,7 @@
         "name": "Kafr Malik",
         "slug": "kafr-malik",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -5051,7 +5051,7 @@
         "name": "Kafr Ni'ma",
         "slug": "kafr-nima",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -5068,7 +5068,7 @@
         "name": "Kafr Qaddum",
         "slug": "kafr-qaddum",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -5085,7 +5085,7 @@
         "name": "Kafr Qadum",
         "slug": "kafr-qadum",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -5102,7 +5102,7 @@
         "name": "Kafr Qalil",
         "slug": "kafr-qalil",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -5119,7 +5119,7 @@
         "name": "Kafr Qud",
         "slug": "kafr-qud",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5136,7 +5136,7 @@
         "name": "Kafr Ra'i",
         "slug": "kafr-rai",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5153,7 +5153,7 @@
         "name": "Kafr Rumman",
         "slug": "kafr-rumman",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -5170,7 +5170,7 @@
         "name": "Kafr Sur",
         "slug": "kafr-sur",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -5187,7 +5187,7 @@
         "name": "Kafr Thulth",
         "slug": "kafr-thulth",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -5204,7 +5204,7 @@
         "name": "Kafr Zibad",
         "slug": "kafr-zibad",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -5221,7 +5221,7 @@
         "name": "Kafr a-Dik",
         "slug": "kafr-a-dik",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -5238,7 +5238,7 @@
         "name": "Kafr al-Labad",
         "slug": "kafr-al-labad",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -5255,7 +5255,7 @@
         "name": "Kardalah",
         "slug": "kardalah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5272,7 +5272,7 @@
         "name": "Karmah",
         "slug": "karmah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5289,7 +5289,7 @@
         "name": "Kashdah",
         "slug": "kashdah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5306,7 +5306,7 @@
         "name": "Kfar Dan",
         "slug": "kfar-dan",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5323,7 +5323,7 @@
         "name": "Kh. 'Atuf",
         "slug": "kh-atuf",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5340,7 +5340,7 @@
         "name": "Kh. 'Ein al-Hilweh",
         "slug": "kh-ein-al-hilweh",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5357,7 +5357,7 @@
         "name": "Kh. Abu Falah",
         "slug": "kh-abu-falah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -5374,7 +5374,7 @@
         "name": "Kh. Abu Hamid",
         "slug": "kh-abu-hamid",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5391,7 +5391,7 @@
         "name": "Kh. Abu Hamid",
         "slug": "kh-abu-hamid-166ea",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5408,7 +5408,7 @@
         "name": "Kh. Bir al-'Eid",
         "slug": "kh-bir-al-eid",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5425,7 +5425,7 @@
         "name": "Kh. Bism",
         "slug": "kh-bism",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5442,7 +5442,7 @@
         "name": "Kh. Deir Shams",
         "slug": "kh-deir-shams",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5459,7 +5459,7 @@
         "name": "Kh. Emneizal",
         "slug": "kh-emneizal",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5476,7 +5476,7 @@
         "name": "Kh. Ghuwein al-Fauqa",
         "slug": "kh-ghuwein-al-fauqa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5493,7 +5493,7 @@
         "name": "Kh. Humsah",
         "slug": "kh-humsah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5510,7 +5510,7 @@
         "name": "Kh. Humsah",
         "slug": "kh-humsah-2ace8",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5527,7 +5527,7 @@
         "name": "Kh. Jamrurah",
         "slug": "kh-jamrurah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5544,7 +5544,7 @@
         "name": "Kh. Jubara",
         "slug": "kh-jubara",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -5561,7 +5561,7 @@
         "name": "Kh. Kafr Sheiyan",
         "slug": "kh-kafr-sheiyan",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -5578,7 +5578,7 @@
         "name": "Kh. Ma'in",
         "slug": "kh-main",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5595,7 +5595,7 @@
         "name": "Kh. Marah a-Raha",
         "slug": "kh-marah-a-raha",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5612,7 +5612,7 @@
         "name": "Kh. Mas'ud",
         "slug": "kh-masud",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5629,7 +5629,7 @@
         "name": "Kh. Mushrif",
         "slug": "kh-mushrif",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5646,7 +5646,7 @@
         "name": "Kh. Sab'ein",
         "slug": "kh-sabein",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5663,7 +5663,7 @@
         "name": "Kh. Salama",
         "slug": "kh-salama",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5680,7 +5680,7 @@
         "name": "Kh. Samra",
         "slug": "kh-samra",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5697,7 +5697,7 @@
         "name": "Kh. Sarra",
         "slug": "kh-sarra",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -5714,7 +5714,7 @@
         "name": "Kh. Sarura",
         "slug": "kh-sarura",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5731,7 +5731,7 @@
         "name": "Kh. Shuweika",
         "slug": "kh-shuweika",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5748,7 +5748,7 @@
         "name": "Kh. Sir",
         "slug": "kh-sir",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -5765,7 +5765,7 @@
         "name": "Kh. Suruj",
         "slug": "kh-suruj",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -5782,7 +5782,7 @@
         "name": "Kh. Tall al-Ghar",
         "slug": "kh-tall-al-ghar",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -5799,7 +5799,7 @@
         "name": "Kh. Tall al-Himma",
         "slug": "kh-tall-al-himma",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5816,7 +5816,7 @@
         "name": "Kh. Tana",
         "slug": "kh-tana",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -5833,7 +5833,7 @@
         "name": "Kh. Tawil a-Sheikh",
         "slug": "kh-tawil-a-sheikh",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5850,7 +5850,7 @@
         "name": "Kh. Tuqu'",
         "slug": "kh-tuqu",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -5867,8 +5867,8 @@
         "name": "Kh. Um Nir",
         "slug": "kh-um-nir",
         "type": "locality",
-        "region": "hebron",
-        "subRegion": "masafer-yatta"
+        "region": "Hebron",
+        "subRegion": "Masafer Yatta"
       }
     },
     {
@@ -5884,7 +5884,7 @@
         "name": "Kh. Wadih",
         "slug": "kh-wadih",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5901,7 +5901,7 @@
         "name": "Kh. Yarza",
         "slug": "kh-yarza",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -5918,7 +5918,7 @@
         "name": "Kh. Zanutah",
         "slug": "kh-zanutah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5935,7 +5935,7 @@
         "name": "Kh. a-Deir",
         "slug": "kh-a-deir",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -5952,7 +5952,7 @@
         "name": "Kh. a-Deir",
         "slug": "kh-a-deir-d094d",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -5969,7 +5969,7 @@
         "name": "Kh. a-Nahlah",
         "slug": "kh-a-nahlah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -5986,7 +5986,7 @@
         "name": "Kh. a-Ras al-Ahmar",
         "slug": "kh-a-ras-al-ahmar",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -6003,7 +6003,7 @@
         "name": "Kh. a-Sheikh Sa'eed",
         "slug": "kh-a-sheikh-saeed",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -6020,7 +6020,7 @@
         "name": "Kh. a-Taban",
         "slug": "kh-a-taban",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6037,7 +6037,7 @@
         "name": "Kh. a-Tawamin",
         "slug": "kh-a-tawamin",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6054,7 +6054,7 @@
         "name": "Kh. a-Tayah",
         "slug": "kh-a-tayah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -6071,7 +6071,7 @@
         "name": "Kh. al-Fakhit",
         "slug": "kh-al-fakhit",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6088,7 +6088,7 @@
         "name": "Kh. al-Hasaka",
         "slug": "kh-al-hasaka",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6105,7 +6105,7 @@
         "name": "Kh. al-Kharuba",
         "slug": "kh-al-kharuba",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6122,7 +6122,7 @@
         "name": "Kh. al-Majaz",
         "slug": "kh-al-majaz",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6139,7 +6139,7 @@
         "name": "Kh. al-Mantarah",
         "slug": "kh-al-mantarah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6156,7 +6156,7 @@
         "name": "Kh. al-Maq'urah",
         "slug": "kh-al-maqurah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6173,7 +6173,7 @@
         "name": "Kh. al-Marajim",
         "slug": "kh-al-marajim",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -6190,7 +6190,7 @@
         "name": "Kh.Ibziq",
         "slug": "kh-ibziq",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -6207,7 +6207,7 @@
         "name": "Khallet 'Afana",
         "slug": "khallet-afana",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6224,7 +6224,7 @@
         "name": "Khallet 'Arabi",
         "slug": "khallet-arabi",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6241,7 +6241,7 @@
         "name": "Khallet Hamad",
         "slug": "khallet-hamad",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6258,7 +6258,7 @@
         "name": "Khallet Sakariya",
         "slug": "khallet-sakariya",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6275,7 +6275,7 @@
         "name": "Khallet Salih",
         "slug": "khallet-salih",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6292,7 +6292,7 @@
         "name": "Khallet a-Nu'man",
         "slug": "khallet-a-numan",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -6309,7 +6309,7 @@
         "name": "Khallet al-'Aqd",
         "slug": "khallet-al-aqd",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6326,7 +6326,7 @@
         "name": "Khallet al-Ballutah",
         "slug": "khallet-al-ballutah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6343,7 +6343,7 @@
         "name": "Khallet al-Hadad",
         "slug": "khallet-al-hadad",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6360,7 +6360,7 @@
         "name": "Khallet al-Louza",
         "slug": "khallet-al-louza",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6377,7 +6377,7 @@
         "name": "Khallet al-Maiya",
         "slug": "khallet-al-maiya",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6394,7 +6394,7 @@
         "name": "Khallet al-Qaranin",
         "slug": "khallet-al-qaranin",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6411,7 +6411,7 @@
         "name": "Khan Al Ahmar",
         "slug": "khan-al-ahmar",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -6428,7 +6428,7 @@
         "name": "Khan Yunis",
         "slug": "khan-yunis",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -6445,7 +6445,7 @@
         "name": "Khan Yunis R.C.",
         "slug": "khan-yunis-r-c",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -6462,7 +6462,7 @@
         "name": "Khan al-Ahmar school",
         "slug": "khan-al-ahmar-school",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -6479,7 +6479,7 @@
         "name": "Kharas",
         "slug": "kharas",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6496,7 +6496,7 @@
         "name": "Kharayib Umm al Lahim",
         "slug": "kharayib-umm-al-lahim",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -6513,7 +6513,7 @@
         "name": "Kharbatha Bani Harith",
         "slug": "kharbatha-bani-harith",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -6530,7 +6530,7 @@
         "name": "Kharbatha al-Misbah",
         "slug": "kharbatha-al-misbah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -6547,7 +6547,7 @@
         "name": "Khashm al-Karem",
         "slug": "khashm-al-karem",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6564,7 +6564,7 @@
         "name": "Khirbet Asafi",
         "slug": "khirbet-asafi",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6581,7 +6581,7 @@
         "name": "Khirbet Qeis",
         "slug": "khirbet-qeis",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -6598,7 +6598,7 @@
         "name": "Khurisa",
         "slug": "khurisa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6615,7 +6615,7 @@
         "name": "Khursa",
         "slug": "khursa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6632,7 +6632,7 @@
         "name": "Khuzaʽa",
         "slug": "khuza-a",
         "type": "locality",
-        "region": "khan-younis",
+        "region": "Khan Younis",
         "subRegion": null
       }
     },
@@ -6649,7 +6649,7 @@
         "name": "Kifl Haris",
         "slug": "kifl-haris",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -6666,7 +6666,7 @@
         "name": "Kisan",
         "slug": "kisan-f8429",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6683,7 +6683,7 @@
         "name": "Kisan",
         "slug": "kisan",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6700,7 +6700,7 @@
         "name": "Kobar",
         "slug": "kobar",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -6717,7 +6717,7 @@
         "name": "Kufeirit",
         "slug": "kufeirit",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -6734,7 +6734,7 @@
         "name": "Kur",
         "slug": "kur",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -6751,7 +6751,7 @@
         "name": "Kureiseh",
         "slug": "kureiseh",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6768,7 +6768,7 @@
         "name": "Kurza",
         "slug": "kurza",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6785,7 +6785,7 @@
         "name": "Kuziba",
         "slug": "kuziba",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6802,7 +6802,7 @@
         "name": "Madama",
         "slug": "madama",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -6819,7 +6819,7 @@
         "name": "Mahattet Tahsin Mansur",
         "slug": "mahattet-tahsin-mansur",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -6836,7 +6836,7 @@
         "name": "Majdal Bani Fadel",
         "slug": "majdal-bani-fadel",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -6853,7 +6853,7 @@
         "name": "Mantiqat She'b al-Baten",
         "slug": "mantiqat-sheb-al-baten",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6870,7 +6870,7 @@
         "name": "Mantiqat She'b al-Baten",
         "slug": "mantiqat-sheb-al-baten-473ba",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6887,7 +6887,7 @@
         "name": "Mantiqat al-Heish",
         "slug": "mantiqat-al-heish",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -6904,7 +6904,7 @@
         "name": "Marah Ma'alla",
         "slug": "marah-maalla",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6921,7 +6921,7 @@
         "name": "Marah Rabah",
         "slug": "marah-rabah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -6938,7 +6938,7 @@
         "name": "Marah al-Baqqar",
         "slug": "marah-al-baqqar",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -6955,7 +6955,7 @@
         "name": "Marda",
         "slug": "marda",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -6972,7 +6972,7 @@
         "name": "Marj Na'jah",
         "slug": "marj-najah",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -6989,7 +6989,7 @@
         "name": "Marj al-Ghazal",
         "slug": "marj-al-ghazal",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -7004,9 +7004,9 @@
       },
       "properties": {
         "name": "Masafer Yatta",
-        "slug": "masafer-yatta",
+        "slug": "Masafer Yatta",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7023,7 +7023,7 @@
         "name": "Masha",
         "slug": "masha",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -7040,7 +7040,7 @@
         "name": "Mashru' Beit Qad",
         "slug": "mashru-beit-qad",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7057,7 +7057,7 @@
         "name": "Mazari' an Nubani",
         "slug": "mazari-an-nubani",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -7074,7 +7074,7 @@
         "name": "Meithalun",
         "slug": "meithalun",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7091,7 +7091,7 @@
         "name": "Mikhmas",
         "slug": "mikhmas",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -7108,7 +7108,7 @@
         "name": "Mirka",
         "slug": "mirka",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7125,7 +7125,7 @@
         "name": "Misiliyah",
         "slug": "misiliyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7153,7 +7153,7 @@
         "name": "Muslim Quarter",
         "slug": "muslim-quarter",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -7170,7 +7170,7 @@
         "name": "Nablus",
         "slug": "nablus",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7187,7 +7187,7 @@
         "name": "Nablus",
         "slug": "nablus-82db5",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7204,7 +7204,7 @@
         "name": "Nahhalin",
         "slug": "nahhalin",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -7221,7 +7221,7 @@
         "name": "Nazlat 'Isa",
         "slug": "nazlat-isa",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -7238,7 +7238,7 @@
         "name": "Nazlat Abu Nar",
         "slug": "nazlat-abu-nar",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -7255,7 +7255,7 @@
         "name": "Nazlat a-Sheikh Zeid",
         "slug": "nazlat-a-sheikh-zeid",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7272,7 +7272,7 @@
         "name": "Ni'lin",
         "slug": "nilin",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -7289,7 +7289,7 @@
         "name": "Nisf Jubeil",
         "slug": "nisf-jubeil",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7306,7 +7306,7 @@
         "name": "Nuba",
         "slug": "nuba",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7323,7 +7323,7 @@
         "name": "Nur Shams R.C.",
         "slug": "nur-shams-r-c",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -7340,7 +7340,7 @@
         "name": "Odala",
         "slug": "odala",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7357,7 +7357,7 @@
         "name": "Om al-Nasr",
         "slug": "om-al-nasr",
         "type": "locality",
-        "region": "north-gaza",
+        "region": "North Gaza",
         "subRegion": null
       }
     },
@@ -7374,7 +7374,7 @@
         "name": "Osarin",
         "slug": "osarin",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7391,7 +7391,7 @@
         "name": "Qabalan",
         "slug": "qabalan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7408,7 +7408,7 @@
         "name": "Qabatiyah",
         "slug": "qabatiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7425,7 +7425,7 @@
         "name": "Qafan al-Khamis",
         "slug": "qafan-al-khamis",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7442,7 +7442,7 @@
         "name": "Qaffin",
         "slug": "qaffin",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -7459,7 +7459,7 @@
         "name": "Qalandia",
         "slug": "qalandia",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -7476,7 +7476,7 @@
         "name": "Qalandiya RC",
         "slug": "qalandiya-rc",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -7493,7 +7493,7 @@
         "name": "Qalqas",
         "slug": "qalqas",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7510,7 +7510,7 @@
         "name": "Qalqiliya",
         "slug": "qalqiliya",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -7525,9 +7525,9 @@
       },
       "properties": {
         "name": "Qalqilya",
-        "slug": "qalqilya",
+        "slug": "Qalqilya",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -7544,7 +7544,7 @@
         "name": "Qarawat Bani Hassan",
         "slug": "qarawat-bani-hassan",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -7561,7 +7561,7 @@
         "name": "Qarawat Bani Zeid",
         "slug": "qarawat-bani-zeid",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -7578,7 +7578,7 @@
         "name": "Qaryut",
         "slug": "qaryut",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7595,7 +7595,7 @@
         "name": "Qatanah",
         "slug": "qatanah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -7612,7 +7612,7 @@
         "name": "Qawawis",
         "slug": "qawawis",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7629,7 +7629,7 @@
         "name": "Qeiqis",
         "slug": "qeiqis",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7646,7 +7646,7 @@
         "name": "Qibyah",
         "slug": "qibyah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -7663,7 +7663,7 @@
         "name": "Qila",
         "slug": "qila",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7680,7 +7680,7 @@
         "name": "Qinan Jaber",
         "slug": "qinan-jaber",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7697,7 +7697,7 @@
         "name": "Qinan a-Najmah",
         "slug": "qinan-a-najmah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7714,7 +7714,7 @@
         "name": "Qira",
         "slug": "qira",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -7731,7 +7731,7 @@
         "name": "Qubaibah",
         "slug": "qubaibah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -7748,7 +7748,7 @@
         "name": "Qurnet a-Ras",
         "slug": "qurnet-a-ras",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7765,7 +7765,7 @@
         "name": "Qusin",
         "slug": "qusin",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7782,7 +7782,7 @@
         "name": "Qusrah",
         "slug": "qusrah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -7799,7 +7799,7 @@
         "name": "Raba",
         "slug": "raba",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -7816,7 +7816,7 @@
         "name": "Rabud",
         "slug": "rabud",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7833,7 +7833,7 @@
         "name": "Rabud",
         "slug": "rabud-d1c8e",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7850,7 +7850,7 @@
         "name": "Rafada",
         "slug": "rafada",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -7867,7 +7867,7 @@
         "name": "Rafah",
         "slug": "rafah",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -7884,7 +7884,7 @@
         "name": "Rafah R.C.",
         "slug": "rafah-r-c",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -7901,7 +7901,7 @@
         "name": "Rafat",
         "slug": "rafat",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -7918,7 +7918,7 @@
         "name": "Rafat",
         "slug": "rafat-75f93",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -7935,7 +7935,7 @@
         "name": "Rakhmeh",
         "slug": "rakhmeh",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -7952,7 +7952,7 @@
         "name": "Ramallah",
         "slug": "ramallah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -7969,7 +7969,7 @@
         "name": "Ramin",
         "slug": "ramin",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -7986,7 +7986,7 @@
         "name": "Rammun",
         "slug": "rammun",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8003,7 +8003,7 @@
         "name": "Rantis",
         "slug": "rantis",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8020,7 +8020,7 @@
         "name": "Ras 'Atiya",
         "slug": "ras-atiya",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -8037,7 +8037,7 @@
         "name": "Ras Al Ein",
         "slug": "ras-al-ein",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -8054,7 +8054,7 @@
         "name": "Ras Karkar",
         "slug": "ras-karkar",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8071,7 +8071,7 @@
         "name": "Ras Khamis",
         "slug": "ras-khamis",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8088,7 +8088,7 @@
         "name": "Ras a-Tawil",
         "slug": "ras-a-tawil",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8105,7 +8105,7 @@
         "name": "Ras a-Tira",
         "slug": "ras-a-tira",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -8122,7 +8122,7 @@
         "name": "Ras al-'Amud",
         "slug": "ras-al-amud",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8139,7 +8139,7 @@
         "name": "Ras al-Far'ah",
         "slug": "ras-al-farah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -8156,7 +8156,7 @@
         "name": "Ras al-Jorah",
         "slug": "ras-al-jorah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8173,7 +8173,7 @@
         "name": "Ras al-Wad",
         "slug": "ras-al-wad",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -8190,7 +8190,7 @@
         "name": "Rujeib",
         "slug": "rujeib",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8207,7 +8207,7 @@
         "name": "Rummana",
         "slug": "rummana",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8224,7 +8224,7 @@
         "name": "Sa'ir",
         "slug": "sair",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8241,7 +8241,7 @@
         "name": "Sabastiya",
         "slug": "sabastiya",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8258,7 +8258,7 @@
         "name": "Sadet A Thaleh",
         "slug": "sadet-a-thaleh",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8275,7 +8275,7 @@
         "name": "Safa",
         "slug": "safa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8292,7 +8292,7 @@
         "name": "Saffa",
         "slug": "saffa",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8309,7 +8309,7 @@
         "name": "Saffarin",
         "slug": "saffarin",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -8326,7 +8326,7 @@
         "name": "Saida",
         "slug": "saida",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -8343,7 +8343,7 @@
         "name": "Salem",
         "slug": "salem",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8358,9 +8358,9 @@
       },
       "properties": {
         "name": "Salfit",
-        "slug": "salfit",
+        "slug": "Salfit",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -8377,7 +8377,7 @@
         "name": "Salhab",
         "slug": "salhab",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -8394,7 +8394,7 @@
         "name": "Sanniriya",
         "slug": "sanniriya",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -8411,7 +8411,7 @@
         "name": "Sanur",
         "slug": "sanur",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8428,7 +8428,7 @@
         "name": "Sarra",
         "slug": "sarra",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8445,7 +8445,7 @@
         "name": "Sarta",
         "slug": "sarta",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -8462,7 +8462,7 @@
         "name": "Shamaliyat al-Hawa",
         "slug": "shamaliyat-al-hawa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8479,7 +8479,7 @@
         "name": "Sharafat",
         "slug": "sharafat",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8496,7 +8496,7 @@
         "name": "Shebtin",
         "slug": "shebtin",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8513,7 +8513,7 @@
         "name": "Sheikh Jarrah",
         "slug": "sheikh-jarrah",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8530,7 +8530,7 @@
         "name": "Shihda wa Hamlan",
         "slug": "shihda-wa-hamlan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8547,7 +8547,7 @@
         "name": "Shokat as-Sufi",
         "slug": "shokat-as-sufi",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -8564,7 +8564,7 @@
         "name": "Shu'fat",
         "slug": "shufat",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8581,7 +8581,7 @@
         "name": "Shu'fat R.C.",
         "slug": "shufat-r-c",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8598,7 +8598,7 @@
         "name": "Shufah",
         "slug": "shufah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -8615,7 +8615,7 @@
         "name": "Shuqba",
         "slug": "shuqba",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8632,7 +8632,7 @@
         "name": "Shuyukh al-'Arrub",
         "slug": "shuyukh-al-arrub",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8649,7 +8649,7 @@
         "name": "Shweika",
         "slug": "shweika",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -8666,7 +8666,7 @@
         "name": "Sikkah",
         "slug": "sikkah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8683,7 +8683,7 @@
         "name": "Silat a-Dhahr",
         "slug": "silat-a-dhahr",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8700,7 +8700,7 @@
         "name": "Silat al-Harithiya",
         "slug": "silat-al-harithiya",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8717,7 +8717,7 @@
         "name": "Silwad",
         "slug": "silwad",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8734,7 +8734,7 @@
         "name": "Silwad R.C.",
         "slug": "silwad-r-c",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8751,7 +8751,7 @@
         "name": "Silwan",
         "slug": "silwan",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -8768,7 +8768,7 @@
         "name": "Sinjil",
         "slug": "sinjil",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8785,7 +8785,7 @@
         "name": "Sir",
         "slug": "sir",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8802,7 +8802,7 @@
         "name": "Siris",
         "slug": "siris",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8819,7 +8819,7 @@
         "name": "Somara",
         "slug": "somara",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8836,7 +8836,7 @@
         "name": "Suba",
         "slug": "suba",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8853,7 +8853,7 @@
         "name": "Surda",
         "slug": "surda",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -8870,7 +8870,7 @@
         "name": "Surif",
         "slug": "surif",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -8887,7 +8887,7 @@
         "name": "Talfit",
         "slug": "talfit",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8904,7 +8904,7 @@
         "name": "Tall a-Sultan R.C.",
         "slug": "tall-a-sultan-r-c",
         "type": "locality",
-        "region": "rafah",
+        "region": "Rafah",
         "subRegion": null
       }
     },
@@ -8921,7 +8921,7 @@
         "name": "Tall al-Khashabah",
         "slug": "tall-al-khashabah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8938,7 +8938,7 @@
         "name": "Talluzah",
         "slug": "talluzah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -8955,7 +8955,7 @@
         "name": "Tammun",
         "slug": "tammun",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -8972,7 +8972,7 @@
         "name": "Tannin",
         "slug": "tannin",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -8989,7 +8989,7 @@
         "name": "Tapuah",
         "slug": "tapuah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9006,7 +9006,7 @@
         "name": "Tarqumya",
         "slug": "tarqumya",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9023,7 +9023,7 @@
         "name": "Tarramah",
         "slug": "tarramah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9040,7 +9040,7 @@
         "name": "Tarusah",
         "slug": "tarusah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9057,7 +9057,7 @@
         "name": "Tawas",
         "slug": "tawas",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9074,7 +9074,7 @@
         "name": "Tayasir",
         "slug": "tayasir",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -9091,7 +9091,7 @@
         "name": "Telfit",
         "slug": "telfit",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9108,7 +9108,7 @@
         "name": "Tell",
         "slug": "tell",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -9125,7 +9125,7 @@
         "name": "Ti'nnik",
         "slug": "tinnik",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9140,9 +9140,9 @@
       },
       "properties": {
         "name": "Tubas",
-        "slug": "tubas",
+        "slug": "Tubas",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -9157,9 +9157,9 @@
       },
       "properties": {
         "name": "Tulkarm",
-        "slug": "tulkarm",
+        "slug": "Tulkarm",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -9174,9 +9174,9 @@
       },
       "properties": {
         "name": "Tulkarm R.C.",
-        "slug": "tulkarm-r-c",
+        "slug": "Tulkarm-r-c",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -9193,7 +9193,7 @@
         "name": "Turah a-Sharqiyah",
         "slug": "turah-a-sharqiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9210,7 +9210,7 @@
         "name": "Turah al-Gharbiyah",
         "slug": "turah-al-gharbiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9227,7 +9227,7 @@
         "name": "Turmus Aya",
         "slug": "turmus-aya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -9244,7 +9244,7 @@
         "name": "Turmusaya",
         "slug": "turmusaya",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -9261,7 +9261,7 @@
         "name": "Um 'Asla",
         "slug": "um-asla",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9278,7 +9278,7 @@
         "name": "Um Dar",
         "slug": "um-dar",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9295,7 +9295,7 @@
         "name": "Um Lasafa",
         "slug": "um-lasafa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9312,7 +9312,7 @@
         "name": "Um Laysun",
         "slug": "um-laysun",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -9329,7 +9329,7 @@
         "name": "Um Qabub",
         "slug": "um-qabub",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9346,7 +9346,7 @@
         "name": "Um Safa",
         "slug": "um-safa",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -9363,7 +9363,7 @@
         "name": "Um Salamuna",
         "slug": "um-salamuna",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9380,7 +9380,7 @@
         "name": "Um Tuba",
         "slug": "um-tuba",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -9397,7 +9397,7 @@
         "name": "Um Tuba",
         "slug": "um-tuba-a8ef8",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -9414,7 +9414,7 @@
         "name": "Um a-Rihan",
         "slug": "um-a-rihan",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9431,7 +9431,7 @@
         "name": "Um a-Tut",
         "slug": "um-a-tut",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9448,7 +9448,7 @@
         "name": "Um al-'Asawej",
         "slug": "um-al-asawej",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -9465,7 +9465,7 @@
         "name": "Um al-Butum",
         "slug": "um-al-butum",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9482,7 +9482,7 @@
         "name": "Um al-Qasseis",
         "slug": "um-al-qasseis",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9499,7 +9499,7 @@
         "name": "Umm Al Khair",
         "slug": "umm-al-khair",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9516,7 +9516,7 @@
         "name": "Wadi 'Ubeid",
         "slug": "wadi-ubeid",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9533,7 +9533,7 @@
         "name": "Wadi 'Ubeid",
         "slug": "wadi-ubeid-30e9c",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9550,7 +9550,7 @@
         "name": "Wadi Abu Hindy",
         "slug": "wadi-abu-hindy",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -9567,7 +9567,7 @@
         "name": "Wadi Du'oq",
         "slug": "wadi-duoq",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9584,7 +9584,7 @@
         "name": "Wadi Esneisel",
         "slug": "wadi-esneisel",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -9601,7 +9601,7 @@
         "name": "Wadi Fukin",
         "slug": "wadi-fukin",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9618,7 +9618,7 @@
         "name": "Wadi Muhammad",
         "slug": "wadi-muhammad",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9635,7 +9635,7 @@
         "name": "Wadi Muhammad",
         "slug": "wadi-muhammad-8a0cd",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9652,7 +9652,7 @@
         "name": "Wadi Qana",
         "slug": "wadi-qana",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -9669,7 +9669,7 @@
         "name": "Wadi Rahhal",
         "slug": "wadi-rahhal",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9686,7 +9686,7 @@
         "name": "Wadi Umm Qal'a",
         "slug": "wadi-umm-qala",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9703,7 +9703,7 @@
         "name": "Wadi a-Dabi'",
         "slug": "wadi-a-dabi",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9720,7 +9720,7 @@
         "name": "Wadi a-Nis",
         "slug": "wadi-a-nis",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9737,7 +9737,7 @@
         "name": "Wadi a-Rasha",
         "slug": "wadi-a-rasha",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -9754,7 +9754,7 @@
         "name": "Wadi a-Rim",
         "slug": "wadi-a-rim",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9771,7 +9771,7 @@
         "name": "Wadi a-Sada",
         "slug": "wadi-a-sada",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9788,7 +9788,7 @@
         "name": "Wadi a-Shajena",
         "slug": "wadi-a-shajena",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9805,7 +9805,7 @@
         "name": "Wadi al-'Arayis",
         "slug": "wadi-al-arayis",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -9822,7 +9822,7 @@
         "name": "Wadi al-Far'ah",
         "slug": "wadi-al-farah",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -9839,7 +9839,7 @@
         "name": "Wadi al-Joz",
         "slug": "wadi-al-joz",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -9856,7 +9856,7 @@
         "name": "Wadi al-Kilab",
         "slug": "wadi-al-kilab",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -9873,7 +9873,7 @@
         "name": "Wadi as-Salqa",
         "slug": "wadi-as-salqa",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -9890,7 +9890,7 @@
         "name": "Ya'bad",
         "slug": "yabad",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -9907,7 +9907,7 @@
         "name": "Yabrud",
         "slug": "yabrud",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -9924,7 +9924,7 @@
         "name": "Yanun",
         "slug": "yanun",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -9941,7 +9941,7 @@
         "name": "Yasid",
         "slug": "yasid",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -9958,7 +9958,7 @@
         "name": "Yasuf",
         "slug": "yasuf",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -9975,7 +9975,7 @@
         "name": "Yatma",
         "slug": "yatma",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -9992,7 +9992,7 @@
         "name": "Yatta",
         "slug": "yatta",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10009,7 +10009,7 @@
         "name": "Za'tara",
         "slug": "zatara",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -10026,7 +10026,7 @@
         "name": "Za'tara",
         "slug": "zatara-aa42f",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10043,7 +10043,7 @@
         "name": "Zabdah",
         "slug": "zabdah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10060,7 +10060,7 @@
         "name": "Zabubah",
         "slug": "zabubah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10077,7 +10077,7 @@
         "name": "Zawata",
         "slug": "zawata",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10094,7 +10094,7 @@
         "name": "Zeita",
         "slug": "zeita",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -10111,7 +10111,7 @@
         "name": "Zeita Jamma'in",
         "slug": "zeita-jammain",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10128,7 +10128,7 @@
         "name": "Zif",
         "slug": "zif",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10145,7 +10145,7 @@
         "name": "Zif",
         "slug": "zif-9e245",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10162,7 +10162,7 @@
         "name": "Zur Baher",
         "slug": "zur-baher",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -10179,7 +10179,7 @@
         "name": "a-Dab'ah",
         "slug": "a-dabah",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -10196,7 +10196,7 @@
         "name": "a-Damayrah",
         "slug": "a-damayrah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10213,7 +10213,7 @@
         "name": "a-Dawa",
         "slug": "a-dawa",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10230,7 +10230,7 @@
         "name": "a-Dhahiriyah",
         "slug": "a-dhahiriyah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10247,7 +10247,7 @@
         "name": "a-Doha",
         "slug": "a-doha",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -10264,7 +10264,7 @@
         "name": "a-Duheisheh R.C.",
         "slug": "a-duheisheh-r-c",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -10281,7 +10281,7 @@
         "name": "a-Duwara",
         "slug": "a-duwara",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10298,7 +10298,7 @@
         "name": "a-Duweir",
         "slug": "a-duweir",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10315,7 +10315,7 @@
         "name": "a-Lubban al-Gharbiyah",
         "slug": "a-lubban-al-gharbiyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10332,7 +10332,7 @@
         "name": "a-Lubban al-Gharbiyah",
         "slug": "a-lubban-al-gharbiyah-641c5",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -10349,7 +10349,7 @@
         "name": "a-Nabi Elyas",
         "slug": "a-nabi-elyas",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -10366,7 +10366,7 @@
         "name": "a-Nabi Musa",
         "slug": "a-nabi-musa",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -10383,7 +10383,7 @@
         "name": "a-Nabi Saleh",
         "slug": "a-nabi-saleh",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -10400,7 +10400,7 @@
         "name": "a-Nabi Samwil",
         "slug": "a-nabi-samwil",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -10417,7 +10417,7 @@
         "name": "a-Najada",
         "slug": "a-najada",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10434,7 +10434,7 @@
         "name": "a-Naqurah",
         "slug": "a-naqurah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10451,7 +10451,7 @@
         "name": "a-Nassariyah",
         "slug": "a-nassariyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10468,7 +10468,7 @@
         "name": "a-Nazlah a-Sharqiya",
         "slug": "a-nazlah-a-sharqiya",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -10485,7 +10485,7 @@
         "name": "a-Nazlah al-Gharbiyah",
         "slug": "a-nazlah-al-gharbiyah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -10502,7 +10502,7 @@
         "name": "a-Nazlah al-Wusta",
         "slug": "a-nazlah-al-wusta",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -10519,7 +10519,7 @@
         "name": "a-Nuseirat R.C.",
         "slug": "a-nuseirat-r-c",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -10536,7 +10536,7 @@
         "name": "a-Nuwei'mah",
         "slug": "a-nuweimah",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -10553,7 +10553,7 @@
         "name": "a-Ram",
         "slug": "a-ram",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -10570,7 +10570,7 @@
         "name": "a-Rama",
         "slug": "a-rama",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10587,7 +10587,7 @@
         "name": "a-Ramadin",
         "slug": "a-ramadin",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10604,7 +10604,7 @@
         "name": "a-Ras",
         "slug": "a-ras",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -10621,7 +10621,7 @@
         "name": "a-Rawa'in",
         "slug": "a-rawain",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10638,7 +10638,7 @@
         "name": "a-Rawa'in",
         "slug": "a-rawain-83828",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -10655,7 +10655,7 @@
         "name": "a-Rifa'iya",
         "slug": "a-rifaiya",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10672,7 +10672,7 @@
         "name": "a-Rihiya",
         "slug": "a-rihiya",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10689,7 +10689,7 @@
         "name": "a-Sa'aidah",
         "slug": "a-saaidah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10706,7 +10706,7 @@
         "name": "a-Samu'",
         "slug": "a-samu",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10723,7 +10723,7 @@
         "name": "a-Sawahrah a-Sharqiyah",
         "slug": "a-sawahrah-a-sharqiyah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -10740,7 +10740,7 @@
         "name": "a-Sawahrah al-Gharbiyah",
         "slug": "a-sawahrah-al-gharbiyah",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -10757,7 +10757,7 @@
         "name": "a-Sawaneh",
         "slug": "a-sawaneh",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -10774,7 +10774,7 @@
         "name": "a-Sawiyah",
         "slug": "a-sawiyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -10791,7 +10791,7 @@
         "name": "a-Shati' R.C.",
         "slug": "a-shati-r-c",
         "type": "locality",
-        "region": "gaza",
+        "region": "Gaza",
         "subRegion": null
       }
     },
@@ -10808,7 +10808,7 @@
         "name": "a-Shawawrah",
         "slug": "a-shawawrah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -10825,7 +10825,7 @@
         "name": "a-Sheikh Sa'ed",
         "slug": "a-sheikh-saed",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -10842,7 +10842,7 @@
         "name": "a-Shuhada (Ganzour)",
         "slug": "a-shuhada-ganzour",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10859,7 +10859,7 @@
         "name": "a-Shuyukh",
         "slug": "a-shuyukh",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10876,7 +10876,7 @@
         "name": "a-Shyah",
         "slug": "a-shyah",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -10893,7 +10893,7 @@
         "name": "a-Simiya",
         "slug": "a-simiya",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10910,7 +10910,7 @@
         "name": "a-Sura",
         "slug": "a-sura",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10927,7 +10927,7 @@
         "name": "a-Tabaqa",
         "slug": "a-tabaqa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -10944,7 +10944,7 @@
         "name": "a-Taybah",
         "slug": "a-taybah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -10961,7 +10961,7 @@
         "name": "a-Taybah",
         "slug": "a-taybah-095da",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -10978,7 +10978,7 @@
         "name": "a-Thabra",
         "slug": "a-thabra",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -10995,7 +10995,7 @@
         "name": "a-Thaghra",
         "slug": "a-thaghra",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -11012,7 +11012,7 @@
         "name": "a-Tirah",
         "slug": "a-tirah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -11029,7 +11029,7 @@
         "name": "a-Tur",
         "slug": "a-tur",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -11046,7 +11046,7 @@
         "name": "a-Tuwani",
         "slug": "a-tuwani",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11063,7 +11063,7 @@
         "name": "a-Za'ayem",
         "slug": "a-zaayem",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -11080,7 +11080,7 @@
         "name": "a-Zababidah",
         "slug": "a-zababidah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11097,7 +11097,7 @@
         "name": "a-Zawiya",
         "slug": "a-zawiya",
         "type": "locality",
-        "region": "salfit",
+        "region": "Salfit",
         "subRegion": null
       }
     },
@@ -11114,7 +11114,7 @@
         "name": "a-Zawiya",
         "slug": "a-zawiya-25ba4",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11131,7 +11131,7 @@
         "name": "a-Zbeidat",
         "slug": "a-zbeidat",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -11148,7 +11148,7 @@
         "name": "a-Zuweidin",
         "slug": "a-zuweidin",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11165,7 +11165,7 @@
         "name": "al-'Alaqah",
         "slug": "al-alaqah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11182,7 +11182,7 @@
         "name": "al-'Alaqah a-Tahta",
         "slug": "al-alaqah-a-tahta",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11199,7 +11199,7 @@
         "name": "al-'Alaqah al-Foqa",
         "slug": "al-alaqah-al-foqa",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11216,7 +11216,7 @@
         "name": "al-'Aqabah",
         "slug": "al-aqabah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -11233,7 +11233,7 @@
         "name": "al-'Aqabah",
         "slug": "al-aqabah-9680c",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -11250,7 +11250,7 @@
         "name": "al-'Araqah",
         "slug": "al-araqah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11267,7 +11267,7 @@
         "name": "al-'Arrub R.C.",
         "slug": "al-arrub-r-c",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11284,7 +11284,7 @@
         "name": "al-'Asa'asah",
         "slug": "al-asaasah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11301,7 +11301,7 @@
         "name": "al-'Asakirah",
         "slug": "al-asakirah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11318,7 +11318,7 @@
         "name": "al-'Attarah",
         "slug": "al-attarah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11335,7 +11335,7 @@
         "name": "al-'Aza R.C.",
         "slug": "al-aza-r-c",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11352,7 +11352,7 @@
         "name": "al-'Azazimah",
         "slug": "al-azazimah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11369,7 +11369,7 @@
         "name": "al-'Eizariyah",
         "slug": "al-eizariyah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -11386,7 +11386,7 @@
         "name": "al-'Esawiyah",
         "slug": "al-esawiyah",
         "type": "locality",
-        "region": "east-jerusalem",
+        "region": "East Jerusalem",
         "subRegion": null
       }
     },
@@ -11403,7 +11403,7 @@
         "name": "al-'Iqab",
         "slug": "al-iqab",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11420,7 +11420,7 @@
         "name": "al-'Udeisah",
         "slug": "al-udeisah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11437,7 +11437,7 @@
         "name": "al-Aqrabaniyah",
         "slug": "al-aqrabaniyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -11454,7 +11454,7 @@
         "name": "al-Badhan",
         "slug": "al-badhan",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -11471,7 +11471,7 @@
         "name": "al-Baida",
         "slug": "al-baida",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11488,7 +11488,7 @@
         "name": "al-Birah",
         "slug": "al-birah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11505,7 +11505,7 @@
         "name": "al-Bureij R.C.",
         "slug": "al-bureij-r-c",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -11522,7 +11522,7 @@
         "name": "al-Burj",
         "slug": "al-burj",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11539,7 +11539,7 @@
         "name": "al-Buweib",
         "slug": "al-buweib",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11556,7 +11556,7 @@
         "name": "al-Fandaqumiyah",
         "slug": "al-fandaqumiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11573,7 +11573,7 @@
         "name": "al-Faqir",
         "slug": "al-faqir",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11590,7 +11590,7 @@
         "name": "al-Far'ah R.C.",
         "slug": "al-farah-r-c",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -11607,8 +11607,8 @@
         "name": "al-Farisiyah",
         "slug": "al-farisiyah-bac1b",
         "type": "locality",
-        "region": "tubas",
-        "subRegion": "jordan-valley"
+        "region": "Tubas",
+        "subRegion": "Jordan Valley"
       }
     },
     {
@@ -11624,7 +11624,7 @@
         "name": "al-Fawwar R.C.",
         "slug": "al-fawwar-r-c",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11641,7 +11641,7 @@
         "name": "al-Funduq",
         "slug": "al-funduq",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -11658,7 +11658,7 @@
         "name": "al-Fuqrah",
         "slug": "al-fuqrah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -11675,7 +11675,7 @@
         "name": "al-Fureidis",
         "slug": "al-fureidis",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11692,7 +11692,7 @@
         "name": "al-Hadidiyah",
         "slug": "al-hadidiyah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11709,7 +11709,7 @@
         "name": "al-Hadidiyah",
         "slug": "al-hadidiyah-23d5a",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -11726,7 +11726,7 @@
         "name": "al-Haffasi",
         "slug": "al-haffasi",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -11743,7 +11743,7 @@
         "name": "al-Hafira",
         "slug": "al-hafira",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11760,7 +11760,7 @@
         "name": "al-Halqum",
         "slug": "al-halqum",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11777,7 +11777,7 @@
         "name": "al-Hashimiyah",
         "slug": "al-hashimiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11794,7 +11794,7 @@
         "name": "al-Hijrah",
         "slug": "al-hijrah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11811,7 +11811,7 @@
         "name": "al-Hilah",
         "slug": "al-hilah",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -11828,7 +11828,7 @@
         "name": "al-Hujailah",
         "slug": "al-hujailah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11845,7 +11845,7 @@
         "name": "al-Jab'ah",
         "slug": "al-jabah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -11862,7 +11862,7 @@
         "name": "al-Jalameh",
         "slug": "al-jalameh",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11879,7 +11879,7 @@
         "name": "al-Jalazun R.C.",
         "slug": "al-jalazun-r-c",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -11896,7 +11896,7 @@
         "name": "al-Jamilat",
         "slug": "al-jamilat",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11913,7 +11913,7 @@
         "name": "al-Janiyah",
         "slug": "al-janiyah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -11930,7 +11930,7 @@
         "name": "al-Jarba",
         "slug": "al-jarba",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -11947,7 +11947,7 @@
         "name": "al-Jarushiya",
         "slug": "al-jarushiya",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -11964,7 +11964,7 @@
         "name": "al-Jib",
         "slug": "al-jib",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -11981,7 +11981,7 @@
         "name": "al-Jiftlik",
         "slug": "al-jiftlik",
         "type": "locality",
-        "region": "jericho",
+        "region": "Jericho",
         "subRegion": null
       }
     },
@@ -11998,7 +11998,7 @@
         "name": "al-Judeidah",
         "slug": "al-judeidah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12015,7 +12015,7 @@
         "name": "al-Judeirah",
         "slug": "al-judeirah",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -12032,7 +12032,7 @@
         "name": "al-Juneid",
         "slug": "al-juneid",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -12049,7 +12049,7 @@
         "name": "al-Ka'abneh",
         "slug": "al-kaabneh",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -12066,7 +12066,7 @@
         "name": "al-Karmel",
         "slug": "al-karmel",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12083,7 +12083,7 @@
         "name": "al-Karshan",
         "slug": "al-karshan",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -12100,7 +12100,7 @@
         "name": "al-Kasarat",
         "slug": "al-kasarat",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -12117,7 +12117,7 @@
         "name": "al-Khader",
         "slug": "al-khader",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12134,7 +12134,7 @@
         "name": "al-Khamajat",
         "slug": "al-khamajat",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12151,7 +12151,7 @@
         "name": "al-Khas",
         "slug": "al-khas",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12168,7 +12168,7 @@
         "name": "al-Khdeirat",
         "slug": "al-khdeirat",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12185,7 +12185,7 @@
         "name": "al-Khuljan",
         "slug": "al-khuljan",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12202,7 +12202,7 @@
         "name": "al-Khushna",
         "slug": "al-khushna",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12219,7 +12219,7 @@
         "name": "al-Kufeir",
         "slug": "al-kufeir",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12236,7 +12236,7 @@
         "name": "al-Kum",
         "slug": "al-kum",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12253,7 +12253,7 @@
         "name": "al-Ma'sarah",
         "slug": "al-masarah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12270,7 +12270,7 @@
         "name": "al-Maghazi R.C.",
         "slug": "al-maghazi-r-c",
         "type": "locality",
-        "region": "deir-al-balah",
+        "region": "Deir Al-Balah",
         "subRegion": null
       }
     },
@@ -12287,7 +12287,7 @@
         "name": "al-Majd",
         "slug": "al-majd",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12304,7 +12304,7 @@
         "name": "al-Malih",
         "slug": "al-malih",
         "type": "locality",
-        "region": "tubas",
+        "region": "Tubas",
         "subRegion": null
       }
     },
@@ -12321,7 +12321,7 @@
         "name": "al-Maniyah",
         "slug": "al-maniyah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12338,7 +12338,7 @@
         "name": "al-Manshiyah",
         "slug": "al-manshiyah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12355,7 +12355,7 @@
         "name": "al-Mansura",
         "slug": "al-mansura",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12372,7 +12372,7 @@
         "name": "al-Mas'udiyah",
         "slug": "al-masudiyah",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     },
@@ -12389,7 +12389,7 @@
         "name": "al-Masqufah",
         "slug": "al-masqufah",
         "type": "locality",
-        "region": "tulkarm",
+        "region": "Tulkarm",
         "subRegion": null
       }
     },
@@ -12406,7 +12406,7 @@
         "name": "al-Mazra'ah a-Sharqiyah",
         "slug": "al-mazraah-a-sharqiyah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -12423,7 +12423,7 @@
         "name": "al-Mazra'ah al-Qibliyah",
         "slug": "al-mazraah-al-qibliyah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -12440,7 +12440,7 @@
         "name": "al-Mehtiwish",
         "slug": "al-mehtiwish",
         "type": "locality",
-        "region": "jerusalem",
+        "region": "Jerusalem",
         "subRegion": null
       }
     },
@@ -12457,7 +12457,7 @@
         "name": "al-Midyah",
         "slug": "al-midyah",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -12474,7 +12474,7 @@
         "name": "al-Mudawar",
         "slug": "al-mudawar",
         "type": "locality",
-        "region": "qalqilya",
+        "region": "Qalqilya",
         "subRegion": null
       }
     },
@@ -12491,7 +12491,7 @@
         "name": "al-Mughayir",
         "slug": "al-mughayir",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12508,7 +12508,7 @@
         "name": "al-Mughayir",
         "slug": "al-mughayir-8dffe",
         "type": "locality",
-        "region": "ramallah",
+        "region": "Ramallah",
         "subRegion": null
       }
     },
@@ -12525,7 +12525,7 @@
         "name": "al-Muntar",
         "slug": "al-muntar",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12542,7 +12542,7 @@
         "name": "al-Mutilla",
         "slug": "al-mutilla",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12559,7 +12559,7 @@
         "name": "al-Muwarraq",
         "slug": "al-muwarraq",
         "type": "locality",
-        "region": "hebron",
+        "region": "Hebron",
         "subRegion": null
       }
     },
@@ -12576,7 +12576,7 @@
         "name": "al-Walajah",
         "slug": "al-walajah",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12593,7 +12593,7 @@
         "name": "al-Yamun",
         "slug": "al-yamun",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12610,7 +12610,7 @@
         "name": "kh. 'Abdallah al-Yunis",
         "slug": "kh-abdallah-al-yunis",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12627,7 +12627,7 @@
         "name": "kh. Abu 'Anqar",
         "slug": "kh-abu-anqar",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12644,7 +12644,7 @@
         "name": "kh. Abu Nujeim",
         "slug": "kh-abu-nujeim",
         "type": "locality",
-        "region": "bethlehem",
+        "region": "Bethlehem",
         "subRegion": null
       }
     },
@@ -12661,7 +12661,7 @@
         "name": "kh. al-Muntar a-Sharqiyah",
         "slug": "kh-al-muntar-a-sharqiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12678,7 +12678,7 @@
         "name": "kh. al-Muntar al-Gharbiyah",
         "slug": "kh-al-muntar-al-gharbiyah",
         "type": "locality",
-        "region": "jenin",
+        "region": "Jenin",
         "subRegion": null
       }
     },
@@ -12695,7 +12695,7 @@
         "name": "‘Ein Beit al-Maa",
         "slug": "ein-beit-al-maa",
         "type": "locality",
-        "region": "nablus",
+        "region": "Nablus",
         "subRegion": null
       }
     }
