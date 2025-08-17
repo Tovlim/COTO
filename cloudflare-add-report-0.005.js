@@ -110,7 +110,7 @@
     });
   }
   
-  // Setup individual replace/remove controls for each slot
+  // Setup video controls (1-5) - now these are created dynamically
   function setupIndividualControls() {
     // Setup image controls (1-15, where 1 is main image)
     for (let i = 1; i <= 15; i++) {
@@ -123,20 +123,20 @@
       }
     }
     
-    // Setup video controls (1-5)
-    for (let i = 1; i <= MAX_VIDEOS; i++) {
-      const videoEl = document.querySelector(`[display-video="${i}"]`);
-      if (videoEl) {
-        console.log(`Setting up controls for video ${i}`);
-        addStaticVideoControls(videoEl, i);
-      } else {
-        console.log(`Video element ${i} not found`);
-      }
-    }
+    // Video controls are now added dynamically when videos are displayed
+    console.log('Video controls will be added dynamically when videos are uploaded');
   }
   
   // Add static image controls that are always present
   function addStaticImageControls(imageEl, position) {
+    // Check if controls already exist
+    if (imageEl.parentNode.querySelector('.media-controls')) {
+      console.log(`Controls already exist for image ${position}`);
+      return;
+    }
+    
+    console.log(`Adding controls for image ${position}`);
+    
     // Create controls container
     const controlsDiv = document.createElement('div');
     controlsDiv.className = 'media-controls';
@@ -146,7 +146,10 @@
       right: 10px;
       display: none;
       gap: 5px;
-      z-index: 10;
+      z-index: 1000;
+      background: rgba(0,0,0,0.1);
+      padding: 5px;
+      border-radius: 5px;
     `;
     
     // Replace button
@@ -163,6 +166,8 @@
     `;
     replaceBtn.addEventListener('click', function(e) {
       e.preventDefault();
+      e.stopPropagation();
+      console.log(`Replace clicked for image ${position}`);
       replaceImageAtPosition(position);
     });
     
@@ -180,6 +185,8 @@
     `;
     removeBtn.addEventListener('click', function(e) {
       e.preventDefault();
+      e.stopPropagation();
+      console.log(`Remove clicked for image ${position}`);
       removeImageAtPosition(position);
     });
     
@@ -190,6 +197,9 @@
     if (imageEl.parentNode) {
       imageEl.parentNode.style.position = 'relative';
       imageEl.parentNode.appendChild(controlsDiv);
+      console.log(`Controls added successfully for image ${position}`);
+    } else {
+      console.log(`No parent node for image ${position}`);
     }
   }
   
@@ -692,94 +702,130 @@
     }
   }
   
-  // Display video with better error handling
+  // Display video with proper iframe structure
   function displayVideo(position, url) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const wrapEl = document.querySelector('[display-video="wrap"]');
     
     if (videoEl && wrapEl) {
-      const iframe = videoEl.querySelector('iframe');
-      if (iframe) {
-        // Clear any existing src first
-        iframe.src = '';
-        iframe.setAttribute('data-src', url);
-        
-        // Try setting the src with retries for video processing
-        let retryCount = 0;
-        const maxRetries = 5;
-        
-        const tryLoadVideo = () => {
-          retryCount++;
-          console.log(`Attempting to load video (attempt ${retryCount}): ${url}`);
-          
-          iframe.src = url;
-          
-          // Listen for load errors
-          iframe.onerror = () => {
-            if (retryCount < maxRetries) {
-              console.log(`Video load failed, retrying in ${retryCount * 2} seconds...`);
-              setTimeout(tryLoadVideo, retryCount * 2000); // Exponential backoff
-            } else {
-              console.log('Video failed to load after all retries');
-              showVideoError(iframe, uploadData?.uid || 'unknown');
-            }
-          };
-        };
-        
-        // Start first attempt after 3 seconds
-        setTimeout(tryLoadVideo, 3000);
-      }
+      // Clear existing content
+      videoEl.innerHTML = '';
+      
+      // Create proper iframe structure for Cloudflare Stream
+      videoEl.innerHTML = `
+        <div style="position: relative; padding-top: 56.25%; height: 0;">
+          <iframe
+            src="${url}"
+            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+            allowfullscreen="true"
+            loading="lazy">
+          </iframe>
+        </div>
+      `;
+      
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
       
-      // Show controls for this video
-      showVideoControls(position);
+      // Add controls after iframe is created
+      setTimeout(() => {
+        addVideoControlsToElement(videoEl, position);
+        showVideoControls(position);
+      }, 100);
     }
   }
   
-  // Show video error message
-  function showVideoError(iframe, uid) {
-    iframe.style.display = 'none';
+  // Add video controls to a specific element
+  function addVideoControlsToElement(videoEl, position) {
+    // Remove existing controls
+    const existingControls = videoEl.querySelector('.media-controls');
+    if (existingControls) {
+      existingControls.remove();
+    }
     
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
+    // Create controls container
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'media-controls';
+    controlsDiv.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      background: #f5f5f5;
-      color: #666;
-      font-size: 14px;
-      text-align: center;
-      padding: 20px;
-    `;
-    errorDiv.innerHTML = `
-      <div>
-        <div>Video is still processing...</div>
-        <div style="font-size: 12px; margin-top: 10px;">
-          <button onclick="location.reload()" style="
-            background: #4285f4;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-          ">Refresh Page</button>
-        </div>
-      </div>
+      gap: 5px;
+      z-index: 1000;
+      background: rgba(0,0,0,0.7);
+      padding: 5px;
+      border-radius: 5px;
     `;
     
-    iframe.parentNode.appendChild(errorDiv);
+    // Replace button
+    const replaceBtn = document.createElement('button');
+    replaceBtn.textContent = 'Replace';
+    replaceBtn.style.cssText = `
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    replaceBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log(`Replace video clicked for position ${position}`);
+      replaceVideoAtPosition(position);
+    });
+    
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.style.cssText = `
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    `;
+    removeBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log(`Remove video clicked for position ${position}`);
+      removeVideoAtPosition(position);
+    });
+    
+    controlsDiv.appendChild(replaceBtn);
+    controlsDiv.appendChild(removeBtn);
+    
+    // Make video container relative for absolute positioning
+    videoEl.style.position = 'relative';
+    videoEl.appendChild(controlsDiv);
   }
   
   // Show image controls
   function showImageControls(position) {
+    console.log(`Trying to show image controls for position ${position}`);
     const imageEl = document.querySelector(`[display-image="${position}"]`);
     if (imageEl && imageEl.parentNode) {
       const controls = imageEl.parentNode.querySelector('.media-controls');
       if (controls) {
         controls.style.display = 'flex';
+        console.log(`Image controls shown for position ${position}`);
+      } else {
+        console.log(`No controls found for image position ${position}`);
+        // Try to add controls if they don't exist
+        addStaticImageControls(imageEl, position);
+        setTimeout(() => {
+          const newControls = imageEl.parentNode.querySelector('.media-controls');
+          if (newControls) {
+            newControls.style.display = 'flex';
+          }
+        }, 100);
       }
+    } else {
+      console.log(`Image element not found for position ${position}`);
     }
   }
   
@@ -882,18 +928,14 @@
     const textInput = document.querySelector(`[cloudflare="video-${position}"]`);
     
     if (videoEl) {
-      const iframe = videoEl.querySelector('iframe');
-      if (iframe) {
-        iframe.setAttribute('data-src', '');
-        iframe.src = '';
-      }
+      // Clear the video content
+      videoEl.innerHTML = '';
       videoEl.style.display = 'none';
     }
     if (textInput) {
       textInput.value = '';
     }
     
-    hideVideoControls(position);
     uploadStates.video.count = Math.max(0, uploadStates.video.count - 1);
     
     checkAndHideVideoWrap();
