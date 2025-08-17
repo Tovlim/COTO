@@ -2781,7 +2781,7 @@ class DataLoader {
   // Load all GeoJSON data in parallel
   async loadAllData() {
     const urls = {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.005.geojson',
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson',
       settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
     };
     
@@ -4895,7 +4895,7 @@ function selectSettlementCheckbox(settlementName) {
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.005.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
