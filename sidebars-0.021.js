@@ -355,7 +355,9 @@
         const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
         
         const wrapperDiv = document.createElement('div');
-        wrapperDiv.setAttribute('checkbox-filter', type);
+        // Use singular form for checkbox-filter attribute to match search expectations
+        const filterType = type === 'settlements' ? 'settlement' : 'locality';
+        wrapperDiv.setAttribute('checkbox-filter', filterType);
         wrapperDiv.className = 'checbox-item';
         
         const label = document.createElement('label');
@@ -377,8 +379,8 @@
         input.setAttribute('fs-list-value', name);
         input.setAttribute('fs-list-field', fieldName);
         input.type = 'checkbox';
-        input.name = type;
-        input.setAttribute('data-name', type);
+        input.name = filterType;
+        input.setAttribute('data-name', filterType);
         input.setAttribute('activate-filter-indicator', 'place');
         input.id = `${type}-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
         input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
@@ -406,7 +408,7 @@
       });
       
       container.appendChild(fragment);
-      console.log(`Generated ${names.length} ${type} checkboxes`);
+      console.log(`Generated ${uniqueFeatures.length} ${type} checkboxes`);
       
       domCache.markStale();
       domCache.refresh();
