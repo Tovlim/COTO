@@ -129,7 +129,7 @@
   
   // Add static image controls that are always present
   function addStaticImageControls(imageEl, position) {
-    // Check if controls already exist
+    // Check if the image already has a wrapper with controls
     if (imageEl.parentNode.querySelector('.media-controls')) {
       console.log(`Controls already exist for image ${position}`);
       return;
@@ -137,9 +137,24 @@
     
     console.log(`Adding controls for image ${position}`);
     
-    // Create controls container with very high specificity
+    // Create a wrapper div for this specific image
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `
+      position: relative !important;
+      display: inline-block !important;
+      width: 100% !important;
+      height: auto !important;
+    `;
+    
+    // Insert wrapper before the image
+    imageEl.parentNode.insertBefore(wrapper, imageEl);
+    // Move image into wrapper
+    wrapper.appendChild(imageEl);
+    
+    // Create controls container
     const controlsDiv = document.createElement('div');
     controlsDiv.className = 'media-controls';
+    controlsDiv.setAttribute('data-image-position', position);
     controlsDiv.style.cssText = `
       position: absolute !important;
       top: 10px !important;
@@ -201,23 +216,9 @@
     
     controlsDiv.appendChild(replaceBtn);
     controlsDiv.appendChild(removeBtn);
+    wrapper.appendChild(controlsDiv);
     
-    // Make image container relative for absolute positioning
-    if (imageEl.parentNode) {
-      // Force the parent to be positioned relative with high specificity
-      imageEl.parentNode.style.cssText += '; position: relative !important; overflow: visible !important;';
-      imageEl.parentNode.appendChild(controlsDiv);
-      console.log(`Controls added successfully for image ${position}`);
-      
-      // Test visibility immediately
-      setTimeout(() => {
-        const bounds = controlsDiv.getBoundingClientRect();
-        console.log(`Controls for image ${position} - Bounds:`, bounds);
-        console.log(`Controls for image ${position} - Computed style:`, window.getComputedStyle(controlsDiv));
-      }, 100);
-    } else {
-      console.log(`No parent node for image ${position}`);
-    }
+    console.log(`Controls added successfully for image ${position} with wrapper`);
   }
   
   // Add static video controls that are always present
@@ -719,48 +720,70 @@
     }
   }
   
-  // Display video with automatic refresh handling
+  // Display video thumbnail instead of full video player
   function displayVideo(position, url) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const wrapEl = document.querySelector('[display-video="wrap"]');
     
     if (videoEl && wrapEl) {
-      // Clear existing content
-      videoEl.innerHTML = '';
+      // Extract UID from URL for thumbnail
+      const uidMatch = url.match(/\/([a-f0-9]{32})\//);
+      const uid = uidMatch ? uidMatch[1] : null;
       
-      // Create proper iframe structure for Cloudflare Stream with auto-refresh
-      videoEl.innerHTML = `
-        <div style="position: relative; padding-top: 56.25%; height: 0;">
-          <iframe
-            src="${url}"
-            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
-            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-            allowfullscreen="true"
-            loading="lazy"
-            onload="console.log('Video iframe loaded')"
-            onerror="console.log('Video iframe error')">
-          </iframe>
-          <div style="
-            position: absolute;
-            bottom: 5px;
-            left: 5px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 5px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            cursor: pointer;
-            z-index: 999;
-          " onclick="this.parentNode.querySelector('iframe').src = this.parentNode.querySelector('iframe').src">
-            ↻ Refresh if not loading
+      if (uid) {
+        // Clear existing content
+        videoEl.innerHTML = '';
+        
+        // Create thumbnail display with play overlay
+        videoEl.innerHTML = `
+          <div style="position: relative; padding-top: 56.25%; height: 0; background: #000; border-radius: 8px; overflow: hidden;">
+            <img 
+              src="https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s&height=600"
+              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
+              alt="Video thumbnail"
+              onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VmlkZW88L3RleHQ+PC9zdmc+'"
+            />
+            <div style="
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: 60px;
+              height: 60px;
+              background: rgba(0,0,0,0.8);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+            " onclick="alert('Video is processing and will be available for playback soon!')">
+              <div style="
+                width: 0;
+                height: 0;
+                border-left: 20px solid white;
+                border-top: 12px solid transparent;
+                border-bottom: 12px solid transparent;
+                margin-left: 4px;
+              "></div>
+            </div>
+            <div style="
+              position: absolute;
+              bottom: 8px;
+              left: 8px;
+              background: rgba(0,0,0,0.8);
+              color: white;
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+            ">Video Processing...</div>
           </div>
-        </div>
-      `;
+        `;
+      }
       
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
       
-      // Add controls after iframe is created
+      // Add controls after thumbnail is created
       setTimeout(() => {
         addVideoControlsToElement(videoEl, position);
         showVideoControls(position);
@@ -837,97 +860,39 @@
     videoEl.appendChild(controlsDiv);
   }
   
-  // Show image controls with force override
+  // Show image controls with specific targeting
   function showImageControls(position) {
     console.log(`Trying to show image controls for position ${position}`);
-    const imageEl = document.querySelector(`[display-image="${position}"]`);
-    if (imageEl && imageEl.parentNode) {
-      const controls = imageEl.parentNode.querySelector('.media-controls');
-      if (controls) {
-        // Force display with !important and multiple methods
-        controls.style.cssText = controls.style.cssText.replace('display: none !important', 'display: flex !important');
-        controls.style.setProperty('display', 'flex', 'important');
-        controls.style.setProperty('visibility', 'visible', 'important');
-        controls.style.setProperty('opacity', '1', 'important');
-        
-        console.log(`Image controls forced visible for position ${position}`);
-        
-        // Double-check visibility
-        setTimeout(() => {
-          const computedStyle = window.getComputedStyle(controls);
-          console.log(`Controls ${position} - Display: ${computedStyle.display}, Visibility: ${computedStyle.visibility}, Opacity: ${computedStyle.opacity}`);
-          
-          // If still not visible, create a highly visible fallback
-          if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-            console.log(`Creating fallback controls for position ${position}`);
-            createFallbackControls(imageEl, position);
-          }
-        }, 100);
-      } else {
-        console.log(`No controls found for image position ${position}`);
-        // Try to add controls if they don't exist
+    
+    // Find controls specifically for this image position
+    const controls = document.querySelector(`[data-image-position="${position}"]`);
+    
+    if (controls) {
+      // Force display with !important and multiple methods
+      controls.style.cssText = controls.style.cssText.replace('display: none !important', 'display: flex !important');
+      controls.style.setProperty('display', 'flex', 'important');
+      controls.style.setProperty('visibility', 'visible', 'important');
+      controls.style.setProperty('opacity', '1', 'important');
+      
+      console.log(`Image controls forced visible for position ${position}`);
+      
+      // Double-check visibility
+      setTimeout(() => {
+        const computedStyle = window.getComputedStyle(controls);
+        console.log(`Controls ${position} - Display: ${computedStyle.display}, Visibility: ${computedStyle.visibility}, Opacity: ${computedStyle.opacity}`);
+      }, 100);
+    } else {
+      console.log(`No controls found for image position ${position}`);
+      
+      // Try to find the image and add controls
+      const imageEl = document.querySelector(`[display-image="${position}"]`);
+      if (imageEl) {
         addStaticImageControls(imageEl, position);
         setTimeout(() => {
-          const newControls = imageEl.parentNode.querySelector('.media-controls');
-          if (newControls) {
-            newControls.style.setProperty('display', 'flex', 'important');
-          }
-        }, 100);
+          showImageControls(position); // Retry showing
+        }, 200);
       }
-    } else {
-      console.log(`Image element not found for position ${position}`);
     }
-  }
-  
-  // Create highly visible fallback controls
-  function createFallbackControls(imageEl, position) {
-    // Remove any existing controls first
-    const existing = imageEl.parentNode.querySelectorAll('.media-controls, .fallback-controls');
-    existing.forEach(el => el.remove());
-    
-    // Create super visible controls
-    const fallbackDiv = document.createElement('div');
-    fallbackDiv.className = 'fallback-controls';
-    fallbackDiv.innerHTML = `
-      <button onclick="window.replaceImageAtPosition(${position})" style="
-        position: fixed !important;
-        top: 50px !important;
-        right: 20px !important;
-        z-index: 999999 !important;
-        background: #4285f4 !important;
-        color: white !important;
-        border: 2px solid white !important;
-        padding: 10px 15px !important;
-        border-radius: 5px !important;
-        cursor: pointer !important;
-        font-size: 14px !important;
-        font-weight: bold !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-      ">Replace Img ${position}</button>
-      <button onclick="window.removeImageAtPosition(${position})" style="
-        position: fixed !important;
-        top: 100px !important;
-        right: 20px !important;
-        z-index: 999999 !important;
-        background: #f44336 !important;
-        color: white !important;
-        border: 2px solid white !important;
-        padding: 10px 15px !important;
-        border-radius: 5px !important;
-        cursor: pointer !important;
-        font-size: 14px !important;
-        font-weight: bold !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-      ">Remove Img ${position}</button>
-    `;
-    
-    document.body.appendChild(fallbackDiv);
-    
-    // Make functions globally available
-    window.replaceImageAtPosition = replaceImageAtPosition;
-    window.removeImageAtPosition = removeImageAtPosition;
-    
-    console.log(`Fallback controls created for image ${position}`);
   }
   
   // Show video controls
