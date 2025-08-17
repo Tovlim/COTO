@@ -413,10 +413,12 @@
       
       setupGeneratedCheckboxEvents();
       
-      // Refresh search script cache if available
-      if (window.checkboxFilterScript) {
-        window.checkboxFilterScript.recacheElements();
-      }
+      // Refresh search script cache if available (with small delay for DOM update)
+      setTimeout(() => {
+        if (window.checkboxFilterScript) {
+          window.checkboxFilterScript.recacheElements();
+        }
+      }, 100);
       
     } catch (error) {
       console.error(`Failed to generate ${type} checkboxes:`, error);
@@ -1011,8 +1013,18 @@
   
   window.addEventListener('load', () => {
     state.setTimer('loadGenerateCheckboxes', () => {
-      generateLocalityCheckboxes();
-      generateSettlementCheckboxes();
+      Promise.all([
+        generateLocalityCheckboxes(),
+        generateSettlementCheckboxes()
+      ]).then(() => {
+        // Recache after the second generation completes
+        setTimeout(() => {
+          if (window.checkboxFilterScript) {
+            window.checkboxFilterScript.recacheElements();
+            console.log('Sidebars: Recached checkboxes after load generation');
+          }
+        }, 200);
+      });
     }, 500);
     
     setupSidebars();
