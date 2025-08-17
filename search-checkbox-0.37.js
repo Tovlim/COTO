@@ -360,8 +360,13 @@
   window.checkboxFilterScript = {
     recacheElements() {
       if (isInitialized) {
+        // Re-scan DOM for new elements
         setupElements();
+        // Re-setup event listeners for new elements
+        setupEventListeners();
+        // Initialize visibility for new groups
         initializeGroups();
+        console.log('Checkbox filter recached:', this.getCacheStats());
       } else {
         initializeFilters();
       }
