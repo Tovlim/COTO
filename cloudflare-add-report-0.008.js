@@ -127,15 +127,18 @@
     console.log('Video controls will be added dynamically when videos are uploaded');
   }
   
-  // Add static image controls that are always present
+  // Add static image controls that are always present (check for existing wrapper)
   function addStaticImageControls(imageEl, position) {
-    // Check if the image already has a wrapper with controls
-    if (imageEl.parentNode.querySelector('.media-controls')) {
+    // Check if the image already has a wrapper with controls OR is already wrapped
+    if (imageEl.parentNode.querySelector('.media-controls') || imageEl.parentNode.hasAttribute('data-has-wrapper')) {
       console.log(`Controls already exist for image ${position}`);
       return;
     }
     
     console.log(`Adding controls for image ${position}`);
+    
+    // Mark the parent as having a wrapper to prevent duplicate attempts
+    imageEl.parentNode.setAttribute('data-has-wrapper', 'true');
     
     // Create a wrapper div for this specific image
     const wrapper = document.createElement('div');
@@ -145,6 +148,7 @@
       width: 100% !important;
       height: auto !important;
     `;
+    wrapper.setAttribute('data-image-wrapper', position);
     
     // Insert wrapper before the image
     imageEl.parentNode.insertBefore(wrapper, imageEl);
@@ -720,73 +724,46 @@
     }
   }
   
-  // Display video thumbnail instead of full video player
+  // Display video with simple uploaded message
   function displayVideo(position, url) {
     const videoEl = document.querySelector(`[display-video="${position}"]`);
     const wrapEl = document.querySelector('[display-video="wrap"]');
     
     if (videoEl && wrapEl) {
-      // Extract UID from URL for thumbnail
-      const uidMatch = url.match(/\/([a-f0-9]{32})\//);
-      const uid = uidMatch ? uidMatch[1] : null;
+      // Clear existing content
+      videoEl.innerHTML = '';
       
-      if (uid) {
-        // Clear existing content
-        videoEl.innerHTML = '';
-        
-        // Create thumbnail display with play overlay
-        videoEl.innerHTML = `
-          <div style="position: relative; padding-top: 56.25%; height: 0; background: #000; border-radius: 8px; overflow: hidden;">
-            <img 
-              src="https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s&height=600"
-              style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
-              alt="Video thumbnail"
-              onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSIxNCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VmlkZW88L3RleHQ+PC9zdmc+'"
-            />
-            <div style="
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              width: 60px;
-              height: 60px;
-              background: rgba(0,0,0,0.8);
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: pointer;
-            " onclick="alert('Video is processing and will be available for playback soon!')">
-              <div style="
-                width: 0;
-                height: 0;
-                border-left: 20px solid white;
-                border-top: 12px solid transparent;
-                border-bottom: 12px solid transparent;
-                margin-left: 4px;
-              "></div>
-            </div>
-            <div style="
-              position: absolute;
-              bottom: 8px;
-              left: 8px;
-              background: rgba(0,0,0,0.8);
-              color: white;
-              padding: 4px 8px;
-              border-radius: 4px;
-              font-size: 12px;
-            ">Video Processing...</div>
+      // Create simple uploaded message
+      videoEl.innerHTML = `
+        <div style="
+          position: relative; 
+          padding-top: 56.25%; 
+          height: 0; 
+          background: #f5f5f5; 
+          border-radius: 8px; 
+          overflow: hidden;
+          border: 2px dashed #ddd;
+        ">
+          <div style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+          ">
+            <div style="font-size: 18px; margin-bottom: 5px;">✓</div>
+            <div style="font-size: 14px; font-weight: 500;">Video Uploaded</div>
           </div>
-        `;
-      }
+        </div>
+      `;
       
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
       
-      // Add controls after thumbnail is created
+      // Add controls after content is created
       setTimeout(() => {
         addVideoControlsToElement(videoEl, position);
-        showVideoControls(position);
       }, 100);
     }
   }
@@ -860,7 +837,7 @@
     videoEl.appendChild(controlsDiv);
   }
   
-  // Show image controls with specific targeting
+  // Show image controls with specific targeting (prevent infinite loop)
   function showImageControls(position) {
     console.log(`Trying to show image controls for position ${position}`);
     
@@ -875,22 +852,33 @@
       controls.style.setProperty('opacity', '1', 'important');
       
       console.log(`Image controls forced visible for position ${position}`);
-      
-      // Double-check visibility
-      setTimeout(() => {
-        const computedStyle = window.getComputedStyle(controls);
-        console.log(`Controls ${position} - Display: ${computedStyle.display}, Visibility: ${computedStyle.visibility}, Opacity: ${computedStyle.opacity}`);
-      }, 100);
     } else {
-      console.log(`No controls found for image position ${position}`);
+      console.log(`No controls found for image position ${position} - trying to create`);
       
-      // Try to find the image and add controls
+      // Try to find the image and add controls (only once)
       const imageEl = document.querySelector(`[display-image="${position}"]`);
       if (imageEl) {
-        addStaticImageControls(imageEl, position);
-        setTimeout(() => {
-          showImageControls(position); // Retry showing
-        }, 200);
+        // Check if we're already in the process of adding controls
+        if (!imageEl.hasAttribute('data-controls-adding')) {
+          imageEl.setAttribute('data-controls-adding', 'true');
+          addStaticImageControls(imageEl, position);
+          
+          // Clean up the flag after a delay
+          setTimeout(() => {
+            imageEl.removeAttribute('data-controls-adding');
+            
+            // Try showing controls again, but only once
+            const newControls = document.querySelector(`[data-image-position="${position}"]`);
+            if (newControls) {
+              newControls.style.setProperty('display', 'flex', 'important');
+              newControls.style.setProperty('visibility', 'visible', 'important');
+              newControls.style.setProperty('opacity', '1', 'important');
+              console.log(`Image controls created and shown for position ${position}`);
+            }
+          }, 200);
+        } else {
+          console.log(`Already adding controls for position ${position}, skipping`);
+        }
       }
     }
   }
