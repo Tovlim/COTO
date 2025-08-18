@@ -17,7 +17,7 @@
     CACHE_VERSION: '1.0.0',
     CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
     GEOJSON_URLS: {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.005.geojson',
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson',
       settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
     }
   };
