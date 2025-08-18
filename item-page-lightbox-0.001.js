@@ -282,14 +282,14 @@ function initializeReporters(reportItem) {
 
 // Process all reporters on the page
 function processAllReporters() {
-  // Find all report items with the lightbox group attribute
-  const reportItems = document.querySelectorAll('[wfu-lightbox-group]');
+  // For item pages, look for reporters-wrap directly
+  const reportersWraps = document.querySelectorAll('[reporters-wrap="true"]');
   
-  reportItems.forEach(item => {
-    // Check if this item contains reporters
-    const hasReporters = item.querySelector('[reporters-wrap="true"]');
-    if (hasReporters) {
-      initializeReporters(item);
+  reportersWraps.forEach(reportersWrap => {
+    // Find the parent container (could be the cms-page-wrap or report-content-wrap)
+    const reportItem = reportersWrap.closest('.cms-page-wrap') || reportersWrap.closest('.report-content-wrap') || reportersWrap.parentElement;
+    if (reportItem && !processedReporterItems.has(reportItem)) {
+      initializeReporters(reportItem);
     }
   });
 }
@@ -373,12 +373,76 @@ function processFancyBoxGroups(item) {
 
 // Process all FancyBox groups on the page
 function processAllFancyBoxGroups() {
-  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
-  let needsFancyBoxInit = false;
+  // For item pages, process the entire document as one group
+  const mainContainer = document.querySelector('.cms-page-wrap') || document.body;
   
-  allItems.forEach(item => {
-    const processed = processFancyBoxGroups(item);
-    if (processed) {
+  // Check if we have lightbox images
+  const lightboxImages = mainContainer.querySelectorAll('a[lightbox-image]');
+  if (lightboxImages.length === 0) {
+    return false;
+  }
+  
+  // Process as a single group
+  let needsFancyBoxInit = false;
+  let firstImageLink = null;
+  
+  // Process all lightbox images
+  lightboxImages.forEach((linkElement) => {
+    const lightboxImageValue = linkElement.getAttribute('lightbox-image');
+    
+    // Skip links that are hidden
+    const computedStyle = getComputedStyle(linkElement);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return;
+    }
+    
+    // Process links with lightbox-image="true" or lightbox-image="first"
+    if (lightboxImageValue === 'true' || lightboxImageValue === 'first') {
+      const img = linkElement.querySelector('img');
+      if (img) {
+        // Set FancyBox data attribute for grouping (use a default group name)
+        linkElement.setAttribute('data-fancybox', 'item-gallery');
+        
+        // Set href to the full-size image (from img src)
+        const fullSizeImageUrl = img.getAttribute('src');
+        if (fullSizeImageUrl) {
+          linkElement.setAttribute('href', fullSizeImageUrl);
+        }
+        
+        // Add any additional FancyBox attributes if needed
+        linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
+        
+        // Remember the first image link for the opener
+        if (lightboxImageValue === 'first') {
+          firstImageLink = linkElement;
+        }
+        
+        needsFancyBoxInit = true;
+      }
+    }
+  });
+  
+  // Process opener links
+  const openerLinks = mainContainer.querySelectorAll('a[lightbox-image="open"]');
+  
+  openerLinks.forEach((openerLink) => {
+    // Skip hidden opener links
+    const computedStyle = getComputedStyle(openerLink);
+    if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      return;
+    }
+    
+    // If we found a first image, make the opener trigger it
+    if (firstImageLink) {
+      openerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Trigger click on the first image to open the gallery
+        firstImageLink.click();
+      });
+      
+      // Optional: Add visual indication that this is clickable
+      openerLink.style.cursor = 'pointer';
+      
       needsFancyBoxInit = true;
     }
   });
