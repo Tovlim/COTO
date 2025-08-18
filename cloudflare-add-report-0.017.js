@@ -338,34 +338,21 @@
         showRetryOptions(failedUploads, type);
       }
       
-      // Show completion message
-      if (successfulUploads.length > 0) {
-        const typeDisplay = type.replace('-', ' ');
-        showSuccess(type, `${successfulUploads.length} ${typeDisplay}(s) uploaded successfully`);
-      }
+      // Don't show separate success message - progress items already show completion
       
-      // Clean up completed progress items after a delay
+      // Hide progress div after a delay (keep the completed items visible for a bit)
       setTimeout(() => {
         const progressDiv = type === 'video' 
           ? document.querySelector('[cloudflare="video-progress"]')
           : document.querySelector('[cloudflare="image-progress"]');
         
         if (progressDiv) {
-          // Remove all completed progress items
-          const completedItems = progressDiv.querySelectorAll('.upload-progress-item');
-          completedItems.forEach(item => {
-            const progressText = item.querySelector('.progress-text');
-            if (progressText && progressText.textContent.includes('Complete')) {
-              item.remove();
-            }
-          });
-          
-          // Hide progress div if empty
-          if (progressDiv.children.length === 0) {
-            progressDiv.style.display = 'none';
-          }
+          // Clear all progress items
+          progressDiv.innerHTML = '';
+          // Hide the progress div
+          progressDiv.style.display = 'none';
         }
-      }, 5000); // Wait 5 seconds before cleanup
+      }, 5000); // Wait 5 seconds before hiding
       
     } catch (error) {
       showError(type, 'Upload failed: ' + error.message);
@@ -888,44 +875,10 @@
     showError(type, 'Please select the file again to retry upload');
   };
   
-  // Show success message
+  // Show success message (kept for other uses but not for upload completion)
   function showSuccess(type, message) {
-    // Determine which progress div to use
-    let progressDiv;
-    if (type === 'video') {
-      progressDiv = document.querySelector('[cloudflare="video-progress"]');
-    } else if (type === 'image' || type === 'main-image') {
-      progressDiv = document.querySelector('[cloudflare="image-progress"]');
-    }
-    
-    if (!progressDiv) return;
-    
-    // Show the progress div
-    progressDiv.style.display = 'flex';
-    
-    const successDiv = document.createElement('div');
-    successDiv.className = 'upload-progress-item';
-    successDiv.innerHTML = `
-      <div style="color: #2e7d32; font-weight: bold;">${message}</div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: 100%; background: #4caf50;"></div>
-      </div>
-      <div class="progress-text">Complete ✓</div>
-    `;
-    
-    progressDiv.appendChild(successDiv);
-    
-    // Auto-remove after 3 seconds and hide progress div if empty
-    setTimeout(() => {
-      if (successDiv.parentNode) {
-        successDiv.parentNode.removeChild(successDiv);
-        
-        // Check if progress div is now empty and hide it
-        if (progressDiv.children.length === 0) {
-          progressDiv.style.display = 'none';
-        }
-      }
-    }, 3000);
+    // This function is kept for potential other uses
+    // But upload completion now uses the existing progress element
   }
   
   // Show error message
