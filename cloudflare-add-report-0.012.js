@@ -64,7 +64,7 @@
   function init() {
     setupFileInputs();
     setupClickHandlers();
-    setupIndividualControls();
+    setupCustomControls();
   }
   
   // Create hidden file inputs and setup
@@ -110,173 +110,55 @@
     });
   }
   
-  // Setup video controls (1-5) - now these are created dynamically
-  function setupIndividualControls() {
-    // Setup image controls (1-15, where 1 is main image)
+  // Setup custom controls for images and videos
+  function setupCustomControls() {
+    // Setup image replace/remove buttons
     for (let i = 1; i <= 15; i++) {
-      const imageEl = document.querySelector(`[display-image="${i}"]`);
-      if (imageEl) {
-        console.log(`Setting up controls for image ${i}`);
-        addStaticImageControls(imageEl, i);
-      } else {
-        console.log(`Image element ${i} not found`);
+      // Replace button
+      const replaceBtn = document.querySelector(`[replace-image="${i}"]`);
+      if (replaceBtn) {
+        replaceBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log(`Replace clicked for image ${i}`);
+          replaceImageAtPosition(i);
+        });
+      }
+      
+      // Remove button
+      const removeBtn = document.querySelector(`[remove-image="${i}"]`);
+      if (removeBtn) {
+        removeBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log(`Remove clicked for image ${i}`);
+          removeImageAtPosition(i);
+        });
       }
     }
     
-    // Video controls are now added dynamically when videos are displayed
-    console.log('Video controls will be added dynamically when videos are uploaded');
-  }
-  
-  // Add static image controls that are always present (check for existing wrapper)
-  function addStaticImageControls(imageEl, position) {
-    // Check if this specific image already has a direct wrapper with controls
-    if (imageEl.parentNode.hasAttribute('data-image-wrapper') && 
-        imageEl.parentNode.querySelector('.media-controls')) {
-      console.log(`Controls already exist for image ${position}`);
-      return;
+    // Setup video replace/remove buttons
+    for (let i = 1; i <= MAX_VIDEOS; i++) {
+      // Replace button
+      const replaceBtn = document.querySelector(`[replace-video="${i}"]`);
+      if (replaceBtn) {
+        replaceBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log(`Replace clicked for video ${i}`);
+          replaceVideoAtPosition(i);
+        });
+      }
+      
+      // Remove button
+      const removeBtn = document.querySelector(`[remove-video="${i}"]`);
+      if (removeBtn) {
+        removeBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log(`Remove clicked for video ${i}`);
+          removeVideoAtPosition(i);
+        });
+      }
     }
     
-    console.log(`Adding controls for image ${position}`);
-    
-    // Create a wrapper div for this specific image
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = `
-      position: relative !important;
-      display: inline-block !important;
-      width: 100% !important;
-      height: auto !important;
-    `;
-    wrapper.setAttribute('data-image-wrapper', position);
-    
-    // Insert wrapper before the image
-    imageEl.parentNode.insertBefore(wrapper, imageEl);
-    // Move image into wrapper
-    wrapper.appendChild(imageEl);
-    
-    // Create controls container
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'media-controls';
-    controlsDiv.setAttribute('data-image-position', position);
-    controlsDiv.style.cssText = `
-      position: absolute !important;
-      top: 10px !important;
-      right: 10px !important;
-      display: none !important;
-      flex-direction: row !important;
-      gap: 5px !important;
-      z-index: 999999 !important;
-      background: rgba(0,0,0,0.8) !important;
-      padding: 8px !important;
-      border-radius: 5px !important;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
-      pointer-events: auto !important;
-    `;
-    
-    // Replace button
-    const replaceBtn = document.createElement('button');
-    replaceBtn.textContent = 'Replace';
-    replaceBtn.style.cssText = `
-      background: #4285f4 !important;
-      color: white !important;
-      border: none !important;
-      padding: 6px 12px !important;
-      border-radius: 3px !important;
-      cursor: pointer !important;
-      font-size: 12px !important;
-      font-weight: bold !important;
-      white-space: nowrap !important;
-      pointer-events: auto !important;
-    `;
-    replaceBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log(`Replace clicked for image ${position}`);
-      replaceImageAtPosition(position);
-    });
-    
-    // Remove button
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.style.cssText = `
-      background: #f44336 !important;
-      color: white !important;
-      border: none !important;
-      padding: 6px 12px !important;
-      border-radius: 3px !important;
-      cursor: pointer !important;
-      font-size: 12px !important;
-      font-weight: bold !important;
-      white-space: nowrap !important;
-      pointer-events: auto !important;
-    `;
-    removeBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log(`Remove clicked for image ${position}`);
-      removeImageAtPosition(position);
-    });
-    
-    controlsDiv.appendChild(replaceBtn);
-    controlsDiv.appendChild(removeBtn);
-    wrapper.appendChild(controlsDiv);
-    
-    console.log(`Controls added successfully for image ${position} with wrapper`);
-  }
-  
-  // Add static video controls that are always present
-  function addStaticVideoControls(videoEl, position) {
-    // Create controls container
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'media-controls';
-    controlsDiv.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: none;
-      gap: 5px;
-      z-index: 10;
-    `;
-    
-    // Replace button
-    const replaceBtn = document.createElement('button');
-    replaceBtn.textContent = 'Replace';
-    replaceBtn.style.cssText = `
-      background: #4285f4;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    replaceBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      replaceVideoAtPosition(position);
-    });
-    
-    // Remove button
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.style.cssText = `
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    removeBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      removeVideoAtPosition(position);
-    });
-    
-    controlsDiv.appendChild(replaceBtn);
-    controlsDiv.appendChild(removeBtn);
-    
-    // Make video container relative for absolute positioning
-    videoEl.style.position = 'relative';
-    videoEl.appendChild(controlsDiv);
+    console.log('Custom controls setup complete');
   }
   
   // Setup click handlers for upload buttons
@@ -723,9 +605,6 @@
       imageEl.src = url;
       imageEl.style.display = 'block';
       wrapEl.style.display = 'grid';
-      
-      // Show controls for this image
-      showImageControls(1);
     }
   }
   
@@ -738,9 +617,6 @@
       imageEl.src = url;
       imageEl.style.display = 'block';
       wrapEl.style.display = 'grid';
-      
-      // Show controls for this image
-      showImageControls(position + 1);
     }
   }
   
@@ -816,137 +692,6 @@
       
       videoEl.style.display = 'block';
       wrapEl.style.display = 'grid';
-      
-      // Add controls after content is created
-      setTimeout(() => {
-        addVideoControlsToElement(videoEl, position);
-      }, 100);
-    }
-  }
-  
-  // Add video controls to a specific element
-  function addVideoControlsToElement(videoEl, position) {
-    // Remove existing controls
-    const existingControls = videoEl.querySelector('.media-controls');
-    if (existingControls) {
-      existingControls.remove();
-    }
-    
-    // Create controls container
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'media-controls';
-    controlsDiv.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      gap: 5px;
-      z-index: 1000;
-      background: rgba(0,0,0,0.7);
-      padding: 5px;
-      border-radius: 5px;
-    `;
-    
-    // Replace button
-    const replaceBtn = document.createElement('button');
-    replaceBtn.textContent = 'Replace';
-    replaceBtn.style.cssText = `
-      background: #4285f4;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    replaceBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log(`Replace video clicked for position ${position}`);
-      replaceVideoAtPosition(position);
-    });
-    
-    // Remove button
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.style.cssText = `
-      background: #f44336;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      font-size: 12px;
-    `;
-    removeBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log(`Remove video clicked for position ${position}`);
-      removeVideoAtPosition(position);
-    });
-    
-    controlsDiv.appendChild(replaceBtn);
-    controlsDiv.appendChild(removeBtn);
-    
-    // Make video container relative for absolute positioning
-    videoEl.style.position = 'relative';
-    videoEl.appendChild(controlsDiv);
-  }
-  
-  // Show image controls - SIMPLIFIED VERSION (no infinite loop)
-  function showImageControls(position) {
-    console.log(`Showing controls for image ${position}`);
-    
-    // Find wrapper for this position - look for the wrapper div that contains this image
-    const wrapper = document.querySelector(`[data-image-wrapper="${position}"]`);
-    if (wrapper) {
-      const controls = wrapper.querySelector('.media-controls');
-      if (controls) {
-        controls.style.setProperty('display', 'flex', 'important');
-        controls.style.setProperty('visibility', 'visible', 'important');
-        controls.style.setProperty('opacity', '1', 'important');
-        console.log(`Controls shown for image ${position}`);
-      } else {
-        console.log(`No controls found in wrapper for image ${position}`);
-      }
-    } else {
-      console.log(`No wrapper found for image ${position}`);
-    }
-  }
-  
-  // Show video controls
-  function showVideoControls(position) {
-    const videoEl = document.querySelector(`[display-video="${position}"]`);
-    if (videoEl) {
-      const controls = videoEl.querySelector('.media-controls');
-      if (controls) {
-        controls.style.display = 'flex';
-      }
-    }
-  }
-  
-  // Hide image controls
-  function hideImageControls(position) {
-    // Find the wrapper with the controls for this position
-    const wrapper = document.querySelector(`[data-image-wrapper="${position}"]`);
-    if (wrapper) {
-      const controls = wrapper.querySelector('.media-controls');
-      if (controls) {
-        controls.style.setProperty('display', 'none', 'important');
-        controls.style.setProperty('visibility', 'hidden', 'important');
-        controls.style.setProperty('opacity', '0', 'important');
-      }
-    }
-  }
-  
-  // Hide video controls
-  function hideVideoControls(position) {
-    const videoEl = document.querySelector(`[display-video="${position}"]`);
-    if (videoEl) {
-      const controls = videoEl.querySelector('.media-controls');
-      if (controls) {
-        controls.style.display = 'none';
-      }
     }
   }
   
@@ -987,7 +732,6 @@
         textInput.value = '';
       }
       
-      hideImageControls(1);
       uploadStates['main-image'].count = 0;
       
     } else {
@@ -1002,8 +746,6 @@
       if (textInput) {
         textInput.value = '';
       }
-      
-      hideImageControls(position);
       
       // For regular images, we need to find which upload this corresponds to and adjust count accordingly
       // Since images can be at any position, we should count visible images instead
