@@ -530,24 +530,17 @@
     }
   }
   
-  // Create progress element
+  // Create progress element using custom HTML structure
   function createProgressElement(fileName, index) {
     const div = document.createElement('div');
     div.className = 'upload-progress-item';
-    div.style.cssText = `
-      margin: 5px 0;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      background: #f9f9f9;
-    `;
     
     div.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 5px;">${fileName}</div>
-      <div class="progress-bar" style="width: 100%; height: 10px; background: #e0e0e0; border-radius: 5px; overflow: hidden;">
-        <div class="progress-fill" style="width: 0%; height: 100%; background: #4285f4; transition: width 0.3s;"></div>
+      <div>${fileName}</div>
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
       </div>
-      <div class="progress-text" style="font-size: 12px; margin-top: 5px;">0%</div>
+      <div class="progress-text">0%</div>
     `;
     
     return div;
@@ -558,7 +551,13 @@
     const fill = element.querySelector('.progress-fill');
     const text = element.querySelector('.progress-text');
     
-    if (fill) fill.style.width = percent + '%';
+    if (fill) {
+      fill.style.width = percent + '%';
+      // Add transition for smooth animation
+      if (!fill.style.transition) {
+        fill.style.transition = 'width 0.3s';
+      }
+    }
     if (text) text.textContent = Math.round(percent) + '%';
   }
   
@@ -567,7 +566,10 @@
     const fill = element.querySelector('.progress-fill');
     const text = element.querySelector('.progress-text');
     
-    if (fill) fill.style.background = '#4caf50';
+    if (fill) {
+      fill.style.width = '100%';
+      fill.style.background = '#4caf50';
+    }
     if (text) text.textContent = 'Complete ✓';
   }
   
@@ -576,7 +578,9 @@
     const fill = element.querySelector('.progress-fill');
     const text = element.querySelector('.progress-text');
     
-    if (fill) fill.style.background = '#f44336';
+    if (fill) {
+      fill.style.background = '#f44336';
+    }
     if (text) text.textContent = 'Error: ' + error;
   }
   
@@ -834,25 +838,14 @@
     
     failedUploads.forEach(failed => {
       const retryDiv = document.createElement('div');
-      retryDiv.style.cssText = `
-        margin: 5px 0;
-        padding: 10px;
-        border: 1px solid #f44336;
-        border-radius: 4px;
-        background: #ffebee;
-      `;
+      retryDiv.className = 'upload-progress-item';
       
       retryDiv.innerHTML = `
-        <div style="color: #f44336; font-weight: bold;">${failed.file.name} - Upload Failed</div>
-        <div style="font-size: 12px; margin: 5px 0;">${failed.error}</div>
-        <button onclick="retryUpload('${type}', ${failed.index})" style="
-          background: #f44336;
-          color: white;
-          border: none;
-          padding: 5px 10px;
-          border-radius: 3px;
-          cursor: pointer;
-        ">Retry Upload</button>
+        <div style="color: #f44336; font-weight: bold;">${failed.file.name}</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 100%; background: #f44336;"></div>
+        </div>
+        <div class="progress-text">Failed: ${failed.error}</div>
       `;
       
       progressDiv.appendChild(retryDiv);
@@ -877,15 +870,14 @@
     if (!progressDiv) return;
     
     const successDiv = document.createElement('div');
-    successDiv.style.cssText = `
-      margin: 5px 0;
-      padding: 10px;
-      border: 1px solid #4caf50;
-      border-radius: 4px;
-      background: #e8f5e8;
-      color: #2e7d32;
+    successDiv.className = 'upload-progress-item';
+    successDiv.innerHTML = `
+      <div style="color: #2e7d32; font-weight: bold;">${message}</div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 100%; background: #4caf50;"></div>
+      </div>
+      <div class="progress-text">Complete ✓</div>
     `;
-    successDiv.textContent = message;
     
     progressDiv.appendChild(successDiv);
     
@@ -910,15 +902,14 @@
     if (!progressDiv) return;
     
     const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = `
-      margin: 5px 0;
-      padding: 10px;
-      border: 1px solid #f44336;
-      border-radius: 4px;
-      background: #ffebee;
-      color: #c62828;
+    errorDiv.className = 'upload-progress-item';
+    errorDiv.innerHTML = `
+      <div style="color: #c62828; font-weight: bold;">Error</div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: 100%; background: #f44336;"></div>
+      </div>
+      <div class="progress-text">${message}</div>
     `;
-    errorDiv.textContent = message;
     
     progressDiv.appendChild(errorDiv);
   }
