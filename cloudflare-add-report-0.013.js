@@ -634,9 +634,9 @@
       videoEl.innerHTML = '';
       
       if (uid) {
-        // Create thumbnail display with uploaded message
+        // Create thumbnail display with uploaded message - square aspect ratio
         videoEl.innerHTML = `
-          <div style="position: relative; padding-top: 56.25%; height: 0; background: #000; border-radius: 8px; overflow: hidden;">
+          <div style="position: relative; padding-top: 100%; height: 0; background: #000; overflow: hidden;">
             <img 
               src="https://customer-yl8ull5om1gg5kc8.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg?time=1s&height=600"
               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;"
@@ -669,14 +669,13 @@
           </div>
         `;
       } else {
-        // Fallback if no UID found
+        // Fallback if no UID found - square aspect ratio
         videoEl.innerHTML = `
           <div style="
             position: relative; 
-            padding-top: 56.25%; 
+            padding-top: 100%; 
             height: 0; 
             background: #333; 
-            border-radius: 8px; 
             overflow: hidden;
             display: flex;
             align-items: center;
