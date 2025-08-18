@@ -196,6 +196,20 @@
   class GeoJSONCache {
     constructor() {
       this.cachePrefix = 'geojson_cache_';
+      this.memoryCache = new Map(); // In-memory fallback cache
+      this.isLocalStorageAvailable = this.checkLocalStorage();
+    }
+    
+    checkLocalStorage() {
+      try {
+        const test = '__localStorage_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+      } catch (e) {
+        console.log('localStorage not available, using memory cache');
+        return false;
+      }
     }
     
     getCacheKey(type) {
@@ -203,6 +217,19 @@
     }
     
     get(type) {
+      // Try memory cache first
+      if (this.memoryCache.has(type)) {
+        const cached = this.memoryCache.get(type);
+        const now = Date.now();
+        if (now - cached.timestamp <= CONFIG.CACHE_DURATION) {
+          return cached.value;
+        }
+        this.memoryCache.delete(type);
+      }
+      
+      // Try localStorage if available
+      if (!this.isLocalStorageAvailable) return null;
+      
       try {
         const key = this.getCacheKey(type);
         const cached = localStorage.getItem(key);
@@ -216,6 +243,8 @@
           return null;
         }
         
+        // Also store in memory cache for faster access
+        this.memoryCache.set(type, data);
         return data.value;
       } catch (e) {
         console.warn('Cache read failed:', e);
@@ -224,6 +253,15 @@
     }
     
     set(type, value) {
+      // Always store in memory cache
+      this.memoryCache.set(type, {
+        value: value,
+        timestamp: Date.now()
+      });
+      
+      // Try localStorage if available
+      if (!this.isLocalStorageAvailable) return;
+      
       try {
         const key = this.getCacheKey(type);
         const data = {
@@ -239,6 +277,8 @@
     }
     
     clearOldCache() {
+      if (!this.isLocalStorageAvailable) return;
+      
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
         if (key.startsWith(this.cachePrefix)) {
@@ -248,6 +288,30 @@
           }
         }
       });
+    }
+    
+    async fetchWithRetry(url, retries = 3, delay = 1000) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return await response.json();
+        } catch (error) {
+          console.warn(`Attempt ${i + 1} failed for ${url}:`, error.message);
+          
+          if (i === retries - 1) throw error;
+          
+          // Exponential backoff
+          const waitTime = delay * Math.pow(2, i);
+          console.log(`Retrying in ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
     }
     
     async fetch(type) {
@@ -263,15 +327,13 @@
       if (!url) throw new Error(`Unknown GeoJSON type: ${type}`);
       
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const data = await response.json();
+        console.log(`Fetching ${type} data...`);
+        const data = await this.fetchWithRetry(url);
         this.set(type, data);
-        console.log(`Fetched and cached ${type} data`);
+        console.log(`Successfully fetched and cached ${type} data`);
         return data;
       } catch (error) {
-        console.error(`Failed to fetch ${type} data:`, error);
+        console.error(`Failed to fetch ${type} data after retries:`, error);
         throw error;
       }
     }
@@ -320,8 +382,23 @@
       return;
     }
     
+    // Show loading indicator
+    const loadingId = `${containerId}-loading`;
+    const existingLoading = $id(loadingId);
+    if (!existingLoading) {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = loadingId;
+      loadingDiv.style.cssText = 'padding: 10px; text-align: center; color: #666;';
+      loadingDiv.textContent = `Loading ${type}...`;
+      container.parentElement.insertBefore(loadingDiv, container);
+    }
+    
     try {
       const data = await geoCache.fetch(type);
+      
+      // Remove loading indicator
+      const loadingDiv = $id(loadingId);
+      if (loadingDiv) loadingDiv.remove();
       
       // Extract unique features with valid names
       const uniqueFeatures = [];
@@ -340,6 +417,7 @@
       
       if (uniqueFeatures.length === 0) {
         console.warn(`No valid ${type} features found in GeoJSON data`);
+        container.innerHTML = `<div style="padding: 10px; color: #999;">No ${type} available</div>`;
         return;
       }
       
@@ -424,6 +502,21 @@
       
     } catch (error) {
       console.error(`Failed to generate ${type} checkboxes:`, error);
+      
+      // Remove loading indicator
+      const loadingDiv = $id(loadingId);
+      if (loadingDiv) loadingDiv.remove();
+      
+      // Show error with retry button
+      container.innerHTML = `
+        <div style="padding: 10px; text-align: center;">
+          <div style="color: #d00; margin-bottom: 10px;">Failed to load ${type}</div>
+          <button onclick="window.SharedCore.retryCheckboxes('${type}', '${containerId}', '${fieldName}')" 
+                  style="padding: 5px 10px; cursor: pointer; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px;">
+            Retry
+          </button>
+        </div>
+      `;
     }
   }
   
@@ -950,14 +1043,33 @@
   // ====================================================================
   // INITIALIZATION
   // ====================================================================
+  async function loadCheckboxesSequentially() {
+    try {
+      // Load settlements first (smaller file)
+      console.log('Loading settlement checkboxes...');
+      await generateSettlementCheckboxes();
+      console.log('Settlement checkboxes loaded');
+      
+      // Small delay to avoid connection pressure
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Then load localities
+      console.log('Loading locality checkboxes...');
+      await generateLocalityCheckboxes();
+      console.log('Locality checkboxes loaded');
+      
+      console.log('All checkboxes generated successfully');
+    } catch (error) {
+      console.error('Error loading checkboxes:', error);
+      // Try to load them individually if sequential fails
+      generateSettlementCheckboxes().catch(e => console.error('Failed to load settlements:', e));
+      generateLocalityCheckboxes().catch(e => console.error('Failed to load localities:', e));
+    }
+  }
+  
   function initializeCore() {
-    // Generate checkboxes
-    Promise.all([
-      generateLocalityCheckboxes(),
-      generateSettlementCheckboxes()
-    ]).then(() => {
-      console.log('All checkboxes generated');
-    });
+    // Generate checkboxes sequentially
+    loadCheckboxesSequentially();
     
     setupSidebars();
     setupEvents();
@@ -995,6 +1107,12 @@
     // Initialization
     init: initializeCore,
     
+    // Retry checkbox loading
+    retryCheckboxes: function(type, containerId, fieldName) {
+      console.log(`Retrying to load ${type} checkboxes...`);
+      return generateCheckboxes(type, containerId, fieldName);
+    },
+    
     // For map page
     getGeoJSONData: async function() {
       return {
@@ -1014,11 +1132,9 @@
   }
   
   window.addEventListener('load', () => {
-    state.setTimer('loadGenerateCheckboxes', () => {
-      Promise.all([
-        generateLocalityCheckboxes(),
-        generateSettlementCheckboxes()
-      ]).then(() => {
+    state.setTimer('loadGenerateCheckboxes', async () => {
+      try {
+        await loadCheckboxesSequentially();
         // Recache after the second generation completes
         setTimeout(() => {
           if (window.checkboxFilterScript) {
@@ -1026,7 +1142,9 @@
             console.log('Sidebars: Recached checkboxes after load generation');
           }
         }, 200);
-      });
+      } catch (error) {
+        console.error('Failed to regenerate checkboxes on load:', error);
+      }
     }, 500);
     
     setupSidebars();
