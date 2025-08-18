@@ -136,14 +136,29 @@ function initializeTabs(cmsItem) {
 
 // Process all tabs on the page
 function processAllTabs() {
-  // Find all CMS items that might have tabs
-  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+  // For item pages, look for tabs directly or within specific containers
+  const containers = [];
   
-  cmsItems.forEach(item => {
-    // Check if this item contains tabs
-    const hasTabs = item.querySelector('[data-tab]');
-    if (hasTabs) {
-      initializeTabs(item);
+  // Check main containers
+  const mainContainer = document.querySelector('.cms-page-wrap');
+  if (mainContainer) {
+    containers.push(mainContainer);
+  }
+  
+  // Also check for any CMS items that might have tabs
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
+  cmsItems.forEach(item => containers.push(item));
+  
+  // If no specific containers found, use document body
+  if (containers.length === 0) {
+    containers.push(document.body);
+  }
+  
+  containers.forEach(container => {
+    // Check if this container has tabs
+    const hasTabs = container.querySelector('[data-tab]');
+    if (hasTabs && !processedTabItems.has(container)) {
+      initializeTabs(container);
     }
   });
 }
