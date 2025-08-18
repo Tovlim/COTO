@@ -344,6 +344,29 @@
         showSuccess(type, `${successfulUploads.length} ${typeDisplay}(s) uploaded successfully`);
       }
       
+      // Clean up completed progress items after a delay
+      setTimeout(() => {
+        const progressDiv = type === 'video' 
+          ? document.querySelector('[cloudflare="video-progress"]')
+          : document.querySelector('[cloudflare="image-progress"]');
+        
+        if (progressDiv) {
+          // Remove all completed progress items
+          const completedItems = progressDiv.querySelectorAll('.upload-progress-item');
+          completedItems.forEach(item => {
+            const progressText = item.querySelector('.progress-text');
+            if (progressText && progressText.textContent.includes('Complete')) {
+              item.remove();
+            }
+          });
+          
+          // Hide progress div if empty
+          if (progressDiv.children.length === 0) {
+            progressDiv.style.display = 'none';
+          }
+        }
+      }, 5000); // Wait 5 seconds before cleanup
+      
     } catch (error) {
       showError(type, 'Upload failed: ' + error.message);
     } finally {
@@ -356,12 +379,17 @@
     // Record this upload attempt for rate limiting
     recordUpload();
     
-    // Determine which progress div to use
+    // Determine which progress div to use and show it
     let progressDiv;
     if (type === 'video') {
       progressDiv = document.querySelector('[cloudflare="video-progress"]');
     } else if (type === 'image' || type === 'main-image') {
       progressDiv = document.querySelector('[cloudflare="image-progress"]');
+    }
+    
+    // Show the progress div
+    if (progressDiv) {
+      progressDiv.style.display = 'flex';
     }
     
     // Create progress element
@@ -836,6 +864,9 @@
     
     if (!progressDiv) return;
     
+    // Show the progress div
+    progressDiv.style.display = 'flex';
+    
     failedUploads.forEach(failed => {
       const retryDiv = document.createElement('div');
       retryDiv.className = 'upload-progress-item';
@@ -869,6 +900,9 @@
     
     if (!progressDiv) return;
     
+    // Show the progress div
+    progressDiv.style.display = 'flex';
+    
     const successDiv = document.createElement('div');
     successDiv.className = 'upload-progress-item';
     successDiv.innerHTML = `
@@ -881,10 +915,15 @@
     
     progressDiv.appendChild(successDiv);
     
-    // Auto-remove after 3 seconds
+    // Auto-remove after 3 seconds and hide progress div if empty
     setTimeout(() => {
       if (successDiv.parentNode) {
         successDiv.parentNode.removeChild(successDiv);
+        
+        // Check if progress div is now empty and hide it
+        if (progressDiv.children.length === 0) {
+          progressDiv.style.display = 'none';
+        }
       }
     }, 3000);
   }
@@ -900,6 +939,9 @@
     }
     
     if (!progressDiv) return;
+    
+    // Show the progress div
+    progressDiv.style.display = 'flex';
     
     const errorDiv = document.createElement('div');
     errorDiv.className = 'upload-progress-item';
