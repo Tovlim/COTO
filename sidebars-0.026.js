@@ -935,8 +935,11 @@
       const forms = $('form');
       forms.forEach(form => {
         const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
+        const isReportForm = form.getAttribute('data-name') === 'report' || 
+                            form.getAttribute('data-name') === 'report-form';
         
-        if (hasFilterElements) {
+        // Only prevent submission for forms with filter elements that are NOT report forms
+        if (hasFilterElements && !isReportForm) {
           eventManager.add(form, 'submit', (e) => {
             e.preventDefault();
             e.stopPropagation();
