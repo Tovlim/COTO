@@ -931,23 +931,9 @@
       });
     });
     
-    if (navigator.userAgent.toLowerCase().includes('firefox')) {
-      const forms = $('form');
-      forms.forEach(form => {
-        const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
-        const isReportForm = form.getAttribute('data-name') === 'report' || 
-                            form.getAttribute('data-name') === 'report-form';
-        
-        // Only prevent submission for forms with filter elements that are NOT report forms
-        if (hasFilterElements && !isReportForm) {
-          eventManager.add(form, 'submit', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-          }, {capture: true});
-        }
-      });
-    }
+    // Firefox form prevention removed to fix Zapier integration issues
+    // Original code prevented submission of forms with filter elements
+    // but was causing conflicts with report form submissions
   }
   
   // ====================================================================
