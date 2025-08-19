@@ -90,40 +90,55 @@
            url.includes('customer-yl8ull5om1gg5kc8');
   }
   
-  // Display existing media in Cloudflare preview areas
+  // Display existing media in Cloudflare preview areas and populate input fields
   function displayExistingMedia() {
     if (!currentEditData) return;
     
     log('Displaying existing media from edited report');
     
-    // Display main image if exists
-    if (currentEditData['main-image'] || (currentEditData.images && currentEditData.images[0])) {
-      const mainImageUrl = currentEditData['main-image'] || currentEditData.images[0];
+    // Handle images - first image goes to main-image, rest go to image-1, image-2, etc.
+    if (currentEditData.images && currentEditData.images.length > 0) {
+      // First image goes to main-image field
+      const mainImageUrl = currentEditData.images[0];
+      const mainImageField = document.querySelector('[cloudflare="main-image"]');
+      if (mainImageField) {
+        mainImageField.value = mainImageUrl;
+        log('Set main-image field:', mainImageUrl);
+      }
       displayMainImage(mainImageUrl);
       mediaLoadedFromEdit.mainImage = mainImageUrl;
-    }
-    
-    // Display regular images
-    if (currentEditData.images) {
-      currentEditData.images.forEach((url, index) => {
-        if (index === 0 && currentEditData['main-image']) {
-          // Skip first image if it was used as main image
-          return;
+      
+      // Rest of images go to image-1, image-2, etc.
+      for (let i = 1; i < currentEditData.images.length; i++) {
+        const url = currentEditData.images[i];
+        const imageField = document.querySelector(`[cloudflare="image-${i}"]`);
+        if (imageField) {
+          imageField.value = url;
+          log(`Set image-${i} field:`, url);
         }
-        const position = currentEditData['main-image'] ? index : index + 1;
-        displayImage(position, url);
-        mediaLoadedFromEdit.images[position - 1] = url;
-      });
+        displayImage(i, url); // Display at position i (which becomes i+1 in display)
+        mediaLoadedFromEdit.images[i - 1] = url;
+      }
     }
     
-    // Display videos
-    if (currentEditData.videos) {
+    // Handle videos - populate video-1, video-2, etc.
+    if (currentEditData.videos && currentEditData.videos.length > 0) {
       currentEditData.videos.forEach((url, index) => {
         const position = index + 1;
+        const videoField = document.querySelector(`[cloudflare="video-${position}"]`);
+        if (videoField) {
+          videoField.value = url;
+          log(`Set video-${position} field:`, url);
+        }
         displayVideo(position, url);
         mediaLoadedFromEdit.videos[index] = url;
       });
     }
+    
+    // Update upload counts after populating fields
+    setTimeout(() => {
+      updateUploadCounts();
+    }, 100);
   }
   
   // Display main image
@@ -377,7 +392,11 @@
   
   // Update upload state counts based on loaded media
   function updateUploadCounts() {
-    if (!window.uploadStates) return;
+    if (!window.uploadStates) {
+      // Wait for uploadStates to be available
+      setTimeout(() => updateUploadCounts(), 100);
+      return;
+    }
     
     // Count non-empty media fields
     let imageCount = 0;
@@ -388,36 +407,40 @@
     const mainImageField = document.querySelector('[cloudflare="main-image"]');
     if (mainImageField && mainImageField.value) {
       mainImageCount = 1;
+      // Also update the window.uploadStates for main-image
+      window.uploadStates['main-image'].count = 1;
     }
     
-    // Check regular images
+    // Check regular images - count the highest numbered field with content
+    let highestImageIndex = 0;
     for (let i = 1; i <= 14; i++) {
       const field = document.querySelector(`[cloudflare="image-${i}"]`);
       if (field && field.value) {
-        imageCount++;
+        highestImageIndex = i;
       }
     }
+    imageCount = highestImageIndex;
     
-    // Check videos
+    // Check videos - count the highest numbered field with content
+    let highestVideoIndex = 0;
     for (let i = 1; i <= 5; i++) {
       const field = document.querySelector(`[cloudflare="video-${i}"]`);
       if (field && field.value) {
-        videoCount++;
+        highestVideoIndex = i;
       }
     }
+    videoCount = highestVideoIndex;
     
     // Update states
-    if (window.uploadStates) {
-      window.uploadStates.image.count = imageCount;
-      window.uploadStates.video.count = videoCount;
-      window.uploadStates['main-image'].count = mainImageCount;
-      
-      log('Updated upload counts:', {
-        images: imageCount,
-        videos: videoCount,
-        mainImage: mainImageCount
-      });
-    }
+    window.uploadStates.image.count = imageCount;
+    window.uploadStates.video.count = videoCount;
+    window.uploadStates['main-image'].count = mainImageCount;
+    
+    log('Updated upload counts:', {
+      images: imageCount,
+      videos: videoCount,
+      mainImage: mainImageCount
+    });
   }
   
   // Initialize integration
