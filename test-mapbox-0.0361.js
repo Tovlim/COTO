@@ -1879,7 +1879,7 @@ loadDataFromState() {
                     if (item.territory) {
                         a.innerHTML = `
                             <div class="locality-info">
-                                <div class="locality-name">${item.name}</div>
+                                <div class="term-label" style="font-size: inherit; display: inline; font-weight: normal;">${item.name}</div>
                                 <div class="locality-region">${item.territory}</div>
                             </div>
                             <span class="term-label">${typeLabel}</span>
@@ -4963,11 +4963,15 @@ function loadLocalitiesFromGeoJSON() {
           totalLat += coord[1];
         });
         
+        // Find a locality with this region to get the territory
+        const localityInRegion = localityData.features.find(f => f.properties.region === regionName);
+        
         return {
           type: "Feature",
           properties: {
             name: regionName,
-            type: "region"
+            type: "region",
+            territory: localityInRegion ? localityInRegion.properties.territory : null
           },
           geometry: {
             type: "Point",
