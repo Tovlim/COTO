@@ -1879,7 +1879,7 @@ loadDataFromState() {
                     if (item.territory) {
                         a.innerHTML = `
                             <div class="locality-info">
-                                <div class="term-label" style="font-size: inherit; display: inline; font-weight: normal;">${item.name}</div>
+                                <span style="color: #8b6914;">${item.name}</span>
                                 <div class="locality-region">${item.territory}</div>
                             </div>
                             <span class="term-label">${typeLabel}</span>
