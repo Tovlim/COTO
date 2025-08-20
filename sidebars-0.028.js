@@ -534,6 +534,35 @@
   // ====================================================================
   // FILTERED ELEMENTS
   // ====================================================================
+  const checkForDefaultTagValues = () => {
+    // Find elements with default placeholder values
+    const tagFieldElements = document.querySelectorAll('[fs-list-element="tag-field"]');
+    const tagValueElements = document.querySelectorAll('[fs-list-element="tag-value"]');
+    
+    let hasDefaultTag = false;
+    
+    // Check if any tag has both default values
+    tagFieldElements.forEach(fieldEl => {
+      if (fieldEl.textContent.trim() === 'tag-field') {
+        // Find corresponding tag-value in the same parent structure
+        const parentTag = fieldEl.closest('#tag, [id*="tag"]');
+        if (parentTag) {
+          const valueEl = parentTag.querySelector('[fs-list-element="tag-value"]');
+          if (valueEl && valueEl.textContent.trim() === 'tag-value') {
+            // Found a tag with default values - hide the entire tagparent
+            const tagParent = parentTag.closest('#tagparent');
+            if (tagParent) {
+              tagParent.style.display = 'none';
+              hasDefaultTag = true;
+            }
+          }
+        }
+      }
+    });
+    
+    return hasDefaultTag;
+  };
+  
   const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
@@ -1019,6 +1048,16 @@
     }, 500);
     
     setupSidebars();
+    
+    // Check for default tag values after 1000ms delay (same as show-when-filtered)
+    state.setTimer('checkDefaultTags', () => {
+      const hasDefaultTag = checkForDefaultTagValues();
+      if (hasDefaultTag) {
+        // If we found and hid default tags, also hide show-when-filtered elements
+        toggleShowWhenFilteredElements(false, true);
+      }
+    }, 1000);
+    
     state.setTimer('loadCheckFiltered', () => {
       state.flags.pageLoadDelayComplete = true;
       checkAndToggleFilteredElements();
