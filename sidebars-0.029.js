@@ -554,6 +554,8 @@
             if (tagParent) {
               tagParent.style.display = 'none';
               hasDefaultTag = true;
+              // Set permanent flag to prevent show-when-filtered elements from appearing
+              state.flags.hasDefaultTags = true;
             }
           }
         }
@@ -566,6 +568,17 @@
   const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
+    
+    // If default tags were detected, never show these elements
+    if (state.flags.hasDefaultTags) {
+      elements.forEach(element => {
+        element.style.display = 'none';
+        element.style.visibility = 'hidden';
+        element.style.opacity = '0';
+        element.style.pointerEvents = 'none';
+      });
+      return;
+    }
     
     const applyStyles = () => {
       elements.forEach(element => {
@@ -584,6 +597,12 @@
   };
   
   const checkAndToggleFilteredElements = (skipDelay = false) => {
+    // If default tags were detected, never show filtered elements
+    if (state.flags.hasDefaultTags) {
+      toggleShowWhenFilteredElements(false, true);
+      return false;
+    }
+    
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
     
