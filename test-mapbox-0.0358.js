@@ -2782,7 +2782,7 @@ class DataLoader {
   async loadAllData() {
     const urls = {
       localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.009.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
+      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.003.geojson'
     };
     
     try {
@@ -5020,7 +5020,7 @@ function loadLocalitiesFromGeoJSON() {
 
 // OPTIMIZED: Load and add settlement markers with new color
 function loadSettlements() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.003.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
