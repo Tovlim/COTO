@@ -154,7 +154,7 @@ function setupDropdownListeners() {
 
 // OPTIMIZED: Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.006.json')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.009.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1853,9 +1853,9 @@ loadDataFromState() {
                 if (item.type === 'locality' || item.type === 'settlement') {
                     let location = '';
                     if (item.type === 'locality') {
-                        location = [item.subregion, item.region].filter(Boolean).join(', ');
+                        location = [item.subregion, item.region, item.territory].filter(Boolean).join(', ');
                     } else if (item.type === 'settlement') {
-                        location = [item.subRegion, item.region].filter(Boolean).join(', ');
+                        location = [item.subRegion, item.region, item.territory].filter(Boolean).join(', ');
                     }
                     const typeLabel = item.type === 'locality' ? 'Locality' : 'Settlement';
                     
@@ -2781,7 +2781,7 @@ class DataLoader {
   // Load all GeoJSON data in parallel
   async loadAllData() {
     const urls = {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson',
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.009.geojson',
       settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
     };
     
@@ -4898,7 +4898,7 @@ function selectSettlementCheckbox(settlementName) {
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.009.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
