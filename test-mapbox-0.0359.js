@@ -1550,6 +1550,7 @@ loadDataFromState() {
                                 nameLower: feature.properties.name.toLowerCase(),
                                 region: feature.properties.region,
                                 subregion: subregion,
+                                territory: feature.properties.territory,
                                 lat: feature.geometry.coordinates[1],
                                 lng: feature.geometry.coordinates[0],
                                 type: 'locality',
@@ -1580,6 +1581,7 @@ loadDataFromState() {
                             type: 'settlement',
                             region: feature.properties.region,
                             subRegion: feature.properties.subRegion,
+                            territory: feature.properties.territory,
                             lat: feature.geometry.coordinates[1],
                             lng: feature.geometry.coordinates[0],
                             searchTokens: this.createSearchTokens(feature.properties.name)
