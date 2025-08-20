@@ -4464,7 +4464,7 @@ class MapResetControl {
     button.className = 'mapboxgl-ctrl-icon';
     button.type = 'button';
     button.title = 'Reset map view';
-    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8.48 6.96" style="width: 20px; height: 20px; display: block; margin: auto;">
+    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8.48 6.96" style="width: 16px; height: 16px; display: block; margin: auto;">
       <path fill="currentColor" d="M4.99.77c-.38,0-.73.07-1.05.21s-.62.34-.86.58-.44.53-.58.86-.21.68-.21,1.06v.04l.77-.75h.86l-1.95,1.88h-.02l-1.95-1.88h.87l.66.65c0-.47.1-.92.29-1.33s.44-.78.75-1.09.68-.55,1.1-.73.87-.27,1.34-.27.93.09,1.35.27.79.43,1.11.75.57.69.75,1.11.27.87.27,1.35-.09.93-.27,1.35-.43.79-.75,1.11-.69.57-1.11.75-.87.27-1.35.27c-.3,0-.58-.03-.83-.1s-.5-.16-.72-.27-.43-.25-.62-.4-.35-.32-.5-.5l.56-.48c.3.32.61.57.95.74s.72.25,1.15.25c.38,0,.73-.07,1.06-.21s.62-.34.86-.58.44-.53.58-.86.21-.68.21-1.06-.07-.73-.21-1.06-.34-.62-.58-.86-.53-.44-.86-.58-.68-.21-1.06-.21Z"/>
     </svg>`;
     button.style.display = 'flex';
