@@ -4467,6 +4467,7 @@ class MapResetControl {
     button.innerHTML = '⟲';
     button.style.fontSize = '20px';
     button.style.lineHeight = '29px';
+    button.style.fontFamily = 'Roboto, sans-serif';
     
     button.onclick = () => {
       map.flyTo({
