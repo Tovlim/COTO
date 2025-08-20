@@ -2324,7 +2324,7 @@ loadDataFromState() {
                         
                         .locality-region {
                             font-size: 0.75em;
-                            color: #6e3500;
+                            color: #803300;
                             font-weight: normal;
                         }
                         
