@@ -1511,6 +1511,7 @@ loadDataFromState() {
         name: feature.properties.name,
         nameLower: feature.properties.name.toLowerCase(),
         type: 'region',
+        territory: feature.properties.territory,
         lat: feature.geometry.coordinates[1],
         lng: feature.geometry.coordinates[0],
         searchTokens: this.createSearchTokens(feature.properties.name)
@@ -1562,12 +1563,17 @@ loadDataFromState() {
                     // Create subregions array
                     this.data.subregions = Array.from(subregionSet)
                         .filter(subregion => subregion) // Filter out null/undefined
-                        .map(subregion => ({
-                            name: subregion,
-                            nameLower: subregion.toLowerCase(),
-                            type: 'subregion',
-                            searchTokens: this.createSearchTokens(subregion)
-                        }))
+                        .map(subregion => {
+                            // Find a locality with this subregion to get the territory
+                            const localityWithSubregion = this.data.localities.find(loc => loc.subregion === subregion);
+                            return {
+                                name: subregion,
+                                nameLower: subregion.toLowerCase(),
+                                type: 'subregion',
+                                territory: localityWithSubregion ? localityWithSubregion.territory : null,
+                                searchTokens: this.createSearchTokens(subregion)
+                            };
+                        })
                         .sort((a, b) => a.name.localeCompare(b.name));
                 }
                 
@@ -1870,7 +1876,17 @@ loadDataFromState() {
                     `;
                 } else {
                     const typeLabel = item.type === 'region' ? 'Region' : 'Sub-Region';
-                    a.innerHTML = `${item.name} <span class="term-label">${typeLabel}</span>`;
+                    if (item.territory) {
+                        a.innerHTML = `
+                            <div class="locality-info">
+                                <div class="locality-name">${item.name}</div>
+                                <div class="locality-region">${item.territory}</div>
+                            </div>
+                            <span class="term-label">${typeLabel}</span>
+                        `;
+                    } else {
+                        a.innerHTML = `${item.name} <span class="term-label">${typeLabel}</span>`;
+                    }
                 }
                 
                 li.appendChild(a);
