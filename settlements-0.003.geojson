@@ -1,0 +1,4403 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.27467,
+          31.84969
+        ]
+      },
+      "properties": {
+        "name": "Adam (Geva Binyamin)",
+        "slug": "adam-geva-binyamin",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33598,
+          32.04179
+        ]
+      },
+      "properties": {
+        "name": "Adei Ad",
+        "slug": "adei-ad",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.01724,
+          31.55227
+        ]
+      },
+      "properties": {
+        "name": "Adora",
+        "slug": "adora",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34216,
+          31.95789
+        ]
+      },
+      "properties": {
+        "name": "Ahavat Chaim",
+        "slug": "ahavat-chaim",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.32882,
+          32.06185
+        ]
+      },
+      "properties": {
+        "name": "Ahiya",
+        "slug": "ahiya",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2263,
+          32.17132
+        ]
+      },
+      "properties": {
+        "name": "Ahuzat Shalhevet",
+        "slug": "ahuzat-shalhevet",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.06618,
+          32.0713
+        ]
+      },
+      "properties": {
+        "name": "Alei Zahav",
+        "slug": "alei-zahav",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.0131,
+          32.17336
+        ]
+      },
+      "properties": {
+        "name": "Alfei Menashe",
+        "slug": "alfei-menashe",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.46112,
+          31.78989
+        ]
+      },
+      "properties": {
+        "name": "Almog",
+        "slug": "almog",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.29451,
+          31.82987
+        ]
+      },
+      "properties": {
+        "name": "Almon",
+        "slug": "almon",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12478,
+          31.65574
+        ]
+      },
+      "properties": {
+        "name": "Alon Shvut",
+        "slug": "alon-shvut",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12111,
+          32.16367
+        ]
+      },
+      "properties": {
+        "name": "Alonei Shilo",
+        "slug": "alonei-shilo",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31546,
+          31.82025
+        ]
+      },
+      "properties": {
+        "name": "Alt. 468",
+        "slug": "alt-468",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10437,
+          31.40704
+        ]
+      },
+      "properties": {
+        "name": "Ancient Susiya Synagogue",
+        "slug": "ancient-susiya-synagogue",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.52284,
+          32.17238
+        ]
+      },
+      "properties": {
+        "name": "Argaman",
+        "slug": "argaman",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18784,
+          32.10488
+        ]
+      },
+      "properties": {
+        "name": "Ari'el",
+        "slug": "ariel",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.04378,
+          31.37354
+        ]
+      },
+      "properties": {
+        "name": "Asa'el",
+        "slug": "asael",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18967,
+          31.58701
+        ]
+      },
+      "properties": {
+        "name": "Asefar",
+        "slug": "asefar",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.17708,
+          32.00059
+        ]
+      },
+      "properties": {
+        "name": "Ateret",
+        "slug": "ateret",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.43676,
+          31.6792
+        ]
+      },
+      "properties": {
+        "name": "Avenat",
+        "slug": "avenat",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14113,
+          31.40314
+        ]
+      },
+      "properties": {
+        "name": "Avigayil",
+        "slug": "avigayil",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.0742,
+          32.28636
+        ]
+      },
+      "properties": {
+        "name": "Avne Hefetz",
+        "slug": "avne-hefetz",
+        "type": "settlement",
+        "region": "tulkarm",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10769,
+          31.52382
+        ]
+      },
+      "properties": {
+        "name": "Avraham Avinu",
+        "slug": "avraham-avinu",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11341,
+          32.10671
+        ]
+      },
+      "properties": {
+        "name": "Barkan",
+        "slug": "barkan",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10174,
+          31.65838
+        ]
+      },
+      "properties": {
+        "name": "Bat Ayin",
+        "slug": "bat-ayin",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10866,
+          31.6533
+        ]
+      },
+      "properties": {
+        "name": "Bat Ayin East",
+        "slug": "bat-ayin-east",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.09202,
+          31.66254
+        ]
+      },
+      "properties": {
+        "name": "Bat Ayin West",
+        "slug": "bat-ayin-west",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.25503,
+          31.32981
+        ]
+      },
+      "properties": {
+        "name": "Bedolah",
+        "slug": "bedolah",
+        "type": "settlement",
+        "region": "rafah",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22326,
+          31.94209
+        ]
+      },
+      "properties": {
+        "name": "Beit El",
+        "slug": "beit-el",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22995,
+          31.94121
+        ]
+      },
+      "properties": {
+        "name": "Beit El East",
+        "slug": "beit-el-east",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.47766,
+          31.80825
+        ]
+      },
+      "properties": {
+        "name": "Beit Ha'arava",
+        "slug": "beit-haarava",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11327,
+          31.52679
+        ]
+      },
+      "properties": {
+        "name": "Beit HaMeriva",
+        "slug": "beit-hameriva",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1046,
+          31.52593
+        ]
+      },
+      "properties": {
+        "name": "Beit Hadassah",
+        "slug": "beit-hadassah",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.07995,
+          31.49304
+        ]
+      },
+      "properties": {
+        "name": "Beit Hagai",
+        "slug": "beit-hagai",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10562,
+          31.52507
+        ]
+      },
+      "properties": {
+        "name": "Beit Romano",
+        "slug": "beit-romano",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11389,
+          31.69778
+        ]
+      },
+      "properties": {
+        "name": "Beitar Illit",
+        "slug": "beitar-illit",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.45538,
+          32.24296
+        ]
+      },
+      "properties": {
+        "name": "Beka'ot",
+        "slug": "bekaot",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.25158,
+          31.32181
+        ]
+      },
+      "properties": {
+        "name": "Bene Azmon",
+        "slug": "bene-azmon",
+        "type": "settlement",
+        "region": "rafah",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.05139,
+          32.03649
+        ]
+      },
+      "properties": {
+        "name": "Bet Arye",
+        "slug": "bet-arye",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12694,
+          31.87801
+        ]
+      },
+      "properties": {
+        "name": "Bet Horon",
+        "slug": "bet-horon",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.30718,
+          31.84407
+        ]
+      },
+      "properties": {
+        "name": "Bnei Adam",
+        "slug": "bnei-adam",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.25556,
+          32.19328
+        ]
+      },
+      "properties": {
+        "name": "Bracha A",
+        "slug": "bracha-a",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.08942,
+          32.08159
+        ]
+      },
+      "properties": {
+        "name": "Bruchin",
+        "slug": "bruchin",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10062,
+          31.609
+        ]
+      },
+      "properties": {
+        "name": "Carmei Tzur",
+        "slug": "carmei-tzur",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18509,
+          31.43235
+        ]
+      },
+      "properties": {
+        "name": "Carmel",
+        "slug": "carmel",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13608,
+          31.66626
+        ]
+      },
+      "properties": {
+        "name": "Derech HaAvot",
+        "slug": "derech-haavot",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13375,
+          31.92646
+        ]
+      },
+      "properties": {
+        "name": "Dolev",
+        "slug": "dolev",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.48953,
+          31.57385
+        ]
+      },
+      "properties": {
+        "name": "Dugit",
+        "slug": "dugit",
+        "type": "settlement",
+        "region": "north-gaza",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.15567,
+          31.66114
+        ]
+      },
+      "properties": {
+        "name": "Efrat",
+        "slug": "efrat",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12649,
+          32.28496
+        ]
+      },
+      "properties": {
+        "name": "Einav",
+        "slug": "einav",
+        "type": "settlement",
+        "region": "tulkarm",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14263,
+          31.66026
+        ]
+      },
+      "properties": {
+        "name": "Elazar",
+        "slug": "elazar",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.50315,
+          31.58382
+        ]
+      },
+      "properties": {
+        "name": "Ele Sinay",
+        "slug": "ele-sinay",
+        "type": "settlement",
+        "region": "north-gaza",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26734,
+          32.07243
+        ]
+      },
+      "properties": {
+        "name": "Eli",
+        "slug": "eli",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.035,
+          32.11195
+        ]
+      },
+      "properties": {
+        "name": "Elkana",
+        "slug": "elkana",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33421,
+          32.23352
+        ]
+      },
+      "properties": {
+        "name": "Elon Moreh",
+        "slug": "elon-moreh",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33398,
+          32.06428
+        ]
+      },
+      "properties": {
+        "name": "Esh Kodesh",
+        "slug": "esh-kodesh",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.90512,
+          31.39105
+        ]
+      },
+      "properties": {
+        "name": "Eshkolot",
+        "slug": "eshkolot",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.04649,
+          32.11944
+        ]
+      },
+      "properties": {
+        "name": "Etz Efrayim",
+        "slug": "etz-efrayim",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23862,
+          31.80362
+        ]
+      },
+      "properties": {
+        "name": "French Hill (Giv'at Shapira)",
+        "slug": "french-hill-givat-shapira",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.27589,
+          31.34393
+        ]
+      },
+      "properties": {
+        "name": "Gadid",
+        "slug": "gadid",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12685,
+          31.52364
+        ]
+      },
+      "properties": {
+        "name": "Gal Outpost",
+        "slug": "gal-outpost",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.25841,
+          31.33691
+        ]
+      },
+      "properties": {
+        "name": "Gan Or",
+        "slug": "gan-or",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.30142,
+          31.37366
+        ]
+      },
+      "properties": {
+        "name": "Ganne Tal",
+        "slug": "ganne-tal",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18107,
+          32.19974
+        ]
+      },
+      "properties": {
+        "name": "Gilad Farm",
+        "slug": "gilad-farm",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.44732,
+          32.00025
+        ]
+      },
+      "properties": {
+        "name": "Gilgal",
+        "slug": "gilgal",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18978,
+          31.73362
+        ]
+      },
+      "properties": {
+        "name": "Gilo",
+        "slug": "gilo",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.39599,
+          32.1016
+        ]
+      },
+      "properties": {
+        "name": "Gittit",
+        "slug": "gittit",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12924,
+          31.54267
+        ]
+      },
+      "properties": {
+        "name": "Giv'at Avichay",
+        "slug": "givat-avichay",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13311,
+          31.65538
+        ]
+      },
+      "properties": {
+        "name": "Giv'at Hahish",
+        "slug": "givat-hahish",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2079,
+          31.73907
+        ]
+      },
+      "properties": {
+        "name": "Giv'at Hamatos",
+        "slug": "givat-hamatos",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.27453,
+          32.05869
+        ]
+      },
+      "properties": {
+        "name": "Giv'at Harel",
+        "slug": "givat-harel",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16834,
+          31.86139
+        ]
+      },
+      "properties": {
+        "name": "Giv'at Ze'ev",
+        "slug": "givat-zeev",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24829,
+          31.91096
+        ]
+      },
+      "properties": {
+        "name": "Givat Assaf",
+        "slug": "givat-assaf",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16276,
+          31.84861
+        ]
+      },
+      "properties": {
+        "name": "Givon Hahadasha",
+        "slug": "givon-hahadasha",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.35267,
+          32.16024
+        ]
+      },
+      "properties": {
+        "name": "Gva'ot Olam",
+        "slug": "gvaot-olam",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.08481,
+          32.28773
+        ]
+      },
+      "properties": {
+        "name": "Hahar",
+        "slug": "hahar",
+        "type": "settlement",
+        "region": "tulkarm",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.28036,
+          32.07008
+        ]
+      },
+      "properties": {
+        "name": "Hakaron",
+        "slug": "hakaron",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.43742,
+          32.19993
+        ]
+      },
+      "properties": {
+        "name": "Hamra",
+        "slug": "hamra",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31632,
+          32.16967
+        ]
+      },
+      "properties": {
+        "name": "Hanekuda",
+        "slug": "hanekuda",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12931,
+          31.82656
+        ]
+      },
+      "properties": {
+        "name": "Har Adar",
+        "slug": "har-adar",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26428,
+          32.19282
+        ]
+      },
+      "properties": {
+        "name": "Har Bracha",
+        "slug": "har-bracha",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1705,
+          31.7226
+        ]
+      },
+      "properties": {
+        "name": "Har Gilo",
+        "slug": "har-gilo",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.15193,
+          32.23055
+        ]
+      },
+      "properties": {
+        "name": "Har Hemed",
+        "slug": "har-hemed",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22285,
+          31.72386
+        ]
+      },
+      "properties": {
+        "name": "Har Homa",
+        "slug": "har-homa",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14865,
+          31.94447
+        ]
+      },
+      "properties": {
+        "name": "Haresha",
+        "slug": "haresha",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26265,
+          32.05475
+        ]
+      },
+      "properties": {
+        "name": "Haro'eh",
+        "slug": "haroeh",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.02091,
+          31.93037
+        ]
+      },
+      "properties": {
+        "name": "Hasmoneam",
+        "slug": "hasmoneam",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34001,
+          32.0464
+        ]
+      },
+      "properties": {
+        "name": "Havat Yeshuv Hada'at",
+        "slug": "havat-yeshuv-hadaat",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.28458,
+          32.07126
+        ]
+      },
+      "properties": {
+        "name": "Hayovel",
+        "slug": "hayovel",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.52648,
+          32.25134
+        ]
+      },
+      "properties": {
+        "name": "Hemdat",
+        "slug": "hemdat",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11913,
+          32.42342
+        ]
+      },
+      "properties": {
+        "name": "Hermesh",
+        "slug": "hermesh",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18583,
+          31.83303
+        ]
+      },
+      "properties": {
+        "name": "Heruti",
+        "slug": "heruti",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24044,
+          32.15851
+        ]
+      },
+      "properties": {
+        "name": "Hill 725",
+        "slug": "hill-725",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.36917,
+          32.15451
+        ]
+      },
+      "properties": {
+        "name": "Hill 777",
+        "slug": "hill-777",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33183,
+          32.15991
+        ]
+      },
+      "properties": {
+        "name": "Hill 782",
+        "slug": "hill-782",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.36298,
+          32.16542
+        ]
+      },
+      "properties": {
+        "name": "Hill 836",
+        "slug": "hill-836",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33908,
+          32.16477
+        ]
+      },
+      "properties": {
+        "name": "Hill 851",
+        "slug": "hill-851",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.17266,
+          32.48053
+        ]
+      },
+      "properties": {
+        "name": "Hinnanit",
+        "slug": "hinnanit",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.21999,
+          31.60564
+        ]
+      },
+      "properties": {
+        "name": "Ibei Hanahal",
+        "slug": "ibei-hanahal",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10256,
+          32.17968
+        ]
+      },
+      "properties": {
+        "name": "Immanuel",
+        "slug": "immanuel",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31663,
+          32.16981
+        ]
+      },
+      "properties": {
+        "name": "Itamar",
+        "slug": "itamar",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2297,
+          31.94737
+        ]
+      },
+      "properties": {
+        "name": "Jabel Artis",
+        "slug": "jabel-artis",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2324,
+          31.77536
+        ]
+      },
+      "properties": {
+        "name": "Jewish Quarter",
+        "slug": "jewish-quarter",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12922,
+          32.29017
+        ]
+      },
+      "properties": {
+        "name": "Karmei Doron",
+        "slug": "karmei-doron",
+        "type": "settlement",
+        "region": "tulkarm",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.0925,
+          32.17012
+        ]
+      },
+      "properties": {
+        "name": "Karnei Shomron",
+        "slug": "karnei-shomron",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16052,
+          32.21728
+        ]
+      },
+      "properties": {
+        "name": "Kedumim",
+        "slug": "kedumim",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.35618,
+          31.40269
+        ]
+      },
+      "properties": {
+        "name": "Kefar Darom",
+        "slug": "kefar-darom",
+        "type": "settlement",
+        "region": "deir-al-balah",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33404,
+          31.82406
+        ]
+      },
+      "properties": {
+        "name": "Kfar Adumim",
+        "slug": "kfar-adumim",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11554,
+          31.64938
+        ]
+      },
+      "properties": {
+        "name": "Kfar Etzion",
+        "slug": "kfar-etzion",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.03702,
+          31.91992
+        ]
+      },
+      "properties": {
+        "name": "Kfar Haoranim (Menora)",
+        "slug": "kfar-haoranim-menora",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24819,
+          32.11804
+        ]
+      },
+      "properties": {
+        "name": "Kfar Tapuah",
+        "slug": "kfar-tapuah",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33962,
+          32.05104
+        ]
+      },
+      "properties": {
+        "name": "Kida",
+        "slug": "kida",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11896,
+          31.53409
+        ]
+      },
+      "properties": {
+        "name": "Kiryat Arba",
+        "slug": "kiryat-arba",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11238,
+          32.11696
+        ]
+      },
+      "properties": {
+        "name": "Kiryat Netafim",
+        "slug": "kiryat-netafim",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34853,
+          31.95962
+        ]
+      },
+      "properties": {
+        "name": "Kochav Hashachar",
+        "slug": "kochav-hashachar",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24289,
+          31.88035
+        ]
+      },
+      "properties": {
+        "name": "Kochav Ya'akov",
+        "slug": "kochav-yaakov",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.25219,
+          31.87783
+        ]
+      },
+      "properties": {
+        "name": "Kochav Ya'akov East",
+        "slug": "kochav-yaakov-east",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23425,
+          31.88373
+        ]
+      },
+      "properties": {
+        "name": "Kochav Ya'akov West",
+        "slug": "kochav-yaakov-west",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24831,
+          32.11786
+        ]
+      },
+      "properties": {
+        "name": "Lehavat Yitzhar",
+        "slug": "lehavat-yitzhar",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3021,
+          31.77743
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Adumim",
+        "slug": "maale-adumim",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22628,
+          31.59931
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Amos",
+        "slug": "maale-amos",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.40622,
+          32.0709
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Efrayim",
+        "slug": "maale-efrayim",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.39387,
+          32.07022
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Efrayim Preparatory",
+        "slug": "maale-efrayim-preparatory",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33752,
+          31.85146
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Hagit",
+        "slug": "maale-hagit",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24029,
+          32.05484
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Levona",
+        "slug": "maale-levona",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.30685,
+          31.87934
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Mikhmas",
+        "slug": "maale-mikhmas",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.25845,
+          31.6489
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Rehav'am",
+        "slug": "maale-rehavam",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34413,
+          31.94893
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Shlomo",
+        "slug": "maale-shlomo",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.07057,
+          32.16488
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Shomeron",
+        "slug": "maale-shomeron",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1049,
+          32.11558
+        ]
+      },
+      "properties": {
+        "name": "Ma'ale Yisrael",
+        "slug": "maale-yisrael",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22707,
+          31.79722
+        ]
+      },
+      "properties": {
+        "name": "Ma'alot Dafna",
+        "slug": "maalot-dafna",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16374,
+          31.41208
+        ]
+      },
+      "properties": {
+        "name": "Ma'on",
+        "slug": "maon",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.02111,
+          32.11014
+        ]
+      },
+      "properties": {
+        "name": "Magen Dan",
+        "slug": "magen-dan",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.165,
+          32.42423
+        ]
+      },
+      "properties": {
+        "name": "Maoz Zvi",
+        "slug": "maoz-zvi",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.50272,
+          32.31739
+        ]
+      },
+      "properties": {
+        "name": "Maskiyyot",
+        "slug": "maskiyyot",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.49232,
+          32.10882
+        ]
+      },
+      "properties": {
+        "name": "Massu'a",
+        "slug": "massua",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.42356,
+          32.16501
+        ]
+      },
+      "properties": {
+        "name": "Mechora",
+        "slug": "mechora",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.51551,
+          32.36542
+        ]
+      },
+      "properties": {
+        "name": "Mehola",
+        "slug": "mehola",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.17457,
+          32.42055
+        ]
+      },
+      "properties": {
+        "name": "Mevo Dotan",
+        "slug": "mevo-dotan",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.03636,
+          31.84791
+        ]
+      },
+      "properties": {
+        "name": "Mevo Horon",
+        "slug": "mevo-horon",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.41688,
+          31.90778
+        ]
+      },
+      "properties": {
+        "name": "Mevo'ot Jericho",
+        "slug": "mevoot-jericho",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11312,
+          31.36363
+        ]
+      },
+      "properties": {
+        "name": "Mezadot Yehuda",
+        "slug": "mezadot-yehuda",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14327,
+          31.63968
+        ]
+      },
+      "properties": {
+        "name": "Migdal Oz",
+        "slug": "migdal-oz",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3426,
+          32.09043
+        ]
+      },
+      "properties": {
+        "name": "Migdalim",
+        "slug": "migdalim",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2716,
+          31.89006
+        ]
+      },
+      "properties": {
+        "name": "Migron",
+        "slug": "migron",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2517,
+          31.93944
+        ]
+      },
+      "properties": {
+        "name": "Mishpatei Eretz",
+        "slug": "mishpatei-eretz",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31497,
+          31.87999
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Danny",
+        "slug": "mitzpe-danny",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3573,
+          31.95745
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Kramim",
+        "slug": "mitzpe-kramim",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.97046,
+          31.49672
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Lachish",
+        "slug": "mitzpe-lachish",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23044,
+          31.89592
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Ro'i",
+        "slug": "mitzpe-roi",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13535,
+          31.38381
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Yair",
+        "slug": "mitzpe-yair",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3948,
+          31.81629
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Yeriho",
+        "slug": "mitzpe-yeriho",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2495,
+          32.15725
+        ]
+      },
+      "properties": {
+        "name": "Mitzpe Yitzhar",
+        "slug": "mitzpe-yitzhar",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.40293,
+          31.82363
+        ]
+      },
+      "properties": {
+        "name": "Mizpe Jericho North East",
+        "slug": "mizpe-jericho-north-east",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.40073,
+          31.56928
+        ]
+      },
+      "properties": {
+        "name": "Mizpe Shalem",
+        "slug": "mizpe-shalem",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.04198,
+          31.93206
+        ]
+      },
+      "properties": {
+        "name": "Modi'in Illit",
+        "slug": "modiin-illit",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.96878,
+          31.3709
+        ]
+      },
+      "properties": {
+        "name": "Mor Farm",
+        "slug": "mor-farm",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.28785,
+          31.30886
+        ]
+      },
+      "properties": {
+        "name": "Morag",
+        "slug": "morag",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.50737,
+          31.82119
+        ]
+      },
+      "properties": {
+        "name": "Mul Nevo",
+        "slug": "mul-nevo",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.06413,
+          31.96305
+        ]
+      },
+      "properties": {
+        "name": "Na'ale",
+        "slug": "naale",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.4679,
+          31.90676
+        ]
+      },
+      "properties": {
+        "name": "Naama",
+        "slug": "naama",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13964,
+          31.97427
+        ]
+      },
+      "properties": {
+        "name": "Nahaliel",
+        "slug": "nahaliel",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.97991,
+          31.49406
+        ]
+      },
+      "properties": {
+        "name": "Negohot",
+        "slug": "negohot",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13542,
+          31.95095
+        ]
+      },
+      "properties": {
+        "name": "Nerya",
+        "slug": "nerya",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.44468,
+          31.98894
+        ]
+      },
+      "properties": {
+        "name": "Netiv Hagedud",
+        "slug": "netiv-hagedud",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14375,
+          31.67893
+        ]
+      },
+      "properties": {
+        "name": "Neve Daniel",
+        "slug": "neve-daniel",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14782,
+          31.69408
+        ]
+      },
+      "properties": {
+        "name": "Neve Daniel North",
+        "slug": "neve-daniel-north",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31127,
+          31.86475
+        ]
+      },
+      "properties": {
+        "name": "Neve Erez",
+        "slug": "neve-erez",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12693,
+          32.00677
+        ]
+      },
+      "properties": {
+        "name": "Neve Halamish",
+        "slug": "neve-halamish",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24189,
+          31.83944
+        ]
+      },
+      "properties": {
+        "name": "Neve Ya'akov",
+        "slug": "neve-yaakov",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.27636,
+          31.35162
+        ]
+      },
+      "properties": {
+        "name": "Newe Deqalim",
+        "slug": "newe-deqalim",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.415,
+          31.47892
+        ]
+      },
+      "properties": {
+        "name": "Nezarim",
+        "slug": "nezarim",
+        "type": "settlement",
+        "region": "gaza",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.32191,
+          31.38086
+        ]
+      },
+      "properties": {
+        "name": "Nezer Hazzani",
+        "slug": "nezer-hazzani",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.0478,
+          31.96353
+        ]
+      },
+      "properties": {
+        "name": "Nili",
+        "slug": "nili",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.45603,
+          31.96771
+        ]
+      },
+      "properties": {
+        "name": "Niran",
+        "slug": "niran",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.53202,
+          31.56232
+        ]
+      },
+      "properties": {
+        "name": "Nisanit",
+        "slug": "nisanit",
+        "type": "settlement",
+        "region": "north-gaza",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.28007,
+          32.07628
+        ]
+      },
+      "properties": {
+        "name": "Nof Harim",
+        "slug": "nof-harim",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12448,
+          31.36739
+        ]
+      },
+      "properties": {
+        "name": "Nof Nesher",
+        "slug": "nof-nesher",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2362,
+          32.09822
+        ]
+      },
+      "properties": {
+        "name": "Nofei Nehemia",
+        "slug": "nofei-nehemia",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10137,
+          32.15509
+        ]
+      },
+      "properties": {
+        "name": "Nofim",
+        "slug": "nofim",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24713,
+          31.64891
+        ]
+      },
+      "properties": {
+        "name": "Nokdim",
+        "slug": "nokdim",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26307,
+          31.95362
+        ]
+      },
+      "properties": {
+        "name": "Ofra",
+        "slug": "ofra",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26743,
+          31.95735
+        ]
+      },
+      "properties": {
+        "name": "Ofra Zfon Mizrah",
+        "slug": "ofra-zfon-mizrah",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10868,
+          31.66133
+        ]
+      },
+      "properties": {
+        "name": "Old Massu'ot Itzhak",
+        "slug": "old-massuot-itzhak",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.42872,
+          31.92768
+        ]
+      },
+      "properties": {
+        "name": "Omer Farm",
+        "slug": "omer-farm",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.99171,
+          32.13095
+        ]
+      },
+      "properties": {
+        "name": "Oranit",
+        "slug": "oranit",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.02953,
+          31.43955
+        ]
+      },
+      "properties": {
+        "name": "Otniel",
+        "slug": "otniel",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.27468,
+          32.08776
+        ]
+      },
+      "properties": {
+        "name": "Palgey Maim",
+        "slug": "palgey-maim",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.24358,
+          31.32925
+        ]
+      },
+      "properties": {
+        "name": "Pe'at Sade",
+        "slug": "peat-sade",
+        "type": "settlement",
+        "region": "rafah",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.05178,
+          32.06225
+        ]
+      },
+      "properties": {
+        "name": "Pedu'el",
+        "slug": "peduel",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.44292,
+          32.04427
+        ]
+      },
+      "properties": {
+        "name": "Petza'el",
+        "slug": "petzael",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24571,
+          31.82312
+        ]
+      },
+      "properties": {
+        "name": "Pisgat Ze'ev",
+        "slug": "pisgat-zeev",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16547,
+          31.48659
+        ]
+      },
+      "properties": {
+        "name": "Pnei Hever",
+        "slug": "pnei-hever",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1962,
+          31.58827
+        ]
+      },
+      "properties": {
+        "name": "Pnei Kedem",
+        "slug": "pnei-kedem",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2247,
+          31.89889
+        ]
+      },
+      "properties": {
+        "name": "Psagot",
+        "slug": "psagot",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.46611,
+          31.75064
+        ]
+      },
+      "properties": {
+        "name": "Qalya",
+        "slug": "qalya",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.3115,
+          31.37583
+        ]
+      },
+      "properties": {
+        "name": "Qatif",
+        "slug": "qatif",
+        "type": "settlement",
+        "region": "khan-younis",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31054,
+          31.75358
+        ]
+      },
+      "properties": {
+        "name": "Qedar",
+        "slug": "qedar",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.23016,
+          31.31552
+        ]
+      },
+      "properties": {
+        "name": "Rafiah Yam",
+        "slug": "rafiah-yam",
+        "type": "settlement",
+        "region": "rafah",
+        "subRegion": null,
+        "territory": "Gaza"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22567,
+          31.80158
+        ]
+      },
+      "properties": {
+        "name": "Ramat Eshkol",
+        "slug": "ramat-eshkol",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11404,
+          32.17851
+        ]
+      },
+      "properties": {
+        "name": "Ramat Gilad",
+        "slug": "ramat-gilad",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.21872,
+          31.81096
+        ]
+      },
+      "properties": {
+        "name": "Ramat Shlomo",
+        "slug": "ramat-shlomo",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.19568,
+          31.81737
+        ]
+      },
+      "properties": {
+        "name": "Ramot Alon",
+        "slug": "ramot-alon",
+        "type": "settlement",
+        "region": "east-jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.25663,
+          32.10223
+        ]
+      },
+      "properties": {
+        "name": "Rechelim",
+        "slug": "rechelim",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1369,
+          32.46921
+        ]
+      },
+      "properties": {
+        "name": "Rehan",
+        "slug": "rehan",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12871,
+          32.11873
+        ]
+      },
+      "properties": {
+        "name": "Revava",
+        "slug": "revava",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34091,
+          31.93386
+        ]
+      },
+      "properties": {
+        "name": "Rimmonim",
+        "slug": "rimmonim",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.48902,
+          32.24756
+        ]
+      },
+      "properties": {
+        "name": "Ro'i",
+        "slug": "roi",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12426,
+          31.66833
+        ]
+      },
+      "properties": {
+        "name": "Rosh Tzurim",
+        "slug": "rosh-tzurim",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.51877,
+          32.33649
+        ]
+      },
+      "properties": {
+        "name": "Rotem",
+        "slug": "rotem",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10298,
+          32.25634
+        ]
+      },
+      "properties": {
+        "name": "Sal'it",
+        "slug": "salit",
+        "type": "settlement",
+        "region": "tulkarm",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.90349,
+          31.36336
+        ]
+      },
+      "properties": {
+        "name": "Sansana",
+        "slug": "sansana",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24441,
+          31.66053
+        ]
+      },
+      "properties": {
+        "name": "Sde Bar",
+        "slug": "sde-bar",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.02612,
+          32.12318
+        ]
+      },
+      "properties": {
+        "name": "Sha'arei Tikva",
+        "slug": "shaarei-tikva",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.53468,
+          32.34649
+        ]
+      },
+      "properties": {
+        "name": "Shademot Mehola",
+        "slug": "shademot-mehola",
+        "type": "settlement",
+        "region": "tubas",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16869,
+          32.47367
+        ]
+      },
+      "properties": {
+        "name": "Shaqed",
+        "slug": "shaqed",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18508,
+          32.26331
+        ]
+      },
+      "properties": {
+        "name": "Shavei Shomron",
+        "slug": "shavei-shomron",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3006,
+          32.05294
+        ]
+      },
+      "properties": {
+        "name": "Shilo",
+        "slug": "shilo",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.01322,
+          31.38817
+        ]
+      },
+      "properties": {
+        "name": "Shim'a",
+        "slug": "shima",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.37022,
+          32.21431
+        ]
+      },
+      "properties": {
+        "name": "Skali's Farm",
+        "slug": "skalis-farm",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26213,
+          32.17777
+        ]
+      },
+      "properties": {
+        "name": "Sneh Yaakov",
+        "slug": "sneh-yaakov",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11323,
+          31.39297
+        ]
+      },
+      "properties": {
+        "name": "Susiya",
+        "slug": "susiya",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11037,
+          31.39503
+        ]
+      },
+      "properties": {
+        "name": "Susiya North West",
+        "slug": "susiya-north-west",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.15988,
+          32.48225
+        ]
+      },
+      "properties": {
+        "name": "Tal Menashe",
+        "slug": "tal-menashe",
+        "type": "settlement",
+        "region": "jenin",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13249,
+          31.94573
+        ]
+      },
+      "properties": {
+        "name": "Talmon",
+        "slug": "talmon",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23291,
+          31.74928
+        ]
+      },
+      "properties": {
+        "name": "Talpiot (East)",
+        "slug": "talpiot-east",
+        "type": "settlement",
+        "region": "jerusalem",
+        "subRegion": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23368,
+          32.11647
+        ]
+      },
+      "properties": {
+        "name": "Tapuach Ma'arav",
+        "slug": "tapuach-maarav",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23069,
+          31.64935
+        ]
+      },
+      "properties": {
+        "name": "Tekoa",
+        "slug": "tekoa",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10225,
+          31.52505
+        ]
+      },
+      "properties": {
+        "name": "Tel Rumeidah",
+        "slug": "tel-rumeidah",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.0314,
+          31.56402
+        ]
+      },
+      "properties": {
+        "name": "Telem",
+        "slug": "telem",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          34.95716,
+          31.37546
+        ]
+      },
+      "properties": {
+        "name": "Tene",
+        "slug": "tene",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.09941,
+          31.52518
+        ]
+      },
+      "properties": {
+        "name": "The Jewish Cemetery",
+        "slug": "the-jewish-cemetery",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11073,
+          31.52445
+        ]
+      },
+      "properties": {
+        "name": "The Tomb of the Patriarchs / Ibrahimi Mosque",
+        "slug": "the-tomb-of-the-patriarchs-ibrahimi-mosque",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2321,
+          31.64345
+        ]
+      },
+      "properties": {
+        "name": "Tko'a B-C",
+        "slug": "tkoa-b-c",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24268,
+          31.63552
+        ]
+      },
+      "properties": {
+        "name": "Tko'a D",
+        "slug": "tkoa-d",
+        "type": "settlement",
+        "region": "bethlehem",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.43905,
+          32.01911
+        ]
+      },
+      "properties": {
+        "name": "Tomer",
+        "slug": "tomer",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.09686,
+          31.60632
+        ]
+      },
+      "properties": {
+        "name": "Tzur Shalem",
+        "slug": "tzur-shalem",
+        "type": "settlement",
+        "region": "hebron",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.43206,
+          31.82646
+        ]
+      },
+      "properties": {
+        "name": "Vered Yeriho",
+        "slug": "vered-yeriho",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.47355,
+          32.06229
+        ]
+      },
+      "properties": {
+        "name": "Yafit",
+        "slug": "yafit",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.10594,
+          32.14589
+        ]
+      },
+      "properties": {
+        "name": "Yair Farm",
+        "slug": "yair-farm",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11367,
+          32.14969
+        ]
+      },
+      "properties": {
+        "name": "Yaqir",
+        "slug": "yaqir",
+        "type": "settlement",
+        "region": "salfit",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.42402,
+          31.94718
+        ]
+      },
+      "properties": {
+        "name": "Yitav",
+        "slug": "yitav",
+        "type": "settlement",
+        "region": "jericho",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23887,
+          32.16639
+        ]
+      },
+      "properties": {
+        "name": "Yizhar",
+        "slug": "yizhar",
+        "type": "settlement",
+        "region": "nablus",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11603,
+          31.95654
+        ]
+      },
+      "properties": {
+        "name": "Zayit Ra'anan",
+        "slug": "zayit-raanan",
+        "type": "settlement",
+        "region": "ramallah",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.00913,
+          32.19859
+        ]
+      },
+      "properties": {
+        "name": "Zufin (Zufim)",
+        "slug": "zufin-zufim",
+        "type": "settlement",
+        "region": "qalqilya",
+        "subRegion": null,
+        "territory": "West Bank"
+      }
+    }
+  ]
+}
