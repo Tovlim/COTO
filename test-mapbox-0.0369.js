@@ -2799,8 +2799,8 @@ class DataLoader {
   // Load all GeoJSON data in parallel
   async loadAllData() {
     const urls = {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.009.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.005.geojson'
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
+      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
     };
     
     try {
@@ -4916,7 +4916,7 @@ function selectSettlementCheckbox(settlementName) {
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.009.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -5042,7 +5042,7 @@ function loadLocalitiesFromGeoJSON() {
 
 // OPTIMIZED: Load and add settlement markers with new color
 function loadSettlements() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.005.geojson')
+  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
