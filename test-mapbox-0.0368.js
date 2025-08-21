@@ -154,7 +154,7 @@ function setupDropdownListeners() {
 
 // OPTIMIZED: Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.009.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.010.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
