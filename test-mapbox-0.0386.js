@@ -5844,44 +5844,60 @@ function setupRegionMarkerClicks() {
         return;
       }
       
-      console.log(`[REGION CLICK] ${regionName} - EXECUTING frameRegionBoundary with priority ${state.clickPriority}`);
+      console.log(`[REGION CLICK] ${regionName} - DEFERRING frameRegionBoundary`);
       
-      // Use the global function to frame boundaries
-      if (!frameRegionBoundary(regionName)) {
-        // Fallback if no boundary found
-        removeBoundaryHighlight();
-        state.setTimer('regionFallback', () => {
-          // Re-check priority before fallback operations
-          if (state.clickPriority < myPriority) return;
-          
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
-          applyFilterToMarkers();
-          state.setTimer('regionFallbackCleanup', () => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, 200);
-      }
+      // Defer map movement operations to allow all handlers to run first
+      state.setTimer('regionMapMovement', () => {
+        // Re-check priority before executing deferred operations
+        if (state.clickPriority < myPriority) {
+          console.log(`[REGION CLICK] ${regionName} - DEFERRED operation BLOCKED by priority ${state.clickPriority}`);
+          return;
+        }
+        
+        console.log(`[REGION CLICK] ${regionName} - EXECUTING DEFERRED frameRegionBoundary with priority ${state.clickPriority}`);
+        
+        // Use the global function to frame boundaries
+        if (!frameRegionBoundary(regionName)) {
+          // Fallback if no boundary found
+          removeBoundaryHighlight();
+          state.setTimer('regionFallback', () => {
+            // Re-check priority before fallback operations
+            if (state.clickPriority < myPriority) return;
+            
+            state.flags.forceFilteredReframe = true;
+            state.flags.isRefreshButtonAction = true;
+            applyFilterToMarkers();
+            state.setTimer('regionFallbackCleanup', () => {
+              state.flags.forceFilteredReframe = false;
+              state.flags.isRefreshButtonAction = false;
+            }, 1000);
+          }, 200);
+        }
+      }, 10); // Small delay to let all handlers run first
     } else {
       // Region without boundary - use point location
       removeBoundaryHighlight();
       
-      // Re-check priority before flying
-      if (state.clickPriority < myPriority) {
-        console.log(`[REGION CLICK] ${regionName} - BLOCKED from flyTo by priority ${state.clickPriority}`);
-        return;
-      }
+      console.log(`[REGION CLICK] ${regionName} - DEFERRING flyTo`);
       
-      console.log(`[REGION CLICK] ${regionName} - EXECUTING flyTo with priority ${state.clickPriority}`);
-      
-      // Fly to region point
-      map.flyTo({
-        center: feature.geometry.coordinates,
-        zoom: 10,
-        duration: 1000,
-        essential: true
-      });
+      // Defer map movement operations to allow all handlers to run first
+      state.setTimer('regionMapMovementFlyTo', () => {
+        // Re-check priority before flying
+        if (state.clickPriority < myPriority) {
+          console.log(`[REGION CLICK] ${regionName} - DEFERRED flyTo BLOCKED by priority ${state.clickPriority}`);
+          return;
+        }
+        
+        console.log(`[REGION CLICK] ${regionName} - EXECUTING DEFERRED flyTo with priority ${state.clickPriority}`);
+        
+        // Fly to region point
+        map.flyTo({
+          center: feature.geometry.coordinates,
+          zoom: 10,
+          duration: 1000,
+          essential: true
+        });
+      }, 10); // Small delay to let all handlers run first
     }
     
     state.setTimer('markerCleanup', () => {
