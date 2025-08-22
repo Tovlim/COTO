@@ -5398,6 +5398,9 @@ function setupSettlementMarkerClicks() {
       layers: ['settlement-clusters']
     });
     
+    // Re-check priority before flying
+    if (state.clickPriority < myPriority) return;
+    
     map.flyTo({
       center: features[0].geometry.coordinates,
       zoom: map.getZoom() + 2.5,
@@ -5759,6 +5762,9 @@ function setupNativeMarkerClicks() {
       layers: ['locality-clusters']
     });
     
+    // Re-check priority before flying
+    if (state.clickPriority < myPriority) return;
+    
     map.flyTo({
       center: features[0].geometry.coordinates,
       zoom: map.getZoom() + 2.5,
@@ -5834,6 +5840,9 @@ function setupRegionMarkerClicks() {
     } else {
       // Region without boundary - use point location
       removeBoundaryHighlight();
+      
+      // Re-check priority before flying
+      if (state.clickPriority < myPriority) return;
       
       // Fly to region point
       map.flyTo({
@@ -5957,6 +5966,9 @@ function setupSubregionMarkerClicks() {
     
     // Get fresh coordinates from the clicked feature
     const coords = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
+    
+    // Re-check priority before flying
+    if (state.clickPriority < myPriority) return;
     
     // Fly to subregion center using fresh coordinates
     map.flyTo({
