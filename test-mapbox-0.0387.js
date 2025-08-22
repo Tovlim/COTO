@@ -5490,14 +5490,10 @@ function setupTerritoryMarkerClicks() {
     // Territory has priority 1 (highest)
     const myPriority = 1;
     
-    console.log(`[TERRITORY CLICK] ${e.features[0].properties.name} - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
-    
     // Only handle if no one has claimed priority yet, or if we have higher priority
     if (state.clickPriority === 999 || state.clickPriority > myPriority) {
       state.clickPriority = myPriority;
-      console.log(`[TERRITORY CLICK] ${e.features[0].properties.name} - CLAIMED priority ${myPriority}`);
     } else {
-      console.log(`[TERRITORY CLICK] ${e.features[0].properties.name} - BLOCKED by existing priority ${state.clickPriority}`);
       return; // Someone with equal or higher priority already claimed it
     }
     
@@ -5530,7 +5526,6 @@ function setupTerritoryMarkerClicks() {
     
     // Reset priority quickly for next click
     state.setTimer('resetClickPriority', () => {
-      console.log(`[TERRITORY CLICK] ${territoryName} - RESETTING priority to 999`);
       state.clickPriority = 999;
     }, 50);
   };
@@ -5803,14 +5798,10 @@ function setupRegionMarkerClicks() {
     // Region has priority 2
     const myPriority = 2;
     
-    console.log(`[REGION CLICK] ${e.features[0].properties.name} - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
-    
     // Only handle if no one has claimed priority yet, or if we have higher priority
     if (state.clickPriority === 999 || state.clickPriority > myPriority) {
       state.clickPriority = myPriority;
-      console.log(`[REGION CLICK] ${e.features[0].properties.name} - CLAIMED priority ${myPriority}`);
     } else {
-      console.log(`[REGION CLICK] ${e.features[0].properties.name} - BLOCKED by existing priority ${state.clickPriority}`);
       return; // Someone with equal or higher priority already claimed it
     }
     
@@ -5839,22 +5830,12 @@ function setupRegionMarkerClicks() {
       highlightBoundary(regionName);
       
       // Re-check priority before any map movement operations
-      if (state.clickPriority < myPriority) {
-        console.log(`[REGION CLICK] ${regionName} - BLOCKED from frameRegionBoundary by priority ${state.clickPriority}`);
-        return;
-      }
-      
-      console.log(`[REGION CLICK] ${regionName} - DEFERRING frameRegionBoundary`);
+      if (state.clickPriority < myPriority) return;
       
       // Defer map movement operations to allow all handlers to run first
       state.setTimer('regionMapMovement', () => {
         // Re-check priority before executing deferred operations
-        if (state.clickPriority < myPriority) {
-          console.log(`[REGION CLICK] ${regionName} - DEFERRED operation BLOCKED by priority ${state.clickPriority}`);
-          return;
-        }
-        
-        console.log(`[REGION CLICK] ${regionName} - EXECUTING DEFERRED frameRegionBoundary with priority ${state.clickPriority}`);
+        if (state.clickPriority < myPriority) return;
         
         // Use the global function to frame boundaries
         if (!frameRegionBoundary(regionName)) {
@@ -5878,17 +5859,10 @@ function setupRegionMarkerClicks() {
       // Region without boundary - use point location
       removeBoundaryHighlight();
       
-      console.log(`[REGION CLICK] ${regionName} - DEFERRING flyTo`);
-      
       // Defer map movement operations to allow all handlers to run first
       state.setTimer('regionMapMovementFlyTo', () => {
         // Re-check priority before flying
-        if (state.clickPriority < myPriority) {
-          console.log(`[REGION CLICK] ${regionName} - DEFERRED flyTo BLOCKED by priority ${state.clickPriority}`);
-          return;
-        }
-        
-        console.log(`[REGION CLICK] ${regionName} - EXECUTING DEFERRED flyTo with priority ${state.clickPriority}`);
+        if (state.clickPriority < myPriority) return;
         
         // Fly to region point
         map.flyTo({
@@ -5907,7 +5881,6 @@ function setupRegionMarkerClicks() {
     
     // Reset priority quickly for next click
     state.setTimer('resetClickPriority', () => {
-      console.log(`[REGION CLICK] ${regionName} - RESETTING priority to 999`);
       state.clickPriority = 999;
     }, 50);
   };
