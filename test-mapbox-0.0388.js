@@ -1620,16 +1620,6 @@ loadDataFromState() {
                     this.shuffleArray(this.data.territories);
                 }
                 
-                console.log('Autocomplete data loaded:', {
-                    regions: this.data.regions.length,
-                    subregions: this.data.subregions.length,
-                    localities: this.data.localities.length,
-                    settlements: this.data.settlements.length,
-                    territories: this.data.territories ? this.data.territories.length : 0
-                });
-                
-                // Debug: Log first few items to verify hierarchical order
-                console.log('First few subregions:', this.data.subregions.slice(0, 3).map(s => s.name));
                 
                 // If we have data, trigger a refresh of the current search
                 if (this.elements.input && this.elements.input.value) {
@@ -1762,14 +1752,6 @@ loadDataFromState() {
                 const selectedSettlements = this.data.settlements.slice(0, maxSettlements);
                 results.push(...selectedSettlements);
                 
-                // Debug: Log what we're showing
-                console.log('Hierarchical results:', {
-                    territories: this.data.territories ? this.data.territories.map(t => t.name) : [],
-                    regions: selectedRegions.map(r => r.name),
-                    subregions: selectedSubregions.map(s => s.name),
-                    localities: selectedLocalities.slice(0, 2).map(l => l.name),
-                    settlements: selectedSettlements.map(s => s.name)
-                });
                 
                 this.data.filteredResults = results;
             }
@@ -1825,7 +1807,6 @@ loadDataFromState() {
                 
                 this.data.filteredResults = limitedResults;
                 
-                console.log(`Search completed in ${performance.now() - startTime}ms, found ${this.data.filteredResults.length} results`);
             }
             
             calculateMatchScore(searchLower, searchTokens, item) {
@@ -1894,7 +1875,7 @@ loadDataFromState() {
                 if (item.type === 'territory') {
                     a.innerHTML = `
                         <div class="locality-info">
-                            <span style="color: #131313;">${item.name}</span>
+                            <span style="color: #2d1810;">${item.name}</span>
                         </div>
                         <span class="term-label">Territory</span>
                     `;
@@ -2383,9 +2364,9 @@ loadDataFromState() {
                         
                         .list-term.territory-term {
                             font-weight: 600;
-                            color: #131313;
+                            color: #2d1810;
                             background-color: #f8f8f8;
-                            border-left: 3px solid #131313;
+                            border-left: 3px solid #2d1810;
                             padding: 10px 12px;
                         }
                         
@@ -2437,8 +2418,6 @@ loadDataFromState() {
             }
             
             refresh() {
-                console.log('Refreshing autocomplete data...');
-                
                 // Clear any cached results to force fresh data
                 this.cache.clear();
                 this.data.filteredResults = [];
@@ -2466,8 +2445,6 @@ loadDataFromState() {
                 
                 this.elements.list.innerHTML = '';
                 this.elements.wrapper.style.display = 'none';
-                
-                console.log('Autocomplete destroyed');
             }
             
             getStats() {
@@ -5206,7 +5183,6 @@ function logLayerOrder(message) {
     layer.id.includes('settlement')
   ).map(layer => layer.id);
   
-  console.log(`[LAYER ORDER] ${message}:`, JSON.stringify(relevantLayers));
 }
 
 // Add settlement markers to map with updated color
@@ -5472,7 +5448,7 @@ function addNativeTerritoryMarkers() {
         },
         paint: {
           'text-color': '#ffffff', // White text inside
-          'text-halo-color': '#131313', // Dark gray halo outside
+          'text-halo-color': '#2d1810', // Dark brown halo outside
           'text-halo-width': 2
         }
       });
@@ -6535,7 +6511,6 @@ function initializeOptimizationSystems() {
     
     // Load critical path immediately
     window.progressiveLoader.loadCriticalPath().then(() => {
-      console.log('Critical path loading complete');
       
       // Load deferred features in background
       window.progressiveLoader.loadDeferredFeatures();
@@ -6594,7 +6569,6 @@ function initializeOptimizationSystems() {
     }
   }, 60000); // Every 60 seconds
   
-  console.log('🚀 Comprehensive optimization systems initialized');
 }
 
 // Initialize optimization systems when DOM is ready
