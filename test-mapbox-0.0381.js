@@ -5343,14 +5343,15 @@ function setupSettlementMarkerClicks() {
     // Settlement has priority 5
     const myPriority = 5;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     
     const feature = e.features[0];
     const settlementName = feature.properties.name;
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5387,11 +5388,12 @@ function setupSettlementMarkerClicks() {
     // Settlement cluster has priority 5 (same as settlement points)
     const myPriority = 5;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
@@ -5488,8 +5490,12 @@ function setupTerritoryMarkerClicks() {
     // Territory has priority 1 (highest)
     const myPriority = 1;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     
     const feature = e.features[0];
     const territoryName = feature.properties.name;
@@ -5500,9 +5506,6 @@ function setupTerritoryMarkerClicks() {
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
     
     state.markerInteractionLock = true;
     state.lastClickedMarker = markerKey;
@@ -5707,14 +5710,15 @@ function setupNativeMarkerClicks() {
     // Locality has priority 4
     const myPriority = 4;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     
     const feature = e.features[0];
     const locality = feature.properties.name;
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5751,11 +5755,12 @@ function setupNativeMarkerClicks() {
     // Locality cluster has priority 4 (same as locality points)
     const myPriority = 4;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
@@ -5793,14 +5798,15 @@ function setupRegionMarkerClicks() {
     // Region has priority 2
     const myPriority = 2;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     
     const feature = e.features[0];
     const regionName = feature.properties.name;
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5937,14 +5943,15 @@ function setupSubregionMarkerClicks() {
     // Subregion has priority 3
     const myPriority = 3;
     
-    // Only handle if we have priority
-    if (state.clickPriority < myPriority) return;
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
     
     const feature = e.features[0];
     const subregionName = feature.properties.name;
-    
-    // Set our priority to prevent lower priority handlers
-    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
