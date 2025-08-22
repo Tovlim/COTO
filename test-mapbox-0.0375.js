@@ -5285,8 +5285,8 @@ function addSettlementMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 1.5],
-          'text-anchor': 'top',
+          'text-offset': [0, 0],
+          'text-anchor': 'center',
           'symbol-sort-key': 2,
           'visibility': 'visible'
         },
@@ -5426,8 +5426,8 @@ function addNativeTerritoryMarkers() {
           ],
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'text-offset': [0, 1.5],
-          'text-anchor': 'top',
+          'text-offset': [0, 0],
+          'text-anchor': 'center',
           'symbol-sort-key': 0, // Highest priority
           'visibility': 'visible'
         },
@@ -5544,8 +5544,8 @@ function addNativeMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 1.5],
-          'text-anchor': 'top',
+          'text-offset': [0, 0],
+          'text-anchor': 'center',
           'symbol-sort-key': 10 // Higher values render last (on top)
         },
         paint: {
