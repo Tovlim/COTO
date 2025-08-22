@@ -5416,7 +5416,14 @@ function addNativeTerritoryMarkers() {
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
-          'text-size': 14, // Slightly larger than other markers (12px)
+          'text-size': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6, 14,  // Bigger than regions (12) at low zoom
+            10, 18, // Bigger than regions (16) at mid zoom
+            14, 20  // Bigger than regions (18) at high zoom
+          ],
           'text-allow-overlap': true,
           'text-ignore-placement': true,
           'text-offset': [0, 1.5],
