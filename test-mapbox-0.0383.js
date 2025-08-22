@@ -1894,7 +1894,7 @@ loadDataFromState() {
                 if (item.type === 'territory') {
                     a.innerHTML = `
                         <div class="locality-info">
-                            <span style="color: #272727;">${item.name}</span>
+                            <span style="color: #131313;">${item.name}</span>
                         </div>
                         <span class="term-label">Territory</span>
                     `;
@@ -2383,9 +2383,9 @@ loadDataFromState() {
                         
                         .list-term.territory-term {
                             font-weight: 600;
-                            color: #272727;
+                            color: #131313;
                             background-color: #f8f8f8;
-                            border-left: 3px solid #272727;
+                            border-left: 3px solid #131313;
                             padding: 10px 12px;
                         }
                         
@@ -5472,7 +5472,7 @@ function addNativeTerritoryMarkers() {
         },
         paint: {
           'text-color': '#ffffff', // White text inside
-          'text-halo-color': '#272727', // Dark gray halo outside
+          'text-halo-color': '#131313', // Dark gray halo outside
           'text-halo-width': 2
         }
       });
@@ -5829,11 +5829,17 @@ function setupRegionMarkerClicks() {
     if (map.getSource(boundarySourceId)) {
       highlightBoundary(regionName);
       
+      // Re-check priority before any map movement operations
+      if (state.clickPriority < myPriority) return;
+      
       // Use the global function to frame boundaries
       if (!frameRegionBoundary(regionName)) {
         // Fallback if no boundary found
         removeBoundaryHighlight();
         state.setTimer('regionFallback', () => {
+          // Re-check priority before fallback operations
+          if (state.clickPriority < myPriority) return;
+          
           state.flags.forceFilteredReframe = true;
           state.flags.isRefreshButtonAction = true;
           applyFilterToMarkers();
