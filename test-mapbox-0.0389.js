@@ -1724,13 +1724,9 @@ loadDataFromState() {
                     }
                 }
                 
-                // Hierarchical display: Territories → Regions → Subregions → Localities → Settlements
+                // Hierarchical display: Regions → Subregions → Localities → Settlements
+                // (Territories excluded from default view - only appear in search)
                 const results = [];
-                
-                // 0. Show all territories first (highest priority)
-                if (this.data.territories && this.data.territories.length > 0) {
-                    results.push(...this.data.territories);
-                }
                 
                 // 1. Show top 2-3 regions (most important geographic areas)
                 const maxRegions = Math.min(3, this.data.regions.length);
