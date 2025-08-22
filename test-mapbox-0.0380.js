@@ -5343,19 +5343,14 @@ function setupSettlementMarkerClicks() {
     // Settlement has priority 5
     const myPriority = 5;
     
-    console.log(`[SETTLEMENT] Click handler - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
-    
-    // Only handle if we have equal or higher priority
-    if (state.clickPriority <= myPriority) {
-      state.clickPriority = myPriority;
-      console.log(`[SETTLEMENT] Taking control - Set priority to ${myPriority}`);
-    } else {
-      console.log(`[SETTLEMENT] Higher priority handler already ran, exiting`);
-      return;
-    }
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const settlementName = feature.properties.name;
+    
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5493,16 +5488,8 @@ function setupTerritoryMarkerClicks() {
     // Territory has priority 1 (highest)
     const myPriority = 1;
     
-    console.log(`[TERRITORY] Click handler - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
-    
-    // Only handle if we have equal or higher priority
-    if (state.clickPriority <= myPriority) {
-      state.clickPriority = myPriority;
-      console.log(`[TERRITORY] Taking control - Set priority to ${myPriority}`);
-    } else {
-      console.log(`[TERRITORY] Higher priority handler already ran, exiting`);
-      return;
-    }
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const territoryName = feature.properties.name;
@@ -5513,6 +5500,9 @@ function setupTerritoryMarkerClicks() {
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
+    
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     state.markerInteractionLock = true;
     state.lastClickedMarker = markerKey;
@@ -5803,19 +5793,14 @@ function setupRegionMarkerClicks() {
     // Region has priority 2
     const myPriority = 2;
     
-    console.log(`[REGION] Click handler - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
-    
-    // Only handle if we have equal or higher priority
-    if (state.clickPriority <= myPriority) {
-      state.clickPriority = myPriority;
-      console.log(`[REGION] Taking control - Set priority to ${myPriority}`);
-    } else {
-      console.log(`[REGION] Higher priority handler already ran, exiting`);
-      return;
-    }
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const regionName = feature.properties.name;
+    
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5857,12 +5842,7 @@ function setupRegionMarkerClicks() {
       removeBoundaryHighlight();
       
       // Re-check priority before flying
-      console.log(`[REGION] Before flyTo - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
-      if (state.clickPriority < myPriority) {
-        console.log(`[REGION] FlyTo cancelled - higher priority handler took over`);
-        return;
-      }
-      console.log(`[REGION] Executing flyTo`);
+      if (state.clickPriority < myPriority) return;
       
       // Fly to region point
       map.flyTo({
