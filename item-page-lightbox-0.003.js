@@ -516,6 +516,35 @@ function updateLazyLoad() {
   }
 }
 
+// SHARE BUTTON FUNCTIONALITY
+document.addEventListener('click', function(e) {
+  const shareButton = e.target.closest('[share-button]');
+  if (shareButton) {
+    e.preventDefault();
+    const outsideLink = shareButton.getAttribute('outside-link');
+    const slug = shareButton.getAttribute('share-button');
+    
+    let url;
+    if (outsideLink && outsideLink.trim() !== '') {
+      url = outsideLink;
+    } else if (slug) {
+      url = window.location.origin + '/report/' + slug;
+    }
+    
+    if (url) {
+      navigator.clipboard.writeText(url).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      });
+    }
+  }
+});
+
 // Main initialization function
 function initializeItemPage() {
   // Initialize LazyLoad
