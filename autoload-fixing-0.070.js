@@ -1081,9 +1081,17 @@ document.addEventListener('click', function(e) {
   const shareButton = e.target.closest('[share-button]');
   if (shareButton) {
     e.preventDefault();
+    const outsideLink = shareButton.getAttribute('outside-link');
     const slug = shareButton.getAttribute('share-button');
-    if (slug) {
-      const url = window.location.origin + '/report/' + slug;
+    
+    let url;
+    if (outsideLink && outsideLink.trim() !== '') {
+      url = outsideLink;
+    } else if (slug) {
+      url = window.location.origin + '/report/' + slug;
+    }
+    
+    if (url) {
       navigator.clipboard.writeText(url).catch(() => {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
