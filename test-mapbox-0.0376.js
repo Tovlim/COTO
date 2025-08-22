@@ -4451,6 +4451,7 @@ class OptimizedMapState {
     this.lastClickTime = 0;
     this.markerInteractionLock = false;
     this.highlightedBoundary = null;
+    this.markerClickHandled = false;
     
     this.flags = new Proxy({
       isInitialLoad: true,
@@ -5333,8 +5334,14 @@ function addSettlementMarkers() {
 function setupSettlementMarkerClicks() {
   // Settlement point clicks
   const settlementClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
     const feature = e.features[0];
     const settlementName = feature.properties.name;
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5359,10 +5366,20 @@ function setupSettlementMarkerClicks() {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
     }, 800);
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   // Cluster clicks
   const settlementClusterClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
@@ -5374,6 +5391,11 @@ function setupSettlementMarkerClicks() {
       zoom: map.getZoom() + 2.5,
       duration: 800
     });
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   // Add event listeners
@@ -5448,6 +5470,9 @@ function addNativeTerritoryMarkers() {
 // Setup territory marker click handlers
 function setupTerritoryMarkerClicks() {
   const territoryClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
     const feature = e.features[0];
     const territoryName = feature.properties.name;
     
@@ -5457,6 +5482,9 @@ function setupTerritoryMarkerClicks() {
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     
     state.markerInteractionLock = true;
     state.lastClickedMarker = markerKey;
@@ -5474,6 +5502,11 @@ function setupTerritoryMarkerClicks() {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
     }, 800);
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   // Add event listeners
@@ -5653,8 +5686,14 @@ function setupNativeMarkerClicks() {
   
   // Locality point clicks
   const localityClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
     const feature = e.features[0];
     const locality = feature.properties.name;
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5679,10 +5718,20 @@ function setupNativeMarkerClicks() {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
     }, 800);
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   // Cluster clicks
   const clusterClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
@@ -5694,6 +5743,11 @@ function setupNativeMarkerClicks() {
       zoom: map.getZoom() + 2.5,
       duration: 800
     });
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   // Use map event listeners (these are automatically managed by Mapbox)
@@ -5709,8 +5763,14 @@ function setupNativeMarkerClicks() {
 
 function setupRegionMarkerClicks() {
   const regionClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
     const feature = e.features[0];
     const regionName = feature.properties.name;
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5764,6 +5824,11 @@ function setupRegionMarkerClicks() {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
     }, 800);
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   map.on('click', 'region-points', regionClickHandler);
@@ -5836,8 +5901,14 @@ function addNativeSubregionMarkers() {
 // Add click handlers for subregion markers
 function setupSubregionMarkerClicks() {
   const subregionClickHandler = (e) => {
+    // Check if another marker already handled this click
+    if (state.markerClickHandled) return;
+    
     const feature = e.features[0];
     const subregionName = feature.properties.name;
+    
+    // Mark this click as handled
+    state.markerClickHandled = true;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5872,6 +5943,11 @@ function setupSubregionMarkerClicks() {
       window.isMarkerClick = false;
       state.markerInteractionLock = false;
     }, 800);
+    
+    // Reset click handled flag quickly for next click
+    state.setTimer('resetClickHandled', () => {
+      state.markerClickHandled = false;
+    }, 50);
   };
   
   map.on('click', 'subregion-points', subregionClickHandler);
