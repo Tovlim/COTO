@@ -1190,6 +1190,7 @@ function setupGlobalExports() {
   window.selectSubregionCheckbox = selectSubregionCheckbox;
   window.selectLocalityCheckbox = selectLocalityCheckbox;
   window.selectSettlementCheckbox = selectSettlementCheckbox;
+  window.selectTerritoryCheckbox = selectTerritoryCheckbox;
   window.applyFilterToMarkers = applyFilterToMarkers;
   window.highlightBoundary = highlightBoundary;
   window.frameRegionBoundary = frameRegionBoundary;
@@ -1595,17 +1596,36 @@ loadDataFromState() {
                         .sort((a, b) => a.name.localeCompare(b.name));
                 }
                 
+                // Load territories
+                if (state.allTerritoryFeatures && state.allTerritoryFeatures.length > 0) {
+                    this.data.territories = state.allTerritoryFeatures
+                        .filter(feature => feature.geometry && feature.geometry.coordinates)
+                        .map(feature => ({
+                            name: feature.properties.name,
+                            nameLower: feature.properties.name.toLowerCase(),
+                            type: 'territory',
+                            lat: feature.geometry.coordinates[1],
+                            lng: feature.geometry.coordinates[0],
+                            searchTokens: this.createSearchTokens(feature.properties.name)
+                        }))
+                        .sort((a, b) => a.name.localeCompare(b.name));
+                }
+                
                 // Shuffle each category once for variety in dropdown display
                 this.shuffleArray(this.data.regions);
                 this.shuffleArray(this.data.subregions);
                 this.shuffleArray(this.data.localities);
                 this.shuffleArray(this.data.settlements);
+                if (this.data.territories) {
+                    this.shuffleArray(this.data.territories);
+                }
                 
                 console.log('Autocomplete data loaded:', {
                     regions: this.data.regions.length,
                     subregions: this.data.subregions.length,
                     localities: this.data.localities.length,
-                    settlements: this.data.settlements.length
+                    settlements: this.data.settlements.length,
+                    territories: this.data.territories ? this.data.territories.length : 0
                 });
                 
                 // Debug: Log first few items to verify hierarchical order
@@ -1755,8 +1775,15 @@ loadDataFromState() {
                 
                 const scoredResults = [];
                 
-                // Search all categories including settlements
-                [...this.data.regions, ...this.data.subregions, ...this.data.localities, ...this.data.settlements].forEach(item => {
+                // Search all categories including settlements and territories
+                const allItems = [
+                    ...this.data.regions, 
+                    ...this.data.subregions, 
+                    ...this.data.localities, 
+                    ...this.data.settlements,
+                    ...(this.data.territories || [])
+                ];
+                allItems.forEach(item => {
                     const score = this.calculateMatchScore(searchLower, searchTokens, item);
                     if (score > this.config.scoreThreshold) {
                         scoredResults.push({ ...item, score });
@@ -1971,6 +1998,8 @@ loadDataFromState() {
                     this.triggerLocalitySelection(term);
                 } else if (type === 'settlement') {
                     this.triggerSettlementSelection(term);
+                } else if (type === 'territory') {
+                    this.triggerTerritorySelection(term);
                 }
             }
             
@@ -2002,6 +2031,44 @@ loadDataFromState() {
                         center: [settlement.lng, settlement.lat],
                         zoom: 13.5,
                         duration: 1000,
+                        essential: true
+                    });
+                }
+                
+                // Clean up flag
+                setTimeout(() => {
+                    window.isMarkerClick = false;
+                }, 800);
+            }
+            
+            triggerTerritorySelection(territoryName) {
+                // Set marker click flag
+                window.isMarkerClick = true;
+                
+                if (window.mapUtilities && window.mapUtilities.state) {
+                    window.mapUtilities.state.markerInteractionLock = false;
+                }
+                
+                // Use checkbox selection for territories
+                if (window.selectTerritoryCheckbox) {
+                    window.selectTerritoryCheckbox(territoryName);
+                }
+                
+                if (window.mapUtilities?.toggleShowWhenFilteredElements) {
+                    window.mapUtilities.toggleShowWhenFilteredElements(true);
+                }
+                
+                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                    window.mapUtilities.toggleSidebar('Left', true);
+                }
+                
+                // Find territory and fly to it
+                const territory = this.data.territories ? this.data.territories.find(t => t.name === territoryName) : null;
+                if (window.map && territory && territory.lat && territory.lng) {
+                    window.map.flyTo({
+                        center: [territory.lng, territory.lat],
+                        zoom: 10,
+                        duration: 1200,
                         essential: true
                     });
                 }
@@ -4857,7 +4924,7 @@ const toggleShowWhenFilteredElements = show => {
 // FIXED: Checkbox selection functions with proper settlement unchecking
 // OPTIMIZED: Unified checkbox selection function
 function selectCheckbox(type, value) {
-  const checkboxTypes = ['region', 'subregion', 'locality', 'settlement'];
+  const checkboxTypes = ['region', 'subregion', 'locality', 'settlement', 'territory'];
   
   requestAnimationFrame(() => {
     // Get all checkbox groups - using native queries to avoid caching
@@ -4913,6 +4980,10 @@ function selectLocalityCheckbox(localityName) {
 
 function selectSettlementCheckbox(settlementName) {
   selectCheckbox('settlement', settlementName);
+}
+
+function selectTerritoryCheckbox(territoryName) {
+  selectCheckbox('territory', territoryName);
 }
 // MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
 function loadLocalitiesFromGeoJSON() {
@@ -5057,10 +5128,39 @@ function loadSettlements() {
       // Add settlements to map (will be inserted before localities for proper layer order)
       addSettlementMarkers();
       
+      // Add territory features
+      state.allTerritoryFeatures = [
+        {
+          type: "Feature",
+          properties: {
+            name: "Gaza",
+            type: "territory"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [34.4665, 31.5014]
+          }
+        },
+        {
+          type: "Feature",
+          properties: {
+            name: "West Bank",
+            type: "territory"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [35.2496, 31.9517]
+          }
+        }
+      ];
+      
+      // Add territory markers to map
+      addNativeTerritoryMarkers();
+      
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
       
-      // Refresh autocomplete to include settlement data
+      // Refresh autocomplete to include settlement and territory data
       if (window.refreshAutocomplete) {
         state.setTimer('refreshAutocompleteAfterSettlements', window.refreshAutocomplete, 600);
       }
@@ -5267,6 +5367,101 @@ function setupSettlementMarkerClicks() {
     map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
     map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
   });
+}
+
+// Add territory markers to map
+function addNativeTerritoryMarkers() {
+  if (!state.allTerritoryFeatures || !state.allTerritoryFeatures.length) {
+    return;
+  }
+  
+  const territoryGeoJSON = {
+    type: "FeatureCollection",
+    features: state.allTerritoryFeatures
+  };
+  
+  mapLayers.addToBatch(() => {
+    if (mapLayers.hasSource('territories-source')) {
+      map.getSource('territories-source').setData(territoryGeoJSON);
+    } else {
+      // Add source
+      map.addSource('territories-source', {
+        type: 'geojson',
+        data: territoryGeoJSON
+      });
+      
+      // Add territory points layer - on top of everything
+      map.addLayer({
+        id: 'territory-points',
+        type: 'symbol',
+        source: 'territories-source',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Regular'],
+          'text-size': 14, // Slightly larger than other markers (12px)
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+          'text-offset': [0, 1.5],
+          'text-anchor': 'top',
+          'symbol-sort-key': 0, // Highest priority
+          'visibility': 'visible'
+        },
+        paint: {
+          'text-color': '#000000', // Black color for territories
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        }
+      });
+      
+      mapLayers.invalidateCache();
+    }
+  });
+  
+  setupTerritoryMarkerClicks();
+}
+
+// Setup territory marker click handlers
+function setupTerritoryMarkerClicks() {
+  const territoryClickHandler = (e) => {
+    const feature = e.features[0];
+    const territoryName = feature.properties.name;
+    
+    // Prevent rapid clicks
+    const currentTime = Date.now();
+    const markerKey = `territory-${territoryName}`;
+    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      return;
+    }
+    
+    state.markerInteractionLock = true;
+    state.lastClickedMarker = markerKey;
+    state.lastClickTime = currentTime;
+    window.isMarkerClick = true;
+    
+    removeBoundaryHighlight();
+    selectTerritoryCheckbox(territoryName);
+    toggleShowWhenFilteredElements(true);
+    toggleSidebar('Left', true);
+    
+    // Fly to territory
+    map.flyTo({
+      center: feature.geometry.coordinates,
+      zoom: 10,
+      duration: 1200
+    });
+    
+    state.setTimer('territoryMarkerCleanup', () => {
+      window.isMarkerClick = false;
+      state.markerInteractionLock = false;
+    }, 800);
+  };
+  
+  // Add event listeners
+  map.on('click', 'territory-points', territoryClickHandler);
+  
+  // Cursor management
+  map.on('mouseenter', 'territory-points', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'territory-points', () => map.getCanvas().style.cursor = '');
 }
 
 // OPTIMIZED: Native markers with batched operations
