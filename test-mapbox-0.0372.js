@@ -1885,7 +1885,14 @@ loadDataFromState() {
                 a.dataset.type = item.type;
                 a.dataset.term = item.name;
                 
-                if (item.type === 'locality' || item.type === 'settlement') {
+                if (item.type === 'territory') {
+                    a.innerHTML = `
+                        <div class="locality-info">
+                            <span style="color: #000000;">${item.name}</span>
+                        </div>
+                        <span class="term-label">Territory</span>
+                    `;
+                } else if (item.type === 'locality' || item.type === 'settlement') {
                     let location = '';
                     if (item.type === 'locality') {
                         location = [item.subregion, item.region, item.territory].filter(Boolean).join(', ');
@@ -2062,16 +2069,7 @@ loadDataFromState() {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // Find territory and fly to it
-                const territory = this.data.territories ? this.data.territories.find(t => t.name === territoryName) : null;
-                if (window.map && territory && territory.lat && territory.lng) {
-                    window.map.flyTo({
-                        center: [territory.lng, territory.lat],
-                        zoom: 10,
-                        duration: 1200,
-                        essential: true
-                    });
-                }
+                // No flying for territory selection from autocomplete
                 
                 // Clean up flag
                 setTimeout(() => {
@@ -2375,6 +2373,26 @@ loadDataFromState() {
                         
                         .list-term.settlement-term .locality-name {
                             color: #444B5C;
+                        }
+                        
+                        .list-term.territory-term {
+                            font-weight: 600;
+                            color: #000000;
+                            background-color: #f8f8f8;
+                            border-left: 3px solid #000000;
+                            padding: 10px 12px;
+                        }
+                        
+                        .list-term.territory-term:hover { 
+                            background-color: #eeeeee; 
+                        }
+                        
+                        .list-term.territory-term * { 
+                            pointer-events: none; 
+                        }
+                        
+                        .list-term.territory-term .term-label { 
+                            color: #666666; 
                         }
                         
                         .locality-info {
@@ -5407,8 +5425,8 @@ function addNativeTerritoryMarkers() {
           'visibility': 'visible'
         },
         paint: {
-          'text-color': '#000000', // Black color for territories
-          'text-halo-color': '#ffffff',
+          'text-color': '#ffffff', // White text inside
+          'text-halo-color': '#000000', // Black halo outside
           'text-halo-width': 2
         }
       });
@@ -5443,12 +5461,7 @@ function setupTerritoryMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // Fly to territory
-    map.flyTo({
-      center: feature.geometry.coordinates,
-      zoom: 10,
-      duration: 1200
-    });
+    // No flying for territory markers
     
     state.setTimer('territoryMarkerCleanup', () => {
       window.isMarkerClick = false;
