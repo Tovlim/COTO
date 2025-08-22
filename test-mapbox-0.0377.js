@@ -1734,10 +1734,15 @@ loadDataFromState() {
                     }
                 }
                 
-                // Hierarchical display: Regions → Subregions → Localities → Settlements
+                // Hierarchical display: Territories → Regions → Subregions → Localities → Settlements
                 const results = [];
                 
-                // 1. Show top 2-3 regions first (most important geographic areas)
+                // 0. Show all territories first (highest priority)
+                if (this.data.territories && this.data.territories.length > 0) {
+                    results.push(...this.data.territories);
+                }
+                
+                // 1. Show top 2-3 regions (most important geographic areas)
                 const maxRegions = Math.min(3, this.data.regions.length);
                 const selectedRegions = this.data.regions.slice(0, maxRegions);
                 results.push(...selectedRegions);
@@ -1759,6 +1764,7 @@ loadDataFromState() {
                 
                 // Debug: Log what we're showing
                 console.log('Hierarchical results:', {
+                    territories: this.data.territories ? this.data.territories.map(t => t.name) : [],
                     regions: selectedRegions.map(r => r.name),
                     subregions: selectedSubregions.map(s => s.name),
                     localities: selectedLocalities.slice(0, 2).map(l => l.name),
@@ -1888,7 +1894,7 @@ loadDataFromState() {
                 if (item.type === 'territory') {
                     a.innerHTML = `
                         <div class="locality-info">
-                            <span style="color: #000000;">${item.name}</span>
+                            <span style="color: #131313;">${item.name}</span>
                         </div>
                         <span class="term-label">Territory</span>
                     `;
@@ -2377,9 +2383,9 @@ loadDataFromState() {
                         
                         .list-term.territory-term {
                             font-weight: 600;
-                            color: #000000;
+                            color: #131313;
                             background-color: #f8f8f8;
-                            border-left: 3px solid #000000;
+                            border-left: 3px solid #131313;
                             padding: 10px 12px;
                         }
                         
@@ -4451,7 +4457,7 @@ class OptimizedMapState {
     this.lastClickTime = 0;
     this.markerInteractionLock = false;
     this.highlightedBoundary = null;
-    this.markerClickHandled = false;
+    this.clickPriority = 999; // Higher number = lower priority, 999 = no click yet
     
     this.flags = new Proxy({
       isInitialLoad: true,
@@ -5334,14 +5340,17 @@ function addSettlementMarkers() {
 function setupSettlementMarkerClicks() {
   // Settlement point clicks
   const settlementClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Settlement has priority 5
+    const myPriority = 5;
+    
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const settlementName = feature.properties.name;
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5367,19 +5376,22 @@ function setupSettlementMarkerClicks() {
       state.markerInteractionLock = false;
     }, 800);
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
   // Cluster clicks
   const settlementClusterClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Settlement cluster has priority 5 (same as settlement points)
+    const myPriority = 5;
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
+    
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
@@ -5392,9 +5404,9 @@ function setupSettlementMarkerClicks() {
       duration: 800
     });
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
@@ -5455,7 +5467,7 @@ function addNativeTerritoryMarkers() {
         },
         paint: {
           'text-color': '#ffffff', // White text inside
-          'text-halo-color': '#000000', // Black halo outside
+          'text-halo-color': '#131313', // Dark gray halo outside
           'text-halo-width': 2
         }
       });
@@ -5470,8 +5482,11 @@ function addNativeTerritoryMarkers() {
 // Setup territory marker click handlers
 function setupTerritoryMarkerClicks() {
   const territoryClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Territory has priority 1 (highest)
+    const myPriority = 1;
+    
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const territoryName = feature.properties.name;
@@ -5483,8 +5498,8 @@ function setupTerritoryMarkerClicks() {
       return;
     }
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     state.markerInteractionLock = true;
     state.lastClickedMarker = markerKey;
@@ -5503,9 +5518,9 @@ function setupTerritoryMarkerClicks() {
       state.markerInteractionLock = false;
     }, 800);
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
@@ -5686,14 +5701,17 @@ function setupNativeMarkerClicks() {
   
   // Locality point clicks
   const localityClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Locality has priority 4
+    const myPriority = 4;
+    
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const locality = feature.properties.name;
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5719,19 +5737,22 @@ function setupNativeMarkerClicks() {
       state.markerInteractionLock = false;
     }, 800);
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
   // Cluster clicks
   const clusterClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Locality cluster has priority 4 (same as locality points)
+    const myPriority = 4;
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
+    
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     removeBoundaryHighlight();
     
     const features = map.queryRenderedFeatures(e.point, {
@@ -5744,9 +5765,9 @@ function setupNativeMarkerClicks() {
       duration: 800
     });
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
@@ -5763,14 +5784,17 @@ function setupNativeMarkerClicks() {
 
 function setupRegionMarkerClicks() {
   const regionClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Region has priority 2
+    const myPriority = 2;
+    
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const regionName = feature.properties.name;
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5825,9 +5849,9 @@ function setupRegionMarkerClicks() {
       state.markerInteractionLock = false;
     }, 800);
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
@@ -5901,14 +5925,17 @@ function addNativeSubregionMarkers() {
 // Add click handlers for subregion markers
 function setupSubregionMarkerClicks() {
   const subregionClickHandler = (e) => {
-    // Check if another marker already handled this click
-    if (state.markerClickHandled) return;
+    // Subregion has priority 3
+    const myPriority = 3;
+    
+    // Only handle if we have priority
+    if (state.clickPriority < myPriority) return;
     
     const feature = e.features[0];
     const subregionName = feature.properties.name;
     
-    // Mark this click as handled
-    state.markerClickHandled = true;
+    // Set our priority to prevent lower priority handlers
+    state.clickPriority = myPriority;
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -5944,9 +5971,9 @@ function setupSubregionMarkerClicks() {
       state.markerInteractionLock = false;
     }, 800);
     
-    // Reset click handled flag quickly for next click
-    state.setTimer('resetClickHandled', () => {
-      state.markerClickHandled = false;
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
     }, 50);
   };
   
