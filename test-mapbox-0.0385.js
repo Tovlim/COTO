@@ -5490,10 +5490,14 @@ function setupTerritoryMarkerClicks() {
     // Territory has priority 1 (highest)
     const myPriority = 1;
     
+    console.log(`[TERRITORY CLICK] ${e.features[0].properties.name} - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
+    
     // Only handle if no one has claimed priority yet, or if we have higher priority
     if (state.clickPriority === 999 || state.clickPriority > myPriority) {
       state.clickPriority = myPriority;
+      console.log(`[TERRITORY CLICK] ${e.features[0].properties.name} - CLAIMED priority ${myPriority}`);
     } else {
+      console.log(`[TERRITORY CLICK] ${e.features[0].properties.name} - BLOCKED by existing priority ${state.clickPriority}`);
       return; // Someone with equal or higher priority already claimed it
     }
     
@@ -5526,6 +5530,7 @@ function setupTerritoryMarkerClicks() {
     
     // Reset priority quickly for next click
     state.setTimer('resetClickPriority', () => {
+      console.log(`[TERRITORY CLICK] ${territoryName} - RESETTING priority to 999`);
       state.clickPriority = 999;
     }, 50);
   };
@@ -5798,10 +5803,14 @@ function setupRegionMarkerClicks() {
     // Region has priority 2
     const myPriority = 2;
     
+    console.log(`[REGION CLICK] ${e.features[0].properties.name} - Current priority: ${state.clickPriority}, My priority: ${myPriority}`);
+    
     // Only handle if no one has claimed priority yet, or if we have higher priority
     if (state.clickPriority === 999 || state.clickPriority > myPriority) {
       state.clickPriority = myPriority;
+      console.log(`[REGION CLICK] ${e.features[0].properties.name} - CLAIMED priority ${myPriority}`);
     } else {
+      console.log(`[REGION CLICK] ${e.features[0].properties.name} - BLOCKED by existing priority ${state.clickPriority}`);
       return; // Someone with equal or higher priority already claimed it
     }
     
@@ -5830,7 +5839,12 @@ function setupRegionMarkerClicks() {
       highlightBoundary(regionName);
       
       // Re-check priority before any map movement operations
-      if (state.clickPriority < myPriority) return;
+      if (state.clickPriority < myPriority) {
+        console.log(`[REGION CLICK] ${regionName} - BLOCKED from frameRegionBoundary by priority ${state.clickPriority}`);
+        return;
+      }
+      
+      console.log(`[REGION CLICK] ${regionName} - EXECUTING frameRegionBoundary with priority ${state.clickPriority}`);
       
       // Use the global function to frame boundaries
       if (!frameRegionBoundary(regionName)) {
@@ -5854,7 +5868,12 @@ function setupRegionMarkerClicks() {
       removeBoundaryHighlight();
       
       // Re-check priority before flying
-      if (state.clickPriority < myPriority) return;
+      if (state.clickPriority < myPriority) {
+        console.log(`[REGION CLICK] ${regionName} - BLOCKED from flyTo by priority ${state.clickPriority}`);
+        return;
+      }
+      
+      console.log(`[REGION CLICK] ${regionName} - EXECUTING flyTo with priority ${state.clickPriority}`);
       
       // Fly to region point
       map.flyTo({
@@ -5872,6 +5891,7 @@ function setupRegionMarkerClicks() {
     
     // Reset priority quickly for next click
     state.setTimer('resetClickPriority', () => {
+      console.log(`[REGION CLICK] ${regionName} - RESETTING priority to 999`);
       state.clickPriority = 999;
     }, 50);
   };
