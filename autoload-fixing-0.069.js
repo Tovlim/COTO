@@ -1076,6 +1076,27 @@ function initFilteringDetection() {
   }, 2000);
 }
 
+// SHARE BUTTON FUNCTIONALITY
+document.addEventListener('click', function(e) {
+  const shareButton = e.target.closest('[share-button]');
+  if (shareButton) {
+    e.preventDefault();
+    const slug = shareButton.getAttribute('share-button');
+    if (slug) {
+      const url = window.location.origin + '/report/' + slug;
+      navigator.clipboard.writeText(url).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      });
+    }
+  }
+});
+
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   // Hide loading indicator initially
