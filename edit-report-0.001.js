@@ -10,7 +10,7 @@
     EDIT_BUTTON_SELECTOR: '[edit-report="true"]',
     REPORT_ITEM_SELECTOR: '.report-item, .w-dyn-item, [wfu-lightbox-group]',
     FORM_SELECTOR: 'form[data-name="report"]',
-    DEBUG: false // Set to true for console logging
+    DEBUG: true // Set to true for console logging
   };
   
   // State management
@@ -520,63 +520,100 @@
   
   // Handle edit button click
   function handleEditClick(event) {
+    log('Click event triggered on:', event.target);
+    log('Event current target:', event.currentTarget);
+    
     // Check if click is on edit button or its child
     const editButton = event.target.closest(CONFIG.EDIT_BUTTON_SELECTOR);
-    if (!editButton) return;
+    log('Edit button found:', editButton);
+    
+    if (!editButton) {
+      log('Click was not on edit button, ignoring');
+      return;
+    }
     
     event.preventDefault();
     event.stopPropagation();
     
-    log('Edit button clicked');
+    log('Edit button clicked - processing');
     
     // Find parent report item
     const reportItem = getReportItem(editButton);
+    log('Parent report item:', reportItem);
+    
     if (!reportItem) {
-      console.error('Could not find parent report item');
+      console.error('Could not find parent report item for button:', editButton);
+      console.error('Looking for parent with selector:', CONFIG.REPORT_ITEM_SELECTOR);
       return;
     }
     
     // Extract report data
+    log('Extracting report data from item:', reportItem);
     const reportData = extractReportData(reportItem);
+    log('Extracted report data:', reportData);
     
     // Store current editing report
     currentEditingReport = reportData;
     
     // Populate form
+    log('Populating form with report data');
     populateFormWithReportData(reportData);
   }
   
   // Initialize the script
   function initialize() {
-    if (isInitialized) return;
+    if (isInitialized) {
+      log('Script already initialized, skipping');
+      return;
+    }
     
     log('Initializing Edit Report script');
     
+    // Check for edit buttons
+    const editButtons = document.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
+    log(`Found ${editButtons.length} edit button(s) with selector: ${CONFIG.EDIT_BUTTON_SELECTOR}`);
+    editButtons.forEach((btn, index) => {
+      log(`Edit button ${index + 1}:`, btn);
+      log(`- Parent element:`, btn.parentElement);
+      log(`- Has report item parent:`, !!getReportItem(btn));
+    });
+    
     // Set up event delegation on document body
-     document.body.addEventListener('click', handleEditClick, true);
+    log('Setting up click event listener on document.body with capture=true');
+    document.body.addEventListener('click', handleEditClick, true);
     
     isInitialized = true;
-    log('Edit Report script initialized');
+    log('Edit Report script initialized successfully');
   }
   
   // Wait for DOM and other scripts to be ready
   function waitForReady() {
+    log('Checking if ready to initialize...');
+    
     // Check if form exists
     const form = document.querySelector(CONFIG.FORM_SELECTOR);
+    log(`Form with selector '${CONFIG.FORM_SELECTOR}' found:`, !!form);
+    
     if (!form) {
+      log('Form not found, retrying in 100ms');
       // Try again in 100ms
       setTimeout(waitForReady, 100);
       return;
     }
     
+    log('Form found, initializing in 500ms to ensure other scripts are loaded');
     // Initialize after a small delay to ensure other scripts are loaded
     setTimeout(initialize, 500);
   }
   
   // Start initialization when DOM is ready
+  log('Edit Report Script loaded, document.readyState:', document.readyState);
+  
   if (document.readyState === 'loading') {
+    log('Document still loading, waiting for DOMContentLoaded');
     document.addEventListener('DOMContentLoaded', waitForReady);
   } else {
+    log('Document already loaded, starting initialization check');
     waitForReady();
   }
   
