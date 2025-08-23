@@ -827,13 +827,15 @@
     // Get the logged-in user's name
     const userNameElement = document.querySelector('[data-display="fullname"]');
     if (!userNameElement) {
-      log('User name element not found, cannot auto-select reporter checkbox');
+      log('User name element not found, retrying in 500ms');
+      setTimeout(selectUserReporterCheckbox, 500);
       return;
     }
     
     const userName = userNameElement.textContent.trim();
     if (!userName) {
-      log('User name is empty, cannot auto-select reporter checkbox');
+      log('User name is empty, retrying in 500ms');
+      setTimeout(selectUserReporterCheckbox, 500);
       return;
     }
     
@@ -841,6 +843,12 @@
     
     // Look for checkbox with matching text in .checkbox-text span
     const reporterCheckboxes = document.querySelectorAll('[checkbox-filter="reporter"] input[type="checkbox"]');
+    
+    if (reporterCheckboxes.length === 0) {
+      log('No reporter checkboxes found yet, retrying in 500ms');
+      setTimeout(selectUserReporterCheckbox, 500);
+      return;
+    }
     
     for (let checkbox of reporterCheckboxes) {
       const label = checkbox.closest('label');
@@ -856,6 +864,12 @@
           if (!checkbox.checked) {
             log(`Found matching reporter checkbox, selecting: "${checkboxText || listValue}"`);
             checkbox.click();
+            
+            // After selecting checkbox, re-check edit button visibility
+            setTimeout(() => {
+              recheckAllEditButtonVisibility();
+            }, 300);
+            
             return;
           } else {
             log(`Reporter checkbox already selected: "${checkboxText || listValue}"`);
@@ -868,14 +882,15 @@
     log(`No reporter checkbox found for user: "${userName}"`);
   }
   
-  // Set up MutationObserver to watch for dynamically added edit buttons
+  // Set up MutationObserver to watch for dynamically added edit buttons and attribute changes
   function setupMutationObserver() {
     if (mutationObserver) return; // Already set up
     
-    log('Setting up MutationObserver for dynamically added edit buttons');
+    log('Setting up MutationObserver for dynamically added edit buttons and visibility changes');
     
     mutationObserver = new MutationObserver((mutations) => {
       let hasNewEditButtons = false;
+      let hasVisibilityChanges = false;
       
       mutations.forEach((mutation) => {
         if (mutation.type === 'childList') {
@@ -891,24 +906,39 @@
               if (editButtons && editButtons.length > 0) {
                 hasNewEditButtons = true;
               }
+              
+              // Check if new report items were added (from filtering)
+              if (node.matches && node.matches(CONFIG.REPORT_ITEM_SELECTOR)) {
+                hasVisibilityChanges = true;
+              }
             }
           });
         }
+        
+        // Watch for style changes that might indicate filtering/visibility changes
+        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+          const target = mutation.target;
+          if (target && target.matches && target.matches(CONFIG.REPORT_ITEM_SELECTOR)) {
+            hasVisibilityChanges = true;
+          }
+        }
       });
       
-      // If new edit buttons were found, check their visibility
-      if (hasNewEditButtons) {
-        log('New edit buttons detected, checking visibility');
+      // If new edit buttons or visibility changes were detected, check their visibility
+      if (hasNewEditButtons || hasVisibilityChanges) {
+        log('New content or visibility changes detected, checking edit button visibility');
         setTimeout(() => {
           recheckAllEditButtonVisibility();
-        }, 100); // Small delay to ensure DOM is settled
+        }, 200); // Increased delay to ensure filtering is complete
       }
     });
     
     // Start observing
     mutationObserver.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class'] // Watch for visibility changes
     });
     
     log('MutationObserver started');
