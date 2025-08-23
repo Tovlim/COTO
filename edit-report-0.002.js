@@ -9,7 +9,7 @@
   const CONFIG = {
     EDIT_BUTTON_SELECTOR: '[edit-report="true"]',
     REPORT_ITEM_SELECTOR: '.report-item, .w-dyn-item, [wfu-lightbox-group]',
-    FORM_SELECTOR: 'form[data-name="report"]',
+    FORM_SELECTOR: 'form[test-attribute="test"]',
     DEBUG: true // Set to true for console logging
   };
   
