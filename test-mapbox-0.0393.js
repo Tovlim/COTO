@@ -4479,7 +4479,7 @@ window.isLinkClick = false;
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/nitaihardy/cmeo1y2zd015n01pj5s6l2onh",
+  style: "mapbox://styles/occupationcrimes/cmeo2b3yu000601sf4sr066j9",
   center: isMobile ? [34.85, 31.7] : [35.22, 31.85], // Mobile: both West Bank & Gaza, Desktop: West Bank focused
   zoom: isMobile ? 7.1 : 8.33,
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
