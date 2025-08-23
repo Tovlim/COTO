@@ -62,6 +62,13 @@
       reportData.richtexts = richTextContents;
     }
     
+    // Extract additional reporter names (2nd, 3rd, etc.)
+    const additionalReporters = extractAdditionalReporters(reportItem);
+    if (additionalReporters.length > 0) {
+      reportData.additionalReporters = additionalReporters;
+      log('Extracted additional reporters:', additionalReporters);
+    }
+    
     log('Extracted report data:', reportData);
     return reportData;
   }
@@ -153,6 +160,74 @@
     
     log('All extracted rich texts:', richTexts);
     return richTexts;
+  }
+  
+  // Extract first reporter name from report item
+  function extractFirstReporterName(reportItem) {
+    // Look for reporter list items
+    const reporterItems = reportItem.querySelectorAll('[reporter-list-item="true"]');
+    
+    if (reporterItems.length > 0) {
+      // Get the first reporter's name
+      const firstReporter = reporterItems[0];
+      const nameElement = firstReporter.querySelector('.multi-reporter-name');
+      
+      if (nameElement) {
+        return nameElement.textContent.trim();
+      }
+    }
+    
+    return null;
+  }
+  
+  // Extract additional reporter names (excluding the first one)
+  function extractAdditionalReporters(reportItem) {
+    const reporters = [];
+    
+    // Look for all reporter list items
+    const reporterItems = reportItem.querySelectorAll('[reporter-list-item="true"]');
+    
+    // Skip the first reporter (that's the user) and collect the rest
+    for (let i = 1; i < reporterItems.length; i++) {
+      const nameElement = reporterItems[i].querySelector('.multi-reporter-name');
+      if (nameElement) {
+        reporters.push(nameElement.textContent.trim());
+      }
+    }
+    
+    return reporters;
+  }
+  
+  // Check if edit button should be visible based on reporter name
+  function checkEditButtonVisibility(editButton, reportItem) {
+    // Get the logged-in user's name
+    const userNameElement = document.querySelector('[data-display="fullname"]');
+    if (!userNameElement) {
+      log('User name element not found, hiding edit button');
+      editButton.style.display = 'none';
+      return;
+    }
+    
+    const userName = userNameElement.textContent.trim();
+    if (!userName) {
+      log('User name is empty, hiding edit button');
+      editButton.style.display = 'none';
+      return;
+    }
+    
+    // Get the first reporter's name from the report
+    const firstReporterName = extractFirstReporterName(reportItem);
+    
+    log(`Checking edit visibility - User: "${userName}", First Reporter: "${firstReporterName}"`);
+    
+    // Show edit button only if names match
+    if (firstReporterName && firstReporterName === userName) {
+      editButton.style.display = ''; // Show (use default display)
+      log('Names match, showing edit button');
+    } else {
+      editButton.style.display = 'none'; // Hide
+      log('Names do not match, hiding edit button');
+    }
   }
   
   // Convert HTML to plain text suitable for textarea
@@ -372,6 +447,34 @@
     }
   }
   
+  // Auto-select reporter checkboxes based on additional reporters list
+  function selectAdditionalReporterCheckboxes(reporters) {
+    if (!reporters || reporters.length === 0) {
+      log('No additional reporters to select');
+      return;
+    }
+    
+    log('Selecting additional reporter checkboxes:', reporters);
+    
+    // Find and click checkboxes for each additional reporter in order
+    reporters.forEach((reporterName, index) => {
+      // Find checkbox with matching choice-name
+      const checkbox = document.querySelector(`input[cms-id-group="reporter"][choice-name="${reporterName}"]`);
+      
+      if (checkbox && checkbox.type === 'checkbox') {
+        // Add a small delay between clicks to ensure proper processing
+        setTimeout(() => {
+          if (!checkbox.checked) {
+            checkbox.click();
+            log(`Selected reporter checkbox ${index + 1}: ${reporterName}`);
+          }
+        }, index * 100); // 100ms delay between each click
+      } else {
+        log(`Reporter checkbox not found for: ${reporterName}`);
+      }
+    });
+  }
+  
   // Handle the reporter field specially
   function handleReporterField(value) {
     // The reporter field needs special handling to preserve user's cms-item-id
@@ -577,6 +680,9 @@
           populateVideoFields(value);
         } else if (fieldName === 'richtexts') {
           populateRichTextFields(value);
+        } else if (fieldName === 'additionalReporters') {
+          // Handle additional reporter checkboxes
+          selectAdditionalReporterCheckboxes(value);
         } else {
           // Regular field population
           const fields = findFormField(fieldName);
@@ -639,13 +745,25 @@
     
     log('Initializing Edit Report script');
     
-    // Check for edit buttons
+    // Check for edit buttons and set their visibility
     const editButtons = document.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
     log(`Found ${editButtons.length} edit button(s) with selector: ${CONFIG.EDIT_BUTTON_SELECTOR}`);
+    
     editButtons.forEach((btn, index) => {
       log(`Edit button ${index + 1}:`, btn);
       log(`- Parent element:`, btn.parentElement);
-      log(`- Has report item parent:`, !!getReportItem(btn));
+      
+      const reportItem = getReportItem(btn);
+      log(`- Has report item parent:`, !!reportItem);
+      
+      if (reportItem) {
+        // Check if this edit button should be visible
+        checkEditButtonVisibility(btn, reportItem);
+      } else {
+        // If no parent report item, hide the button
+        btn.style.display = 'none';
+        log(`- Hidden: no parent report item found`);
+      }
     });
     
     // Set up event delegation on document body in bubbling phase (not capture)
@@ -687,12 +805,26 @@
     waitForReady();
   }
   
-  // Expose API for debugging
+  // Function to re-check all edit button visibility (called when user name is loaded)
+  function recheckAllEditButtonVisibility() {
+    log('Re-checking all edit button visibility after user login');
+    const editButtons = document.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
+    
+    editButtons.forEach((btn) => {
+      const reportItem = getReportItem(btn);
+      if (reportItem) {
+        checkEditButtonVisibility(btn, reportItem);
+      }
+    });
+  }
+  
+  // Expose API for debugging and external use
   window.EditReportScript = {
     getCurrentReport: () => currentEditingReport,
     extractReportData,
     populateFormWithReportData,
     clearForm,
+    recheckEditButtonVisibility: recheckAllEditButtonVisibility,
     setDebug: (enabled) => { CONFIG.DEBUG = enabled; }
   };
   
