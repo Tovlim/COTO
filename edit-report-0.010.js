@@ -17,6 +17,7 @@
   let isInitialized = false;
   let currentEditingReport = null;
   let mutationObserver = null;
+  let currentUserName = null;
   
   // Utility functions
   const log = (...args) => {
@@ -201,20 +202,14 @@
   
   // Check if edit button should be visible based on reporter name
   function checkEditButtonVisibility(editButton, reportItem) {
-    // Get the logged-in user's name
-    const userNameElement = document.querySelector('[data-display="fullname"]');
-    if (!userNameElement) {
-      log('User name element not found, hiding edit button');
+    // Get the logged-in user's name from Firebase Auth or stored state
+    if (!currentUserName) {
+      log('User name not available, hiding edit button');
       editButton.style.display = 'none';
       return;
     }
     
-    const userName = userNameElement.textContent.trim();
-    if (!userName) {
-      log('User name is empty, hiding edit button');
-      editButton.style.display = 'none';
-      return;
-    }
+    const userName = currentUserName;
     
     // Get the first reporter's name from the report
     const firstReporterName = extractFirstReporterName(reportItem);
@@ -754,25 +749,15 @@
     
     log('Initializing Edit Report script');
     
-    // Check for edit buttons and set their visibility
+    // Check for edit buttons but DON'T set visibility yet (wait for Firebase Auth)
     const editButtons = document.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
     log(`Found ${editButtons.length} edit button(s) with selector: ${CONFIG.EDIT_BUTTON_SELECTOR}`);
     
+    // Initially hide all edit buttons until user is authenticated
     editButtons.forEach((btn, index) => {
       log(`Edit button ${index + 1}:`, btn);
-      log(`- Parent element:`, btn.parentElement);
-      
-      const reportItem = getReportItem(btn);
-      log(`- Has report item parent:`, !!reportItem);
-      
-      if (reportItem) {
-        // Check if this edit button should be visible
-        checkEditButtonVisibility(btn, reportItem);
-      } else {
-        // If no parent report item, hide the button
-        btn.style.display = 'none';
-        log(`- Hidden: no parent report item found`);
-      }
+      btn.style.display = 'none'; // Hide initially
+      log(`- Initially hidden until user authentication`);
     });
     
     // Set up event delegation on document body in bubbling phase (not capture)
@@ -819,33 +804,43 @@
   
   // Function to re-check all edit button visibility (called when user name is loaded)
   function recheckAllEditButtonVisibility() {
-    log('Re-checking all edit button visibility after user login');
-    const editButtons = document.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
+    log('🔄 Re-checking all edit button visibility');
     
-    editButtons.forEach((btn) => {
+    log(`Current user name: "${currentUserName}"`);
+    
+    if (!currentUserName) {
+      log('❌ No user name available, cannot check edit buttons');
+      return;
+    }
+    
+    const editButtons = document.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
+    log(`Found ${editButtons.length} edit buttons to check`);
+    
+    editButtons.forEach((btn, index) => {
       const reportItem = getReportItem(btn);
+      log(`\n📝 Checking edit button ${index + 1}:`);
+      
       if (reportItem) {
         checkEditButtonVisibility(btn, reportItem);
+      } else {
+        btn.style.display = 'none';
+        log(`❌ No parent report item found, hiding button`);
       }
     });
+    
+    log('🏁 Finished rechecking all edit buttons');
   }
   
   // Auto-select user's reporter checkbox on page load
   function selectUserReporterCheckbox() {
-    // Get the logged-in user's name
-    const userNameElement = document.querySelector('[data-display="fullname"]');
-    if (!userNameElement) {
-      log('User name element not found, retrying in 1000ms');
+    // Get the logged-in user's name from stored state
+    if (!currentUserName) {
+      log('User name not available, retrying in 1000ms');
       setTimeout(selectUserReporterCheckbox, 1000);
       return;
     }
     
-    const userName = userNameElement.textContent.trim();
-    if (!userName) {
-      log('User name is empty, retrying in 1000ms');
-      setTimeout(selectUserReporterCheckbox, 1000);
-      return;
-    }
+    const userName = currentUserName;
     
     log(`Looking for reporter checkbox for user: "${userName}"`);
     
@@ -969,6 +964,21 @@
     log('MutationObserver started');
   }
   
+  // Function to set user name from Firebase Auth
+  function setUserName(userName) {
+    log(`🔐 Setting user name from Firebase Auth: "${userName}"`);
+    currentUserName = userName;
+    
+    // Trigger checkbox selection and edit button visibility check
+    setTimeout(() => {
+      selectUserReporterCheckbox();
+    }, 500);
+    
+    setTimeout(() => {
+      recheckAllEditButtonVisibility();
+    }, 1000);
+  }
+  
   // Expose API for debugging and external use
   window.EditReportScript = {
     getCurrentReport: () => currentEditingReport,
@@ -977,6 +987,7 @@
     clearForm,
     recheckEditButtonVisibility: recheckAllEditButtonVisibility,
     selectUserReporterCheckbox: selectUserReporterCheckbox,
+    setUserName: setUserName,
     setDebug: (enabled) => { CONFIG.DEBUG = enabled; }
   };
   
