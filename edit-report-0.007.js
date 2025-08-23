@@ -16,6 +16,7 @@
   // State management
   let isInitialized = false;
   let currentEditingReport = null;
+  let mutationObserver = null;
   
   // Utility functions
   const log = (...args) => {
@@ -770,6 +771,9 @@
     log('Setting up click event listener on document.body in bubbling phase');
     document.body.addEventListener('click', handleEditClick, false);
     
+    // Set up MutationObserver for dynamically added edit buttons
+    setupMutationObserver();
+    
     isInitialized = true;
     log('Edit Report script initialized successfully');
   }
@@ -818,6 +822,98 @@
     });
   }
   
+  // Auto-select user's reporter checkbox on page load
+  function selectUserReporterCheckbox() {
+    // Get the logged-in user's name
+    const userNameElement = document.querySelector('[data-display="fullname"]');
+    if (!userNameElement) {
+      log('User name element not found, cannot auto-select reporter checkbox');
+      return;
+    }
+    
+    const userName = userNameElement.textContent.trim();
+    if (!userName) {
+      log('User name is empty, cannot auto-select reporter checkbox');
+      return;
+    }
+    
+    log(`Looking for reporter checkbox for user: "${userName}"`);
+    
+    // Look for checkbox with matching text in .checkbox-text span
+    const reporterCheckboxes = document.querySelectorAll('[checkbox-filter="reporter"] input[type="checkbox"]');
+    
+    for (let checkbox of reporterCheckboxes) {
+      const label = checkbox.closest('label');
+      if (label) {
+        const textSpan = label.querySelector('.checkbox-text');
+        const fsListValue = checkbox.getAttribute('fs-list-value');
+        
+        // Check both the text span and fs-list-value attribute
+        const checkboxText = textSpan ? textSpan.textContent.trim() : '';
+        const listValue = fsListValue || '';
+        
+        if (checkboxText === userName || listValue === userName) {
+          if (!checkbox.checked) {
+            log(`Found matching reporter checkbox, selecting: "${checkboxText || listValue}"`);
+            checkbox.click();
+            return;
+          } else {
+            log(`Reporter checkbox already selected: "${checkboxText || listValue}"`);
+            return;
+          }
+        }
+      }
+    }
+    
+    log(`No reporter checkbox found for user: "${userName}"`);
+  }
+  
+  // Set up MutationObserver to watch for dynamically added edit buttons
+  function setupMutationObserver() {
+    if (mutationObserver) return; // Already set up
+    
+    log('Setting up MutationObserver for dynamically added edit buttons');
+    
+    mutationObserver = new MutationObserver((mutations) => {
+      let hasNewEditButtons = false;
+      
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              // Check if the added node is an edit button
+              if (node.matches && node.matches(CONFIG.EDIT_BUTTON_SELECTOR)) {
+                hasNewEditButtons = true;
+              }
+              
+              // Check if the added node contains edit buttons
+              const editButtons = node.querySelectorAll && node.querySelectorAll(CONFIG.EDIT_BUTTON_SELECTOR);
+              if (editButtons && editButtons.length > 0) {
+                hasNewEditButtons = true;
+              }
+            }
+          });
+        }
+      });
+      
+      // If new edit buttons were found, check their visibility
+      if (hasNewEditButtons) {
+        log('New edit buttons detected, checking visibility');
+        setTimeout(() => {
+          recheckAllEditButtonVisibility();
+        }, 100); // Small delay to ensure DOM is settled
+      }
+    });
+    
+    // Start observing
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    log('MutationObserver started');
+  }
+  
   // Expose API for debugging and external use
   window.EditReportScript = {
     getCurrentReport: () => currentEditingReport,
@@ -825,6 +921,7 @@
     populateFormWithReportData,
     clearForm,
     recheckEditButtonVisibility: recheckAllEditButtonVisibility,
+    selectUserReporterCheckbox: selectUserReporterCheckbox,
     setDebug: (enabled) => { CONFIG.DEBUG = enabled; }
   };
   
