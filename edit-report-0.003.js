@@ -314,6 +314,46 @@
     }
   }
   
+  // Select a radio button by choice-id attribute
+  function selectRadioByChoiceId(groupName, choiceId) {
+    if (!choiceId) return;
+    
+    log(`Selecting radio for ${groupName} with choice-id: ${choiceId}`);
+    
+    // Find the radio button with matching cms-id-group and choice-id
+    const radio = document.querySelector(`input[cms-id-group="${groupName}"][choice-id="${choiceId}"]`);
+    
+    if (radio) {
+      // Simulate a real click to trigger the Combined Firebase Auth script's handlers
+      // This will properly handle cascading triggers
+      radio.click();
+      
+      log(`Selected radio button for ${groupName}: ${choiceId}`);
+    } else {
+      log(`No radio found for ${groupName} with choice-id: ${choiceId}`);
+    }
+  }
+  
+  // Select a radio button by choice-name attribute
+  function selectRadioByChoiceName(groupName, choiceName) {
+    if (!choiceName) return;
+    
+    log(`Selecting radio for ${groupName} with choice-name: ${choiceName}`);
+    
+    // Find the radio button with matching cms-id-group and choice-name
+    const radio = document.querySelector(`input[cms-id-group="${groupName}"][choice-name="${choiceName}"]`);
+    
+    if (radio) {
+      // Simulate a real click to trigger the Combined Firebase Auth script's handlers
+      // This will properly handle cascading triggers
+      radio.click();
+      
+      log(`Selected radio button for ${groupName}: ${choiceName}`);
+    } else {
+      log(`No radio found for ${groupName} with choice-name: ${choiceName}`);
+    }
+  }
+  
   // Handle the reporter field specially
   function handleReporterField(value) {
     // The reporter field needs special handling to preserve user's cms-item-id
@@ -495,7 +535,23 @@
         if (fieldName === 'reporter' || fieldName === '') {
           // Note: fieldName might be empty for the reporter field based on your HTML
           handleReporterField(value);
-        } else if (fieldName === 'locality' || fieldName === 'settlement') {
+        } else if (fieldName === 'locality') {
+          // Handle locality radio button selection
+          selectRadioByChoiceId('locality', value);
+        } else if (fieldName === 'region') {
+          // Handle region radio button selection
+          selectRadioByChoiceId('region', value);
+        } else if (fieldName === 'sub-region' || fieldName === 'subregion') {
+          // Handle sub-region radio button selection
+          selectRadioByChoiceId('sub-region', value);
+        } else if (fieldName === 'territory') {
+          // Handle territory radio button selection by name
+          selectRadioByChoiceName('territory', value);
+        } else if (fieldName === 'perp-origin') {
+          // Handle settlement radio button selection
+          selectRadioByChoiceId('settlement', value);
+        } else if (fieldName === 'settlement') {
+          // Alternative handling for settlement
           handleMultiSelectField(fieldName, value);
         } else if (fieldName === 'images') {
           populateImageFields(value);
@@ -520,22 +576,18 @@
   
   // Handle edit button click
   function handleEditClick(event) {
-    log('Click event triggered on:', event.target);
-    log('Event current target:', event.currentTarget);
-    
-    // Check if click is on edit button or its child
+    // Only process if this is actually an edit button click
     const editButton = event.target.closest(CONFIG.EDIT_BUTTON_SELECTOR);
-    log('Edit button found:', editButton);
     
     if (!editButton) {
-      log('Click was not on edit button, ignoring');
+      // Not an edit button, don't interfere with other handlers
       return;
     }
     
-    event.preventDefault();
-    event.stopPropagation();
-    
     log('Edit button clicked - processing');
+    
+    // Only prevent default for the edit button, not all clicks
+    event.preventDefault();
     
     // Find parent report item
     const reportItem = getReportItem(editButton);
@@ -578,9 +630,9 @@
       log(`- Has report item parent:`, !!getReportItem(btn));
     });
     
-    // Set up event delegation on document body
-    log('Setting up click event listener on document.body with capture=true');
-    document.body.addEventListener('click', handleEditClick, true);
+    // Set up event delegation on document body in bubbling phase (not capture)
+    log('Setting up click event listener on document.body in bubbling phase');
+    document.body.addEventListener('click', handleEditClick, false);
     
     isInitialized = true;
     log('Edit Report script initialized successfully');
