@@ -232,6 +232,13 @@
     
     log(`Populating field: ${tagName}, type: ${type}, value: ${value}`);
     
+    // Check if this field has a Flatpickr instance
+    if (field._flatpickr) {
+      log('Field has Flatpickr instance, using setDate method');
+      field._flatpickr.setDate(value, true); // true = trigger onChange events
+      return;
+    }
+    
     // Handle different field types
     if (tagName === 'input') {
       if (type === 'checkbox') {
@@ -249,6 +256,17 @@
         // Text, email, number, etc.
         field.value = value;
         field.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Special handling for date inputs with Flatpickr
+        if (field.hasAttribute('data-flatpickr')) {
+          // If Flatpickr hasn't been initialized yet, wait and try again
+          setTimeout(() => {
+            if (field._flatpickr) {
+              log('Flatpickr instance found after delay, setting date');
+              field._flatpickr.setDate(value, true);
+            }
+          }, 500);
+        }
       }
     } else if (tagName === 'textarea') {
       field.value = value;
