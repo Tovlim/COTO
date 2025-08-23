@@ -5136,7 +5136,7 @@ function loadSettlements() {
           },
           geometry: {
             type: "Point",
-            coordinates: [34.4665, 31.5014]
+            coordinates: [34.3950, 31.4458]
           }
         },
         {
