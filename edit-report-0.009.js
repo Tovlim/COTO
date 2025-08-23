@@ -219,15 +219,23 @@
     // Get the first reporter's name from the report
     const firstReporterName = extractFirstReporterName(reportItem);
     
-    log(`Checking edit visibility - User: "${userName}", First Reporter: "${firstReporterName}"`);
+    // Check if the report item is currently visible (not filtered out)
+    const reportStyle = window.getComputedStyle(reportItem);
+    const isReportVisible = reportStyle.display !== 'none' && reportStyle.visibility !== 'hidden';
     
-    // Show edit button only if names match
-    if (firstReporterName && firstReporterName === userName) {
+    log(`Checking edit visibility for report:`);
+    log(`- User: "${userName}"`);
+    log(`- First Reporter: "${firstReporterName}"`);
+    log(`- Report visible: ${isReportVisible}`);
+    log(`- Report element:`, reportItem);
+    
+    // Show edit button only if names match AND report is visible
+    if (firstReporterName && firstReporterName === userName && isReportVisible) {
       editButton.style.display = ''; // Show (use default display)
-      log('Names match, showing edit button');
+      log('✅ Names match and report is visible, showing edit button');
     } else {
       editButton.style.display = 'none'; // Hide
-      log('Names do not match, hiding edit button');
+      log('❌ Hiding edit button - Names match:', firstReporterName === userName, 'Report visible:', isReportVisible);
     }
   }
   
@@ -827,48 +835,55 @@
     // Get the logged-in user's name
     const userNameElement = document.querySelector('[data-display="fullname"]');
     if (!userNameElement) {
-      log('User name element not found, retrying in 500ms');
-      setTimeout(selectUserReporterCheckbox, 500);
+      log('User name element not found, retrying in 1000ms');
+      setTimeout(selectUserReporterCheckbox, 1000);
       return;
     }
     
     const userName = userNameElement.textContent.trim();
     if (!userName) {
-      log('User name is empty, retrying in 500ms');
-      setTimeout(selectUserReporterCheckbox, 500);
+      log('User name is empty, retrying in 1000ms');
+      setTimeout(selectUserReporterCheckbox, 1000);
       return;
     }
     
     log(`Looking for reporter checkbox for user: "${userName}"`);
     
-    // Look for checkbox with matching text in .checkbox-text span
-    const reporterCheckboxes = document.querySelectorAll('[checkbox-filter="reporter"] input[type="checkbox"]');
+    // Look for checkbox with matching text in .checkbox-text span - try multiple selectors
+    const reporterCheckboxes = document.querySelectorAll('input[type="checkbox"][fs-list-field="Reporter"], [checkbox-filter="reporter"] input[type="checkbox"], input[name="Reporter"][type="checkbox"]');
+    
+    log(`Found ${reporterCheckboxes.length} potential reporter checkboxes`);
     
     if (reporterCheckboxes.length === 0) {
-      log('No reporter checkboxes found yet, retrying in 500ms');
-      setTimeout(selectUserReporterCheckbox, 500);
+      log('No reporter checkboxes found yet, retrying in 1000ms');
+      setTimeout(selectUserReporterCheckbox, 1000);
       return;
     }
     
-    for (let checkbox of reporterCheckboxes) {
+    for (let i = 0; i < reporterCheckboxes.length; i++) {
+      const checkbox = reporterCheckboxes[i];
       const label = checkbox.closest('label');
+      
       if (label) {
-        const textSpan = label.querySelector('.checkbox-text');
+        const textSpan = label.querySelector('.checkbox-text, .w-form-label');
         const fsListValue = checkbox.getAttribute('fs-list-value');
         
         // Check both the text span and fs-list-value attribute
         const checkboxText = textSpan ? textSpan.textContent.trim() : '';
         const listValue = fsListValue || '';
         
+        log(`Checkbox ${i + 1}: text="${checkboxText}", fs-list-value="${listValue}", checked=${checkbox.checked}`);
+        
         if (checkboxText === userName || listValue === userName) {
           if (!checkbox.checked) {
             log(`Found matching reporter checkbox, selecting: "${checkboxText || listValue}"`);
             checkbox.click();
             
-            // After selecting checkbox, re-check edit button visibility
+            // After selecting checkbox, re-check edit button visibility with longer delay
             setTimeout(() => {
+              log('Rechecking edit button visibility after checkbox selection');
               recheckAllEditButtonVisibility();
-            }, 300);
+            }, 1000);
             
             return;
           } else {
@@ -880,6 +895,16 @@
     }
     
     log(`No reporter checkbox found for user: "${userName}"`);
+    log('Available checkboxes:');
+    for (let i = 0; i < reporterCheckboxes.length; i++) {
+      const checkbox = reporterCheckboxes[i];
+      const label = checkbox.closest('label');
+      const textSpan = label ? label.querySelector('.checkbox-text, .w-form-label') : null;
+      const fsListValue = checkbox.getAttribute('fs-list-value');
+      const checkboxText = textSpan ? textSpan.textContent.trim() : '';
+      const listValue = fsListValue || '';
+      log(`- Checkbox ${i + 1}: "${checkboxText}" / "${listValue}"`);
+    }
   }
   
   // Set up MutationObserver to watch for dynamically added edit buttons and attribute changes
