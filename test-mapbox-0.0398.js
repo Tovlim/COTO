@@ -1053,7 +1053,7 @@ const monitorTags = (() => {
 // OPTIMIZED: Smart initialization with parallel loading
 function init() {
   // Core initialization (parallel where possible)
-  loadLocalitiesFromGeoJSON();
+  loadLocalitiesFromGeoJSON(); // Now async with caching
   setupEvents();
   
   // Layer optimization
@@ -1185,7 +1185,10 @@ function setupGlobalExports() {
     toggleSidebar,
     closeSidebar,
     checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-    toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+    toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
+    smartLoader, // ENHANCED: Expose smart loader for debugging
+    markerCache, // ENHANCED: Expose cache for debugging  
+    geoWorker   // ENHANCED: Expose worker for debugging
   };
 }
 
@@ -2765,6 +2768,526 @@ const loadingTracker = {
 
 // Initialize the loading tracker
 loadingTracker.init();
+
+// ENHANCED: IndexedDB cache manager for marker data
+class MarkerDataCache {
+  constructor() {
+    this.dbName = 'MarkerDataCache';
+    this.dbVersion = 2;
+    this.db = null;
+    this.stores = {
+      localities: 'localities',
+      settlements: 'settlements',
+      metadata: 'metadata'
+    };
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(this.db);
+      };
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        
+        // Create stores if they don't exist
+        Object.values(this.stores).forEach(storeName => {
+          if (!db.objectStoreNames.contains(storeName)) {
+            const store = db.createObjectStore(storeName, { keyPath: 'id' });
+            if (storeName !== 'metadata') {
+              store.createIndex('lastModified', 'lastModified', { unique: false });
+            }
+          }
+        });
+      };
+    });
+  }
+
+  async get(storeName, key = 'data') {
+    if (!this.db) await this.init();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.get(key);
+      
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async set(storeName, data, key = 'data') {
+    if (!this.db) await this.init();
+    
+    const record = {
+      id: key,
+      data: data,
+      timestamp: Date.now(),
+      lastModified: new Date().toISOString()
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.put(record);
+      
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getMetadata(key) {
+    const result = await this.get('metadata', key);
+    return result ? result.data : null;
+  }
+
+  async setMetadata(key, data) {
+    return this.set('metadata', data, key);
+  }
+
+  async isDataFresh(url, maxAgeMinutes = 60) {
+    try {
+      const metadata = await this.getMetadata(url);
+      if (!metadata) return false;
+      
+      const age = (Date.now() - metadata.timestamp) / (1000 * 60);
+      return age < maxAgeMinutes;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async clear() {
+    if (!this.db) return;
+    
+    const storeNames = Object.values(this.stores);
+    const transaction = this.db.transaction(storeNames, 'readwrite');
+    
+    storeNames.forEach(storeName => {
+      transaction.objectStore(storeName).clear();
+    });
+  }
+}
+
+// Global cache instance
+const markerCache = new MarkerDataCache();
+
+// ENHANCED: Web Worker manager for GeoJSON processing
+class GeoJSONWorkerManager {
+  constructor() {
+    this.worker = null;
+    this.pendingTasks = new Map();
+    this.taskId = 0;
+    this.workerScript = this.createWorkerScript();
+  }
+
+  createWorkerScript() {
+    // Create worker script as blob for inline definition
+    const workerCode = `
+      // GeoJSON processing worker
+      self.onmessage = function(e) {
+        const { taskId, type, data } = e.data;
+        
+        try {
+          let result;
+          
+          switch(type) {
+            case 'processLocalities':
+              result = processLocalitiesData(data);
+              break;
+            case 'processSettlements':  
+              result = processSettlementsData(data);
+              break;
+            case 'extractRegions':
+              result = extractRegionsFromLocalities(data);
+              break;
+            default:
+              throw new Error('Unknown task type: ' + type);
+          }
+          
+          self.postMessage({
+            taskId,
+            success: true,
+            result
+          });
+          
+        } catch (error) {
+          self.postMessage({
+            taskId,
+            success: false,
+            error: error.message
+          });
+        }
+      };
+
+      function processLocalitiesData(localityData) {
+        const localities = [];
+        const regions = new Set();
+        const subregions = new Set();
+        
+        localityData.features.forEach(feature => {
+          if (!feature.geometry || !feature.geometry.coordinates) return;
+          
+          const props = feature.properties;
+          if (!props.name) return;
+          
+          localities.push({
+            name: props.name,
+            lat: feature.geometry.coordinates[1],
+            lng: feature.geometry.coordinates[0],
+            region: props.region || '',
+            subregion: props.subregion || '',
+            slug: props.slug || props.name.toLowerCase().replace(/[^a-z0-9]/g, '-')
+          });
+          
+          if (props.region) regions.add(props.region);
+          if (props.subregion) subregions.add(props.subregion);
+        });
+        
+        return {
+          localities,
+          regions: Array.from(regions),
+          subregions: Array.from(subregions),
+          features: localityData.features
+        };
+      }
+
+      function processSettlementsData(settlementData) {
+        const settlements = [];
+        
+        settlementData.features.forEach(feature => {
+          if (!feature.geometry || !feature.geometry.coordinates) return;
+          
+          const props = feature.properties;
+          if (!props.name) return;
+          
+          settlements.push({
+            name: props.name,
+            lat: feature.geometry.coordinates[1],
+            lng: feature.geometry.coordinates[0],
+            locality: props.locality || '',
+            slug: props.slug || props.name.toLowerCase().replace(/[^a-z0-9]/g, '-')
+          });
+        });
+        
+        return {
+          settlements,
+          features: settlementData.features
+        };
+      }
+
+      function extractRegionsFromLocalities(localities) {
+        const regionFeatures = [];
+        const processedRegions = new Set();
+        
+        localities.forEach(locality => {
+          const region = locality.region;
+          if (region && !processedRegions.has(region)) {
+            processedRegions.add(region);
+            
+            regionFeatures.push({
+              type: "Feature",
+              properties: {
+                name: region,
+                type: "region"
+              },
+              geometry: {
+                type: "Point", 
+                coordinates: [locality.lng, locality.lat]
+              }
+            });
+          }
+        });
+        
+        return regionFeatures;
+      }
+    `;
+
+    return new Blob([workerCode], { type: 'application/javascript' });
+  }
+
+  initWorker() {
+    if (this.worker) return;
+    
+    try {
+      this.worker = new Worker(URL.createObjectURL(this.workerScript));
+      
+      this.worker.onmessage = (e) => {
+        const { taskId, success, result, error } = e.data;
+        const task = this.pendingTasks.get(taskId);
+        
+        if (task) {
+          this.pendingTasks.delete(taskId);
+          if (success) {
+            task.resolve(result);
+          } else {
+            task.reject(new Error(error));
+          }
+        }
+      };
+
+      this.worker.onerror = (error) => {
+        console.error('Worker error:', error);
+        // Reject all pending tasks
+        this.pendingTasks.forEach(task => {
+          task.reject(new Error('Worker error'));
+        });
+        this.pendingTasks.clear();
+      };
+
+    } catch (error) {
+      console.warn('Web Worker not available, falling back to main thread');
+      this.worker = null;
+    }
+  }
+
+  async processData(type, data) {
+    // Fallback to main thread if worker not available
+    if (!this.worker) {
+      this.initWorker();
+      if (!this.worker) {
+        return this.fallbackProcess(type, data);
+      }
+    }
+
+    const taskId = ++this.taskId;
+    
+    return new Promise((resolve, reject) => {
+      this.pendingTasks.set(taskId, { resolve, reject });
+      
+      this.worker.postMessage({
+        taskId,
+        type,
+        data
+      });
+      
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingTasks.has(taskId)) {
+          this.pendingTasks.delete(taskId);
+          reject(new Error('Worker task timeout'));
+        }
+      }, 30000);
+    });
+  }
+
+  fallbackProcess(type, data) {
+    // Main thread fallback (simplified versions)
+    switch(type) {
+      case 'processLocalities':
+        return this.processLocalitiesSync(data);
+      case 'processSettlements':
+        return this.processSettlementsSync(data);
+      default:
+        return Promise.reject(new Error('Fallback not implemented for: ' + type));
+    }
+  }
+
+  processLocalitiesSync(localityData) {
+    // Simplified synchronous version
+    const localities = localityData.features.map(feature => ({
+      name: feature.properties.name,
+      lat: feature.geometry.coordinates[1],
+      lng: feature.geometry.coordinates[0],
+      region: feature.properties.region || '',
+      subregion: feature.properties.subregion || ''
+    })).filter(l => l.name);
+
+    return Promise.resolve({
+      localities,
+      features: localityData.features
+    });
+  }
+
+  processSettlementsSync(settlementData) {
+    const settlements = settlementData.features.map(feature => ({
+      name: feature.properties.name,
+      lat: feature.geometry.coordinates[1],
+      lng: feature.geometry.coordinates[0]
+    })).filter(s => s.name);
+
+    return Promise.resolve({
+      settlements,
+      features: settlementData.features
+    });
+  }
+
+  terminate() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+    this.pendingTasks.clear();
+  }
+}
+
+// Global worker manager
+const geoWorker = new GeoJSONWorkerManager();
+
+// ENHANCED: Smart data loader with caching and worker processing
+class SmartDataLoader {
+  constructor() {
+    this.urls = {
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
+      settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.024.geojson'
+    };
+    this.cache = markerCache;
+    this.worker = geoWorker;
+  }
+
+  async loadWithCache(url, storeName, processingType) {
+    // Check if data is fresh in cache
+    const isFresh = await this.cache.isDataFresh(url, 60); // 60 minutes
+    
+    if (isFresh) {
+      try {
+        const cached = await this.cache.get(storeName);
+        if (cached && cached.data) {
+          return cached.data;
+        }
+      } catch (error) {
+        console.warn(`Cache read failed for ${storeName}:`, error);
+      }
+    }
+
+    // Fetch fresh data
+    return this.fetchAndProcess(url, storeName, processingType);
+  }
+
+  async fetchAndProcess(url, storeName, processingType) {
+    try {
+      // Fetch with etag support for conditional requests
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const rawData = await response.json();
+      
+      // Process in web worker
+      const processedData = await this.worker.processData(processingType, rawData);
+      
+      // Cache the processed result
+      try {
+        await this.cache.set(storeName, processedData);
+        
+        // Store metadata for freshness checking
+        await this.cache.setMetadata(url, {
+          timestamp: Date.now(),
+          etag: response.headers.get('etag'),
+          lastModified: response.headers.get('last-modified'),
+          size: JSON.stringify(rawData).length
+        });
+      } catch (error) {
+        console.warn(`Cache write failed for ${storeName}:`, error);
+      }
+
+      return processedData;
+      
+    } catch (error) {
+      console.error(`Failed to fetch/process ${url}:`, error);
+      
+      // Try to return stale cache data if available
+      try {
+        const staleCache = await this.cache.get(storeName);
+        if (staleCache && staleCache.data) {
+          console.warn(`Using stale cache for ${storeName}`);
+          return staleCache.data;
+        }
+      } catch (cacheError) {
+        console.warn(`Stale cache read failed:`, cacheError);
+      }
+      
+      throw error;
+    }
+  }
+
+  async loadLocalities() {
+    return this.loadWithCache(
+      this.urls.localities, 
+      'localities', 
+      'processLocalities'
+    );
+  }
+
+  async loadSettlements() {
+    return this.loadWithCache(
+      this.urls.settlements, 
+      'settlements', 
+      'processSettlements'
+    );
+  }
+
+  async preloadAll() {
+    // Load both datasets in parallel
+    try {
+      const [localitiesData, settlementsData] = await Promise.all([
+        this.loadLocalities(),
+        this.loadSettlements()
+      ]);
+
+      return {
+        localities: localitiesData,
+        settlements: settlementsData
+      };
+    } catch (error) {
+      console.error('Preload failed:', error);
+      throw error;
+    }
+  }
+
+  async clearCache() {
+    return this.cache.clear();
+  }
+
+  // Get cache statistics
+  async getCacheStats() {
+    const stats = {
+      localities: null,
+      settlements: null,
+      totalSize: 0
+    };
+
+    try {
+      const localitiesCache = await this.cache.get('localities');
+      const settlementsCache = await this.cache.get('settlements');
+      
+      if (localitiesCache) {
+        stats.localities = {
+          timestamp: localitiesCache.timestamp,
+          age: Math.round((Date.now() - localitiesCache.timestamp) / 1000 / 60),
+          features: localitiesCache.data?.features?.length || 0
+        };
+      }
+      
+      if (settlementsCache) {
+        stats.settlements = {
+          timestamp: settlementsCache.timestamp,
+          age: Math.round((Date.now() - settlementsCache.timestamp) / 1000 / 60),
+          features: settlementsCache.data?.features?.length || 0
+        };
+      }
+      
+    } catch (error) {
+      console.warn('Failed to get cache stats:', error);
+    }
+
+    return stats;
+  }
+}
+
+// Global data loader instance
+const smartLoader = new SmartDataLoader();
 
 // OPTIMIZED: Comprehensive DOM Element Cache
 class OptimizedDOMCache {
@@ -5057,28 +5580,25 @@ function selectSettlementCheckbox(settlementName) {
 function selectTerritoryCheckbox(territoryName) {
   selectCheckbox('territory', territoryName);
 }
-// MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
-function loadLocalitiesFromGeoJSON() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(localityData => {
-      // Store locality features
-      state.locationData = localityData;
-      state.allLocalityFeatures = localityData.features;
+// ENHANCED: Load localities using smart caching and worker processing
+async function loadLocalitiesFromGeoJSON() {
+  try {
+    // Use smart loader with caching and worker processing
+    const processedData = await smartLoader.loadLocalities();
+    
+    // Store the data in state (maintaining compatibility)
+    state.locationData = { features: processedData.features };
+    state.allLocalityFeatures = processedData.features;
       
-      // Extract unique regions from localities with their coordinates
-      const regionMap = new Map();
-      // Extract unique subregions from localities with their coordinates
-      const subregionMap = new Map();
-      
-      localityData.features.forEach(feature => {
-        const regionName = feature.properties.region;
-        const subregionName = feature.properties.subRegion;
+    // The worker already processed regions and subregions for us
+    // Extract unique regions from localities with their coordinates
+    const regionMap = new Map();
+    // Extract unique subregions from localities with their coordinates
+    const subregionMap = new Map();
+    
+    processedData.features.forEach(feature => {
+      const regionName = feature.properties.region;
+      const subregionName = feature.properties.subRegion;
         
         // Process regions
         if (regionName && !regionMap.has(regionName)) {
@@ -5107,7 +5627,7 @@ function loadLocalitiesFromGeoJSON() {
         });
         
         // Find a locality with this region to get the territory
-        const localityInRegion = localityData.features.find(f => f.properties.region === regionName);
+        const localityInRegion = processedData.features.find(f => f.properties.region === regionName);
         
         return {
           type: "Feature",
@@ -5161,9 +5681,7 @@ function loadLocalitiesFromGeoJSON() {
       
       // Load settlements after locality/region layers are created for proper layer ordering
       // Use timer to ensure batched layer operations complete first
-      state.setTimer('loadSettlements', () => {
-        loadSettlements();
-      }, 300);
+      state.setTimer('loadSettlements', loadSettlementsFromCache, 300);
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
@@ -5172,12 +5690,59 @@ function loadLocalitiesFromGeoJSON() {
       
       // Mark data as loaded
       loadingTracker.markComplete('dataLoaded');
-    })
-    .catch(error => {
-      console.error('Failed to load localities:', error);
-      // Mark as loaded even on error to prevent infinite loading
-      loadingTracker.markComplete('dataLoaded');
-    });
+  } catch (error) {
+    console.error('Failed to load localities:', error);
+    // Mark as loaded even on error to prevent infinite loading
+    loadingTracker.markComplete('dataLoaded');
+  }
+}
+
+// ENHANCED: Load settlements using smart caching and worker processing
+async function loadSettlementsFromCache() {
+  try {
+    const processedData = await smartLoader.loadSettlements();
+    
+    // Store settlement features
+    state.allSettlementFeatures = processedData.features;
+    
+    // Add settlements to map (will be inserted before localities for proper layer order)
+    addSettlementMarkers();
+    
+    // Add territory features (keeping existing logic)
+    state.allTerritoryFeatures = [
+      {
+        type: "Feature",
+        properties: {
+          name: "Gaza",
+          type: "territory"
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [34.3950, 31.4458]
+        }
+      },
+      {
+        type: "Feature",
+        properties: {
+          name: "West Bank",
+          type: "territory"
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [35.3050, 32.2873]
+        }
+      }
+    ];
+    
+    // Add territory markers to map
+    addNativeTerritoryMarkers();
+    
+    // Generate settlement checkboxes
+    state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
+    
+  } catch (error) {
+    console.error('Failed to load settlements:', error);
+  }
 }
 
 // OPTIMIZED: Load and add settlement markers with new color
