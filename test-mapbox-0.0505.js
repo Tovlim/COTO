@@ -1050,11 +1050,13 @@ const monitorTags = (() => {
   };
 })();
 
-// OPTIMIZED: Smart initialization with parallel loading
+// OPTIMIZED: Smart initialization with deferred marker loading
 function init() {
-  // Core initialization (parallel where possible)
-  loadLocalitiesFromGeoJSON(); // Now async with caching
+  // Core initialization - NO marker loading on initial page load
   setupEvents();
+  
+  // Only load overlays and regions initially (lightweight)
+  setupZoomBasedMarkerLoading();
   
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
@@ -1068,6 +1070,9 @@ function init() {
   
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
+  
+  // Setup zoom-based marker loading
+  setupZoomBasedMarkerLoading();
   
   // Staggered setup with smart timing
   [300, 800].forEach(delay => 
@@ -1092,6 +1097,65 @@ function init() {
     // FIXED: Always check filtered elements on initial load
     checkAndToggleFilteredElements();
   }, 300);
+}
+
+// Zoom-based marker loading implementation
+function setupZoomBasedMarkerLoading() {
+  const MARKER_ZOOM_THRESHOLD = 9;
+  let markersLoaded = false;
+  
+  function checkZoomAndLoadMarkers() {
+    const currentZoom = map.getZoom();
+    
+    if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
+      // Load markers only when zoomed in enough
+      markersLoaded = true;
+      
+      // Load locality markers if not already loaded
+      if (!state.localityData || state.localityData.length === 0) {
+        loadCombinedGeoData();
+      }
+      
+      // Show marker layers
+      if (map.getLayer('locality-points')) {
+        map.setLayoutProperty('locality-points', 'visibility', 'visible');
+      }
+      if (map.getLayer('locality-clusters')) {
+        map.setLayoutProperty('locality-clusters', 'visibility', 'visible');
+      }
+      if (map.getLayer('settlement-points')) {
+        map.setLayoutProperty('settlement-points', 'visibility', 'visible');
+      }
+      if (map.getLayer('settlement-clusters')) {
+        map.setLayoutProperty('settlement-clusters', 'visibility', 'visible');
+      }
+    } else if (currentZoom < MARKER_ZOOM_THRESHOLD && markersLoaded) {
+      // Hide marker layers when zoomed out
+      if (map.getLayer('locality-points')) {
+        map.setLayoutProperty('locality-points', 'visibility', 'none');
+      }
+      if (map.getLayer('locality-clusters')) {
+        map.setLayoutProperty('locality-clusters', 'visibility', 'none');
+      }
+      if (map.getLayer('settlement-points')) {
+        map.setLayoutProperty('settlement-points', 'visibility', 'none');
+      }
+      if (map.getLayer('settlement-clusters')) {
+        map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
+      }
+    }
+  }
+  
+  // Listen to zoom events
+  map.on('zoom', checkZoomAndLoadMarkers);
+  map.on('zoomend', checkZoomAndLoadMarkers);
+  
+  // Initial check when map is ready
+  if (map.isStyleLoaded()) {
+    checkZoomAndLoadMarkers();
+  } else {
+    map.on('style.load', checkZoomAndLoadMarkers);
+  }
 }
 
 // OPTIMIZED: DOM ready handlers
@@ -4870,8 +4934,8 @@ map.on("load", () => {
   try {
     init();
     
-    // Load combined data
-    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    // Note: Combined data loading is now deferred until zoom level 9+
+    // This improves initial page load performance
     
     // Settlements are loaded after localities for proper layer ordering
     
@@ -5652,7 +5716,7 @@ function addSettlementMarkers() {
           'text-allow-overlap': true,
           'text-ignore-placement': true,
           'symbol-sort-key': 1,
-          'visibility': 'visible'
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
@@ -5691,7 +5755,7 @@ function addSettlementMarkers() {
           'text-offset': [0, 0],
           'text-anchor': 'center',
           'symbol-sort-key': 2,
-          'visibility': 'visible'
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
@@ -5964,7 +6028,8 @@ function addNativeMarkers() {
           'text-font': ['Open Sans Regular'],
           'text-size': 16,
           'text-allow-overlap': true,
-          'text-ignore-placement': true
+          'text-ignore-placement': true,
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
@@ -5996,7 +6061,8 @@ function addNativeMarkers() {
           'text-padding': 4,
           'text-offset': [0, 0],
           'text-anchor': 'center',
-          'symbol-sort-key': 10 // Higher values render last (on top)
+          'symbol-sort-key': 10, // Higher values render last (on top)
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
