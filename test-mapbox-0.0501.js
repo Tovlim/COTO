@@ -5698,8 +5698,12 @@ async function loadSettlementsFromCache() {
   try {
     const processedData = await smartLoader.loadSettlements();
     
-    // Store settlement features
+    // Store settlement features and data (addSettlementMarkers needs both)
     state.allSettlementFeatures = processedData.features;
+    state.settlementData = {
+      type: "FeatureCollection",
+      features: processedData.features
+    };
     
     // Add settlements to map (will be inserted before localities for proper layer order)
     addSettlementMarkers();
