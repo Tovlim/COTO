@@ -1186,9 +1186,8 @@ function setupGlobalExports() {
     closeSidebar,
     checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
     toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
-    smartLoader, // ENHANCED: Expose smart loader for debugging
-    markerCache, // ENHANCED: Expose cache for debugging  
-    geoWorker   // ENHANCED: Expose worker for debugging
+    lightweightCache, // OPTIMIZED: Expose cache for debugging
+    lazyWorker   // OPTIMIZED: Expose worker for debugging
   };
 }
 
@@ -2769,90 +2768,18 @@ const loadingTracker = {
 // Initialize the loading tracker
 loadingTracker.init();
 
-// ENHANCED: IndexedDB cache manager for marker data
-class MarkerDataCache {
+// OPTIMIZED: Lightweight cache manager with localStorage metadata
+class LightweightCache {
   constructor() {
-    this.dbName = 'MarkerDataCache';
-    this.dbVersion = 2;
-    this.db = null;
-    this.stores = {
-      localities: 'localities',
-      settlements: 'settlements',
-      metadata: 'metadata'
-    };
+    this.prefix = 'mapCache_';
+    this.metaPrefix = 'mapMeta_';
   }
 
-  async init() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
-      
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        this.db = request.result;
-        resolve(this.db);
-      };
-      
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        
-        // Create stores if they don't exist
-        Object.values(this.stores).forEach(storeName => {
-          if (!db.objectStoreNames.contains(storeName)) {
-            const store = db.createObjectStore(storeName, { keyPath: 'id' });
-            if (storeName !== 'metadata') {
-              store.createIndex('lastModified', 'lastModified', { unique: false });
-            }
-          }
-        });
-      };
-    });
-  }
-
-  async get(storeName, key = 'data') {
-    if (!this.db) await this.init();
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-      const request = store.get(key);
-      
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async set(storeName, data, key = 'data') {
-    if (!this.db) await this.init();
-    
-    const record = {
-      id: key,
-      data: data,
-      timestamp: Date.now(),
-      lastModified: new Date().toISOString()
-    };
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-      const request = store.put(record);
-      
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async getMetadata(key) {
-    const result = await this.get('metadata', key);
-    return result ? result.data : null;
-  }
-
-  async setMetadata(key, data) {
-    return this.set('metadata', data, key);
-  }
-
-  async isDataFresh(url, maxAgeMinutes = 60) {
+  // Simple cache check using localStorage for metadata
+  isDataFresh(url, maxAgeMinutes = 60) {
     try {
-      const metadata = await this.getMetadata(url);
+      const metaKey = this.metaPrefix + this.hashUrl(url);
+      const metadata = JSON.parse(localStorage.getItem(metaKey) || 'null');
       if (!metadata) return false;
       
       const age = (Date.now() - metadata.timestamp) / (1000 * 60);
@@ -2862,241 +2789,108 @@ class MarkerDataCache {
     }
   }
 
-  async clear() {
-    if (!this.db) return;
-    
-    const storeNames = Object.values(this.stores);
-    const transaction = this.db.transaction(storeNames, 'readwrite');
-    
-    storeNames.forEach(storeName => {
-      transaction.objectStore(storeName).clear();
+  // Get cached processed data
+  get(storeName) {
+    try {
+      const key = this.prefix + storeName;
+      const cached = JSON.parse(localStorage.getItem(key) || 'null');
+      return cached;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  // Store processed data
+  set(storeName, data, url) {
+    try {
+      const key = this.prefix + storeName;
+      const metaKey = this.metaPrefix + this.hashUrl(url);
+      
+      localStorage.setItem(key, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+      
+      localStorage.setItem(metaKey, JSON.stringify({
+        timestamp: Date.now(),
+        size: JSON.stringify(data).length
+      }));
+      
+      return true;
+    } catch (error) {
+      // Storage quota exceeded - clear old data
+      this.clear();
+      return false;
+    }
+  }
+
+  clear() {
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith(this.prefix) || key.startsWith(this.metaPrefix)) {
+        localStorage.removeItem(key);
+      }
     });
+  }
+
+  // Simple URL hash for storage keys
+  hashUrl(url) {
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+      const char = url.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString();
   }
 }
 
-// Global cache instance
-const markerCache = new MarkerDataCache();
+// Lazy-loaded cache instance - only created when needed
+let lightweightCache = null;
 
-// ENHANCED: Web Worker manager for GeoJSON processing
-class GeoJSONWorkerManager {
+// OPTIMIZED: Lazy worker manager - only creates worker when needed
+class LazyWorkerManager {
   constructor() {
     this.worker = null;
     this.pendingTasks = new Map();
     this.taskId = 0;
-    this.workerScript = this.createWorkerScript();
   }
 
-  createWorkerScript() {
-    // Create worker script as blob for inline definition
-    const workerCode = `
-      // GeoJSON processing worker
-      self.onmessage = function(e) {
-        const { taskId, type, data } = e.data;
-        
-        try {
-          let result;
-          
-          switch(type) {
-            case 'processLocalities':
-              result = processLocalitiesData(data);
-              break;
-            case 'processSettlements':  
-              result = processSettlementsData(data);
-              break;
-            case 'extractRegions':
-              result = extractRegionsFromLocalities(data);
-              break;
-            default:
-              throw new Error('Unknown task type: ' + type);
-          }
-          
-          self.postMessage({
-            taskId,
-            success: true,
-            result
-          });
-          
-        } catch (error) {
-          self.postMessage({
-            taskId,
-            success: false,
-            error: error.message
-          });
-        }
-      };
-
-      function processLocalitiesData(localityData) {
-        const localities = [];
-        const regions = new Set();
-        const subregions = new Set();
-        
-        localityData.features.forEach(feature => {
-          if (!feature.geometry || !feature.geometry.coordinates) return;
-          
-          const props = feature.properties;
-          if (!props.name) return;
-          
-          localities.push({
-            name: props.name,
-            lat: feature.geometry.coordinates[1],
-            lng: feature.geometry.coordinates[0],
-            region: props.region || '',
-            subregion: props.subregion || '',
-            slug: props.slug || props.name.toLowerCase().replace(/[^a-z0-9]/g, '-')
-          });
-          
-          if (props.region) regions.add(props.region);
-          if (props.subregion) subregions.add(props.subregion);
-        });
-        
-        return {
-          localities,
-          regions: Array.from(regions),
-          subregions: Array.from(subregions),
-          features: localityData.features
-        };
-      }
-
-      function processSettlementsData(settlementData) {
-        const settlements = [];
-        
-        settlementData.features.forEach(feature => {
-          if (!feature.geometry || !feature.geometry.coordinates) return;
-          
-          const props = feature.properties;
-          if (!props.name) return;
-          
-          settlements.push({
-            name: props.name,
-            lat: feature.geometry.coordinates[1],
-            lng: feature.geometry.coordinates[0],
-            locality: props.locality || '',
-            slug: props.slug || props.name.toLowerCase().replace(/[^a-z0-9]/g, '-')
-          });
-        });
-        
-        return {
-          settlements,
-          features: settlementData.features
-        };
-      }
-
-      function extractRegionsFromLocalities(localities) {
-        const regionFeatures = [];
-        const processedRegions = new Set();
-        
-        localities.forEach(locality => {
-          const region = locality.region;
-          if (region && !processedRegions.has(region)) {
-            processedRegions.add(region);
-            
-            regionFeatures.push({
-              type: "Feature",
-              properties: {
-                name: region,
-                type: "region"
-              },
-              geometry: {
-                type: "Point", 
-                coordinates: [locality.lng, locality.lat]
-              }
-            });
-          }
-        });
-        
-        return regionFeatures;
-      }
-    `;
-
-    return new Blob([workerCode], { type: 'application/javascript' });
-  }
-
-  initWorker() {
-    if (this.worker) return;
-    
-    try {
-      this.worker = new Worker(URL.createObjectURL(this.workerScript));
-      
-      this.worker.onmessage = (e) => {
-        const { taskId, success, result, error } = e.data;
-        const task = this.pendingTasks.get(taskId);
-        
-        if (task) {
-          this.pendingTasks.delete(taskId);
-          if (success) {
-            task.resolve(result);
-          } else {
-            task.reject(new Error(error));
-          }
-        }
-      };
-
-      this.worker.onerror = (error) => {
-        console.error('Worker error:', error);
-        // Reject all pending tasks
-        this.pendingTasks.forEach(task => {
-          task.reject(new Error('Worker error'));
-        });
-        this.pendingTasks.clear();
-      };
-
-    } catch (error) {
-      console.warn('Web Worker not available, falling back to main thread');
-      this.worker = null;
-    }
-  }
-
+  // Only process in worker if dealing with large datasets (>100 features)
   async processData(type, data) {
-    // Fallback to main thread if worker not available
-    if (!this.worker) {
-      this.initWorker();
-      if (!this.worker) {
-        return this.fallbackProcess(type, data);
-      }
+    const featureCount = data.features?.length || 0;
+    
+    // Use main thread for small datasets
+    if (featureCount < 100) {
+      return this.processSync(type, data);
     }
 
-    const taskId = ++this.taskId;
-    
-    return new Promise((resolve, reject) => {
-      this.pendingTasks.set(taskId, { resolve, reject });
-      
-      this.worker.postMessage({
-        taskId,
-        type,
-        data
-      });
-      
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (this.pendingTasks.has(taskId)) {
-          this.pendingTasks.delete(taskId);
-          reject(new Error('Worker task timeout'));
-        }
-      }, 30000);
-    });
+    // Use worker for large datasets
+    return this.processInWorker(type, data);
   }
 
-  fallbackProcess(type, data) {
-    // Main thread fallback (simplified versions)
+  // Synchronous processing for small datasets (faster for small data)
+  processSync(type, data) {
     switch(type) {
       case 'processLocalities':
         return this.processLocalitiesSync(data);
       case 'processSettlements':
         return this.processSettlementsSync(data);
       default:
-        return Promise.reject(new Error('Fallback not implemented for: ' + type));
+        throw new Error('Unknown type: ' + type);
     }
   }
 
   processLocalitiesSync(localityData) {
-    // Simplified synchronous version
-    const localities = localityData.features.map(feature => ({
-      name: feature.properties.name,
-      lat: feature.geometry.coordinates[1],
-      lng: feature.geometry.coordinates[0],
-      region: feature.properties.region || '',
-      subregion: feature.properties.subregion || ''
-    })).filter(l => l.name);
+    const localities = localityData.features
+      .filter(f => f.geometry?.coordinates && f.properties?.name)
+      .map(feature => ({
+        name: feature.properties.name,
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0],
+        region: feature.properties.region || '',
+        subregion: feature.properties.subregion || ''
+      }));
 
     return Promise.resolve({
       localities,
@@ -3105,16 +2899,102 @@ class GeoJSONWorkerManager {
   }
 
   processSettlementsSync(settlementData) {
-    const settlements = settlementData.features.map(feature => ({
-      name: feature.properties.name,
-      lat: feature.geometry.coordinates[1],
-      lng: feature.geometry.coordinates[0]
-    })).filter(s => s.name);
+    const settlements = settlementData.features
+      .filter(f => f.geometry?.coordinates && f.properties?.name)
+      .map(feature => ({
+        name: feature.properties.name,
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0]
+      }));
 
     return Promise.resolve({
       settlements,
       features: settlementData.features
     });
+  }
+
+  // Worker creation only when needed for large datasets
+  async processInWorker(type, data) {
+    if (!this.worker) {
+      this.createWorker();
+    }
+
+    if (!this.worker) {
+      // Fallback to sync if worker creation failed
+      return this.processSync(type, data);
+    }
+
+    const taskId = ++this.taskId;
+    
+    return new Promise((resolve, reject) => {
+      this.pendingTasks.set(taskId, { resolve, reject });
+      
+      this.worker.postMessage({ taskId, type, data });
+      
+      setTimeout(() => {
+        if (this.pendingTasks.has(taskId)) {
+          this.pendingTasks.delete(taskId);
+          reject(new Error('Worker timeout'));
+        }
+      }, 15000);
+    });
+  }
+
+  createWorker() {
+    try {
+      // Minimal worker code - only for large datasets
+      const workerCode = `
+        self.onmessage = function(e) {
+          const { taskId, type, data } = e.data;
+          try {
+            let result = type === 'processLocalities' ? 
+              processLocalities(data) : processSettlements(data);
+            self.postMessage({ taskId, success: true, result });
+          } catch (error) {
+            self.postMessage({ taskId, success: false, error: error.message });
+          }
+        };
+
+        function processLocalities(data) {
+          const localities = data.features
+            .filter(f => f.geometry?.coordinates && f.properties?.name)
+            .map(f => ({
+              name: f.properties.name,
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0],
+              region: f.properties.region || '',
+              subregion: f.properties.subregion || ''
+            }));
+          return { localities, features: data.features };
+        }
+
+        function processSettlements(data) {
+          const settlements = data.features
+            .filter(f => f.geometry?.coordinates && f.properties?.name)
+            .map(f => ({
+              name: f.properties.name,
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0]
+            }));
+          return { settlements, features: data.features };
+        }
+      `;
+
+      this.worker = new Worker(URL.createObjectURL(
+        new Blob([workerCode], { type: 'application/javascript' })
+      ));
+      
+      this.worker.onmessage = (e) => {
+        const { taskId, success, result, error } = e.data;
+        const task = this.pendingTasks.get(taskId);
+        if (task) {
+          this.pendingTasks.delete(taskId);
+          task[success ? 'resolve' : 'reject'](success ? result : new Error(error));
+        }
+      };
+    } catch (error) {
+      this.worker = null;
+    }
   }
 
   terminate() {
@@ -3126,164 +3006,72 @@ class GeoJSONWorkerManager {
   }
 }
 
-// Global worker manager
-const geoWorker = new GeoJSONWorkerManager();
+// Lazy-loaded worker - only created when needed
+let lazyWorker = null;
 
-// ENHANCED: Smart data loader with caching and worker processing
-class SmartDataLoader {
-  constructor() {
-    this.urls = {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
-    };
-    this.cache = markerCache;
-    this.worker = geoWorker;
+// OPTIMIZED: Conditional data loader - only uses cache for return visits
+async function loadDataWithOptionalCache(url, storeName, processingType) {
+  // Initialize cache and worker only when needed
+  if (!lightweightCache) {
+    lightweightCache = new LightweightCache();
+  }
+  
+  // Quick cache check (synchronous with localStorage)
+  const isFresh = lightweightCache.isDataFresh(url, 60);
+  
+  if (isFresh) {
+    const cached = lightweightCache.get(storeName);
+    if (cached?.data) {
+      return cached.data; // Instant return from cache
+    }
   }
 
-  async loadWithCache(url, storeName, processingType) {
-    // Check if data is fresh in cache
-    const isFresh = await this.cache.isDataFresh(url, 60); // 60 minutes
+  // Fetch fresh data
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const rawData = await response.json();
     
-    if (isFresh) {
-      try {
-        const cached = await this.cache.get(storeName);
-        if (cached && cached.data) {
-          return cached.data;
-        }
-      } catch (error) {
-        console.warn(`Cache read failed for ${storeName}:`, error);
-      }
+    // Process data (use worker only for large datasets)
+    if (!lazyWorker) {
+      lazyWorker = new LazyWorkerManager();
     }
+    
+    const processedData = await lazyWorker.processData(processingType, rawData);
+    
+    // Cache result for next visit (fire and forget)
+    setTimeout(() => {
+      lightweightCache.set(storeName, processedData, url);
+    }, 0);
 
-    // Fetch fresh data
-    return this.fetchAndProcess(url, storeName, processingType);
-  }
-
-  async fetchAndProcess(url, storeName, processingType) {
-    try {
-      // Fetch data (GitHub raw URLs don't support custom headers due to CORS)
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const rawData = await response.json();
-      
-      // Process in web worker
-      const processedData = await this.worker.processData(processingType, rawData);
-      
-      // Cache the processed result
-      try {
-        await this.cache.set(storeName, processedData);
-        
-        // Store metadata for freshness checking
-        await this.cache.setMetadata(url, {
-          timestamp: Date.now(),
-          etag: response.headers.get('etag'),
-          lastModified: response.headers.get('last-modified'),
-          size: JSON.stringify(rawData).length
-        });
-      } catch (error) {
-        console.warn(`Cache write failed for ${storeName}:`, error);
-      }
-
-      return processedData;
-      
-    } catch (error) {
-      console.error(`Failed to fetch/process ${url}:`, error);
-      
-      // Try to return stale cache data if available
-      try {
-        const staleCache = await this.cache.get(storeName);
-        if (staleCache && staleCache.data) {
-          console.warn(`Using stale cache for ${storeName}`);
-          return staleCache.data;
-        }
-      } catch (cacheError) {
-        console.warn(`Stale cache read failed:`, cacheError);
-      }
-      
-      throw error;
+    return processedData;
+    
+  } catch (error) {
+    // Try stale cache as last resort
+    const staleCache = lightweightCache?.get(storeName);
+    if (staleCache?.data) {
+      console.warn(`Using stale cache for ${storeName}`);
+      return staleCache.data;
     }
-  }
-
-  async loadLocalities() {
-    return this.loadWithCache(
-      this.urls.localities, 
-      'localities', 
-      'processLocalities'
-    );
-  }
-
-  async loadSettlements() {
-    return this.loadWithCache(
-      this.urls.settlements, 
-      'settlements', 
-      'processSettlements'
-    );
-  }
-
-  async preloadAll() {
-    // Load both datasets in parallel
-    try {
-      const [localitiesData, settlementsData] = await Promise.all([
-        this.loadLocalities(),
-        this.loadSettlements()
-      ]);
-
-      return {
-        localities: localitiesData,
-        settlements: settlementsData
-      };
-    } catch (error) {
-      console.error('Preload failed:', error);
-      throw error;
-    }
-  }
-
-  async clearCache() {
-    return this.cache.clear();
-  }
-
-  // Get cache statistics
-  async getCacheStats() {
-    const stats = {
-      localities: null,
-      settlements: null,
-      totalSize: 0
-    };
-
-    try {
-      const localitiesCache = await this.cache.get('localities');
-      const settlementsCache = await this.cache.get('settlements');
-      
-      if (localitiesCache) {
-        stats.localities = {
-          timestamp: localitiesCache.timestamp,
-          age: Math.round((Date.now() - localitiesCache.timestamp) / 1000 / 60),
-          features: localitiesCache.data?.features?.length || 0
-        };
-      }
-      
-      if (settlementsCache) {
-        stats.settlements = {
-          timestamp: settlementsCache.timestamp,
-          age: Math.round((Date.now() - settlementsCache.timestamp) / 1000 / 60),
-          features: settlementsCache.data?.features?.length || 0
-        };
-      }
-      
-    } catch (error) {
-      console.warn('Failed to get cache stats:', error);
-    }
-
-    return stats;
+    throw error;
   }
 }
 
-// Global data loader instance
-const smartLoader = new SmartDataLoader();
+// Simple loading functions that conditionally use caching
+const loadLocalitiesWithCache = () => loadDataWithOptionalCache(
+  'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
+  'localities',
+  'processLocalities'
+);
+
+const loadSettlementsWithCache = () => loadDataWithOptionalCache(
+  'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson', 
+  'settlements',
+  'processSettlements'
+);
 
 // OPTIMIZED: Comprehensive DOM Element Cache
 class OptimizedDOMCache {
@@ -5576,11 +5364,11 @@ function selectSettlementCheckbox(settlementName) {
 function selectTerritoryCheckbox(territoryName) {
   selectCheckbox('territory', territoryName);
 }
-// ENHANCED: Load localities using smart caching and worker processing
+// OPTIMIZED: Load localities with conditional caching
 async function loadLocalitiesFromGeoJSON() {
   try {
-    // Use smart loader with caching and worker processing
-    const processedData = await smartLoader.loadLocalities();
+    // Use optimized loader with conditional caching
+    const processedData = await loadLocalitiesWithCache();
     
     // Store the data in state (maintaining compatibility)
     state.locationData = { features: processedData.features };
@@ -5693,10 +5481,10 @@ async function loadLocalitiesFromGeoJSON() {
   }
 }
 
-// ENHANCED: Load settlements using smart caching and worker processing
+// OPTIMIZED: Load settlements with conditional caching  
 async function loadSettlementsFromCache() {
   try {
-    const processedData = await smartLoader.loadSettlements();
+    const processedData = await loadSettlementsWithCache();
     
     // Store settlement features and data (addSettlementMarkers needs both)
     state.allSettlementFeatures = processedData.features;
