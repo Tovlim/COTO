@@ -1104,7 +1104,7 @@ function setupZoomBasedMarkerLoading() {
   const MARKER_ZOOM_THRESHOLD = 9;
   let markersLoaded = false;
   
-  function checkZoomAndLoadMarkers() {
+  async function checkZoomAndLoadMarkers() {
     const currentZoom = map.getZoom();
     
     if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
@@ -1113,9 +1113,13 @@ function setupZoomBasedMarkerLoading() {
       
       // Load all marker data if not already loaded
       if (!state.localityData || state.localityData.length === 0) {
-        loadCombinedGeoData();
-        loadLocalitiesFromGeoJSON();
-        loadSettlementsFromCache();
+        try {
+          loadCombinedGeoData(); // This one is not async
+          await loadLocalitiesFromGeoJSON();
+          await loadSettlementsFromCache();
+        } catch (error) {
+          console.error('Error loading marker data:', error);
+        }
       }
       
       // Show marker layers
@@ -2795,16 +2799,20 @@ const loadingTracker = {
   checkMarkersRendered() {
     if (!map || !map.loaded()) return false;
     
+    // For deferred loading: Consider markers "rendered" if layers exist (even if hidden)
+    // This prevents the loading screen from waiting for zoom-deferred content
     const markerLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
-    const hasVisibleLayers = markerLayers.some(layerId => {
-      const layer = map.getLayer(layerId);
-      return layer && map.getLayoutProperty(layerId, 'visibility') === 'visible';
+    const layersExist = markerLayers.every(layerId => {
+      return map.getLayer(layerId);
     });
     
-    const hasData = (state.allLocalityFeatures && state.allLocalityFeatures.length > 0) || 
-                    (state.allSettlementFeatures && state.allSettlementFeatures.length > 0);
+    // If layers exist, consider markers rendered (even if deferred/hidden)
+    if (layersExist) {
+      return true;
+    }
     
-    return hasVisibleLayers && hasData;
+    // Fallback: return false if layers don't exist yet
+    return false;
   },
   
   forceComplete() {
@@ -4936,10 +4944,13 @@ map.on("load", () => {
   try {
     init();
     
-    // Note: Combined data loading is now deferred until zoom level 9+
-    // This improves initial page load performance
+    // Load regions and territories immediately (they should always be visible)
+    loadCombinedGeoData();
     
-    // Settlements are loaded after localities for proper layer ordering
+    // Mark data as loaded for loading screen (markers are deferred)
+    loadingTracker.markComplete('dataLoaded');
+    
+    // Note: Settlement and locality markers are deferred until zoom level 9+
     
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
