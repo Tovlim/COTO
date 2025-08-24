@@ -1120,32 +1120,57 @@ function setupZoomBasedMarkerLoading() {
         }
       }
       
-      // Show marker layers
+      // Show marker layers with fade in
       if (map.getLayer('locality-points')) {
         map.setLayoutProperty('locality-points', 'visibility', 'visible');
+        map.setPaintProperty('locality-points', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0, 9.5, 1]);
       }
       if (map.getLayer('locality-clusters')) {
         map.setLayoutProperty('locality-clusters', 'visibility', 'visible');
+        map.setPaintProperty('locality-clusters', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0, 9.5, 1]);
       }
       if (map.getLayer('settlement-points')) {
         map.setLayoutProperty('settlement-points', 'visibility', 'visible');
+        map.setPaintProperty('settlement-points', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0, 9.5, 1]);
       }
       if (map.getLayer('settlement-clusters')) {
         map.setLayoutProperty('settlement-clusters', 'visibility', 'visible');
+        map.setPaintProperty('settlement-clusters', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 9, 0, 9.5, 1]);
       }
     } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
-      // Hide marker layers when zoomed out
+      // Fade out marker layers when zoomed out
       if (map.getLayer('locality-points')) {
-        map.setLayoutProperty('locality-points', 'visibility', 'none');
+        map.setPaintProperty('locality-points', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 8.5, 1, 9, 0]);
+        // Hide completely below zoom 8.5 for performance
+        setTimeout(() => {
+          if (map.getZoom() < MARKER_ZOOM_THRESHOLD) {
+            map.setLayoutProperty('locality-points', 'visibility', 'none');
+          }
+        }, 300);
       }
       if (map.getLayer('locality-clusters')) {
-        map.setLayoutProperty('locality-clusters', 'visibility', 'none');
+        map.setPaintProperty('locality-clusters', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 8.5, 1, 9, 0]);
+        setTimeout(() => {
+          if (map.getZoom() < MARKER_ZOOM_THRESHOLD) {
+            map.setLayoutProperty('locality-clusters', 'visibility', 'none');
+          }
+        }, 300);
       }
       if (map.getLayer('settlement-points')) {
-        map.setLayoutProperty('settlement-points', 'visibility', 'none');
+        map.setPaintProperty('settlement-points', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 8.5, 1, 9, 0]);
+        setTimeout(() => {
+          if (map.getZoom() < MARKER_ZOOM_THRESHOLD) {
+            map.setLayoutProperty('settlement-points', 'visibility', 'none');
+          }
+        }, 300);
       }
       if (map.getLayer('settlement-clusters')) {
-        map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
+        map.setPaintProperty('settlement-clusters', 'text-opacity', ['interpolate', ['linear'], ['zoom'], 8.5, 1, 9, 0]);
+        setTimeout(() => {
+          if (map.getZoom() < MARKER_ZOOM_THRESHOLD) {
+            map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
+          }
+        }, 300);
       }
       // Reset flag so markers can be shown again when zooming back in
       markersLoaded = false;
@@ -5737,7 +5762,8 @@ function addSettlementMarkers() {
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
-          'text-halo-width': 2
+          'text-halo-width': 2,
+          'text-opacity': 0 // Start invisible for fade transition
         }
       };
       
@@ -5777,13 +5803,7 @@ function addSettlementMarkers() {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            isMobile ? 7.1 : 8.5, 0,
-            isMobile ? 8.1 : 9.5, 1
-          ]
+          'text-opacity': 0 // Start invisible for fade transition, will be set by zoom handler
         }
       };
       
@@ -6050,7 +6070,8 @@ function addNativeMarkers() {
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800',
-          'text-halo-width': 2
+          'text-halo-width': 2,
+          'text-opacity': 0 // Start invisible for fade transition
         }
       });
       
@@ -6084,13 +6105,7 @@ function addNativeMarkers() {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
           'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            isMobile ? 7.1 : 8.5, 0,
-            isMobile ? 8.1 : 9.5, 1
-          ]
+          'text-opacity': 0 // Start invisible for fade transition, will be set by zoom handler
         }
       });
       
