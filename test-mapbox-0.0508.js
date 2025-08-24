@@ -1111,14 +1111,12 @@ function setupZoomBasedMarkerLoading() {
       // Load markers only when zoomed in enough
       markersLoaded = true;
       
-      // Load all marker data if not already loaded
-      if (!state.localityData || state.localityData.length === 0) {
+      // Load settlement data if not already loaded (localities loaded on initial load)
+      if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
         try {
-          loadCombinedGeoData(); // This one is not async
-          await loadLocalitiesFromGeoJSON();
           await loadSettlementsFromCache();
         } catch (error) {
-          console.error('Error loading marker data:', error);
+          console.error('Error loading settlement data:', error);
         }
       }
       
@@ -1135,7 +1133,7 @@ function setupZoomBasedMarkerLoading() {
       if (map.getLayer('settlement-clusters')) {
         map.setLayoutProperty('settlement-clusters', 'visibility', 'visible');
       }
-    } else if (currentZoom < MARKER_ZOOM_THRESHOLD && markersLoaded) {
+    } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
       // Hide marker layers when zoomed out
       if (map.getLayer('locality-points')) {
         map.setLayoutProperty('locality-points', 'visibility', 'none');
@@ -1149,6 +1147,8 @@ function setupZoomBasedMarkerLoading() {
       if (map.getLayer('settlement-clusters')) {
         map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
       }
+      // Reset flag so markers can be shown again when zooming back in
+      markersLoaded = false;
     }
   }
   
@@ -4946,6 +4946,9 @@ map.on("load", () => {
     
     // Load regions and territories immediately (they should always be visible)
     loadCombinedGeoData();
+    
+    // Load locality data to extract region markers (but don't show locality markers yet)
+    loadLocalitiesFromGeoJSON();
     
     // Mark data as loaded for loading screen (markers are deferred)
     loadingTracker.markComplete('dataLoaded');
