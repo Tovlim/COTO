@@ -1111,9 +1111,11 @@ function setupZoomBasedMarkerLoading() {
       // Load markers only when zoomed in enough
       markersLoaded = true;
       
-      // Load locality markers if not already loaded
+      // Load all marker data if not already loaded
       if (!state.localityData || state.localityData.length === 0) {
         loadCombinedGeoData();
+        loadLocalitiesFromGeoJSON();
+        loadSettlementsFromCache();
       }
       
       // Show marker layers
