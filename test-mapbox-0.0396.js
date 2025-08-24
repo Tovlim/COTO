@@ -2638,13 +2638,20 @@ const loadingTracker = {
     mapInitialized: false,
     locationDataLoaded: false,
     markersAdded: false,
+    markersVisible: false,  // Track marker visibility
     geoDataLoaded: false,
     regionsLoaded: false,
     localitiesLoaded: false,
     sidebarSetup: false,
+    sidebarsVisible: false,  // Track sidebar visibility
     eventsSetup: false,
     uiPositioned: false,
     backToTopSetup: false
+  },
+  
+  visualChecks: {
+    attemptCount: 0,
+    maxAttempts: 20  // Check up to 20 times (with delays = ~10 seconds)
   },
   
   markComplete(stateName) {
@@ -2657,7 +2664,48 @@ const loadingTracker = {
   checkAllComplete() {
     const allComplete = Object.values(this.states).every(state => state === true);
     if (allComplete) {
+      // Do visual verification before hiding
+      this.verifyVisualReadiness();
+    }
+  },
+  
+  verifyVisualReadiness() {
+    this.visualChecks.attemptCount++;
+    
+    // Check if sidebars are actually visible/rendered
+    const sidebarReady = () => {
+      const leftSidebar = document.getElementById('LeftSidebar');
+      const hasContent = leftSidebar && leftSidebar.offsetHeight > 0;
+      const hasCheckboxes = document.querySelectorAll('[checkbox-filter] input').length > 0;
+      return hasContent && hasCheckboxes;
+    };
+    
+    // Check if map has rendered markers
+    const markersReady = () => {
+      if (!map || !map.loaded()) return false;
+      
+      // Check if marker layers exist and have content
+      const markerLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
+      const hasMarkerLayers = markerLayers.some(layerId => {
+        const layer = map.getLayer(layerId);
+        return layer && map.getLayoutProperty(layerId, 'visibility') === 'visible';
+      });
+      
+      // Also check if we have actual marker data
+      const hasMarkerData = (state.allLocalityFeatures && state.allLocalityFeatures.length > 0) || 
+                           (state.allSettlementFeatures && state.allSettlementFeatures.length > 0);
+      
+      return hasMarkerLayers && hasMarkerData;
+    };
+    
+    // Perform visual checks
+    const visuallyReady = sidebarReady() && markersReady();
+    
+    if (visuallyReady || this.visualChecks.attemptCount >= this.visualChecks.maxAttempts) {
       this.hideLoadingScreen();
+    } else {
+      // Try again in 500ms
+      setTimeout(() => this.verifyVisualReadiness(), 500);
     }
   },
   
@@ -2669,18 +2717,21 @@ const loadingTracker = {
   }
 };
 
-// Fallback: Hide loading screen after max 20 seconds regardless
+// Fallback: Hide loading screen after max 25 seconds regardless
 setTimeout(() => {
   const loadingScreen = document.getElementById('loading-map-screen');
   if (loadingScreen && loadingScreen.style.display !== 'none') {
     loadingScreen.style.display = 'none';
   }
-}, 20000);
+}, 25000);
 
 // Additional fallback: Mark any incomplete UI states as complete after reasonable delay
 setTimeout(() => {
   if (!loadingTracker.states.sidebarSetup) {
     loadingTracker.markComplete('sidebarSetup');
+  }
+  if (!loadingTracker.states.sidebarsVisible) {
+    loadingTracker.markComplete('sidebarsVisible');
   }
   if (!loadingTracker.states.eventsSetup) {
     loadingTracker.markComplete('eventsSetup');
@@ -2691,7 +2742,10 @@ setTimeout(() => {
   if (!loadingTracker.states.backToTopSetup) {
     loadingTracker.markComplete('backToTopSetup');
   }
-}, 12000);
+  if (!loadingTracker.states.markersVisible) {
+    loadingTracker.markComplete('markersVisible');
+  }
+}, 15000);  // Increased from 12 seconds
 
 // OPTIMIZED: Comprehensive DOM Element Cache
 class OptimizedDOMCache {
@@ -5598,6 +5652,23 @@ function addNativeMarkers() {
   
   // Mark loading step complete
   loadingTracker.markComplete('markersAdded');
+  
+  // Check marker visibility after a delay
+  setTimeout(() => {
+    // Check if markers are actually visible on the map
+    const markerLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
+    const hasVisibleMarkers = markerLayers.some(layerId => {
+      const layer = map.getLayer(layerId);
+      return layer && map.getLayoutProperty(layerId, 'visibility') === 'visible';
+    });
+    
+    if (hasVisibleMarkers) {
+      loadingTracker.markComplete('markersVisible');
+    } else {
+      // Try again after another delay
+      setTimeout(() => loadingTracker.markComplete('markersVisible'), 2000);
+    }
+  }, 1000);
 }
 
 // OPTIMIZED: Region markers with batched operations  
@@ -6383,7 +6454,7 @@ function setupSidebars() {
     return true;
   };
   
-  const attemptSetup = (attempt = 1, maxAttempts = 5) => {
+  const attemptSetup = (attempt = 1, maxAttempts = 7) => {  // Slightly increased from 5 to 7 attempts
     const leftReady = setupSidebarElement('Left');
     const secondLeftReady = setupSidebarElement('SecondLeft');
     const rightReady = setupSidebarElement('Right');
@@ -6394,11 +6465,24 @@ function setupSidebars() {
       
       // Mark UI loading step complete
       loadingTracker.markComplete('sidebarSetup');
+      
+      // Check if sidebars are actually visible after a delay
+      setTimeout(() => {
+        const leftSidebar = document.getElementById('LeftSidebar');
+        if (leftSidebar && leftSidebar.offsetHeight > 0) {
+          loadingTracker.markComplete('sidebarsVisible');
+        } else {
+          // Try again later
+          setTimeout(() => loadingTracker.markComplete('sidebarsVisible'), 2000);
+        }
+      }, 500);
       return;
     }
     
     if (attempt < maxAttempts) {
-      const delay = [50, 150, 250, 500][attempt - 1] || 500;
+      // Reasonable delays: [50, 150, 250, 500, 750, 1000, 1500]
+      const delays = [50, 150, 250, 500, 750, 1000, 1500];
+      const delay = delays[attempt - 1] || 1500;
       state.setTimer(`sidebarSetup-${attempt}`, () => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
@@ -6406,6 +6490,8 @@ function setupSidebars() {
       
       // Mark UI loading step complete even if some sidebars missing
       loadingTracker.markComplete('sidebarSetup');
+      // Mark sidebars as visible after a delay even if setup wasn't perfect
+      setTimeout(() => loadingTracker.markComplete('sidebarsVisible'), 1000);
     }
   };
   
