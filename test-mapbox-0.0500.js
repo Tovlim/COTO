@@ -3134,7 +3134,7 @@ class SmartDataLoader {
   constructor() {
     this.urls = {
       localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
-      settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.024.geojson'
+      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
     };
     this.cache = markerCache;
     this.worker = geoWorker;
