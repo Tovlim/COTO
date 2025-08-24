@@ -3161,12 +3161,8 @@ class SmartDataLoader {
 
   async fetchAndProcess(url, storeName, processingType) {
     try {
-      // Fetch with etag support for conditional requests
-      const response = await fetch(url, {
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
+      // Fetch data (GitHub raw URLs don't support custom headers due to CORS)
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
