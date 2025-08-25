@@ -2599,13 +2599,15 @@ loadDataFromState() {
                 this.hideDropdown();
                 this.elements.input.blur();
                 
-                // Save recent search if not already a recent search selection
-                if (!options.isRecent && options.searchTerm) {
+                // Always save recent search (except when selecting from recent searches)
+                if (!options.isRecent) {
                     const selectedItem = this.data.filteredResults.find(item => 
                         item.name === term && item.type === type
                     );
                     if (selectedItem) {
-                        this.saveRecentSearch(options.searchTerm, selectedItem);
+                        // Use the input value as the search term (could be empty for default dropdown)
+                        const searchTerm = options.searchTerm || this.elements.input.value || '';
+                        this.saveRecentSearch(searchTerm, selectedItem);
                     }
                 }
                 
@@ -3049,13 +3051,14 @@ loadDataFromState() {
                         
                         /* Recent searches styles */
                         .list-term.recent-search {
-                            background-color: #f0f8ff !important;
-                            border-left: 3px solid #4a90e2;
+                            background-color: #f8f9fa !important;
+                            border-left: 3px solid #6c757d;
                             position: relative;
+                            padding: 10px 12px !important;
                         }
                         
                         .list-term.recent-search:hover {
-                            background-color: #e6f3ff !important;
+                            background-color: #e9ecef !important;
                         }
                         
                         .list-term.recent-search::before {
