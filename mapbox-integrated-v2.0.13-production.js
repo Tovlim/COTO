@@ -2361,15 +2361,7 @@ loadDataFromState() {
                 
                 const fragment = document.createDocumentFragment();
                 
-                // Add recent searches header if we have recent items
-                const hasRecentItems = items.some(item => item.isRecent);
-                if (hasRecentItems && !this.virtualDOM.headerRendered) {
-                    const header = document.createElement('li');
-                    header.className = 'recent-searches-header';
-                    header.textContent = 'Recent Searches';
-                    fragment.appendChild(header);
-                    this.virtualDOM.headerRendered = true;
-                }
+                // Recent searches header removed per user request
                 
                 items.forEach((item, index) => {
                     const itemElement = this.createItemElement(item, index);
@@ -2382,12 +2374,14 @@ loadDataFromState() {
                             link.dataset.recentIndex = this.recentSearches.findIndex(r => r.name === item.name);
                             link.classList.add('recent-search');
                             
-                            // Add remove button
-                            const removeBtn = document.createElement('button');
-                            removeBtn.className = 'remove-recent';
-                            removeBtn.textContent = '×';
+                            // Add custom remove button element
+                            const removeBtn = document.createElement('a');
+                            removeBtn.className = 'clear-search w-inline-block';
+                            removeBtn.href = '#';
+                            removeBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="m6.94 6 4.06-4.06c.26-.26.26-.68 0-.94-.26-.26-.68-.26-.94 0L6 5.06 1.94 1c-.26-.26-.68-.26-.94 0-.26.26-.26.68 0 .94L5.06 6 1 10.06c-.26.26-.26.68 0 .94.13.13.3.2.47.2s.34-.07.47-.2L6 6.94l4.06 4.06c.13.13.3.2.47.2s.34-.07.47-.2c.26-.26.26-.68 0-.94L6.94 6z" fill="currentColor"></path></svg>`;
                             removeBtn.title = 'Remove from recent searches (Ctrl+Click or Ctrl+Delete)';
                             removeBtn.onclick = (e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 const recentIndex = parseInt(link.dataset.recentIndex);
                                 this.removeRecentSearch(recentIndex);
@@ -3068,33 +3062,31 @@ loadDataFromState() {
                             font-size: 14px;
                         }
                         
-                        .list-term.recent-search .remove-recent {
+                        .list-term.recent-search .clear-search {
                             opacity: 0;
                             transition: opacity 0.2s;
                             cursor: pointer;
-                            padding: 2px 6px;
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            width: 20px;
+                            height: 20px;
+                            color: #999;
                             border-radius: 3px;
-                            font-size: 12px;
-                            background: #ff4757;
-                            color: white;
-                            border: none;
                             margin-left: 8px;
+                            pointer-events: auto;
+                            text-decoration: none;
                         }
                         
-                        .list-term.recent-search:hover .remove-recent {
+                        .list-term.recent-search:hover .clear-search {
                             opacity: 1;
                         }
                         
-                        .recent-searches-header {
-                            padding: 8px 12px;
-                            font-size: 12px;
-                            font-weight: 600;
+                        .list-term.recent-search .clear-search:hover {
                             color: #666;
-                            background-color: #f8f9fa;
-                            border-bottom: 1px solid #e9ecef;
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
+                            background-color: #f0f0f0;
                         }
+                        
                     `;
                     document.head.appendChild(style);
                 }
