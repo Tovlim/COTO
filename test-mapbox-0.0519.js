@@ -1,3 +1,16 @@
+/**
+ * MAPBOX INTEGRATED SCRIPT - Production v1.0.0
+ * 
+ * Features:
+ * - High-performance autocomplete with lazy loading
+ * - Efficient caching with localStorage fallback
+ * - Cross-browser compatibility (Chrome, Firefox, Safari)
+ * - Settlement and locality data management
+ * - Optimized map interactions and filtering
+ * 
+ * Last Updated: 2025
+ */
+
 // OPTIMIZED: Event setup with consolidated handlers and better management
 function setupEvents() {
   const eventHandlers = [
@@ -1528,7 +1541,7 @@ window.addEventListener('beforeunload', () => {
       const state = window.mapUtilities.state;
       // Wait for actual data to be loaded - now regions come from localities
       // Don't load until we have locality data (settlements will come later)
-      if (state.allLocalityFeatures.length > 0) {
+      if (state.allLocalityFeatures && state.allLocalityFeatures.length > 0) {
         this.loadDataFromState();
         // If settlements aren't loaded yet, they'll be added when refresh is called
         return true;
@@ -1552,6 +1565,9 @@ window.addEventListener('beforeunload', () => {
             }
             
 loadDataFromState() {
+  if (!window.mapUtilities || !window.mapUtilities.state) {
+    return;
+  }
   const state = window.mapUtilities.state;
   
   // Load regions (districts) - now from extracted data
@@ -1629,7 +1645,6 @@ loadDataFromState() {
                 }
                 
                 // Load settlements
-                console.log('Checking settlement features for autocomplete:', state.allSettlementFeatures?.length);
                 if (state.allSettlementFeatures && state.allSettlementFeatures.length > 0) {
                     this.data.settlements = state.allSettlementFeatures
                         .filter(feature => feature.geometry && feature.geometry.coordinates)
@@ -1766,7 +1781,6 @@ loadDataFromState() {
                 if (this.data.regions.length === 0 && 
                     this.data.localities.length === 0 && 
                     this.data.settlements.length === 0) {
-                    console.log('No data available for autocomplete dropdown');
                     this.data.filteredResults = [];
                     return;
                 }
@@ -2461,15 +2475,12 @@ loadDataFromState() {
             }
             
             refresh() {
-                console.log('Autocomplete refresh called');
                 // Clear any cached results to force fresh data
                 this.cache.clear();
                 this.data.filteredResults = [];
                 
                 // Reload data from state
                 this.loadDataFromState();
-                
-                console.log('After refresh - settlements count:', this.data.settlements.length);
                 
                 // Force update the dropdown if it's visible OR if input is focused
                 if (this.isDropdownVisible() || document.activeElement === this.elements.input) {
@@ -2488,12 +2499,20 @@ loadDataFromState() {
             }
             
             destroy() {
-                clearTimeout(this.filterTimeout);
-                cancelAnimationFrame(this.renderFrame);
-                cancelAnimationFrame(this.scrollFrame);
-                
-                this.elements.list.innerHTML = '';
-                this.elements.wrapper.style.display = 'none';
+                try {
+                    clearTimeout(this.filterTimeout);
+                    cancelAnimationFrame(this.renderFrame);
+                    cancelAnimationFrame(this.scrollFrame);
+                    
+                    if (this.elements.list) {
+                        this.elements.list.innerHTML = '';
+                    }
+                    if (this.elements.wrapper) {
+                        this.elements.wrapper.style.display = 'none';
+                    }
+                } catch (error) {
+                    // Silently handle cleanup errors
+                }
             }
             
             getStats() {
@@ -2858,17 +2877,11 @@ class LightweightCache {
     try {
       const metaKey = this.metaPrefix + this.hashUrl(url);
       const metadata = JSON.parse(localStorage.getItem(metaKey) || 'null');
-      console.log(`Cache metadata for ${url}:`, metadata);
-      if (!metadata) {
-        console.log('No cache metadata found');
-        return false;
-      }
+      if (!metadata) return false;
       
       const age = (Date.now() - metadata.timestamp) / (1000 * 60);
-      console.log(`Cache age: ${age} minutes, max age: ${maxAgeMinutes} minutes`);
       return age < maxAgeMinutes;
     } catch (error) {
-      console.error('Error checking cache freshness:', error);
       return false;
     }
   }
@@ -2880,6 +2893,7 @@ class LightweightCache {
       const cached = JSON.parse(localStorage.getItem(key) || 'null');
       return cached;
     } catch (error) {
+      // Silently fail and return null for corrupted cache
       return null;
     }
   }
@@ -3102,21 +3116,15 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
   
   // Quick cache check (synchronous with localStorage)
   const isFresh = lightweightCache.isDataFresh(url, 60);
-  console.log(`Cache freshness check for ${storeName}:`, isFresh);
   
   if (isFresh) {
     const cached = lightweightCache.get(storeName);
-    console.log(`Cache retrieval for ${storeName}:`, cached ? 'found' : 'not found');
     if (cached?.data) {
-      console.log(`Loading ${storeName} from cache:`, cached.data);
       // Ensure we return the correct structure
-      // The cached data should already have the correct format
       if (cached.data.features && Array.isArray(cached.data.features)) {
         return cached.data; // Instant return from cache
-      } else {
-        console.warn(`Invalid cache structure for ${storeName}, fetching fresh data`);
-        // Invalid cache, fall through to fetch fresh
       }
+      // Invalid cache structure, fall through to fetch fresh
     }
   }
 
@@ -3138,7 +3146,6 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
     
     // Cache result for next visit (fire and forget)
     setTimeout(() => {
-      console.log(`Caching ${storeName}:`, processedData);
       lightweightCache.set(storeName, processedData, url);
     }, 0);
 
@@ -3147,10 +3154,10 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
   } catch (error) {
     // Try stale cache as last resort
     const staleCache = lightweightCache?.get(storeName);
-    if (staleCache?.data) {
-      console.warn(`Using stale cache for ${storeName}`);
+    if (staleCache?.data && staleCache.data.features) {
       return staleCache.data;
     }
+    // Re-throw to let caller handle the error
     throw error;
   }
 }
@@ -5586,11 +5593,9 @@ async function loadLocalitiesFromGeoJSON() {
 async function loadSettlementsFromCache() {
   try {
     const processedData = await loadSettlementsWithCache();
-    console.log('Processed settlement data:', processedData);
     
     // Store settlement features and data (addSettlementMarkers needs both)
     if (!processedData || !processedData.features || !Array.isArray(processedData.features)) {
-      console.error('Invalid settlement data structure!', processedData);
       // Try to recover if possible
       if (processedData && Array.isArray(processedData)) {
         // Maybe the data itself is the features array
@@ -5705,13 +5710,7 @@ function loadSettlements() {
       
       // Refresh autocomplete to include settlement and territory data
       if (window.refreshAutocomplete) {
-        console.log('Scheduling autocomplete refresh after settlements loaded');
-        state.setTimer('refreshAutocompleteAfterSettlements', () => {
-          console.log('Refreshing autocomplete with settlement data');
-          window.refreshAutocomplete();
-        }, 600);
-      } else {
-        console.warn('window.refreshAutocomplete not available yet');
+        state.setTimer('refreshAutocompleteAfterSettlements', window.refreshAutocomplete, 600);
       }
       
     })
