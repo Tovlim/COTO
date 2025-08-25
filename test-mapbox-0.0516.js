@@ -576,7 +576,7 @@ function setupDeferredAreaControls() {
   }
 }
 
-// Generate settlement checkboxes progressively for better performance
+// Generate settlement checkboxes from loaded settlement data
 function generateSettlementCheckboxes() {
   const container = $id('settlement-check-list');
   if (!container) {
@@ -586,36 +586,99 @@ function generateSettlementCheckboxes() {
   // Clear the container
   container.innerHTML = '';
   
-  // Show loading message
-  const loadingDiv = document.createElement('div');
-  loadingDiv.id = 'settlement-loading';
-  loadingDiv.className = 'loading-message';
-  loadingDiv.textContent = 'Loading settlements...';
-  container.appendChild(loadingDiv);
-  
   // Extract unique settlement names from settlement features
-  const settlementData = state.allSettlementFeatures
-    .map(feature => ({
-      name: feature.properties.name,
-      slug: feature.properties?.slug || feature.properties.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      locality: feature.properties?.locality || '',
-      type: 'settlement'
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const settlementNames = state.allSettlementFeatures
+    .map(feature => feature.properties.name)
+    .sort();
   
-  if (settlementData.length === 0) {
+  if (settlementNames.length === 0) {
     return;
   }
   
-  // Add to progressive generation queue
-  checkboxManager.addToQueue(settlementData, 'settlement');
-  checkboxManager.startProgressiveGeneration();
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  settlementNames.forEach(settlementName => {
+    // Find the settlement feature to get the slug
+    const settlementFeature = state.allSettlementFeatures.find(feature => feature.properties.name === settlementName);
+    const settlementSlug = settlementFeature?.properties?.slug || settlementName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'settlement');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the link element
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/settlement/${settlementSlug}`;
+    link.target = '_blank';
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', settlementName);
+    input.setAttribute('fs-list-field', 'Settlement');
+    input.type = 'checkbox';
+    input.name = 'settlement';
+    input.setAttribute('data-name', 'settlement');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `settlement-${settlementName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = settlementName;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(link);
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    fragment.appendChild(wrapperDiv);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  });
   
-  // Remove loading message when done
-  setTimeout(() => {
-    const loading = document.getElementById('settlement-loading');
-    if (loading) loading.remove();
-  }, 2000);
+  container.appendChild(fragment);
+  
+  // Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterSettlementGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+  
+  // Refresh search script cache if available
+  if (window.checkboxFilterScript) {
+    window.checkboxFilterScript.recacheElements();
+  }
 }
 
 // Generate locality checkboxes from map data
@@ -628,36 +691,97 @@ function generateLocalityCheckboxes() {
   // Clear the container
   container.innerHTML = '';
   
-  // Show loading message
-  const loadingDiv = document.createElement('div');
-  loadingDiv.id = 'locality-loading';
-  loadingDiv.className = 'loading-message';
-  loadingDiv.textContent = 'Loading localities...';
-  container.appendChild(loadingDiv);
-  
   // Extract unique locality names from map data
-  const localityData = state.allLocalityFeatures
-    .map(feature => ({
-      name: feature.properties.name,
-      slug: feature.properties?.slug || feature.properties.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      region: feature.properties?.region || '',
-      type: 'locality'
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
   
-  if (localityData.length === 0) {
+  if (localityNames.length === 0) {
     return;
   }
   
-  // Add to progressive generation queue
-  checkboxManager.addToQueue(localityData, 'locality');
-  checkboxManager.startProgressiveGeneration();
+  // Batch generate checkboxes using document fragment
+  const fragment = document.createDocumentFragment();
+  localityNames.forEach(localityName => {
+    // Find the locality feature to get the slug
+    const localityFeature = state.allLocalityFeatures.find(feature => feature.properties.name === localityName);
+    const localitySlug = localityFeature?.properties?.slug || localityName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'locality');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the link element
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/locality/${localitySlug}`;
+    link.target = '_blank';
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', localityName);
+    input.setAttribute('fs-list-field', 'Locality');
+    input.type = 'checkbox';
+    input.name = 'locality';
+    input.setAttribute('data-name', 'locality');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `locality-${localityName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = localityName;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(link);
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    fragment.appendChild(wrapperDiv);
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  });
   
-  // Remove loading message when done
-  setTimeout(() => {
-    const loading = document.getElementById('locality-loading');
-    if (loading) loading.remove();
-  }, 2000);
+  container.appendChild(fragment);
+  
+  // FIXED: Check filtered elements after generating checkboxes
+  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
+  
+  // Invalidate DOM cache since we added new elements
+  domCache.markStale();
+  
+  // Refresh search script cache if available
+  if (window.checkboxFilterScript) {
+    window.checkboxFilterScript.recacheElements();
+  }
 }
 
 // Generate region checkboxes from map data
@@ -4807,273 +4931,6 @@ class OptimizedMapState {
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
-// Progressive Checkbox Manager for improved mobile performance
-const checkboxManager = {
-  generated: new Set(), // Track which checkboxes have been generated
-  queue: [], // Queue for progressive generation
-  batchSize: 25, // Number of checkboxes to generate per batch
-  isProcessing: false,
-  priorityQueue: [], // High priority items (user clicked/selected)
-  
-  // Check if a checkbox has been generated
-  isGenerated(type, name) {
-    return this.generated.has(`${type}-${name}`);
-  },
-  
-  // Mark checkbox as generated
-  markGenerated(type, name) {
-    this.generated.add(`${type}-${name}`);
-  },
-  
-  // Generate a single checkbox on-demand (for marker/autocomplete clicks)
-  generateSingle(type, name, data) {
-    if (this.isGenerated(type, name)) {
-      return this.checkExistingCheckbox(type, name);
-    }
-    
-    if (type === 'settlement') {
-      this.generateSingleSettlement(name, data);
-    } else if (type === 'locality') {
-      this.generateSingleLocality(name, data);
-    }
-    
-    this.markGenerated(type, name);
-    this.checkExistingCheckbox(type, name);
-  },
-  
-  // Check an existing checkbox
-  checkExistingCheckbox(type, name) {
-    const checkbox = document.querySelector(`input[fs-cmsfilter-field="${type}"][value="${name}"]`);
-    if (checkbox && !checkbox.checked) {
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-      
-      // Scroll into view
-      const container = checkbox.closest('.filter-dropdown-content');
-      if (container) {
-        checkbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-    return checkbox;
-  },
-  
-  // Generate single settlement checkbox
-  generateSingleSettlement(name, data) {
-    const container = document.getElementById('settlement-check-list');
-    if (!container) return;
-    
-    const settlementSlug = data?.slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'settlement');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the link element
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/settlement/${settlementSlug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', name);
-    input.setAttribute('fs-list-field', 'Settlement');
-    input.type = 'checkbox';
-    input.name = 'settlement';
-    input.setAttribute('data-name', 'settlement');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `settlement-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = name;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(link);
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    
-    // Insert in alphabetical order
-    const existingCheckboxes = Array.from(container.querySelectorAll('.checbox-item'));
-    const insertIndex = existingCheckboxes.findIndex(el => {
-      const spanText = el.querySelector('.test3')?.textContent || '';
-      return spanText.localeCompare(name) > 0;
-    });
-    
-    if (insertIndex === -1) {
-      container.appendChild(wrapperDiv);
-    } else {
-      container.insertBefore(wrapperDiv, existingCheckboxes[insertIndex]);
-    }
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  },
-  
-  // Generate single locality checkbox  
-  generateSingleLocality(name, data) {
-    const container = document.getElementById('locality-check-list');
-    if (!container) return;
-    
-    const localitySlug = data?.slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'locality');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the link element
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/locality/${localitySlug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', name);
-    input.setAttribute('fs-list-field', 'Locality');
-    input.type = 'checkbox';
-    input.name = 'locality';
-    input.setAttribute('data-name', 'locality');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `locality-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = name;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(link);
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    
-    // Insert in alphabetical order
-    const existingCheckboxes = Array.from(container.querySelectorAll('.checbox-item'));
-    const insertIndex = existingCheckboxes.findIndex(el => {
-      const spanText = el.querySelector('.test3')?.textContent || '';
-      return spanText.localeCompare(name) > 0;
-    });
-    
-    if (insertIndex === -1) {
-      container.appendChild(wrapperDiv);
-    } else {
-      container.insertBefore(wrapperDiv, existingCheckboxes[insertIndex]);
-    }
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  },
-  
-  // Add items to progressive generation queue
-  addToQueue(items, type) {
-    items.forEach(item => {
-      if (!this.isGenerated(type, item.name)) {
-        this.queue.push({ type, ...item });
-      }
-    });
-  },
-  
-  // Process next batch in queue
-  async processBatch() {
-    if (this.isProcessing || this.queue.length === 0) return;
-    
-    this.isProcessing = true;
-    
-    // Process priority items first
-    const batch = this.priorityQueue.length > 0 
-      ? this.priorityQueue.splice(0, this.batchSize)
-      : this.queue.splice(0, this.batchSize);
-    
-    batch.forEach(item => {
-      if (!this.isGenerated(item.type, item.name)) {
-        if (item.type === 'settlement') {
-          this.generateSingleSettlement(item.name, item);
-        } else if (item.type === 'locality') {
-          this.generateSingleLocality(item.name, item);
-        }
-        this.markGenerated(item.type, item.name);
-      }
-    });
-    
-    this.isProcessing = false;
-    
-    // Schedule next batch
-    if (this.queue.length > 0 || this.priorityQueue.length > 0) {
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => this.processBatch(), { timeout: 100 });
-      } else {
-        setTimeout(() => this.processBatch(), 50);
-      }
-    }
-  },
-  
-  // Start progressive generation
-  startProgressiveGeneration() {
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => this.processBatch(), { timeout: 2000 });
-    } else {
-      setTimeout(() => this.processBatch(), 1000);
-    }
-  }
-};
-
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/occupationcrimes/cmeo2b3yu000601sf4sr066j9",
@@ -5548,55 +5405,20 @@ function selectCheckbox(type, value) {
       }
     });
     
-    // For settlements and localities, use on-demand generation
-    if (type === 'settlement' || type === 'locality') {
-      // Check if checkbox exists, if not generate it
-      if (!checkboxManager.isGenerated(type, value)) {
-        // Find the feature data for this item
-        let featureData = null;
-        if (type === 'settlement') {
-          const feature = state.allSettlementFeatures?.find(f => f.properties.name === value);
-          if (feature) {
-            featureData = {
-              name: value,
-              slug: feature.properties?.slug || value.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-              locality: feature.properties?.locality || ''
-            };
-          }
-        } else if (type === 'locality') {
-          const feature = state.allLocalityFeatures?.find(f => f.properties.name === value);
-          if (feature) {
-            featureData = {
-              name: value,
-              slug: feature.properties?.slug || value.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-              region: feature.properties?.region || ''
-            };
-          }
-        }
-        
-        if (featureData) {
-          checkboxManager.generateSingle(type, value, featureData);
-        }
-      } else {
-        // Checkbox already exists, just check it
-        checkboxManager.checkExistingCheckbox(type, value);
-      }
-    } else {
-      // For other types, use existing behavior
-      const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
-      const targetCheckbox = targetCheckboxes.find(checkbox => 
-        checkbox.getAttribute('fs-list-value') === value
-      );
+    // Find and check the target checkbox
+    const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
+    const targetCheckbox = targetCheckboxes.find(checkbox => 
+      checkbox.getAttribute('fs-list-value') === value
+    );
+    
+    if (targetCheckbox) {
+      targetCheckbox.checked = true;
+      utils.triggerEvent(targetCheckbox, ['change', 'input']);
       
-      if (targetCheckbox) {
-        targetCheckbox.checked = true;
-        utils.triggerEvent(targetCheckbox, ['change', 'input']);
-        
-        const form = targetCheckbox.closest('form');
-        if (form) {
-          form.dispatchEvent(new Event('change', {bubbles: true}));
-          form.dispatchEvent(new Event('input', {bubbles: true}));
-        }
+      const form = targetCheckbox.closest('form');
+      if (form) {
+        form.dispatchEvent(new Event('change', {bubbles: true}));
+        form.dispatchEvent(new Event('input', {bubbles: true}));
       }
     }
   });
