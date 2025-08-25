@@ -122,8 +122,7 @@ function setupEvents() {
     });
   });
   
-  // Mark UI loading step complete
-  loadingTracker.markComplete('eventsSetup');
+  // Events setup complete
 }
 
 // OPTIMIZED: Smart dropdown listeners with better timing
@@ -196,8 +195,7 @@ function loadCombinedGeoData() {
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
         
-        // Mark loading step complete
-        loadingTracker.markComplete('geoDataLoaded');
+        // GeoData loaded
       }, 100);
     })
     .catch(error => {
@@ -205,8 +203,7 @@ function loadCombinedGeoData() {
       addNativeRegionMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
       
-      // Mark as complete even with error to avoid infinite loading
-      loadingTracker.markComplete('geoDataLoaded');
+      // Continue even with error
     });
 }
 
@@ -579,7 +576,7 @@ function setupDeferredAreaControls() {
   }
 }
 
-// Generate settlement checkboxes from loaded settlement data
+// Generate settlement checkboxes progressively for better performance
 function generateSettlementCheckboxes() {
   const container = $id('settlement-check-list');
   if (!container) {
@@ -589,99 +586,36 @@ function generateSettlementCheckboxes() {
   // Clear the container
   container.innerHTML = '';
   
-  // Extract unique settlement names from settlement features
-  const settlementNames = state.allSettlementFeatures
-    .map(feature => feature.properties.name)
-    .sort();
+  // Show loading message
+  const loadingDiv = document.createElement('div');
+  loadingDiv.id = 'settlement-loading';
+  loadingDiv.className = 'loading-message';
+  loadingDiv.textContent = 'Loading settlements...';
+  container.appendChild(loadingDiv);
   
-  if (settlementNames.length === 0) {
+  // Extract unique settlement names from settlement features
+  const settlementData = state.allSettlementFeatures
+    .map(feature => ({
+      name: feature.properties.name,
+      slug: feature.properties?.slug || feature.properties.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      locality: feature.properties?.locality || '',
+      type: 'settlement'
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  
+  if (settlementData.length === 0) {
     return;
   }
   
-  // Batch generate checkboxes using document fragment
-  const fragment = document.createDocumentFragment();
-  settlementNames.forEach(settlementName => {
-    // Find the settlement feature to get the slug
-    const settlementFeature = state.allSettlementFeatures.find(feature => feature.properties.name === settlementName);
-    const settlementSlug = settlementFeature?.properties?.slug || settlementName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'settlement');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the link element
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/settlement/${settlementSlug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', settlementName);
-    input.setAttribute('fs-list-field', 'Settlement');
-    input.type = 'checkbox';
-    input.name = 'settlement';
-    input.setAttribute('data-name', 'settlement');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `settlement-${settlementName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = settlementName;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(link);
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    fragment.appendChild(wrapperDiv);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  });
+  // Add to progressive generation queue
+  checkboxManager.addToQueue(settlementData, 'settlement');
+  checkboxManager.startProgressiveGeneration();
   
-  container.appendChild(fragment);
-  
-  // Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterSettlementGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
-  domCache.markStale();
-  
-  // Refresh search script cache if available
-  if (window.checkboxFilterScript) {
-    window.checkboxFilterScript.recacheElements();
-  }
+  // Remove loading message when done
+  setTimeout(() => {
+    const loading = document.getElementById('settlement-loading');
+    if (loading) loading.remove();
+  }, 2000);
 }
 
 // Generate locality checkboxes from map data
@@ -694,97 +628,36 @@ function generateLocalityCheckboxes() {
   // Clear the container
   container.innerHTML = '';
   
-  // Extract unique locality names from map data
-  const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
+  // Show loading message
+  const loadingDiv = document.createElement('div');
+  loadingDiv.id = 'locality-loading';
+  loadingDiv.className = 'loading-message';
+  loadingDiv.textContent = 'Loading localities...';
+  container.appendChild(loadingDiv);
   
-  if (localityNames.length === 0) {
+  // Extract unique locality names from map data
+  const localityData = state.allLocalityFeatures
+    .map(feature => ({
+      name: feature.properties.name,
+      slug: feature.properties?.slug || feature.properties.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      region: feature.properties?.region || '',
+      type: 'locality'
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  
+  if (localityData.length === 0) {
     return;
   }
   
-  // Batch generate checkboxes using document fragment
-  const fragment = document.createDocumentFragment();
-  localityNames.forEach(localityName => {
-    // Find the locality feature to get the slug
-    const localityFeature = state.allLocalityFeatures.find(feature => feature.properties.name === localityName);
-    const localitySlug = localityFeature?.properties?.slug || localityName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'locality');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the link element
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/locality/${localitySlug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', localityName);
-    input.setAttribute('fs-list-field', 'Locality');
-    input.type = 'checkbox';
-    input.name = 'locality';
-    input.setAttribute('data-name', 'locality');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `locality-${localityName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = localityName;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(link);
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    fragment.appendChild(wrapperDiv);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  });
+  // Add to progressive generation queue
+  checkboxManager.addToQueue(localityData, 'locality');
+  checkboxManager.startProgressiveGeneration();
   
-  container.appendChild(fragment);
-  
-  // FIXED: Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
-  domCache.markStale();
-  
-  // Refresh search script cache if available
-  if (window.checkboxFilterScript) {
-    window.checkboxFilterScript.recacheElements();
-  }
+  // Remove loading message when done
+  setTimeout(() => {
+    const loading = document.getElementById('locality-loading');
+    if (loading) loading.remove();
+  }, 2000);
 }
 
 // Generate region checkboxes from map data
@@ -1053,11 +926,13 @@ const monitorTags = (() => {
   };
 })();
 
-// OPTIMIZED: Smart initialization with parallel loading
+// OPTIMIZED: Smart initialization with deferred marker loading
 function init() {
-  // Core initialization (parallel where possible)
-  loadLocalitiesFromGeoJSON();
+  // Core initialization - NO marker loading on initial page load
   setupEvents();
+  
+  // Only load overlays and regions initially (lightweight)
+  setupZoomBasedMarkerLoading();
   
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
@@ -1071,6 +946,9 @@ function init() {
   
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
+  
+  // Setup zoom-based marker loading
+  setupZoomBasedMarkerLoading();
   
   // Staggered setup with smart timing
   [300, 800].forEach(delay => 
@@ -1097,6 +975,71 @@ function init() {
   }, 300);
 }
 
+// Zoom-based marker loading implementation
+function setupZoomBasedMarkerLoading() {
+  const MARKER_ZOOM_THRESHOLD = 9;
+  let markersLoaded = false;
+  
+  async function checkZoomAndLoadMarkers() {
+    const currentZoom = map.getZoom();
+    
+    if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
+      // Load markers only when zoomed in enough
+      markersLoaded = true;
+      
+      // Load settlement data if not already loaded (localities loaded on initial load)
+      if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
+        try {
+          await loadSettlementsFromCache();
+        } catch (error) {
+          console.error('Error loading settlement data:', error);
+        }
+      }
+      
+      // Show marker layers (fade handled by zoom-based opacity)
+      if (map.getLayer('locality-points')) {
+        map.setLayoutProperty('locality-points', 'visibility', 'visible');
+      }
+      if (map.getLayer('locality-clusters')) {
+        map.setLayoutProperty('locality-clusters', 'visibility', 'visible');
+      }
+      if (map.getLayer('settlement-points')) {
+        map.setLayoutProperty('settlement-points', 'visibility', 'visible');
+      }
+      if (map.getLayer('settlement-clusters')) {
+        map.setLayoutProperty('settlement-clusters', 'visibility', 'visible');
+      }
+    } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
+      // Hide marker layers when zoomed out (fade handled by zoom-based opacity)
+      if (map.getLayer('locality-points')) {
+        map.setLayoutProperty('locality-points', 'visibility', 'none');
+      }
+      if (map.getLayer('locality-clusters')) {
+        map.setLayoutProperty('locality-clusters', 'visibility', 'none');
+      }
+      if (map.getLayer('settlement-points')) {
+        map.setLayoutProperty('settlement-points', 'visibility', 'none');
+      }
+      if (map.getLayer('settlement-clusters')) {
+        map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
+      }
+      // Reset flag so markers can be shown again when zooming back in
+      markersLoaded = false;
+    }
+  }
+  
+  // Listen to zoom events
+  map.on('zoom', checkZoomAndLoadMarkers);
+  map.on('zoomend', checkZoomAndLoadMarkers);
+  
+  // Initial check when map is ready
+  if (map.isStyleLoaded()) {
+    checkZoomAndLoadMarkers();
+  } else {
+    map.on('style.load', checkZoomAndLoadMarkers);
+  }
+}
+
 // OPTIMIZED: DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
@@ -1106,32 +1049,12 @@ document.addEventListener('DOMContentLoaded', () => {
   state.setTimer('initMonitorTags', () => {
     monitorTags();
     
-    // Mark monitoring as part of events setup
-    state.setTimer('monitoringCheck', () => {
-      if (!loadingTracker.states.eventsSetup) {
-        loadingTracker.markComplete('eventsSetup');
-      }
-    }, 1000);
+    // Monitoring initialized
   }, 100);
   
   // Early UI readiness checks
   state.setTimer('earlyUICheck', () => {
-    // Check if controls are positioned early
-    if (!loadingTracker.states.uiPositioned) {
-      const ctrl = $1('.mapboxgl-ctrl-top-right');
-      if (ctrl && ctrl.style.top) {
-        loadingTracker.markComplete('uiPositioned');
-      }
-    }
-    
-    // Check if back to top is ready early
-    if (!loadingTracker.states.backToTopSetup) {
-      const button = $id('jump-to-top');
-      const scrollContainer = $id('scroll-wrap');
-      if (button && scrollContainer) {
-        loadingTracker.markComplete('backToTopSetup');
-      }
-    }
+    // Check UI elements early
   }, 2000);
 });
 
@@ -1208,7 +1131,9 @@ function setupGlobalExports() {
     toggleSidebar,
     closeSidebar,
     checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-    toggleShowWhenFilteredElements // FIXED: Export the toggle function too
+    toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
+    lightweightCache, // OPTIMIZED: Expose cache for debugging
+    lazyWorker   // OPTIMIZED: Expose worker for debugging
   };
 }
 
@@ -2632,33 +2557,147 @@ if (loadingScreen) {
   loadingScreen.style.display = 'flex';
 }
 
-// ENHANCED: Loading state tracker (moved up before any usage)
+// ENHANCED: Event-driven loading state tracker for better performance
 const loadingTracker = {
-  states: {
-    mapInitialized: false,
-    locationDataLoaded: false,
-    markersAdded: false,
-    geoDataLoaded: false,
-    regionsLoaded: false,
-    localitiesLoaded: false,
-    sidebarSetup: false,
-    eventsSetup: false,
-    uiPositioned: false,
-    backToTopSetup: false
+  requirements: {
+    mapReady: false,
+    dataLoaded: false,
+    markersRendered: false,
+    sidebarsReady: false,
+    initialRenderComplete: false
   },
   
-  markComplete(stateName) {
-    if (this.states.hasOwnProperty(stateName)) {
-      this.states[stateName] = true;
-      this.checkAllComplete();
-    }
+  promises: {
+    mapReady: null,
+    dataLoaded: null,
+    markersRendered: null,
+    sidebarsReady: null,
+    initialRenderComplete: null
   },
   
-  checkAllComplete() {
-    const allComplete = Object.values(this.states).every(state => state === true);
-    if (allComplete) {
+  resolvers: {},
+  observers: {},
+  
+  init() {
+    // Create promises for each requirement
+    this.promises.mapReady = new Promise(resolve => {
+      this.resolvers.mapReady = resolve;
+    });
+    
+    this.promises.dataLoaded = new Promise(resolve => {
+      this.resolvers.dataLoaded = resolve;
+    });
+    
+    this.promises.markersRendered = new Promise(resolve => {
+      this.resolvers.markersRendered = resolve;
+    });
+    
+    this.promises.sidebarsReady = new Promise(resolve => {
+      this.resolvers.sidebarsReady = resolve;
+    });
+    
+    this.promises.initialRenderComplete = new Promise(resolve => {
+      this.resolvers.initialRenderComplete = resolve;
+    });
+    
+    // Setup sidebar observer
+    this.setupSidebarObserver();
+    
+    // When all promises resolve, hide loading screen
+    Promise.all(Object.values(this.promises)).then(() => {
       this.hideLoadingScreen();
+    });
+    
+    // Fallback timer - but much shorter since we're event-driven now
+    setTimeout(() => {
+      this.forceComplete();
+    }, 15000);  // 15 second max wait
+  },
+  
+  setupSidebarObserver() {
+    // Watch for sidebar content to be added
+    const checkSidebars = () => {
+      const leftSidebar = document.getElementById('LeftSidebar');
+      const hasCheckboxes = document.querySelectorAll('[checkbox-filter] input').length > 0;
+      
+      if (leftSidebar && leftSidebar.offsetHeight > 0 && hasCheckboxes) {
+        this.markComplete('sidebarsReady');
+        if (this.observers.sidebar) {
+          this.observers.sidebar.disconnect();
+        }
+        return true;
+      }
+      return false;
+    };
+    
+    // Check immediately
+    if (!checkSidebars()) {
+      // If not ready, setup observer
+      this.observers.sidebar = new MutationObserver(() => {
+        checkSidebars();
+      });
+      
+      // Observe the document body for added nodes
+      this.observers.sidebar.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
     }
+  },
+  
+  markComplete(requirement) {
+    if (this.requirements.hasOwnProperty(requirement) && !this.requirements[requirement]) {
+      this.requirements[requirement] = true;
+      
+      // Resolve the corresponding promise
+      if (this.resolvers[requirement]) {
+        this.resolvers[requirement]();
+      }
+    }
+  },
+  
+  // Called when map fires 'idle' event
+  onMapIdle() {
+    // Check if markers are actually rendered
+    if (this.checkMarkersRendered()) {
+      this.markComplete('markersRendered');
+    }
+    
+    // Mark initial render complete
+    if (!this.requirements.initialRenderComplete) {
+      // Small timeout to ensure paint has happened
+      requestAnimationFrame(() => {
+        this.markComplete('initialRenderComplete');
+      });
+    }
+  },
+  
+  checkMarkersRendered() {
+    if (!map || !map.loaded()) return false;
+    
+    // For deferred loading: Consider markers "rendered" if layers exist (even if hidden)
+    // This prevents the loading screen from waiting for zoom-deferred content
+    const markerLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
+    const layersExist = markerLayers.every(layerId => {
+      return map.getLayer(layerId);
+    });
+    
+    // If layers exist, consider markers rendered (even if deferred/hidden)
+    if (layersExist) {
+      return true;
+    }
+    
+    // Fallback: return false if layers don't exist yet
+    return false;
+  },
+  
+  forceComplete() {
+    // Force resolve any pending requirements
+    Object.keys(this.requirements).forEach(req => {
+      if (!this.requirements[req]) {
+        this.markComplete(req);
+      }
+    });
   },
   
   hideLoadingScreen() {
@@ -2666,32 +2705,323 @@ const loadingTracker = {
     if (loadingScreen && loadingScreen.style.display !== 'none') {
       loadingScreen.style.display = 'none';
     }
+    
+    // Clean up observers
+    Object.values(this.observers).forEach(observer => {
+      if (observer && observer.disconnect) {
+        observer.disconnect();
+      }
+    });
   }
 };
 
-// Fallback: Hide loading screen after max 20 seconds regardless
-setTimeout(() => {
-  const loadingScreen = document.getElementById('loading-map-screen');
-  if (loadingScreen && loadingScreen.style.display !== 'none') {
-    loadingScreen.style.display = 'none';
-  }
-}, 20000);
+// Initialize the loading tracker
+loadingTracker.init();
 
-// Additional fallback: Mark any incomplete UI states as complete after reasonable delay
-setTimeout(() => {
-  if (!loadingTracker.states.sidebarSetup) {
-    loadingTracker.markComplete('sidebarSetup');
+// OPTIMIZED: Lightweight cache manager with localStorage metadata
+class LightweightCache {
+  constructor() {
+    this.prefix = 'mapCache_';
+    this.metaPrefix = 'mapMeta_';
   }
-  if (!loadingTracker.states.eventsSetup) {
-    loadingTracker.markComplete('eventsSetup');
+
+  // Simple cache check using localStorage for metadata
+  isDataFresh(url, maxAgeMinutes = 60) {
+    try {
+      const metaKey = this.metaPrefix + this.hashUrl(url);
+      const metadata = JSON.parse(localStorage.getItem(metaKey) || 'null');
+      if (!metadata) return false;
+      
+      const age = (Date.now() - metadata.timestamp) / (1000 * 60);
+      return age < maxAgeMinutes;
+    } catch (error) {
+      return false;
+    }
   }
-  if (!loadingTracker.states.uiPositioned) {
-    loadingTracker.markComplete('uiPositioned');
+
+  // Get cached processed data
+  get(storeName) {
+    try {
+      const key = this.prefix + storeName;
+      const cached = JSON.parse(localStorage.getItem(key) || 'null');
+      return cached;
+    } catch (error) {
+      return null;
+    }
   }
-  if (!loadingTracker.states.backToTopSetup) {
-    loadingTracker.markComplete('backToTopSetup');
+
+  // Store processed data
+  set(storeName, data, url) {
+    try {
+      const key = this.prefix + storeName;
+      const metaKey = this.metaPrefix + this.hashUrl(url);
+      
+      localStorage.setItem(key, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+      
+      localStorage.setItem(metaKey, JSON.stringify({
+        timestamp: Date.now(),
+        size: JSON.stringify(data).length
+      }));
+      
+      return true;
+    } catch (error) {
+      // Storage quota exceeded - clear old data
+      this.clear();
+      return false;
+    }
   }
-}, 12000);
+
+  clear() {
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (key.startsWith(this.prefix) || key.startsWith(this.metaPrefix)) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+
+  // Simple URL hash for storage keys
+  hashUrl(url) {
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+      const char = url.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString();
+  }
+}
+
+// Lazy-loaded cache instance - only created when needed
+let lightweightCache = null;
+
+// OPTIMIZED: Lazy worker manager - only creates worker when needed
+class LazyWorkerManager {
+  constructor() {
+    this.worker = null;
+    this.pendingTasks = new Map();
+    this.taskId = 0;
+  }
+
+  // Only process in worker if dealing with large datasets (>100 features)
+  async processData(type, data) {
+    const featureCount = data.features?.length || 0;
+    
+    // Use main thread for small datasets
+    if (featureCount < 100) {
+      return this.processSync(type, data);
+    }
+
+    // Use worker for large datasets
+    return this.processInWorker(type, data);
+  }
+
+  // Synchronous processing for small datasets (faster for small data)
+  processSync(type, data) {
+    switch(type) {
+      case 'processLocalities':
+        return this.processLocalitiesSync(data);
+      case 'processSettlements':
+        return this.processSettlementsSync(data);
+      default:
+        throw new Error('Unknown type: ' + type);
+    }
+  }
+
+  processLocalitiesSync(localityData) {
+    const localities = localityData.features
+      .filter(f => f.geometry?.coordinates && f.properties?.name)
+      .map(feature => ({
+        name: feature.properties.name,
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0],
+        region: feature.properties.region || '',
+        subregion: feature.properties.subregion || ''
+      }));
+
+    return Promise.resolve({
+      localities,
+      features: localityData.features
+    });
+  }
+
+  processSettlementsSync(settlementData) {
+    const settlements = settlementData.features
+      .filter(f => f.geometry?.coordinates && f.properties?.name)
+      .map(feature => ({
+        name: feature.properties.name,
+        lat: feature.geometry.coordinates[1],
+        lng: feature.geometry.coordinates[0]
+      }));
+
+    return Promise.resolve({
+      settlements,
+      features: settlementData.features
+    });
+  }
+
+  // Worker creation only when needed for large datasets
+  async processInWorker(type, data) {
+    if (!this.worker) {
+      this.createWorker();
+    }
+
+    if (!this.worker) {
+      // Fallback to sync if worker creation failed
+      return this.processSync(type, data);
+    }
+
+    const taskId = ++this.taskId;
+    
+    return new Promise((resolve, reject) => {
+      this.pendingTasks.set(taskId, { resolve, reject });
+      
+      this.worker.postMessage({ taskId, type, data });
+      
+      setTimeout(() => {
+        if (this.pendingTasks.has(taskId)) {
+          this.pendingTasks.delete(taskId);
+          reject(new Error('Worker timeout'));
+        }
+      }, 15000);
+    });
+  }
+
+  createWorker() {
+    try {
+      // Minimal worker code - only for large datasets
+      const workerCode = `
+        self.onmessage = function(e) {
+          const { taskId, type, data } = e.data;
+          try {
+            let result = type === 'processLocalities' ? 
+              processLocalities(data) : processSettlements(data);
+            self.postMessage({ taskId, success: true, result });
+          } catch (error) {
+            self.postMessage({ taskId, success: false, error: error.message });
+          }
+        };
+
+        function processLocalities(data) {
+          const localities = data.features
+            .filter(f => f.geometry?.coordinates && f.properties?.name)
+            .map(f => ({
+              name: f.properties.name,
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0],
+              region: f.properties.region || '',
+              subregion: f.properties.subregion || ''
+            }));
+          return { localities, features: data.features };
+        }
+
+        function processSettlements(data) {
+          const settlements = data.features
+            .filter(f => f.geometry?.coordinates && f.properties?.name)
+            .map(f => ({
+              name: f.properties.name,
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0]
+            }));
+          return { settlements, features: data.features };
+        }
+      `;
+
+      this.worker = new Worker(URL.createObjectURL(
+        new Blob([workerCode], { type: 'application/javascript' })
+      ));
+      
+      this.worker.onmessage = (e) => {
+        const { taskId, success, result, error } = e.data;
+        const task = this.pendingTasks.get(taskId);
+        if (task) {
+          this.pendingTasks.delete(taskId);
+          task[success ? 'resolve' : 'reject'](success ? result : new Error(error));
+        }
+      };
+    } catch (error) {
+      this.worker = null;
+    }
+  }
+
+  terminate() {
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
+    }
+    this.pendingTasks.clear();
+  }
+}
+
+// Lazy-loaded worker - only created when needed
+let lazyWorker = null;
+
+// OPTIMIZED: Conditional data loader - only uses cache for return visits
+async function loadDataWithOptionalCache(url, storeName, processingType) {
+  // Initialize cache and worker only when needed
+  if (!lightweightCache) {
+    lightweightCache = new LightweightCache();
+  }
+  
+  // Quick cache check (synchronous with localStorage)
+  const isFresh = lightweightCache.isDataFresh(url, 60);
+  
+  if (isFresh) {
+    const cached = lightweightCache.get(storeName);
+    if (cached?.data) {
+      return cached.data; // Instant return from cache
+    }
+  }
+
+  // Fetch fresh data
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const rawData = await response.json();
+    
+    // Process data (use worker only for large datasets)
+    if (!lazyWorker) {
+      lazyWorker = new LazyWorkerManager();
+    }
+    
+    const processedData = await lazyWorker.processData(processingType, rawData);
+    
+    // Cache result for next visit (fire and forget)
+    setTimeout(() => {
+      lightweightCache.set(storeName, processedData, url);
+    }, 0);
+
+    return processedData;
+    
+  } catch (error) {
+    // Try stale cache as last resort
+    const staleCache = lightweightCache?.get(storeName);
+    if (staleCache?.data) {
+      console.warn(`Using stale cache for ${storeName}`);
+      return staleCache.data;
+    }
+    throw error;
+  }
+}
+
+// Simple loading functions that conditionally use caching
+const loadLocalitiesWithCache = () => loadDataWithOptionalCache(
+  'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
+  'localities',
+  'processLocalities'
+);
+
+const loadSettlementsWithCache = () => loadDataWithOptionalCache(
+  'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson', 
+  'settlements',
+  'processSettlements'
+);
 
 // OPTIMIZED: Comprehensive DOM Element Cache
 class OptimizedDOMCache {
@@ -4477,6 +4807,273 @@ class OptimizedMapState {
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
+// Progressive Checkbox Manager for improved mobile performance
+const checkboxManager = {
+  generated: new Set(), // Track which checkboxes have been generated
+  queue: [], // Queue for progressive generation
+  batchSize: 25, // Number of checkboxes to generate per batch
+  isProcessing: false,
+  priorityQueue: [], // High priority items (user clicked/selected)
+  
+  // Check if a checkbox has been generated
+  isGenerated(type, name) {
+    return this.generated.has(`${type}-${name}`);
+  },
+  
+  // Mark checkbox as generated
+  markGenerated(type, name) {
+    this.generated.add(`${type}-${name}`);
+  },
+  
+  // Generate a single checkbox on-demand (for marker/autocomplete clicks)
+  generateSingle(type, name, data) {
+    if (this.isGenerated(type, name)) {
+      return this.checkExistingCheckbox(type, name);
+    }
+    
+    if (type === 'settlement') {
+      this.generateSingleSettlement(name, data);
+    } else if (type === 'locality') {
+      this.generateSingleLocality(name, data);
+    }
+    
+    this.markGenerated(type, name);
+    this.checkExistingCheckbox(type, name);
+  },
+  
+  // Check an existing checkbox
+  checkExistingCheckbox(type, name) {
+    const checkbox = document.querySelector(`input[fs-cmsfilter-field="${type}"][value="${name}"]`);
+    if (checkbox && !checkbox.checked) {
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Scroll into view
+      const container = checkbox.closest('.filter-dropdown-content');
+      if (container) {
+        checkbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    return checkbox;
+  },
+  
+  // Generate single settlement checkbox
+  generateSingleSettlement(name, data) {
+    const container = document.getElementById('settlement-check-list');
+    if (!container) return;
+    
+    const settlementSlug = data?.slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'settlement');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the link element
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/settlement/${settlementSlug}`;
+    link.target = '_blank';
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', name);
+    input.setAttribute('fs-list-field', 'Settlement');
+    input.type = 'checkbox';
+    input.name = 'settlement';
+    input.setAttribute('data-name', 'settlement');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `settlement-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = name;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(link);
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    
+    // Insert in alphabetical order
+    const existingCheckboxes = Array.from(container.querySelectorAll('.checbox-item'));
+    const insertIndex = existingCheckboxes.findIndex(el => {
+      const spanText = el.querySelector('.test3')?.textContent || '';
+      return spanText.localeCompare(name) > 0;
+    });
+    
+    if (insertIndex === -1) {
+      container.appendChild(wrapperDiv);
+    } else {
+      container.insertBefore(wrapperDiv, existingCheckboxes[insertIndex]);
+    }
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  },
+  
+  // Generate single locality checkbox  
+  generateSingleLocality(name, data) {
+    const container = document.getElementById('locality-check-list');
+    if (!container) return;
+    
+    const localitySlug = data?.slug || name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // Create the wrapper div
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.setAttribute('checkbox-filter', 'locality');
+    wrapperDiv.className = 'checbox-item';
+    
+    // Create the label
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create the link element
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/locality/${localitySlug}`;
+    link.target = '_blank';
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    
+    // Create the custom checkbox div
+    const customCheckbox = document.createElement('div');
+    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create the actual input
+    const input = document.createElement('input');
+    input.setAttribute('data-auto-sidebar', 'true');
+    input.setAttribute('fs-list-value', name);
+    input.setAttribute('fs-list-field', 'Locality');
+    input.type = 'checkbox';
+    input.name = 'locality';
+    input.setAttribute('data-name', 'locality');
+    input.setAttribute('activate-filter-indicator', 'place');
+    input.id = `locality-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    input.style.opacity = '0';
+    input.style.position = 'absolute';
+    input.style.zIndex = '-1';
+    
+    // Create the span label
+    const span = document.createElement('span');
+    span.className = 'test3 w-form-label';
+    span.setAttribute('for', input.id);
+    span.textContent = name;
+    
+    // Create the count div structure
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    const countDiv = document.createElement('div');
+    countDiv.setAttribute('fs-list-element', 'facet-count');
+    countDiv.className = 'test33';
+    countDiv.textContent = '0';
+    countWrapper.appendChild(countDiv);
+    
+    // Assemble the structure
+    label.appendChild(link);
+    label.appendChild(customCheckbox);
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(countWrapper);
+    wrapperDiv.appendChild(label);
+    
+    // Insert in alphabetical order
+    const existingCheckboxes = Array.from(container.querySelectorAll('.checbox-item'));
+    const insertIndex = existingCheckboxes.findIndex(el => {
+      const spanText = el.querySelector('.test3')?.textContent || '';
+      return spanText.localeCompare(name) > 0;
+    });
+    
+    if (insertIndex === -1) {
+      container.appendChild(wrapperDiv);
+    } else {
+      container.insertBefore(wrapperDiv, existingCheckboxes[insertIndex]);
+    }
+    
+    // Setup events for this checkbox
+    setupCheckboxEvents(wrapperDiv);
+  },
+  
+  // Add items to progressive generation queue
+  addToQueue(items, type) {
+    items.forEach(item => {
+      if (!this.isGenerated(type, item.name)) {
+        this.queue.push({ type, ...item });
+      }
+    });
+  },
+  
+  // Process next batch in queue
+  async processBatch() {
+    if (this.isProcessing || this.queue.length === 0) return;
+    
+    this.isProcessing = true;
+    
+    // Process priority items first
+    const batch = this.priorityQueue.length > 0 
+      ? this.priorityQueue.splice(0, this.batchSize)
+      : this.queue.splice(0, this.batchSize);
+    
+    batch.forEach(item => {
+      if (!this.isGenerated(item.type, item.name)) {
+        if (item.type === 'settlement') {
+          this.generateSingleSettlement(item.name, item);
+        } else if (item.type === 'locality') {
+          this.generateSingleLocality(item.name, item);
+        }
+        this.markGenerated(item.type, item.name);
+      }
+    });
+    
+    this.isProcessing = false;
+    
+    // Schedule next batch
+    if (this.queue.length > 0 || this.priorityQueue.length > 0) {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => this.processBatch(), { timeout: 100 });
+      } else {
+        setTimeout(() => this.processBatch(), 50);
+      }
+    }
+  },
+  
+  // Start progressive generation
+  startProgressiveGeneration() {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => this.processBatch(), { timeout: 2000 });
+    } else {
+      setTimeout(() => this.processBatch(), 1000);
+    }
+  }
+};
+
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/occupationcrimes/cmeo2b3yu000601sf4sr066j9",
@@ -4487,28 +5084,35 @@ const map = new mapboxgl.Map({
 
 // OPTIMIZED: Map load event handler with parallel operations (moved here right after map creation)
 map.on("load", () => {
-  // Control positioning with better timing (moved inside map load to ensure state exists)
-  state.setTimer('controlPositioning', () => {
-    // Mark UI loading step complete (positioning is already handled by CSS)
-    loadingTracker.markComplete('uiPositioned');
-  }, 300);
   try {
     init();
     
-    // Load combined data
-    state.setTimer('loadCombinedData', loadCombinedGeoData, 100);
+    // Load regions and territories immediately (they should always be visible)
+    loadCombinedGeoData();
     
-    // Settlements are loaded after localities for proper layer ordering
+    // Load locality data to extract region markers (but don't show locality markers yet)
+    loadLocalitiesFromGeoJSON();
+    
+    // Mark data as loaded for loading screen (markers are deferred)
+    loadingTracker.markComplete('dataLoaded');
+    
+    // Note: Settlement and locality markers are deferred until zoom level 9+
     
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
     
+    // Mark map as ready
+    loadingTracker.markComplete('mapReady');
+    
   } catch (error) {
-    // Mark all loading steps as complete to hide loading screen on error
-    Object.keys(loadingTracker.states).forEach(stateName => {
-      loadingTracker.markComplete(stateName);
-    });
+    // Force complete on error to prevent infinite loading
+    loadingTracker.forceComplete();
   }
+});
+
+// Listen for map idle event to detect when rendering is complete
+map.on('idle', () => {
+  loadingTracker.onMapIdle();
 });
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
@@ -4547,8 +5151,8 @@ class MapResetControl {
     button.className = 'mapboxgl-ctrl-icon';
     button.type = 'button';
     button.title = 'Reset map view';
-    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8.48 6.96" style="width: 16px; height: 16px; display: block; margin: auto;">
-      <path fill="currentColor" d="M4.99.77c-.38,0-.73.07-1.05.21s-.62.34-.86.58-.44.53-.58.86-.21.68-.21,1.06v.04l.77-.75h.86l-1.95,1.88h-.02l-1.95-1.88h.87l.66.65c0-.47.1-.92.29-1.33s.44-.78.75-1.09.68-.55,1.1-.73.87-.27,1.34-.27.93.09,1.35.27.79.43,1.11.75.57.69.75,1.11.27.87.27,1.35-.09.93-.27,1.35-.43.79-.75,1.11-.69.57-1.11.75-.87.27-1.35.27c-.3,0-.58-.03-.83-.1s-.5-.16-.72-.27-.43-.25-.62-.4-.35-.32-.5-.5l.56-.48c.3.32.61.57.95.74s.72.25,1.15.25c.38,0,.73-.07,1.06-.21s.62-.34.86-.58.44-.53.58-.86.21-.68.21-1.06-.07-.73-.21-1.06-.34-.62-.58-.86-.53-.44-.86-.58-.68-.21-1.06-.21Z"/>
+    button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9.88 9.88" style="width: 20px; height: 20px; display: block; margin: auto;">
+      <path fill="currentColor" d="M5.15,2.23c-.38,0-.73.07-1.05.21s-.62.34-.86.58-.44.53-.58.86-.21.68-.21,1.06v.04l.77-.75h.86l-1.95,1.88h-.02L.16,4.23h.87l.66.65c0-.47.1-.92.29-1.33s.44-.78.75-1.09.68-.55,1.1-.73.87-.27,1.34-.27.93.09,1.35.27.79.43,1.11.75.57.69.75,1.11.27.87.27,1.35-.09.93-.27,1.35-.43.79-.75,1.11-.69.57-1.11.75-.87.27-1.35.27c-.3,0-.58-.03-.83-.10s-.5-.16-.72-.27-.43-.25-.62-.4-.35-.32-.5-.5l.56-.48c.3.32.61.57.95.74s.72.25,1.15.25c.38,0,.73-.07,1.06-.21s.62-.34.86-.58.44-.53.58-.86.21-.68.21-1.06-.07-.73-.21-1.06-.34-.62-.58-.86-.53-.44-.86-.58-.68-.21-1.06-.21Z"/>
     </svg>`;
     button.style.display = 'flex';
     button.style.alignItems = 'center';
@@ -4944,20 +5548,55 @@ function selectCheckbox(type, value) {
       }
     });
     
-    // Find and check the target checkbox
-    const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
-    const targetCheckbox = targetCheckboxes.find(checkbox => 
-      checkbox.getAttribute('fs-list-value') === value
-    );
-    
-    if (targetCheckbox) {
-      targetCheckbox.checked = true;
-      utils.triggerEvent(targetCheckbox, ['change', 'input']);
+    // For settlements and localities, use on-demand generation
+    if (type === 'settlement' || type === 'locality') {
+      // Check if checkbox exists, if not generate it
+      if (!checkboxManager.isGenerated(type, value)) {
+        // Find the feature data for this item
+        let featureData = null;
+        if (type === 'settlement') {
+          const feature = state.allSettlementFeatures?.find(f => f.properties.name === value);
+          if (feature) {
+            featureData = {
+              name: value,
+              slug: feature.properties?.slug || value.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+              locality: feature.properties?.locality || ''
+            };
+          }
+        } else if (type === 'locality') {
+          const feature = state.allLocalityFeatures?.find(f => f.properties.name === value);
+          if (feature) {
+            featureData = {
+              name: value,
+              slug: feature.properties?.slug || value.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+              region: feature.properties?.region || ''
+            };
+          }
+        }
+        
+        if (featureData) {
+          checkboxManager.generateSingle(type, value, featureData);
+        }
+      } else {
+        // Checkbox already exists, just check it
+        checkboxManager.checkExistingCheckbox(type, value);
+      }
+    } else {
+      // For other types, use existing behavior
+      const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
+      const targetCheckbox = targetCheckboxes.find(checkbox => 
+        checkbox.getAttribute('fs-list-value') === value
+      );
       
-      const form = targetCheckbox.closest('form');
-      if (form) {
-        form.dispatchEvent(new Event('change', {bubbles: true}));
-        form.dispatchEvent(new Event('input', {bubbles: true}));
+      if (targetCheckbox) {
+        targetCheckbox.checked = true;
+        utils.triggerEvent(targetCheckbox, ['change', 'input']);
+        
+        const form = targetCheckbox.closest('form');
+        if (form) {
+          form.dispatchEvent(new Event('change', {bubbles: true}));
+          form.dispatchEvent(new Event('input', {bubbles: true}));
+        }
       }
     }
   });
@@ -4983,28 +5622,25 @@ function selectSettlementCheckbox(settlementName) {
 function selectTerritoryCheckbox(territoryName) {
   selectCheckbox('territory', territoryName);
 }
-// MODIFY loadLocalitiesFromGeoJSON to extract both regions AND subregions
-function loadLocalitiesFromGeoJSON() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(localityData => {
-      // Store locality features
-      state.locationData = localityData;
-      state.allLocalityFeatures = localityData.features;
+// OPTIMIZED: Load localities with conditional caching
+async function loadLocalitiesFromGeoJSON() {
+  try {
+    // Use optimized loader with conditional caching
+    const processedData = await loadLocalitiesWithCache();
+    
+    // Store the data in state (maintaining compatibility)
+    state.locationData = { features: processedData.features };
+    state.allLocalityFeatures = processedData.features;
       
-      // Extract unique regions from localities with their coordinates
-      const regionMap = new Map();
-      // Extract unique subregions from localities with their coordinates
-      const subregionMap = new Map();
-      
-      localityData.features.forEach(feature => {
-        const regionName = feature.properties.region;
-        const subregionName = feature.properties.subRegion;
+    // The worker already processed regions and subregions for us
+    // Extract unique regions from localities with their coordinates
+    const regionMap = new Map();
+    // Extract unique subregions from localities with their coordinates
+    const subregionMap = new Map();
+    
+    processedData.features.forEach(feature => {
+      const regionName = feature.properties.region;
+      const subregionName = feature.properties.subRegion;
         
         // Process regions
         if (regionName && !regionMap.has(regionName)) {
@@ -5033,7 +5669,7 @@ function loadLocalitiesFromGeoJSON() {
         });
         
         // Find a locality with this region to get the territory
-        const localityInRegion = localityData.features.find(f => f.properties.region === regionName);
+        const localityInRegion = processedData.features.find(f => f.properties.region === regionName);
         
         return {
           type: "Feature",
@@ -5087,26 +5723,72 @@ function loadLocalitiesFromGeoJSON() {
       
       // Load settlements after locality/region layers are created for proper layer ordering
       // Use timer to ensure batched layer operations complete first
-      state.setTimer('loadSettlements', () => {
-        loadSettlements();
-      }, 300);
+      state.setTimer('loadSettlements', loadSettlementsFromCache, 300);
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
         state.setTimer('refreshAutocompleteAfterLocalities', window.refreshAutocomplete, 1000);
       }
       
-      // Mark loading steps complete
-      loadingTracker.markComplete('localitiesLoaded');
-      loadingTracker.markComplete('regionsLoaded');
-      loadingTracker.markComplete('locationDataLoaded');
-    })
-    .catch(error => {
-      console.error('Failed to load localities:', error);
-      loadingTracker.markComplete('localitiesLoaded');
-      loadingTracker.markComplete('regionsLoaded');
-      loadingTracker.markComplete('locationDataLoaded');
-    });
+      // Mark data as loaded
+      loadingTracker.markComplete('dataLoaded');
+  } catch (error) {
+    console.error('Failed to load localities:', error);
+    // Mark as loaded even on error to prevent infinite loading
+    loadingTracker.markComplete('dataLoaded');
+  }
+}
+
+// OPTIMIZED: Load settlements with conditional caching  
+async function loadSettlementsFromCache() {
+  try {
+    const processedData = await loadSettlementsWithCache();
+    
+    // Store settlement features and data (addSettlementMarkers needs both)
+    state.allSettlementFeatures = processedData.features;
+    state.settlementData = {
+      type: "FeatureCollection",
+      features: processedData.features
+    };
+    
+    // Add settlements to map (will be inserted before localities for proper layer order)
+    addSettlementMarkers();
+    
+    // Add territory features (keeping existing logic)
+    state.allTerritoryFeatures = [
+      {
+        type: "Feature",
+        properties: {
+          name: "Gaza",
+          type: "territory"
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [34.3950, 31.4458]
+        }
+      },
+      {
+        type: "Feature",
+        properties: {
+          name: "West Bank",
+          type: "territory"
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [35.3050, 32.2873]
+        }
+      }
+    ];
+    
+    // Add territory markers to map
+    addNativeTerritoryMarkers();
+    
+    // Generate settlement checkboxes
+    state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
+    
+  } catch (error) {
+    console.error('Failed to load settlements:', error);
+  }
 }
 
 // OPTIMIZED: Load and add settlement markers with new color
@@ -5228,12 +5910,13 @@ function addSettlementMarkers() {
           'text-allow-overlap': true,
           'text-ignore-placement': true,
           'symbol-sort-key': 1,
-          'visibility': 'visible'
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
-          'text-halo-width': 2
+          'text-halo-width': 2,
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
         }
       };
       
@@ -5267,19 +5950,13 @@ function addSettlementMarkers() {
           'text-offset': [0, 0],
           'text-anchor': 'center',
           'symbol-sort-key': 2,
-          'visibility': 'visible'
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            isMobile ? 7.1 : 8.5, 0,
-            isMobile ? 8.1 : 9.5, 1
-          ]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
         }
       };
       
@@ -5540,12 +6217,14 @@ function addNativeMarkers() {
           'text-font': ['Open Sans Regular'],
           'text-size': 16,
           'text-allow-overlap': true,
-          'text-ignore-placement': true
+          'text-ignore-placement': true,
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800',
-          'text-halo-width': 2
+          'text-halo-width': 2,
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
         }
       });
       
@@ -5572,19 +6251,14 @@ function addNativeMarkers() {
           'text-padding': 4,
           'text-offset': [0, 0],
           'text-anchor': 'center',
-          'symbol-sort-key': 10 // Higher values render last (on top)
+          'symbol-sort-key': 10, // Higher values render last (on top)
+          'visibility': 'none' // Hidden until zoom level 9+
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
           'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            isMobile ? 7.1 : 8.5, 0,
-            isMobile ? 8.1 : 9.5, 1
-          ]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
         }
       });
       
@@ -5596,8 +6270,7 @@ function addNativeMarkers() {
   
   setupNativeMarkerClicks();
   
-  // Mark loading step complete
-  loadingTracker.markComplete('markersAdded');
+  // Markers have been added - the map 'idle' event will handle render detection
 }
 
 // OPTIMIZED: Region markers with batched operations  
@@ -6216,8 +6889,7 @@ function setupBackToTopButton() {
   // Initial visibility check
   updateButtonVisibility();
   
-  // Mark UI loading step complete
-  loadingTracker.markComplete('backToTopSetup');
+  // Back to top setup complete
 }
 
 // OPTIMIZED: Consolidated controls with event delegation where possible
@@ -6383,7 +7055,7 @@ function setupSidebars() {
     return true;
   };
   
-  const attemptSetup = (attempt = 1, maxAttempts = 5) => {
+  const attemptSetup = (attempt = 1, maxAttempts = 7) => {  // Slightly increased from 5 to 7 attempts
     const leftReady = setupSidebarElement('Left');
     const secondLeftReady = setupSidebarElement('SecondLeft');
     const rightReady = setupSidebarElement('Right');
@@ -6392,20 +7064,20 @@ function setupSidebars() {
       setupInitialMargins();
       state.setTimer('controlsInit', setupControls, 50);
       
-      // Mark UI loading step complete
-      loadingTracker.markComplete('sidebarSetup');
+      // Sidebars are ready - the MutationObserver will handle visibility detection
       return;
     }
     
     if (attempt < maxAttempts) {
-      const delay = [50, 150, 250, 500][attempt - 1] || 500;
+      // Reasonable delays: [50, 150, 250, 500, 750, 1000, 1500]
+      const delays = [50, 150, 250, 500, 750, 1000, 1500];
+      const delay = delays[attempt - 1] || 1500;
       state.setTimer(`sidebarSetup-${attempt}`, () => attemptSetup(attempt + 1, maxAttempts), delay);
     } else {
       setupInitialMargins();
       state.setTimer('controlsInit', setupControls, 50);
       
-      // Mark UI loading step complete even if some sidebars missing
-      loadingTracker.markComplete('sidebarSetup');
+      // Sidebars setup attempted - MutationObserver will handle the rest
     }
   };
   
