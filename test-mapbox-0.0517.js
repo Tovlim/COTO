@@ -1628,6 +1628,7 @@ loadDataFromState() {
                 }
                 
                 // Load settlements
+                console.log('Checking settlement features for autocomplete:', state.allSettlementFeatures?.length);
                 if (state.allSettlementFeatures && state.allSettlementFeatures.length > 0) {
                     this.data.settlements = state.allSettlementFeatures
                         .filter(feature => feature.geometry && feature.geometry.coordinates)
@@ -3096,7 +3097,15 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
   if (isFresh) {
     const cached = lightweightCache.get(storeName);
     if (cached?.data) {
-      return cached.data; // Instant return from cache
+      console.log(`Loading ${storeName} from cache:`, cached.data);
+      // Ensure we return the correct structure
+      // The cached data should already have the correct format
+      if (cached.data.features && Array.isArray(cached.data.features)) {
+        return cached.data; // Instant return from cache
+      } else {
+        console.warn(`Invalid cache structure for ${storeName}, fetching fresh data`);
+        // Invalid cache, fall through to fetch fresh
+      }
     }
   }
 
@@ -3118,6 +3127,7 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
     
     // Cache result for next visit (fire and forget)
     setTimeout(() => {
+      console.log(`Caching ${storeName}:`, processedData);
       lightweightCache.set(storeName, processedData, url);
     }, 0);
 
@@ -5565,13 +5575,33 @@ async function loadLocalitiesFromGeoJSON() {
 async function loadSettlementsFromCache() {
   try {
     const processedData = await loadSettlementsWithCache();
+    console.log('Processed settlement data:', processedData);
     
     // Store settlement features and data (addSettlementMarkers needs both)
-    state.allSettlementFeatures = processedData.features;
-    state.settlementData = {
-      type: "FeatureCollection",
-      features: processedData.features
-    };
+    if (!processedData || !processedData.features || !Array.isArray(processedData.features)) {
+      console.error('Invalid settlement data structure!', processedData);
+      // Try to recover if possible
+      if (processedData && Array.isArray(processedData)) {
+        // Maybe the data itself is the features array
+        state.allSettlementFeatures = processedData;
+        state.settlementData = {
+          type: "FeatureCollection",
+          features: processedData
+        };
+      } else {
+        state.allSettlementFeatures = [];
+        state.settlementData = {
+          type: "FeatureCollection",
+          features: []
+        };
+      }
+    } else {
+      state.allSettlementFeatures = processedData.features;
+      state.settlementData = {
+        type: "FeatureCollection",
+        features: processedData.features
+      };
+    }
     
     // Add settlements to map (will be inserted before localities for proper layer order)
     addSettlementMarkers();
@@ -5664,7 +5694,13 @@ function loadSettlements() {
       
       // Refresh autocomplete to include settlement and territory data
       if (window.refreshAutocomplete) {
-        state.setTimer('refreshAutocompleteAfterSettlements', window.refreshAutocomplete, 600);
+        console.log('Scheduling autocomplete refresh after settlements loaded');
+        state.setTimer('refreshAutocompleteAfterSettlements', () => {
+          console.log('Refreshing autocomplete with settlement data');
+          window.refreshAutocomplete();
+        }, 600);
+      } else {
+        console.warn('window.refreshAutocomplete not available yet');
       }
       
     })
