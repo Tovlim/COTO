@@ -2261,12 +2261,24 @@ loadDataFromState() {
             }
             
             renderResults() {
+                // Safety check - ensure we're properly initialized
+                if (!this.elements || !this.elements.list) {
+                    console.warn('Autocomplete not properly initialized, skipping render');
+                    return;
+                }
+                
                 if (this.renderFrame) {
                     cancelAnimationFrame(this.renderFrame);
                 }
                 
                 this.renderFrame = requestAnimationFrame(() => {
-                    this.renderWithVirtualDOM();
+                    try {
+                        this.renderWithVirtualDOM();
+                    } catch (error) {
+                        console.error('Error in renderWithVirtualDOM:', error);
+                        // Fallback to simple render
+                        this.fallbackRender();
+                    }
                     this.renderFrame = null;
                 });
             }
@@ -2394,6 +2406,27 @@ loadDataFromState() {
                 // For now, use full render for simplicity
                 // Future optimization: implement true incremental updates
                 this.fullRender(newItems);
+            }
+            
+            fallbackRender() {
+                // Simple fallback rendering without virtual DOM
+                if (!this.elements || !this.elements.list) return;
+                
+                const items = this.data.filteredResults || [];
+                
+                if (items.length === 0) {
+                    this.elements.list.innerHTML = '<li class="no-results">No results found</li>';
+                    return;
+                }
+                
+                const fragment = document.createDocumentFragment();
+                items.forEach((item, index) => {
+                    const itemElement = this.createItemElement(item, index);
+                    fragment.appendChild(itemElement);
+                });
+                
+                this.elements.list.innerHTML = '';
+                this.elements.list.appendChild(fragment);
             }
             
             createItemElement(item, index) {
