@@ -576,89 +576,9 @@ function setupDeferredAreaControls() {
   }
 }
 
-// Generate settlement checkboxes progressively for better performance
-function generateSettlementCheckboxes() {
-  const container = $id('settlement-check-list');
-  if (!container) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Show loading message
-  const loadingDiv = document.createElement('div');
-  loadingDiv.id = 'settlement-loading';
-  loadingDiv.className = 'loading-message';
-  loadingDiv.textContent = 'Loading settlements...';
-  container.appendChild(loadingDiv);
-  
-  // Extract unique settlement names from settlement features
-  const settlementData = state.allSettlementFeatures
-    .map(feature => ({
-      name: feature.properties.name,
-      slug: feature.properties?.slug || feature.properties.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      locality: feature.properties?.locality || '',
-      type: 'settlement'
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  
-  if (settlementData.length === 0) {
-    return;
-  }
-  
-  // Add to progressive generation queue
-  checkboxManager.addToQueue(settlementData, 'settlement');
-  checkboxManager.startProgressiveGeneration();
-  
-  // Remove loading message when done
-  setTimeout(() => {
-    const loading = document.getElementById('settlement-loading');
-    if (loading) loading.remove();
-  }, 2000);
-}
+// Settlement filter now handled by autocomplete - no checkbox generation needed
 
-// Generate locality checkboxes from map data
-function generateLocalityCheckboxes() {
-  const container = $id('locality-check-list');
-  if (!container) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Show loading message
-  const loadingDiv = document.createElement('div');
-  loadingDiv.id = 'locality-loading';
-  loadingDiv.className = 'loading-message';
-  loadingDiv.textContent = 'Loading localities...';
-  container.appendChild(loadingDiv);
-  
-  // Extract unique locality names from map data
-  const localityData = state.allLocalityFeatures
-    .map(feature => ({
-      name: feature.properties.name,
-      slug: feature.properties?.slug || feature.properties.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-      region: feature.properties?.region || '',
-      type: 'locality'
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-  
-  if (localityData.length === 0) {
-    return;
-  }
-  
-  // Add to progressive generation queue
-  checkboxManager.addToQueue(localityData, 'locality');
-  checkboxManager.startProgressiveGeneration();
-  
-  // Remove loading message when done
-  setTimeout(() => {
-    const loading = document.getElementById('locality-loading');
-    if (loading) loading.remove();
-  }, 2000);
-}
+// Locality filter now handled by autocomplete - no checkbox generation needed
 
 // Generate region checkboxes from map data
 function generateRegionCheckboxes() {
@@ -2481,6 +2401,255 @@ loadDataFromState() {
         }
     });
 })();
+
+// Lightweight Autocomplete for Locality/Settlement Filter Inputs
+class FilterAutocomplete {
+  constructor(inputId, type) {
+    this.input = document.getElementById(inputId);
+    this.type = type; // 'locality' or 'settlement'
+    this.resultsContainer = null;
+    this.data = [];
+    this.isVisible = false;
+    this.selectedIndex = -1;
+    
+    if (this.input) {
+      this.init();
+    }
+  }
+  
+  init() {
+    // Create results container
+    this.createResultsContainer();
+    
+    // Setup event listeners
+    this.input.addEventListener('input', (e) => this.handleInput(e));
+    this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+    this.input.addEventListener('focus', (e) => this.handleFocus(e));
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!this.input.contains(e.target) && !this.resultsContainer.contains(e.target)) {
+        this.hideResults();
+      }
+    });
+    
+    // Load data when available
+    this.loadData();
+  }
+  
+  createResultsContainer() {
+    this.resultsContainer = document.createElement('div');
+    this.resultsContainer.className = 'filter-autocomplete-results';
+    this.resultsContainer.style.cssText = `
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-top: none;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    `;
+    
+    // Make input container relative
+    this.input.parentElement.style.position = 'relative';
+    this.input.parentElement.appendChild(this.resultsContainer);
+  }
+  
+  loadData() {
+    // Load data based on type
+    if (this.type === 'locality') {
+      this.data = (state.allLocalityFeatures || []).map(feature => ({
+        name: feature.properties.name,
+        region: feature.properties.region || '',
+        type: 'locality',
+        feature: feature
+      })).sort((a, b) => a.name.localeCompare(b.name));
+    } else if (this.type === 'settlement') {
+      this.data = (state.allSettlementFeatures || []).map(feature => ({
+        name: feature.properties.name,
+        locality: feature.properties.locality || '',
+        type: 'settlement',
+        feature: feature
+      })).sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
+  
+  handleInput(e) {
+    const query = e.target.value.trim();
+    
+    if (query.length === 0) {
+      this.hideResults();
+      return;
+    }
+    
+    this.search(query);
+  }
+  
+  handleKeydown(e) {
+    if (!this.isVisible) return;
+    
+    const items = this.resultsContainer.querySelectorAll('.filter-autocomplete-item');
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        this.selectedIndex = Math.min(this.selectedIndex + 1, items.length - 1);
+        this.updateSelection();
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
+        this.updateSelection();
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (this.selectedIndex >= 0 && items[this.selectedIndex]) {
+          this.selectItem(items[this.selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        this.hideResults();
+        break;
+    }
+  }
+  
+  handleFocus(e) {
+    // Reload data if empty (in case data loaded after init)
+    if (this.data.length === 0) {
+      this.loadData();
+    }
+    
+    // Show results if there's a query
+    if (e.target.value.trim().length > 0) {
+      this.search(e.target.value.trim());
+    }
+  }
+  
+  search(query) {
+    const queryLower = query.toLowerCase();
+    const results = this.data
+      .filter(item => item.name.toLowerCase().includes(queryLower))
+      .slice(0, 8); // Limit to 8 results
+    
+    this.displayResults(results);
+  }
+  
+  displayResults(results) {
+    this.resultsContainer.innerHTML = '';
+    
+    if (results.length === 0) {
+      this.hideResults();
+      return;
+    }
+    
+    results.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'filter-autocomplete-item';
+      div.style.cssText = `
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+      `;
+      
+      // Format display text
+      let displayText = item.name;
+      if (this.type === 'locality' && item.region) {
+        displayText += ` (${item.region})`;
+      } else if (this.type === 'settlement' && item.locality) {
+        displayText += ` (${item.locality})`;
+      }
+      
+      div.textContent = displayText;
+      div.setAttribute('data-name', item.name);
+      div.setAttribute('data-index', index);
+      
+      // Add hover effects
+      div.addEventListener('mouseenter', () => {
+        this.selectedIndex = index;
+        this.updateSelection();
+      });
+      
+      div.addEventListener('click', () => this.selectItem(div));
+      
+      this.resultsContainer.appendChild(div);
+    });
+    
+    this.selectedIndex = -1;
+    this.showResults();
+  }
+  
+  updateSelection() {
+    const items = this.resultsContainer.querySelectorAll('.filter-autocomplete-item');
+    items.forEach((item, index) => {
+      if (index === this.selectedIndex) {
+        item.style.backgroundColor = '#f0f8ff';
+        item.style.color = '#333';
+      } else {
+        item.style.backgroundColor = 'white';
+        item.style.color = '#333';
+      }
+    });
+  }
+  
+  selectItem(itemElement) {
+    const itemName = itemElement.getAttribute('data-name');
+    
+    // Update input value
+    this.input.value = itemName;
+    
+    // Generate and select checkbox
+    if (this.type === 'locality') {
+      selectLocalityCheckbox(itemName);
+    } else if (this.type === 'settlement') {
+      selectSettlementCheckbox(itemName);
+    }
+    
+    // Hide results
+    this.hideResults();
+    
+    // Clear input after selection (optional)
+    setTimeout(() => {
+      this.input.value = '';
+    }, 500);
+  }
+  
+  showResults() {
+    this.resultsContainer.style.display = 'block';
+    this.isVisible = true;
+  }
+  
+  hideResults() {
+    this.resultsContainer.style.display = 'none';
+    this.isVisible = false;
+    this.selectedIndex = -1;
+  }
+  
+  refresh() {
+    this.loadData();
+  }
+}
+
+// Initialize filter autocompletes when data is ready
+let localityAutocomplete = null;
+let settlementAutocomplete = null;
+
+function initializeFilterAutocompletes() {
+  // Initialize locality autocomplete
+  if (!localityAutocomplete) {
+    localityAutocomplete = new FilterAutocomplete('search-localities', 'locality');
+  }
+  
+  // Initialize settlement autocomplete  
+  if (!settlementAutocomplete) {
+    settlementAutocomplete = new FilterAutocomplete('search-settlements', 'settlement');
+  }
+}
 
 // COMBINED MAPBOX SCRIPT - Production Version 2025
 // Optimized version without autocomplete loading dependency
@@ -5631,6 +5800,9 @@ async function loadLocalitiesFromGeoJSON() {
     // Store the data in state (maintaining compatibility)
     state.locationData = { features: processedData.features };
     state.allLocalityFeatures = processedData.features;
+    
+    // Initialize locality autocomplete now that data is available
+    initializeFilterAutocompletes();
       
     // The worker already processed regions and subregions for us
     // Extract unique regions from localities with their coordinates
@@ -5750,6 +5922,11 @@ async function loadSettlementsFromCache() {
       type: "FeatureCollection",
       features: processedData.features
     };
+    
+    // Refresh autocompletes with settlement data
+    if (settlementAutocomplete) {
+      settlementAutocomplete.refresh();
+    }
     
     // Add settlements to map (will be inserted before localities for proper layer order)
     addSettlementMarkers();
