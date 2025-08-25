@@ -1785,6 +1785,13 @@ window.addEventListener('beforeunload', () => {
                 // Initialize recent searches
                 this.recentSearches = this.loadRecentSearches();
                 
+                // Virtual DOM state
+                this.virtualDOM = {
+                    currentItems: [],
+                    renderedCount: 0,
+                    headerRendered: false
+                };
+                
                 // Initialize
                 this.init();
             }
@@ -2265,8 +2272,17 @@ loadDataFromState() {
             }
             
             renderWithVirtualDOM() {
-                const newItems = this.data.filteredResults;
-                const oldItems = this.virtualDOM.currentItems;
+                // Ensure virtualDOM is initialized
+                if (!this.virtualDOM) {
+                    this.virtualDOM = {
+                        currentItems: [],
+                        renderedCount: 0,
+                        headerRendered: false
+                    };
+                }
+                
+                const newItems = this.data.filteredResults || [];
+                const oldItems = this.virtualDOM.currentItems || [];
                 
                 // Check if we need a full re-render or can do incremental updates
                 const needsFullRender = this.shouldFullRender(newItems, oldItems);
@@ -2304,7 +2320,23 @@ loadDataFromState() {
             }
             
             fullRender(items) {
+                // Ensure elements exist
+                if (!this.elements || !this.elements.list) {
+                    console.warn('Autocomplete elements not initialized yet');
+                    return;
+                }
+                
                 this.elements.list.innerHTML = '';
+                
+                // Ensure virtualDOM is initialized
+                if (!this.virtualDOM) {
+                    this.virtualDOM = {
+                        currentItems: [],
+                        renderedCount: 0,
+                        headerRendered: false
+                    };
+                }
+                
                 this.virtualDOM.headerRendered = false;
                 
                 if (items.length === 0) {
