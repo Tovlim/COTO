@@ -1527,9 +1527,10 @@ window.addEventListener('beforeunload', () => {
     if (window.mapUtilities && window.mapUtilities.state) {
       const state = window.mapUtilities.state;
       // Wait for actual data to be loaded - now regions come from localities
-      if (state.allLocalityFeatures.length > 0 || 
-          state.allSettlementFeatures.length > 0) {
+      // Don't load until we have locality data (settlements will come later)
+      if (state.allLocalityFeatures.length > 0) {
         this.loadDataFromState();
+        // If settlements aren't loaded yet, they'll be added when refresh is called
         return true;
       }
     }
@@ -1758,20 +1759,16 @@ loadDataFromState() {
             }
             
             showAllItems() {
+                // Always reload data from state to get latest
+                this.loadDataFromState();
+                
                 // Make sure we have data before showing items
                 if (this.data.regions.length === 0 && 
                     this.data.localities.length === 0 && 
                     this.data.settlements.length === 0) {
-                    // Try to load data again
-                    this.loadDataFromState();
-                    
-                    // If still no data, return empty
-                    if (this.data.regions.length === 0 && 
-                        this.data.localities.length === 0 && 
-                        this.data.settlements.length === 0) {
-                        this.data.filteredResults = [];
-                        return;
-                    }
+                    console.log('No data available for autocomplete dropdown');
+                    this.data.filteredResults = [];
+                    return;
                 }
                 
                 // Hierarchical display: Regions → Subregions → Localities → Settlements
@@ -2464,6 +2461,7 @@ loadDataFromState() {
             }
             
             refresh() {
+                console.log('Autocomplete refresh called');
                 // Clear any cached results to force fresh data
                 this.cache.clear();
                 this.data.filteredResults = [];
@@ -2471,15 +2469,20 @@ loadDataFromState() {
                 // Reload data from state
                 this.loadDataFromState();
                 
-                // If dropdown is visible, update it
-                if (this.isDropdownVisible()) {
-                    this.handleInput(this.elements.input.value);
-                } else if (document.activeElement === this.elements.input && !this.elements.input.value) {
-                    // If input is focused but empty, show all items with new data
-                    this.showAllItems();
-                    this.renderResults();
-                    if (this.data.filteredResults.length > 0) {
-                        this.showDropdown();
+                console.log('After refresh - settlements count:', this.data.settlements.length);
+                
+                // Force update the dropdown if it's visible OR if input is focused
+                if (this.isDropdownVisible() || document.activeElement === this.elements.input) {
+                    if (this.elements.input.value) {
+                        // Re-run search with current value
+                        this.handleInput(this.elements.input.value);
+                    } else {
+                        // Show all items with new data
+                        this.showAllItems();
+                        this.renderResults();
+                        if (this.data.filteredResults.length > 0) {
+                            this.showDropdown();
+                        }
                     }
                 }
             }
@@ -2855,11 +2858,17 @@ class LightweightCache {
     try {
       const metaKey = this.metaPrefix + this.hashUrl(url);
       const metadata = JSON.parse(localStorage.getItem(metaKey) || 'null');
-      if (!metadata) return false;
+      console.log(`Cache metadata for ${url}:`, metadata);
+      if (!metadata) {
+        console.log('No cache metadata found');
+        return false;
+      }
       
       const age = (Date.now() - metadata.timestamp) / (1000 * 60);
+      console.log(`Cache age: ${age} minutes, max age: ${maxAgeMinutes} minutes`);
       return age < maxAgeMinutes;
     } catch (error) {
+      console.error('Error checking cache freshness:', error);
       return false;
     }
   }
@@ -3093,9 +3102,11 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
   
   // Quick cache check (synchronous with localStorage)
   const isFresh = lightweightCache.isDataFresh(url, 60);
+  console.log(`Cache freshness check for ${storeName}:`, isFresh);
   
   if (isFresh) {
     const cached = lightweightCache.get(storeName);
+    console.log(`Cache retrieval for ${storeName}:`, cached ? 'found' : 'not found');
     if (cached?.data) {
       console.log(`Loading ${storeName} from cache:`, cached.data);
       // Ensure we return the correct structure
