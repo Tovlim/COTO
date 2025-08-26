@@ -3086,6 +3086,17 @@ loadDataFromState() {
                             background-color: #f0f0f0;
                         }
                         
+                        /* Fix alignment for region/subregion recent searches */
+                        .list-term.region-term.recent-search,
+                        .list-term.subregion-term.recent-search {
+                            justify-content: flex-start !important;
+                        }
+                        
+                        .list-term.region-term.recent-search .clear-search,
+                        .list-term.subregion-term.recent-search .clear-search {
+                            margin-left: auto;
+                        }
+                        
                     `;
                     document.head.appendChild(style);
                 }
