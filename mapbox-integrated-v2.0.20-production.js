@@ -3036,10 +3036,10 @@ loadDataFromState() {
                             font-size: 0.75em;
                             font-weight: normal;
                             opacity: 0.8;
-                            margin-left: 8px;
+                            margin-left: auto;
+                            margin-right: 8px;
                             flex-shrink: 0;
-                            align-self: flex-start;
-                            margin-top: 2px;
+                            align-self: center;
                         }
                         
                         .list-term.active { background-color: #e8e8e8 !important; }
