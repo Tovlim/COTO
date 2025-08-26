@@ -3101,6 +3101,12 @@ loadDataFromState() {
                             margin-left: auto;
                         }
                         
+                        /* Preserve region/subregion colors in recent searches */
+                        .list-term.region-term.recent-search .locality-name,
+                        .list-term.subregion-term.recent-search .locality-name {
+                            color: #6e3500 !important;
+                        }
+                        
                     `;
                     document.head.appendChild(style);
                 }
