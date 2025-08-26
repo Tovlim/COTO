@@ -3049,6 +3049,7 @@ loadDataFromState() {
                             border-left: 3px solid #6c757d;
                             position: relative;
                             padding: 10px 12px !important;
+                            justify-content: flex-start !important;
                         }
                         
                         .list-term.recent-search:hover {
@@ -3063,7 +3064,7 @@ loadDataFromState() {
                         }
                         
                         .list-term.recent-search .clear-search {
-                            opacity: 0;
+                            opacity: 1;
                             transition: opacity 0.2s;
                             cursor: pointer;
                             display: inline-flex;
@@ -3073,13 +3074,9 @@ loadDataFromState() {
                             height: 20px;
                             color: #999;
                             border-radius: 3px;
-                            margin-left: 8px;
+                            margin-left: auto;
                             pointer-events: auto;
                             text-decoration: none;
-                        }
-                        
-                        .list-term.recent-search:hover .clear-search {
-                            opacity: 1;
                         }
                         
                         .list-term.recent-search .clear-search:hover {
