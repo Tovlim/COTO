@@ -2466,7 +2466,11 @@ loadDataFromState() {
                             <span class="term-label">${typeLabel}</span>
                         `;
                     } else {
-                        a.innerHTML = `${item.name} <span class="term-label">${typeLabel}</span>`;
+                        a.innerHTML = `
+                            <div class="locality-info">
+                                <div class="locality-name">${item.name}</div>
+                            </div>
+                            <span class="term-label">${typeLabel}</span>`;
                     }
                 }
                 
