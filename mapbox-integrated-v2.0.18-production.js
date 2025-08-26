@@ -2176,21 +2176,6 @@ loadDataFromState() {
                 
                 const scoredResults = [];
                 
-                // Add matching recent searches first
-                if (APP_CONFIG.features.enableRecentSearches && this.recentSearches.length > 0) {
-                    this.recentSearches.forEach(search => {
-                        const searchScore = this.calculateMatchScore(searchLower, searchTokens, search);
-                        if (searchScore > this.config.scoreThreshold) {
-                            scoredResults.push({
-                                ...search,
-                                score: searchScore + 0.1, // Boost recent searches slightly
-                                isRecent: true,
-                                display: `${search.name} (${search.type})`
-                            });
-                        }
-                    });
-                }
-                
                 // Search all categories including settlements and territories
                 const allItems = [
                     ...this.data.regions, 
