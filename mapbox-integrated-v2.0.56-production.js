@@ -4265,8 +4265,25 @@ const loadingTracker = {
   
   resolvers: {},
   observers: {},
+  startTime: Date.now(),
+  debugMode: true, // Enable debugging
+  
+  debug(message, requirement = null) {
+    if (!this.debugMode) return;
+    const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(2);
+    const status = requirement ? (this.requirements[requirement] ? '✅' : '⏳') : '';
+    console.log(`🔄 [${elapsed}s] Loading Debug: ${message} ${status}`);
+    
+    if (requirement) {
+      console.log(`📊 Current state:`, Object.keys(this.requirements).map(key => 
+        `${key}: ${this.requirements[key] ? '✅' : '⏳'}`
+      ).join(', '));
+    }
+  },
   
   init() {
+    this.debug('Initializing loading tracker...');
+    
     // Create promises for each requirement
     this.promises.mapReady = new Promise(resolve => {
       this.resolvers.mapReady = resolve;
@@ -4293,7 +4310,10 @@ const loadingTracker = {
     
     // When all promises resolve, hide loading screen
     Promise.all(Object.values(this.promises)).then(() => {
+      this.debug('All requirements met, hiding loading screen');
       this.hideLoadingScreen();
+    }).catch(error => {
+      this.debug(`Error in promise resolution: ${error.message}`);
     });
     
     // Fallback timer - but much shorter since we're event-driven now
@@ -4308,7 +4328,10 @@ const loadingTracker = {
       const leftSidebar = document.getElementById('LeftSidebar');
       const hasCheckboxes = document.querySelectorAll('[checkbox-filter] input').length > 0;
       
+      this.debug(`Sidebar check - Element exists: ${!!leftSidebar}, Height: ${leftSidebar?.offsetHeight || 0}, Checkboxes: ${hasCheckboxes ? document.querySelectorAll('[checkbox-filter] input').length : 0}`, 'sidebarsReady');
+      
       if (leftSidebar && leftSidebar.offsetHeight > 0 && hasCheckboxes) {
+        this.debug('✅ Sidebar requirements met!');
         this.markComplete('sidebarsReady');
         if (this.observers.sidebar) {
           this.observers.sidebar.disconnect();
@@ -4319,7 +4342,9 @@ const loadingTracker = {
     };
     
     // Check immediately
+    this.debug('Initial sidebar check...');
     if (!checkSidebars()) {
+      this.debug('Sidebar not ready, setting up observer');
       // If not ready, setup observer
       this.observers.sidebar = new MutationObserver(() => {
         checkSidebars();
@@ -4330,29 +4355,50 @@ const loadingTracker = {
         childList: true,
         subtree: true
       });
+    } else {
+      this.debug('✅ Sidebar ready immediately!');
     }
   },
   
   markComplete(requirement) {
     if (this.requirements.hasOwnProperty(requirement) && !this.requirements[requirement]) {
+      this.debug(`Marking ${requirement} as complete`, requirement);
       this.requirements[requirement] = true;
       
       // Resolve the corresponding promise
       if (this.resolvers[requirement]) {
         this.resolvers[requirement]();
+        this.debug(`✅ ${requirement} promise resolved`);
       }
+      
+      // Check if all requirements are now met
+      const remaining = Object.keys(this.requirements).filter(key => !this.requirements[key]);
+      if (remaining.length === 0) {
+        this.debug('🎉 All requirements completed!');
+      } else {
+        this.debug(`⏳ Still waiting for: ${remaining.join(', ')}`);
+      }
+    } else if (this.requirements[requirement]) {
+      this.debug(`⚠️  ${requirement} was already completed - duplicate call`);
+    } else {
+      this.debug(`❌ Unknown requirement: ${requirement}`);
     }
   },
   
   // Called when map fires 'idle' event
   onMapIdle() {
+    this.debug('Map idle event fired');
+    
     // Check if markers are actually rendered
-    if (this.checkMarkersRendered()) {
+    const markersRendered = this.checkMarkersRendered();
+    this.debug(`Checking markers rendered: ${markersRendered}`);
+    if (markersRendered) {
       this.markComplete('markersRendered');
     }
     
     // Mark initial render complete
     if (!this.requirements.initialRenderComplete) {
+      this.debug('Scheduling initial render complete');
       // Small timeout to ensure paint has happened
       requestAnimationFrame(() => {
         this.markComplete('initialRenderComplete');
@@ -4361,26 +4407,45 @@ const loadingTracker = {
   },
   
   checkMarkersRendered() {
-    if (!map || !map.loaded()) return false;
-    
-    // For deferred loading: Consider markers "rendered" if layers exist (even if hidden)
-    // This prevents the loading screen from waiting for zoom-deferred content
-    const markerLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
-    const layersExist = markerLayers.every(layerId => {
-      return map.getLayer(layerId);
-    });
-    
-    // If layers exist, consider markers rendered (even if deferred/hidden)
-    if (layersExist) {
-      return true;
+    if (!map || !map.loaded()) {
+      this.debug('Map not loaded yet, markers not rendered');
+      return false;
     }
     
-    // Fallback: return false if layers don't exist yet
-    return false;
+    // For LAZY loading: Don't wait for locality/settlement layers at all
+    // Since we're implementing true lazy loading, markers are "rendered" when regions are ready
+    // This prevents the loading screen from waiting for zoom-deferred content
+    
+    // Check for basic layers that should exist immediately (regions, territories)
+    const basicLayers = ['region-points', 'territory-points'];
+    const basicLayersExist = basicLayers.some(layerId => {
+      const exists = map.getLayer(layerId);
+      if (exists) this.debug(`✅ Basic layer ${layerId} exists`);
+      return exists;
+    });
+    
+    // Check for lazy-loaded marker layers (don't require these)
+    const lazyLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
+    const lazyLayersExist = lazyLayers.some(layerId => {
+      const exists = map.getLayer(layerId);
+      if (exists) this.debug(`✅ Lazy layer ${layerId} exists (bonus)`);
+      return exists;
+    });
+    
+    // Consider markers "rendered" if basic layers exist OR if any lazy layers exist
+    const markersReady = basicLayersExist || lazyLayersExist;
+    this.debug(`Basic layers ready: ${basicLayersExist}, Lazy layers ready: ${lazyLayersExist}, Overall: ${markersReady}`, 'markersRendered');
+    
+    // Return true if any markers are ready (basic or lazy)
+    return markersReady;
   },
   
   forceComplete() {
+    this.debug('🚨 FORCE COMPLETE triggered - timeout reached');
     // Force resolve any pending requirements
+    const pendingReqs = Object.keys(this.requirements).filter(req => !this.requirements[req]);
+    this.debug(`Forcing completion for: ${pendingReqs.join(', ')}`);
+    
     Object.keys(this.requirements).forEach(req => {
       if (!this.requirements[req]) {
         this.markComplete(req);
@@ -4391,7 +4456,11 @@ const loadingTracker = {
   hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen && loadingScreen.style.display !== 'none') {
+      const finalElapsed = ((Date.now() - this.startTime) / 1000).toFixed(2);
+      this.debug(`🎯 HIDING LOADING SCREEN after ${finalElapsed}s`);
       loadingScreen.style.display = 'none';
+    } else {
+      this.debug('Loading screen already hidden or not found');
     }
     
     // Clean up observers
