@@ -978,16 +978,54 @@ function loadCombinedGeoData() {
         });
       });
       
-      // Add region markers immediately after extraction
+      // Create territory markers from region data (immediate loading)
+      state.allTerritoryFeatures = [
+        {
+          type: "Feature",
+          properties: {
+            name: "West Bank",
+            type: "territory"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [35.2033, 31.9466]
+          }
+        },
+        {
+          type: "Feature", 
+          properties: {
+            name: "Gaza Strip",
+            type: "territory"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [34.4668, 31.5017]
+          }
+        },
+        {
+          type: "Feature",
+          properties: {
+            name: "Israel",
+            type: "territory"
+          },
+          geometry: {
+            type: "Point",
+            coordinates: [35.3050, 32.2873]
+          }
+        }
+      ];
+      
+      // Add region and territory markers immediately after extraction
       state.setTimer('addRegionMarkers', () => {
         addNativeRegionMarkers();
+        addNativeTerritoryMarkers(); // Add territories with regions
         
         // Generate region checkboxes for filtering
         state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 200);
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
         
-        // GeoData loaded - regions are now ready
+        // GeoData loaded - regions and territories are now ready
       }, 100);
     })
     .catch(error => {
@@ -7211,8 +7249,7 @@ async function loadSettlementsFromCache() {
       }
     ];
     
-    // Add territory markers to map
-    addNativeTerritoryMarkers();
+    // Territory markers are now loaded with regions on page load
     
     // Generate settlement checkboxes
     state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
@@ -7265,8 +7302,7 @@ function loadSettlements() {
         }
       ];
       
-      // Add territory markers to map
-      addNativeTerritoryMarkers();
+      // Territory markers are now loaded with regions on page load
       
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
