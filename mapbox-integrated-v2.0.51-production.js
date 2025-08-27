@@ -2222,11 +2222,6 @@ const MarkerLazyLoader = {
     
     this.localitiesLoading = true;
     
-    // Only show loading indicator if at zoom threshold (not during preload)
-    if (map.getZoom() >= this.ZOOM_THRESHOLD) {
-      this.showLoadingIndicator('Loading locality markers...');
-    }
-    
     try {
       await loadLocalitiesFromGeoJSON();
       
@@ -2245,9 +2240,6 @@ const MarkerLazyLoader = {
       EventBus.emit('localities:load-error', error);
     } finally {
       this.localitiesLoading = false;
-      if (map.getZoom() >= this.ZOOM_THRESHOLD) {
-        this.hideLoadingIndicator();
-      }
     }
   },
   
@@ -2256,11 +2248,6 @@ const MarkerLazyLoader = {
     if (this.settlementsLoading || this.settlementsLoaded) return;
     
     this.settlementsLoading = true;
-    
-    // Show loading indicator if visible and not preloading
-    if (this.markersVisible) {
-      this.showLoadingIndicator('Loading settlement markers...');
-    }
     
     try {
       await loadSettlementsFromCache();
@@ -2273,6 +2260,16 @@ const MarkerLazyLoader = {
           addNativeSettlementMarkers();
         }
         
+        // Show settlement layers if markers are already visible
+        if (this.markersVisible) {
+          const settlementLayers = ['settlement-points', 'settlement-clusters'];
+          settlementLayers.forEach(layer => {
+            if (map.getLayer(layer)) {
+              map.setLayoutProperty(layer, 'visibility', 'visible');
+            }
+          });
+        }
+        
         EventBus.emit('settlements:loaded');
       }
     } catch (error) {
@@ -2280,7 +2277,6 @@ const MarkerLazyLoader = {
       EventBus.emit('settlements:load-error', error);
     } finally {
       this.settlementsLoading = false;
-      this.hideLoadingIndicator();
     }
   },
   
@@ -2328,13 +2324,25 @@ const MarkerLazyLoader = {
   
   // Show markers with viewport optimization
   showMarkers() {
-    const layers = ['locality-points', 'locality-clusters', 'settlement-points', 'settlement-clusters'];
+    // Show localities if loaded
+    if (this.localitiesLoaded) {
+      const localityLayers = ['locality-points', 'locality-clusters'];
+      localityLayers.forEach(layer => {
+        if (map.getLayer(layer)) {
+          map.setLayoutProperty(layer, 'visibility', 'visible');
+        }
+      });
+    }
     
-    layers.forEach(layer => {
-      if (map.getLayer(layer)) {
-        map.setLayoutProperty(layer, 'visibility', 'visible');
-      }
-    });
+    // Show settlements if loaded
+    if (this.settlementsLoaded) {
+      const settlementLayers = ['settlement-points', 'settlement-clusters'];
+      settlementLayers.forEach(layer => {
+        if (map.getLayer(layer)) {
+          map.setLayoutProperty(layer, 'visibility', 'visible');
+        }
+      });
+    }
     
     this.markersVisible = true;
     this.updateViewportMarkers();
@@ -2355,13 +2363,24 @@ const MarkerLazyLoader = {
   
   // Update markers based on current viewport
   updateViewportMarkers() {
-    if (!this.markersVisible || !this.dataLoaded) return;
+    if (!this.markersVisible) return;
     
     requestAnimationFrame(() => {
       try {
+        // Only query layers that exist
+        const availableLayers = [];
+        if (this.localitiesLoaded && map.getLayer('locality-points')) {
+          availableLayers.push('locality-points');
+        }
+        if (this.settlementsLoaded && map.getLayer('settlement-points')) {
+          availableLayers.push('settlement-points');
+        }
+        
+        if (availableLayers.length === 0) return;
+        
         // Query features in viewport
         const visibleFeatures = map.queryRenderedFeatures({
-          layers: ['locality-points', 'settlement-points']
+          layers: availableLayers
         });
         
         // Track visible markers for optimization
@@ -7317,9 +7336,10 @@ function addSettlementMarkers() {
     return;
   }
   
-  // Find proper insertion point - before locality layers but after areas
+  // Find proper insertion point - settlements should be below localities/regions/subregions
   const getBeforeLayerId = () => {
-    const markerLayers = ['locality-clusters', 'locality-points', 'region-points'];
+    // Settlement layers should be placed before (below) locality and region layers
+    const markerLayers = ['locality-clusters', 'locality-points', 'region-points', 'subregion-points'];
     const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
     
     if (existingMarkerLayer) {
@@ -7363,7 +7383,7 @@ function addSettlementMarkers() {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0.5, 8.5, 1]
         }
       };
       
@@ -7403,7 +7423,7 @@ function addSettlementMarkers() {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0.5, 8.5, 1]
         }
       };
       
@@ -7658,6 +7678,14 @@ function addNativeMarkers() {
         clusterRadius: window.innerWidth <= 478 ? 60 : 50
       });
       
+      // Localities should be below regions/subregions but above settlements
+      const getLocalityBeforeId = () => {
+        // Look for region/subregion layers first
+        if (map.getLayer('region-points')) return 'region-points';
+        if (map.getLayer('subregion-points')) return 'subregion-points';
+        return null;
+      };
+      
       // Add clustered points layer
       map.addLayer({
         id: 'locality-clusters',
@@ -7676,9 +7704,9 @@ function addNativeMarkers() {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0.5, 8.5, 1]
         }
-      });
+      }, getLocalityBeforeId());
       
       // Add individual locality points layer WITHOUT highlighting (FIX #2)
       map.addLayer({
@@ -7710,9 +7738,9 @@ function addNativeMarkers() {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0.5, 8.5, 1]
         }
-      });
+      }, getLocalityBeforeId());
       
       logLayerOrder('After adding locality layers');
       
@@ -7745,6 +7773,13 @@ function addNativeRegionMarkers() {
           features: state.allRegionFeatures
         }
       });
+      
+      // Region markers should be above settlements/localities but below territories
+      const getRegionBeforeId = () => {
+        // Look for territory layers first
+        if (map.getLayer('territory-points')) return 'territory-points';
+        return null;
+      };
       
       map.addLayer({
         id: 'region-points',
@@ -7781,7 +7816,7 @@ function addNativeRegionMarkers() {
             6, 1
           ]
         }
-      });
+      }, getRegionBeforeId());
       
       mapLayers.invalidateCache(); // Invalidate cache after adding layers
     }
@@ -8011,6 +8046,13 @@ function addNativeSubregionMarkers() {
         }
       });
       
+      // Subregions should be above settlements/localities but below territories (same level as regions)
+      const getSubregionBeforeId = () => {
+        // Look for territory layers first
+        if (map.getLayer('territory-points')) return 'territory-points';
+        return null;
+      };
+      
       map.addLayer({
         id: 'subregion-points',
         type: 'symbol',
@@ -8045,7 +8087,7 @@ function addNativeSubregionMarkers() {
             6, 1
           ]
         }
-      });
+      }, getSubregionBeforeId());
       
       mapLayers.invalidateCache();
     }
