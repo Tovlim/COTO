@@ -994,23 +994,12 @@ function loadCombinedGeoData() {
         {
           type: "Feature", 
           properties: {
-            name: "Gaza Strip",
+            name: "Gaza",
             type: "territory"
           },
           geometry: {
             type: "Point",
             coordinates: [34.4668, 31.5017]
-          }
-        },
-        {
-          type: "Feature",
-          properties: {
-            name: "Israel",
-            type: "territory"
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [35.3050, 32.2873]
           }
         }
       ];
