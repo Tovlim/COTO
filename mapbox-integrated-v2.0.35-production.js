@@ -109,6 +109,148 @@ const LazyCheckboxState = {
 };
 
 // ========================
+// IDLE EXECUTION UTILITY
+// ========================
+const IdleExecution = {
+  // Execute function during browser idle time with fallback
+  schedule(callback, options = {}) {
+    const { timeout = 2000, fallbackDelay = 100 } = options;
+    
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(callback, { timeout });
+    } else {
+      setTimeout(callback, fallbackDelay);
+    }
+  },
+  
+  // Execute with shorter timeout for UI operations
+  scheduleUI(callback, options = {}) {
+    const { timeout = 500, fallbackDelay = 16 } = options;
+    this.schedule(callback, { timeout, fallbackDelay });
+  },
+  
+  // Execute with longer timeout for heavy operations
+  scheduleHeavy(callback, options = {}) {
+    const { timeout = 5000, fallbackDelay = 200 } = options;
+    this.schedule(callback, { timeout, fallbackDelay });
+  }
+};
+
+// ========================
+// ENHANCED ERROR HANDLING
+// ========================
+const ErrorHandler = {
+  // Error categories for different handling
+  categories: {
+    STORAGE: 'storage',
+    NETWORK: 'network', 
+    DOM: 'dom',
+    GENERATION: 'generation',
+    UI: 'ui'
+  },
+  
+  // Handle different types of errors with appropriate recovery
+  handle(error, category, context = {}) {
+    const errorInfo = {
+      message: error.message,
+      stack: error.stack,
+      category,
+      context,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent
+    };
+    
+    // Log error with context
+    console.error(`[${category.toUpperCase()}] Error in ${context.operation || 'unknown'}:`, errorInfo);
+    
+    // Category-specific handling
+    switch (category) {
+      case this.categories.STORAGE:
+        return this.handleStorageError(error, context);
+      case this.categories.NETWORK:
+        return this.handleNetworkError(error, context);
+      case this.categories.DOM:
+        return this.handleDOMError(error, context);
+      case this.categories.GENERATION:
+        return this.handleGenerationError(error, context);
+      case this.categories.UI:
+        return this.handleUIError(error, context);
+      default:
+        return this.handleGenericError(error, context);
+    }
+  },
+  
+  handleStorageError(error, context) {
+    console.warn('Storage error - falling back to memory storage');
+    // Storage errors are already handled by SafeStorage
+    return { recovered: true, fallback: 'memory' };
+  },
+  
+  handleNetworkError(error, context) {
+    console.warn('Network error - will retry with cached data if available');
+    return { 
+      recovered: false, 
+      retry: true,
+      fallback: 'cache',
+      retryDelay: context.retryDelay || 5000
+    };
+  },
+  
+  handleDOMError(error, context) {
+    console.warn('DOM error - element may not exist yet');
+    return { 
+      recovered: false, 
+      retry: true,
+      retryDelay: context.retryDelay || 100,
+      maxRetries: 3
+    };
+  },
+  
+  handleGenerationError(error, context) {
+    console.warn('Checkbox generation error - continuing with partial generation');
+    return { 
+      recovered: true, 
+      continuePartial: true,
+      affectedType: context.type
+    };
+  },
+  
+  handleUIError(error, context) {
+    console.warn('UI error - interface may continue with reduced functionality');
+    return { recovered: true, reducedFunctionality: true };
+  },
+  
+  handleGenericError(error, context) {
+    console.error('Unhandled error - check console for details');
+    return { recovered: false };
+  },
+  
+  // Retry mechanism with exponential backoff
+  retry(operation, maxRetries = 3, baseDelay = 1000) {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      
+      const attemptOperation = () => {
+        attempts++;
+        Promise.resolve(operation())
+          .then(resolve)
+          .catch(error => {
+            if (attempts >= maxRetries) {
+              reject(error);
+            } else {
+              const delay = baseDelay * Math.pow(2, attempts - 1);
+              console.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempts}/${maxRetries})`);
+              setTimeout(attemptOperation, delay);
+            }
+          });
+      };
+      
+      attemptOperation();
+    });
+  }
+};
+
+// ========================
 // SAFE STORAGE WRAPPER
 // ========================
 const SafeStorage = {
@@ -411,14 +553,14 @@ function setupEvents() {
       handleFilterUpdate();
       
       // FIXED: Also check and toggle filtered elements when Finsweet events fire
-      setTimeout(checkAndToggleFilteredElements, 50);
+      IdleExecution.scheduleUI(checkAndToggleFilteredElements);
     });
   });
   
   // FIXED: Additional Finsweet event listeners for filtered elements
   ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset'].forEach(event => {
     eventManager.add(document, event, () => {
-      setTimeout(checkAndToggleFilteredElements, 100);
+      IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
     });
   });
   
@@ -911,11 +1053,8 @@ function setupDeferredAreaControls() {
   };
   
   // Use requestIdleCallback if available, otherwise setTimeout
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(loadAreaControls, { timeout: 3000 });
-  } else {
-    setTimeout(loadAreaControls, 2000);
-  }
+  // Load area controls during idle time for better performance
+  IdleExecution.scheduleHeavy(loadAreaControls, { timeout: 3000, fallbackDelay: 2000 });
 }
 
 // Generate settlement checkboxes from loaded settlement data (modified for lazy loading) 
@@ -1283,16 +1422,21 @@ function generateAllLocalityCheckboxes() {
         console.log(`Generated ${uniqueFeatures.length} locality checkboxes using fast batch method`);
         resolve();
       } catch (error) {
-        console.error('Error generating locality checkboxes:', error);
+        const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
+          operation: 'generateAllLocalityCheckboxes',
+          type: 'locality',
+          container: container?.id
+        });
+        
+        if (recovery.recovered) {
+          console.log('Locality generation recovered - partial functionality available');
+        }
         resolve();
       }
     };
     
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(generate, { timeout: 2000 });
-    } else {
-      setTimeout(generate, 100);
-    }
+    // Generate during idle time for non-blocking performance
+    IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
   });
 }
 
@@ -1421,16 +1565,21 @@ function generateAllSettlementCheckboxes() {
         console.log(`Generated ${uniqueFeatures.length} settlement checkboxes using fast batch method`);
         resolve();
       } catch (error) {
-        console.error('Error generating settlement checkboxes:', error);
+        const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
+          operation: 'generateAllSettlementCheckboxes',
+          type: 'settlement',
+          container: container?.id
+        });
+        
+        if (recovery.recovered) {
+          console.log('Settlement generation recovered - partial functionality available');
+        }
         resolve();
       }
     };
     
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(generate, { timeout: 2000 });
-    } else {
-      setTimeout(generate, 100);
-    }
+    // Generate during idle time for non-blocking performance
+    IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
   });
 }
 
@@ -1834,7 +1983,7 @@ const monitorTags = (() => {
     allCheckboxes.forEach(checkbox => {
       if (!checkbox.dataset.filteredElementListener) {
         eventManager.add(checkbox, 'change', () => {
-          setTimeout(checkAndToggleFilteredElements, 50);
+          IdleExecution.scheduleUI(checkAndToggleFilteredElements);
         });
         checkbox.dataset.filteredElementListener = 'true';
       }
@@ -1845,10 +1994,10 @@ const monitorTags = (() => {
     forms.forEach(form => {
       if (!form.dataset.filteredElementListener) {
         eventManager.add(form, 'change', () => {
-          setTimeout(checkAndToggleFilteredElements, 100);
+          IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
         });
         eventManager.add(form, 'input', () => {
-          setTimeout(checkAndToggleFilteredElements, 100);
+          IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
         });
         form.dataset.filteredElementListener = 'true';
       }
@@ -2077,7 +2226,91 @@ window.addEventListener('load', () => {
 
 // Defer global exports until after everything is initialized
 function setupGlobalExports() {
-  // Make functions available globally for autocomplete integration
+  // MODULAR ARCHITECTURE - Clean Public API
+  window.MapboxCore = {
+    // ========================
+    // CORE MODULES
+    // ========================
+    cache: {
+      dom: domCache,
+      sidebar: sidebarCache,
+      lightweight: lightweightCache
+    },
+    
+    events: eventManager,
+    
+    state: state,
+    
+    storage: SafeStorage,
+    
+    utilities: {
+      idle: IdleExecution,
+      errors: ErrorHandler,
+      utils: utils
+    },
+    
+    // ========================
+    // CHECKBOX MANAGEMENT
+    // ========================
+    checkboxes: {
+      state: LazyCheckboxState,
+      select: {
+        region: selectRegionCheckbox,
+        subregion: selectSubregionCheckbox,
+        territory: selectTerritoryCheckbox,
+        locality: selectLocalityCheckbox,
+        settlement: selectSettlementCheckbox
+      },
+      generate: {
+        all: generateAllCheckboxes,
+        single: generateSingleCheckbox
+      }
+    },
+    
+    // ========================
+    // UI OPERATIONS
+    // ========================
+    ui: {
+      sidebar: {
+        toggle: toggleSidebar,
+        close: closeSidebar
+      },
+      elements: {
+        check: checkAndToggleFilteredElements,
+        toggleFiltered: toggleShowWhenFilteredElements
+      }
+    },
+    
+    // ========================
+    // MAP INTEGRATION
+    // ========================
+    map: {
+      instance: map,
+      layers: mapLayers,
+      operations: {
+        applyFilter: applyFilterToMarkers,
+        highlightBoundary: highlightBoundary,
+        frameRegionBoundary: frameRegionBoundary
+      }
+    },
+    
+    // ========================
+    // DEBUGGING & DEVELOPMENT
+    // ========================
+    debug: {
+      worker: lazyWorker,
+      config: APP_CONFIG
+    },
+    
+    // ========================
+    // METADATA
+    // ========================
+    version: '2.1.0',
+    build: 'Ultra Performance with Lazy Loading + Sidebar Optimizations',
+    features: APP_CONFIG.features
+  };
+  
+  // Legacy global exports for backwards compatibility
   window.selectRegionCheckbox = selectRegionCheckbox;
   window.selectSubregionCheckbox = selectSubregionCheckbox;
   window.selectLocalityCheckbox = selectLocalityCheckbox;
@@ -2088,8 +2321,8 @@ function setupGlobalExports() {
   window.frameRegionBoundary = frameRegionBoundary;
   window.map = map;
   window.mapboxgl = mapboxgl;
-
-  // OPTIMIZED: Shared utilities for other scripts (integration optimization)
+  
+  // Legacy mapUtilities for backwards compatibility
   window.mapUtilities = {
     domCache,
     eventManager,
@@ -2099,15 +2332,15 @@ function setupGlobalExports() {
     sidebarCache,
     toggleSidebar,
     closeSidebar,
-    checkAndToggleFilteredElements, // FIXED: Export the new filtered elements function
-    toggleShowWhenFilteredElements, // FIXED: Export the toggle function too
-    lightweightCache, // OPTIMIZED: Expose cache for debugging
-    lazyWorker   // OPTIMIZED: Expose worker for debugging
+    checkAndToggleFilteredElements,
+    toggleShowWhenFilteredElements,
+    lightweightCache,
+    lazyWorker
   };
 }
 
-// Call setupGlobalExports after map is created
-setTimeout(setupGlobalExports, 0);
+// Setup global exports during idle time
+IdleExecution.scheduleUI(setupGlobalExports, { fallbackDelay: 0 });
 
 // ========================
 // CLEANUP
@@ -2158,8 +2391,17 @@ window.addEventListener('beforeunload', () => {
             const clearSearchWrap = document.querySelector('.clear-search-wrap');
             
             if (!searchInput) {
-                // Retry if element not found
-                setTimeout(() => this.setupBlurredClassHandling(), 100);
+                // Use enhanced error handling for DOM retry
+                ErrorHandler.retry(() => {
+                    const input = document.getElementById('map-search');
+                    if (!input) throw new Error('map-search element not found');
+                    this.setupBlurredClassHandling();
+                }, 3, 100).catch(error => {
+                    ErrorHandler.handle(error, ErrorHandler.categories.DOM, {
+                        operation: 'setupBlurredClassHandling',
+                        element: 'map-search'
+                    });
+                });
                 return;
             }
             
@@ -2266,11 +2508,8 @@ window.addEventListener('beforeunload', () => {
                 }
             };
             
-            if ('requestIdleCallback' in window) {
-                requestIdleCallback(loadFunction, { timeout: 1000 });
-            } else {
-                setTimeout(loadFunction, 10);
-            }
+            // Load autocomplete during idle time for better performance
+            IdleExecution.schedule(loadFunction, { timeout: 1000, fallbackDelay: 10 });
         });
         
         return loadPromise;
