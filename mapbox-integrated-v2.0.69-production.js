@@ -1763,7 +1763,7 @@ function generateRegionCheckboxes() {
   allItems.forEach(item => {
     // Create the wrapper div
     const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', item.type);
+    wrapperDiv.setAttribute('checkbox-filter', item.type === 'region' ? 'Governorate' : 'Region');
     wrapperDiv.setAttribute('role', 'listitem');
     wrapperDiv.className = 'collection-item-3 w-dyn-item';
     
@@ -6557,7 +6557,7 @@ const toggleShowWhenFilteredElements = show => {
 // Checkbox selection functions with proper settlement unchecking
 // Unified checkbox selection function
 function selectCheckbox(type, value) {
-  const checkboxTypes = ['region', 'subregion', 'locality', 'settlement', 'territory'];
+  const checkboxTypes = ['Governorate', 'Region', 'locality', 'settlement', 'territory'];
   
   requestAnimationFrame(() => {
     // Get all checkbox groups - using native queries to avoid caching
@@ -6600,11 +6600,11 @@ function selectCheckbox(type, value) {
 
 // Wrapper functions for backward compatibility
 function selectRegionCheckbox(regionName) {
-  selectCheckbox('region', regionName);
+  selectCheckbox('Governorate', regionName);
 }
 
 function selectSubregionCheckbox(subregionName) {
-  selectCheckbox('subregion', subregionName);
+  selectCheckbox('Region', subregionName);
 }
 
 function selectLocalityCheckbox(localityName) {
