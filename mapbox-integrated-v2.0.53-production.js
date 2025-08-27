@@ -2216,11 +2216,10 @@ const MarkerLazyLoader = {
   checkPreloadOpportunity() {
     const currentZoom = map.getZoom();
     const isIdle = Date.now() - this.lastInteraction > 5000;
-    const isApproachingThreshold = currentZoom >= this.PRELOAD_THRESHOLD;
     
-    // Preload localities if user is idle or approaching threshold
+    // Only preload localities if user has been idle for a while (no zoom-based preloading)
     if (!this.localitiesLoaded && !this.localitiesLoading && !this.preloadStarted) {
-      if (isIdle || isApproachingThreshold) {
+      if (isIdle) {
         this.preloadStarted = true;
         this.preloadLocalityData();
       }
