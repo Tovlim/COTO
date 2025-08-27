@@ -1037,7 +1037,7 @@ function generateSingleCheckbox(name, type, properties = {}) {
     return false;
   }
   
-  // Create the complex checkbox structure to match sidebars script
+  // Create the complex checkbox structure to match sidebars script EXACTLY
   const checkboxWrapper = document.createElement('div');
   checkboxWrapper.setAttribute('checkbox-filter', type);
   checkboxWrapper.className = 'checbox-item'; // Note: keeping original typo to match existing structure
@@ -1045,41 +1045,40 @@ function generateSingleCheckbox(name, type, properties = {}) {
   const label = document.createElement('label');
   label.className = 'w-checkbox reporterwrap-copy';
   
+  // Generate slug and URL exactly like sidebars script
+  const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const urlPrefix = type === 'settlement' ? 'settlement' : 'locality';
+  
   // Create the external link
   const link = document.createElement('a');
   link.setAttribute('open', '');
-  link.href = `/${type}/${name.toLowerCase().replace(/\s+/g, '-')}`;
+  link.href = `/${urlPrefix}/${slug}`;
   link.target = '_blank';
   link.className = 'open-in-new-tab w-inline-block';
   
   // Add the SVG icon
-  link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>`;
+  link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
   
   // Create the custom checkbox input wrapper
   const checkboxInputWrapper = document.createElement('div');
   checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
   
-  // Create the actual checkbox input
+  // Create the actual checkbox input - MATCH SIDEBARS SCRIPT EXACTLY
   const checkbox = document.createElement('input');
-  const cleanName = name.replace(/'/g, ''); // Clean name for ID generation
+  const pluralType = type === 'locality' ? 'localities' : 'settlements'; // Use plural for ID like sidebars
+  const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-'); // Match sidebars regex exactly
   const fieldName = type.charAt(0).toUpperCase() + type.slice(1); // Capitalize for field name
   
-  // Set all attributes explicitly
-  checkbox.type = 'checkbox';
-  checkbox.name = type;
-  checkbox.id = `${type}s-${cleanName}`;
-  checkbox.value = name; // Add value attribute
-  checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
-  
-  // Set data attributes
+  // Set attributes exactly like sidebars script
   checkbox.setAttribute('data-auto-sidebar', 'true');
-  checkbox.setAttribute('data-name', type);
-  checkbox.setAttribute('data-event-listener-added', 'true');
-  
-  // Set filtering system attributes
   checkbox.setAttribute('fs-list-value', name);
   checkbox.setAttribute('fs-list-field', fieldName);
+  checkbox.type = 'checkbox';
+  checkbox.name = type;
+  checkbox.setAttribute('data-name', type);
   checkbox.setAttribute('activate-filter-indicator', 'place');
+  checkbox.id = `${pluralType}-${cleanName}`; // Match sidebars format exactly
+  checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
   
   // Create the label text
   const labelText = document.createElement('span');
@@ -1155,9 +1154,8 @@ function generateAllLocalityCheckboxes() {
   return new Promise((resolve) => {
     const generate = () => {
       try {
-        // Clear loading indicator first
-        const loadingElements = container.querySelectorAll('div[style*="Loading localities"]');
-        loadingElements.forEach(el => el.remove());
+        // Clear existing content completely like sidebars script
+        container.innerHTML = '';
         
         const localityFeatures = state.allLocalityFeatures || [];
         const uniqueNames = new Set();
@@ -1206,9 +1204,8 @@ function generateAllSettlementCheckboxes() {
   return new Promise((resolve) => {
     const generate = () => {
       try {
-        // Clear loading indicator first
-        const loadingElements = container.querySelectorAll('div[style*="Loading settlements"]');
-        loadingElements.forEach(el => el.remove());
+        // Clear existing content completely like sidebars script
+        container.innerHTML = '';
         
         const settlementFeatures = state.allSettlementFeatures || [];
         const uniqueNames = new Set();
@@ -1268,10 +1265,6 @@ function generateAllCheckboxes() {
     LazyCheckboxState.isGeneratingBulk = false;
     console.log('Bulk checkbox generation completed');
     
-    // Clear any remaining loading indicators
-    const allLoadingElements = document.querySelectorAll('div[style*="Loading localities"], div[style*="Loading settlements"]');
-    allLoadingElements.forEach(el => el.remove());
-    
     // Trigger recache
     if (window.checkboxFilterScript) {
       setTimeout(() => {
@@ -1281,10 +1274,6 @@ function generateAllCheckboxes() {
   }).catch((error) => {
     LazyCheckboxState.isGeneratingBulk = false;
     console.error('Bulk checkbox generation failed:', error);
-    
-    // Clear loading indicators even on error
-    const allLoadingElements = document.querySelectorAll('div[style*="Loading localities"], div[style*="Loading settlements"]');
-    allLoadingElements.forEach(el => el.remove());
   });
 }
 
