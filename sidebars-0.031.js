@@ -1,7 +1,13 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.1.0 - Enhanced with SafeStorage from mapbox v2.0.0
+// Version: 1.2.0 - Enhanced with SafeStorage + Lazy Loading
+// 
+// Changes in v1.2.0:
+// - Deferred checkbox generation until right sidebar opens (huge PageSpeed boost)
+// - Uses requestIdleCallback for non-blocking checkbox generation
+// - Shows loading states during checkbox generation
+// - Prevents duplicate checkbox generation with state tracking
 // 
 // Changes in v1.1.0:
 // - Added SafeStorage wrapper for robust localStorage handling
@@ -408,8 +414,15 @@
   };
   
   // ====================================================================
-  // CHECKBOX GENERATION
+  // CHECKBOX GENERATION (Lazy-loaded)
   // ====================================================================
+  const checkboxState = {
+    localitiesGenerated: false,
+    settlementsGenerated: false,
+    isGenerating: false,
+    generationPromise: null
+  };
+  
   async function generateCheckboxes(type, containerId, fieldName) {
     const container = $id(containerId);
     if (!container) {
@@ -525,11 +538,93 @@
   }
   
   function generateLocalityCheckboxes() {
-    return generateCheckboxes('localities', 'locality-check-list', 'Locality');
+    if (checkboxState.localitiesGenerated) {
+      console.log('Locality checkboxes already generated');
+      return Promise.resolve();
+    }
+    return generateCheckboxes('localities', 'locality-check-list', 'Locality')
+      .then(() => { checkboxState.localitiesGenerated = true; });
   }
   
   function generateSettlementCheckboxes() {
-    return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement');
+    if (checkboxState.settlementsGenerated) {
+      console.log('Settlement checkboxes already generated');
+      return Promise.resolve();
+    }
+    return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement')
+      .then(() => { checkboxState.settlementsGenerated = true; });
+  }
+  
+  // Lazy load checkboxes when right sidebar opens
+  function lazyLoadCheckboxes() {
+    // Prevent multiple simultaneous generations
+    if (checkboxState.isGenerating) {
+      return checkboxState.generationPromise;
+    }
+    
+    // Check if already generated
+    if (checkboxState.localitiesGenerated && checkboxState.settlementsGenerated) {
+      console.log('Checkboxes already generated');
+      return Promise.resolve();
+    }
+    
+    console.log('Lazy loading checkboxes for filter sidebar...');
+    checkboxState.isGenerating = true;
+    
+    // Show loading state if containers exist
+    const localityContainer = $id('locality-check-list');
+    const settlementContainer = $id('settlement-check-list');
+    
+    if (localityContainer && !checkboxState.localitiesGenerated) {
+      localityContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading localities...</div>';
+    }
+    if (settlementContainer && !checkboxState.settlementsGenerated) {
+      settlementContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading settlements...</div>';
+    }
+    
+    // Use requestIdleCallback for non-urgent generation
+    checkboxState.generationPromise = new Promise((resolve) => {
+      const generateWithIdle = () => {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(() => {
+            performCheckboxGeneration().then(resolve);
+          }, { timeout: 2000 }); // 2 second timeout
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => {
+            performCheckboxGeneration().then(resolve);
+          }, 100);
+        }
+      };
+      generateWithIdle();
+    });
+    
+    return checkboxState.generationPromise;
+  }
+  
+  async function performCheckboxGeneration() {
+    try {
+      // Generate in parallel but with idle priority
+      await Promise.all([
+        generateLocalityCheckboxes(),
+        generateSettlementCheckboxes()
+      ]);
+      
+      console.log('All checkboxes generated successfully');
+      
+      // Recache elements after generation
+      setTimeout(() => {
+        if (window.checkboxFilterScript) {
+          window.checkboxFilterScript.recacheElements();
+          console.log('Checkboxes recached after lazy generation');
+        }
+      }, 200);
+      
+    } catch (error) {
+      console.error('Failed to generate checkboxes:', error);
+    } finally {
+      checkboxState.isGenerating = false;
+    }
   }
   
   // ====================================================================
@@ -602,6 +697,12 @@
     
     const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
     sidebar.classList.toggle('is-show', isShowing);
+    
+    // Lazy load checkboxes when right sidebar opens for the first time
+    if (side === 'Right' && isShowing && 
+        (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
+      lazyLoadCheckboxes();
+    }
     
     const jsMarginProperty = sidebarCache.getMarginProperty(side);
     const arrowIcon = sidebarCache.getArrow(side);
@@ -1085,13 +1186,8 @@
   // INITIALIZATION
   // ====================================================================
   function initializeCore() {
-    // Generate checkboxes
-    Promise.all([
-      generateLocalityCheckboxes(),
-      generateSettlementCheckboxes()
-    ]).then(() => {
-      console.log('All checkboxes generated');
-    });
+    // Don't generate checkboxes on load - wait for sidebar open
+    console.log('Core initialized - checkboxes will load when filter sidebar opens');
     
     setupSidebars();
     setupEvents();
@@ -1129,6 +1225,10 @@
     // Initialization
     init: initializeCore,
     
+    // Checkbox generation (lazy-loaded)
+    lazyLoadCheckboxes,
+    checkboxState,
+    
     // For map page
     getGeoJSONData: async function() {
       return {
@@ -1148,20 +1248,8 @@
   }
   
   window.addEventListener('load', () => {
-    state.setTimer('loadGenerateCheckboxes', () => {
-      Promise.all([
-        generateLocalityCheckboxes(),
-        generateSettlementCheckboxes()
-      ]).then(() => {
-        // Recache after the second generation completes
-        setTimeout(() => {
-          if (window.checkboxFilterScript) {
-            window.checkboxFilterScript.recacheElements();
-            console.log('Sidebars: Recached checkboxes after load generation');
-          }
-        }, 200);
-      });
-    }, 500);
+    // Removed automatic checkbox generation - now lazy loaded on demand
+    console.log('Page loaded - checkboxes ready for lazy loading');
     
     setupSidebars();
     
