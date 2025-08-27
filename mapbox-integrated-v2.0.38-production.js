@@ -173,14 +173,12 @@ const CheckboxFactory = {
   // Generic bulk generation function
   generateBulkCheckboxes(containerId, features, type, stateName) {
     if (LazyCheckboxState.isFullyGenerated(type)) {
-      console.log(`${type} checkboxes already fully generated`);
       return Promise.resolve();
     }
     
     const container = document.getElementById(containerId);
     if (!container) return Promise.resolve();
     
-    console.log(`Generating all ${type} checkboxes...`);
     
     return new Promise((resolve) => {
       const generate = () => {
@@ -220,7 +218,6 @@ const CheckboxFactory = {
           container.appendChild(fragment);
           
           LazyCheckboxState.markFullyGenerated(type);
-          console.log(`Generated ${uniqueFeatures.length} ${type} checkboxes using fast batch method`);
           resolve();
         } catch (error) {
           const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
@@ -230,7 +227,6 @@ const CheckboxFactory = {
           });
           
           if (recovery.recovered) {
-            console.log(`${type} generation recovered - partial functionality available`);
           }
           resolve();
         }
@@ -1329,7 +1325,6 @@ function setupDeferredAreaControls() {
 // Generate settlement checkboxes from loaded settlement data (modified for lazy loading) 
 function generateSettlementCheckboxes() {
   if (APP_CONFIG.features.enableLazyCheckboxes) {
-    console.log('Lazy loading enabled - skipping bulk settlement checkbox generation on load');
     return;
   }
   
@@ -1439,7 +1434,6 @@ function generateSingleCheckbox(name, type, properties = {}) {
   
   // Check if already generated
   if (LazyCheckboxState.hasCheckbox(name, type)) {
-    console.log(`Checkbox for ${type} "${name}" already exists`);
     return true;
   }
   
@@ -1557,7 +1551,6 @@ function generateSingleCheckbox(name, type, properties = {}) {
     }, 100);
   }
   
-  console.log(`Generated single checkbox for ${type}: ${name}`);
   return true;
 }
 
@@ -1584,12 +1577,10 @@ function generateAllSettlementCheckboxes() {
 // Generate all checkboxes when Location tab is clicked
 function generateAllCheckboxes() {
   if (LazyCheckboxState.isGeneratingBulk) {
-    console.log('Bulk generation already in progress');
     return Promise.resolve();
   }
   
   LazyCheckboxState.isGeneratingBulk = true;
-  console.log('Starting bulk checkbox generation for Location tab...');
   
   // Show loading state
   const localityContainer = $id('locality-check-list');
@@ -1609,7 +1600,6 @@ function generateAllCheckboxes() {
     generateAllSettlementCheckboxes()
   ]).then(() => {
     LazyCheckboxState.isGeneratingBulk = false;
-    console.log('Bulk checkbox generation completed');
     
     // Setup event listeners for all new checkboxes
     setupGeneratedCheckboxEvents();
@@ -1637,7 +1627,6 @@ function generateAllCheckboxes() {
 // Generate locality checkboxes from map data (modified for lazy loading)
 function generateLocalityCheckboxes() {
   if (APP_CONFIG.features.enableLazyCheckboxes) {
-    console.log('Lazy loading enabled - skipping bulk locality checkbox generation on load');
     return;
   }
   
@@ -1874,7 +1863,6 @@ function setupGeneratedCheckboxEvents() {
   });
   
   if (newListenersCount > 0) {
-    console.log(`Added event listeners to ${newListenersCount} new generated checkboxes`);
   }
 }
 
@@ -2093,7 +2081,8 @@ function init() {
 
 // Zoom-based marker loading implementation
 function setupZoomBasedMarkerLoading() {
-  const MARKER_ZOOM_THRESHOLD = 9;
+  // Mobile users get markers at lower zoom level for better experience
+  const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 8 : 9;
   let markersLoaded = false;
   
   async function checkZoomAndLoadMarkers() {
@@ -3837,7 +3826,6 @@ loadDataFromState() {
         if (searchInput) {
             const loadOnInteraction = () => {
                 if (autocompleteLoadState === 'pending') {
-                    console.log('Loading autocomplete on search interaction...');
                     loadAutocomplete('user-interaction');
                 }
             };
@@ -6163,7 +6151,7 @@ map.on("load", () => {
     // Mark data as loaded for loading screen (markers are deferred)
     loadingTracker.markComplete('dataLoaded');
     
-    // Note: Settlement and locality markers are deferred until zoom level 9+
+    // Note: Settlement and locality markers are deferred until zoom level 8+ (mobile) or 9+ (desktop)
     
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
@@ -6963,13 +6951,13 @@ function addSettlementMarkers() {
           'text-allow-overlap': true,
           'text-ignore-placement': true,
           'symbol-sort-key': 1,
-          'visibility': 'none' // Hidden until zoom level 9+
+          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
         }
       };
       
@@ -7003,13 +6991,13 @@ function addSettlementMarkers() {
           'text-offset': [0, 0],
           'text-anchor': 'center',
           'symbol-sort-key': 2,
-          'visibility': 'none' // Hidden until zoom level 9+
+          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
         }
       };
       
@@ -7276,13 +7264,13 @@ function addNativeMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'visibility': 'none' // Hidden until zoom level 9+
+          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
         }
       });
       
@@ -7310,13 +7298,13 @@ function addNativeMarkers() {
           'text-offset': [0, 0],
           'text-anchor': 'center',
           'symbol-sort-key': 10, // Higher values render last (on top)
-          'visibility': 'none' // Hidden until zoom level 9+
+          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9, 0, 9.5, 1]
+          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
         }
       });
       
@@ -8329,7 +8317,6 @@ if (document.readyState === 'loading') {
         element.addEventListener('click', function(e) {
           // Generate all checkboxes when Location tab is clicked
           if (APP_CONFIG.features.enableLazyCheckboxes) {
-            console.log('Location tab clicked - generating all checkboxes...');
             generateAllCheckboxes();
           }
         });
@@ -8344,7 +8331,6 @@ if (document.readyState === 'loading') {
                          e.target.closest('#w-tabs-0-data-w-tab-2');
       
       if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
-        console.log('Location tab clicked (delegated) - generating all checkboxes...');
         generateAllCheckboxes();
       }
     });
