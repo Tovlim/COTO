@@ -2079,72 +2079,226 @@ function init() {
   }, 300);
 }
 
-// Zoom-based marker loading implementation
-function setupZoomBasedMarkerLoading() {
-  // Mobile users get markers at lower zoom level for better experience
-  const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 8 : 9;
-  let markersLoaded = false;
+// Enhanced lazy loading with viewport-based rendering
+const MarkerLazyLoader = {
+  // Configuration
+  ZOOM_THRESHOLD: window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 7.5 : 8.5,
+  VIEWPORT_BUFFER: 1.3, // 30% buffer around viewport
+  CLUSTER_SETTINGS: {
+    mobile: { radius: 60, maxZoom: 13 },
+    desktop: { radius: 40, maxZoom: 14 }
+  },
+  dataLoaded: false,
+  dataLoading: false,
+  markersVisible: false,
+  viewportMarkers: new Set(),
+  loadingIndicator: null,
   
-  async function checkZoomAndLoadMarkers() {
+  // Initialize the lazy loading system
+  init() {
+    // Set up event listeners
+    map.on('zoom', () => this.checkZoomAndLoad());
+    map.on('zoomend', () => this.checkZoomAndLoad());
+    map.on('moveend', () => this.updateViewportMarkers());
+    
+    // Initial check when map is ready
+    if (map.isStyleLoaded()) {
+      this.checkZoomAndLoad();
+    } else {
+      map.on('style.load', () => this.checkZoomAndLoad());
+    }
+  },
+  
+  // Check zoom level and trigger loading if needed
+  async checkZoomAndLoad() {
     const currentZoom = map.getZoom();
     
-    if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
-      // Load markers only when zoomed in enough
-      markersLoaded = true;
+    if (currentZoom >= this.ZOOM_THRESHOLD) {
+      // Load data if not already loaded
+      if (!this.dataLoaded && !this.dataLoading) {
+        await this.loadMarkerData();
+      }
       
-      // Load settlement data if not already loaded (localities loaded on initial load)
+      // Show markers if data is loaded
+      if (this.dataLoaded && !this.markersVisible) {
+        this.showMarkers();
+      }
+    } else if (currentZoom < this.ZOOM_THRESHOLD && this.markersVisible) {
+      // Hide markers when zoomed out
+      this.hideMarkers();
+    }
+  },
+  
+  // Load both locality and settlement data
+  async loadMarkerData() {
+    if (this.dataLoading || this.dataLoaded) return;
+    
+    this.dataLoading = true;
+    this.showLoadingIndicator();
+    
+    try {
+      // Load both datasets in parallel
+      const promises = [];
+      
+      // Check if locality data needs loading
+      if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
+        promises.push(loadLocalitiesFromGeoJSON());
+      }
+      
+      // Check if settlement data needs loading
       if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
-        try {
-          await loadSettlementsFromCache();
-          EventBus.emit('data:settlement-loaded');
-        } catch (error) {
-          console.error('Error loading settlement data:', error);
-          EventBus.emit('data:settlement-error', error);
-        }
+        promises.push(loadSettlementsFromCache());
       }
       
-      // Show marker layers (fade handled by zoom-based opacity)
-      if (map.getLayer('locality-points')) {
-        map.setLayoutProperty('locality-points', 'visibility', 'visible');
+      // Wait for all data to load
+      if (promises.length > 0) {
+        await Promise.allSettled(promises);
       }
-      if (map.getLayer('locality-clusters')) {
-        map.setLayoutProperty('locality-clusters', 'visibility', 'visible');
+      
+      // Mark as loaded and add markers if data exists
+      if (state.allLocalityFeatures || state.allSettlementFeatures) {
+        this.dataLoaded = true;
+        
+        // Add markers to map if not already added
+        if (state.allLocalityFeatures && !map.getSource('localities')) {
+          addNativeMarkers();
+        }
+        if (state.allSettlementFeatures && !map.getSource('settlements')) {
+          addNativeSettlementMarkers();
+        }
+        
+        EventBus.emit('markers:data-loaded');
       }
-      if (map.getLayer('settlement-points')) {
-        map.setLayoutProperty('settlement-points', 'visibility', 'visible');
+      
+    } catch (error) {
+      console.error('Error loading marker data:', error);
+      EventBus.emit('markers:load-error', error);
+    } finally {
+      this.dataLoading = false;
+      this.hideLoadingIndicator();
+    }
+  },
+  
+  // Show markers with viewport optimization
+  showMarkers() {
+    const layers = ['locality-points', 'locality-clusters', 'settlement-points', 'settlement-clusters'];
+    
+    layers.forEach(layer => {
+      if (map.getLayer(layer)) {
+        map.setLayoutProperty(layer, 'visibility', 'visible');
       }
-      if (map.getLayer('settlement-clusters')) {
-        map.setLayoutProperty('settlement-clusters', 'visibility', 'visible');
+    });
+    
+    this.markersVisible = true;
+    this.updateViewportMarkers();
+  },
+  
+  // Hide all markers
+  hideMarkers() {
+    const layers = ['locality-points', 'locality-clusters', 'settlement-points', 'settlement-clusters'];
+    
+    layers.forEach(layer => {
+      if (map.getLayer(layer)) {
+        map.setLayoutProperty(layer, 'visibility', 'none');
       }
-    } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
-      // Hide marker layers when zoomed out (fade handled by zoom-based opacity)
-      if (map.getLayer('locality-points')) {
-        map.setLayoutProperty('locality-points', 'visibility', 'none');
+    });
+    
+    this.markersVisible = false;
+  },
+  
+  // Update markers based on current viewport
+  updateViewportMarkers() {
+    if (!this.markersVisible || !this.dataLoaded) return;
+    
+    requestAnimationFrame(() => {
+      try {
+        // Query features in viewport
+        const visibleFeatures = map.queryRenderedFeatures({
+          layers: ['locality-points', 'settlement-points']
+        });
+        
+        // Track visible markers for optimization
+        this.viewportMarkers.clear();
+        visibleFeatures.forEach(feature => {
+          if (feature.properties && feature.properties.name) {
+            this.viewportMarkers.add(feature.properties.name);
+          }
+        });
+        
+        EventBus.emit('markers:viewport-updated', this.viewportMarkers.size);
+      } catch (error) {
+        // Silently handle if layers aren't ready yet
       }
-      if (map.getLayer('locality-clusters')) {
-        map.setLayoutProperty('locality-clusters', 'visibility', 'none');
+    });
+  },
+  
+  // Show loading indicator
+  showLoadingIndicator() {
+    if (!this.loadingIndicator) {
+      this.loadingIndicator = document.createElement('div');
+      this.loadingIndicator.className = 'marker-loading-indicator';
+      this.loadingIndicator.innerHTML = `
+        <div class="loading-spinner"></div>
+        <span>Loading map markers...</span>
+      `;
+      this.loadingIndicator.style.cssText = `
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-family: system-ui, -apple-system, sans-serif;
+      `;
+      
+      // Add spinner styles
+      const style = document.createElement('style');
+      style.textContent = `
+        .loading-spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid #e0e0e0;
+          border-top: 2px solid #333;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      const mapContainer = document.getElementById('map');
+      if (mapContainer) {
+        mapContainer.appendChild(this.loadingIndicator);
       }
-      if (map.getLayer('settlement-points')) {
-        map.setLayoutProperty('settlement-points', 'visibility', 'none');
-      }
-      if (map.getLayer('settlement-clusters')) {
-        map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
-      }
-      // Reset flag so markers can be shown again when zooming back in
-      markersLoaded = false;
+    }
+  },
+  
+  // Hide loading indicator
+  hideLoadingIndicator() {
+    if (this.loadingIndicator && this.loadingIndicator.parentNode) {
+      setTimeout(() => {
+        if (this.loadingIndicator) {
+          this.loadingIndicator.remove();
+          this.loadingIndicator = null;
+        }
+      }, 300); // Small delay for smooth transition
     }
   }
-  
-  // Listen to zoom events
-  map.on('zoom', checkZoomAndLoadMarkers);
-  map.on('zoomend', checkZoomAndLoadMarkers);
-  
-  // Initial check when map is ready
-  if (map.isStyleLoaded()) {
-    checkZoomAndLoadMarkers();
-  } else {
-    map.on('style.load', checkZoomAndLoadMarkers);
-  }
+};
+
+// Initialize zoom-based marker loading
+function setupZoomBasedMarkerLoading() {
+  MarkerLazyLoader.init();
 }
 
 // DOM ready handlers
@@ -6145,13 +6299,13 @@ map.on("load", () => {
     // Load regions and territories immediately (they should always be visible)
     loadCombinedGeoData();
     
-    // Load locality data to extract region markers (but don't show locality markers yet)
-    loadLocalitiesFromGeoJSON();
+    // Locality and settlement data now lazy-loaded at zoom 7.5 (mobile) / 8.5 (desktop)
+    // loadLocalitiesFromGeoJSON(); // Deferred to MarkerLazyLoader
     
     // Mark data as loaded for loading screen (markers are deferred)
     loadingTracker.markComplete('dataLoaded');
     
-    // Note: Settlement and locality markers are deferred until zoom level 8+ (mobile) or 9+ (desktop)
+    // Note: Settlement and locality markers are lazy-loaded at zoom level 7.5+ (mobile) or 8.5+ (desktop)
     
     // Final layer optimization
     state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
@@ -6741,9 +6895,8 @@ async function loadLocalitiesFromGeoJSON() {
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
       
       
-      // Load settlements after locality/region layers are created for proper layer ordering
-      // Use timer to ensure batched layer operations complete first
-      state.setTimer('loadSettlements', loadSettlementsFromCache, 300);
+      // Settlements now lazy-loaded with localities at zoom threshold
+      // state.setTimer('loadSettlements', loadSettlementsFromCache, 300); // Deferred to MarkerLazyLoader
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
@@ -6932,8 +7085,8 @@ function addSettlementMarkers() {
         type: 'geojson',
         data: state.settlementData,
         cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 40
+        clusterMaxZoom: window.innerWidth <= 478 ? 13 : 14,
+        clusterRadius: window.innerWidth <= 478 ? 60 : 40
       });
       
       const beforeId = getBeforeLayerId();
@@ -7248,8 +7401,8 @@ function addNativeMarkers() {
         type: 'geojson',
         data: state.locationData,
         cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50
+        clusterMaxZoom: window.innerWidth <= 478 ? 13 : 14,
+        clusterRadius: window.innerWidth <= 478 ? 60 : 50
       });
       
       // Add clustered points layer
