@@ -2103,34 +2103,10 @@ function setupZoomBasedMarkerLoading() {
         }
       }
       
-      // Show marker layers (fade handled by zoom-based opacity)
-      if (map.getLayer('locality-points')) {
-        map.setLayoutProperty('locality-points', 'visibility', 'visible');
-      }
-      if (map.getLayer('locality-clusters')) {
-        map.setLayoutProperty('locality-clusters', 'visibility', 'visible');
-      }
-      if (map.getLayer('settlement-points')) {
-        map.setLayoutProperty('settlement-points', 'visibility', 'visible');
-      }
-      if (map.getLayer('settlement-clusters')) {
-        map.setLayoutProperty('settlement-clusters', 'visibility', 'visible');
-      }
+      // Layers now use opacity interpolation for smooth fade in/out
+      // No need to toggle visibility - opacity handles the transition
     } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
-      // Hide marker layers when zoomed out (fade handled by zoom-based opacity)
-      if (map.getLayer('locality-points')) {
-        map.setLayoutProperty('locality-points', 'visibility', 'none');
-      }
-      if (map.getLayer('locality-clusters')) {
-        map.setLayoutProperty('locality-clusters', 'visibility', 'none');
-      }
-      if (map.getLayer('settlement-points')) {
-        map.setLayoutProperty('settlement-points', 'visibility', 'none');
-      }
-      if (map.getLayer('settlement-clusters')) {
-        map.setLayoutProperty('settlement-clusters', 'visibility', 'none');
-      }
-      // Reset flag so markers can be shown again when zooming back in
+      // Reset flag so data can be loaded again when zooming back in
       markersLoaded = false;
     }
   }
@@ -6951,13 +6927,21 @@ function addSettlementMarkers() {
           'text-allow-overlap': true,
           'text-ignore-placement': true,
           'symbol-sort-key': 1,
-          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
+          'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6.5, 0,    // Completely transparent below 6.5
+            7.5, 0,    // Still transparent at 7.5
+            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
+            9.5, 1     // Fully visible at desktop threshold and beyond
+          ]
         }
       };
       
@@ -6991,13 +6975,21 @@ function addSettlementMarkers() {
           'text-offset': [0, 0],
           'text-anchor': 'center',
           'symbol-sort-key': 2,
-          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
+          'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#444B5C',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6.5, 0,    // Completely transparent below 6.5
+            7.5, 0,    // Still transparent at 7.5
+            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
+            9.5, 1     // Fully visible at desktop threshold and beyond
+          ]
         }
       };
       
@@ -7264,13 +7256,21 @@ function addNativeMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
+          'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800',
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6.5, 0,    // Completely transparent below 6.5
+            7.5, 0,    // Still transparent at 7.5
+            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
+            9.5, 1     // Fully visible at desktop threshold and beyond
+          ]
         }
       });
       
@@ -7298,13 +7298,21 @@ function addNativeMarkers() {
           'text-offset': [0, 0],
           'text-anchor': 'center',
           'symbol-sort-key': 10, // Higher values render last (on top)
-          'visibility': 'none' // Hidden until zoom level 8+ (mobile) or 9+ (desktop)
+          'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
           'text-color': '#ffffff',
           'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
           'text-halo-width': 2,
-          'text-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0, 8, 0, 8.5, 1]
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6.5, 0,    // Completely transparent below 6.5
+            7.5, 0,    // Still transparent at 7.5
+            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
+            9.5, 1     // Fully visible at desktop threshold and beyond
+          ]
         }
       });
       
