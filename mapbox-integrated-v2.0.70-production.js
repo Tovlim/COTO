@@ -1124,8 +1124,8 @@ function setupDeferredAreaControls() {
     
     const markerControls = [
       {
-        keyId: 'region-toggle-key', 
-        wrapId: 'region-toggle-key-wrap',
+        keyId: 'governorate-toggle-key', 
+        wrapId: 'governorate-toggle-key-wrap',
         type: 'region',
         layers: ['region-points', 'subregion-points'],
         label: 'Region Markers & Boundaries'
@@ -1185,8 +1185,13 @@ function setupDeferredAreaControls() {
     
     // Setup marker controls
     markerControls.forEach(control => {
+      console.log(`🔍 Looking for marker control: keyId="${control.keyId}", wrapId="${control.wrapId}"`);
       const checkbox = $id(control.keyId);
-      if (!checkbox) return;
+      if (!checkbox) {
+        console.log(`❌ Could not find checkbox element with id: ${control.keyId}`);
+        return;
+      }
+      console.log(`✅ Found checkbox element: ${control.keyId}`);
       
       checkbox.checked = false;
       
@@ -1228,6 +1233,13 @@ function setupDeferredAreaControls() {
       }
       
       const wrapperDiv = $id(control.wrapId);
+      console.log(`🔍 Looking for wrapper element: ${control.wrapId}`);
+      if (!wrapperDiv) {
+        console.log(`❌ Could not find wrapper element with id: ${control.wrapId}`);
+      } else {
+        console.log(`✅ Found wrapper element: ${control.wrapId}`);
+      }
+      
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
           if (control.type === 'region') {
@@ -6557,17 +6569,24 @@ const toggleShowWhenFilteredElements = show => {
 // Checkbox selection functions with proper settlement unchecking
 // Unified checkbox selection function
 function selectCheckbox(type, value) {
+  console.log(`🔍 selectCheckbox called with type: "${type}", value: "${value}"`);
+  
   const checkboxTypes = ['Governorate', 'Region', 'locality', 'settlement', 'territory'];
   
   requestAnimationFrame(() => {
+    console.log(`🔍 Looking for checkboxes with selector: [checkbox-filter="${type}"] input[fs-list-value]`);
+    
     // Get all checkbox groups - using native queries to avoid caching
     const allCheckboxes = checkboxTypes.flatMap(checkboxType => 
       Array.from(document.querySelectorAll(`[checkbox-filter="${checkboxType}"] input[fs-list-value]`))
     );
     
+    console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
+    
     // Clear all checkboxes first
     allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
+        console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
         
@@ -6581,11 +6600,18 @@ function selectCheckbox(type, value) {
     
     // Find and check the target checkbox
     const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
+    console.log(`🔍 Found ${targetCheckboxes.length} checkboxes for type "${type}"`);
+    
+    targetCheckboxes.forEach((cb, index) => {
+      console.log(`🔍 Checkbox ${index}: fs-list-value="${cb.getAttribute('fs-list-value')}", checkbox-filter="${cb.parentElement.getAttribute('checkbox-filter')}"`);
+    });
+    
     const targetCheckbox = targetCheckboxes.find(checkbox => 
       checkbox.getAttribute('fs-list-value') === value
     );
     
     if (targetCheckbox) {
+      console.log(`✅ Found target checkbox for "${value}", checking it`);
       targetCheckbox.checked = true;
       utils.triggerEvent(targetCheckbox, ['change', 'input']);
       
@@ -6594,16 +6620,29 @@ function selectCheckbox(type, value) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
+    } else {
+      console.log(`❌ Could not find checkbox for type "${type}" with value "${value}"`);
+      
+      // Additional debugging - show all available checkboxes
+      console.log(`🔍 All available checkboxes in DOM:`);
+      document.querySelectorAll('[checkbox-filter]').forEach((wrapper, index) => {
+        const input = wrapper.querySelector('input[fs-list-value]');
+        if (input) {
+          console.log(`  ${index}: checkbox-filter="${wrapper.getAttribute('checkbox-filter')}", fs-list-value="${input.getAttribute('fs-list-value')}"`);
+        }
+      });
     }
   });
 }
 
 // Wrapper functions for backward compatibility
 function selectRegionCheckbox(regionName) {
+  console.log(`🔍 selectRegionCheckbox called with: "${regionName}"`);
   selectCheckbox('Governorate', regionName);
 }
 
 function selectSubregionCheckbox(subregionName) {
+  console.log(`🔍 selectSubregionCheckbox called with: "${subregionName}"`);
   selectCheckbox('Region', subregionName);
 }
 
