@@ -1126,6 +1126,9 @@ function generateSingleCheckbox(name, type, properties = {}) {
   // Track the generated checkbox
   LazyCheckboxState.addCheckbox(name, type);
   
+  // Setup event listeners for the new checkbox
+  setupGeneratedCheckboxEvents();
+  
   // Trigger recache if filter script is available
   if (window.checkboxFilterScript) {
     setTimeout(() => {
@@ -1264,6 +1267,9 @@ function generateAllCheckboxes() {
   ]).then(() => {
     LazyCheckboxState.isGeneratingBulk = false;
     console.log('Bulk checkbox generation completed');
+    
+    // Setup event listeners for all new checkboxes
+    setupGeneratedCheckboxEvents();
     
     // Trigger recache
     if (window.checkboxFilterScript) {
@@ -1486,6 +1492,40 @@ function generateRegionCheckboxes() {
   }
 }
 
+
+// Setup events for newly generated checkboxes (matches sidebars script exactly)
+function setupGeneratedCheckboxEvents() {
+  const autoSidebarCheckboxes = document.querySelectorAll('[data-auto-sidebar="true"]');
+  let newListenersCount = 0;
+  
+  autoSidebarCheckboxes.forEach(element => {
+    if (element.dataset.eventListenerAdded === 'true') return;
+    
+    const changeHandler = () => {
+      if (window.innerWidth > 991) {
+        state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+      }
+    };
+    
+    eventManager.add(element, 'change', changeHandler);
+    
+    if (['text', 'search'].includes(element.type)) {
+      const inputHandler = () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      };
+      eventManager.add(element, 'input', inputHandler);
+    }
+    
+    element.dataset.eventListenerAdded = 'true';
+    newListenersCount++;
+  });
+  
+  if (newListenersCount > 0) {
+    console.log(`Added event listeners to ${newListenersCount} new generated checkboxes`);
+  }
+}
 
 // OPTIMIZED: Setup events for generated checkboxes with better performance
 function setupCheckboxEvents(checkboxContainer) {
