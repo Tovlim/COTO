@@ -1127,7 +1127,7 @@ function setupDeferredAreaControls() {
         keyId: 'governorate-toggle-key', 
         wrapId: 'governorate-toggle-key-wrap',
         type: 'governorate',
-        layers: ['governorate-points', 'governorate-points'],
+        layers: ['governorate-points', 'region-points'],
         label: 'Governorate Markers & Boundaries'
       },
       {
@@ -1194,7 +1194,7 @@ function setupDeferredAreaControls() {
         const changeHandler = (e) => {
           const visibility = e.target.checked ? 'none' : 'visible';
           
-          if (control.type === 'region') {
+          if (control.type === 'governorate') {
             control.layers.forEach(layerId => {
               if (mapLayers.hasLayer(layerId)) {
                 map.setLayoutProperty(layerId, 'visibility', visibility);
@@ -1230,7 +1230,7 @@ function setupDeferredAreaControls() {
       const wrapperDiv = $id(control.wrapId);
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
-          if (control.type === 'region') {
+          if (control.type === 'governorate') {
             if (mapLayers.hasLayer('governorate-points')) {
               map.setPaintProperty('governorate-points', 'text-halo-color', '#8f4500');
             }
@@ -1267,7 +1267,7 @@ function setupDeferredAreaControls() {
         };
         
         const mouseLeaveHandler = () => {
-          if (control.type === 'region') {
+          if (control.type === 'governorate') {
             if (mapLayers.hasLayer('governorate-points')) {
               map.setPaintProperty('governorate-points', 'text-halo-color', '#6e3500');
             }
@@ -2220,8 +2220,8 @@ function setupGlobalExports() {
     checkboxes: {
       state: LazyCheckboxState,
       select: {
-        region: selectGovernorateCheckbox,
-        region: selectGovernorateCheckbox,
+        governorate: selectGovernorateCheckbox,
+        region: selectRegionCheckbox,
         territory: selectTerritoryCheckbox,
         locality: selectLocalityCheckbox,
         settlement: selectSettlementCheckbox
@@ -2277,7 +2277,7 @@ function setupGlobalExports() {
   
   // Legacy global exports for backwards compatibility
   window.selectGovernorateCheckbox = selectGovernorateCheckbox;
-  window.selectGovernorateCheckbox = selectGovernorateCheckbox;
+  window.selectRegionCheckbox = selectRegionCheckbox;
   window.selectLocalityCheckbox = selectLocalityCheckbox;
   window.selectSettlementCheckbox = selectSettlementCheckbox;
   window.selectTerritoryCheckbox = selectTerritoryCheckbox;
@@ -3214,8 +3214,8 @@ loadDataFromState() {
                     if (item.territory) {
                         a.innerHTML = `
                             <div class="locality-info">
-                                <span style="color: #6e3500;">${item.name}</span>
-                                <div class="locality-region">${item.territory}</div>
+                                <div class="locality-name">${item.name}</div>
+                                <div class="locality-governorate">${item.territory}</div>
                             </div>
                             <span class="term-label">${typeLabel}</span>
                         `;
@@ -6599,12 +6599,12 @@ function selectCheckbox(type, value) {
 }
 
 // Wrapper functions for backward compatibility
-function selectGovernorateCheckbox(regionName) {
-  selectCheckbox('region', regionName);
+function selectGovernorateCheckbox(governorateName) {
+  selectCheckbox('governorate', governorateName);
 }
 
-function selectGovernorateCheckbox(subregionName) {
-  selectCheckbox('subregion', subregionName);
+function selectRegionCheckbox(regionName) {
+  selectCheckbox('region', regionName);
 }
 
 function selectLocalityCheckbox(localityName) {
@@ -7685,7 +7685,7 @@ function setupSubregionMarkerClicks() {
     window.isMarkerClick = true;
     
     // Use checkbox selection like regions do
-    selectGovernorateCheckbox(subregionName);
+    selectRegionCheckbox(subregionName);
     
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
