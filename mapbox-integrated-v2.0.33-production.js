@@ -3618,8 +3618,15 @@ loadDataFromState() {
                         }
                         
                         .list-term.recent-search::before {
-                            content: "⏱";
+                            content: "";
                             margin-right: 8px;
+                            width: 12px;
+                            height: 12px;
+                            display: inline-block;
+                            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg id='Layer_1' data-name='Layer 1' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5.43 5.43'%3E%3Cpath fill='%23999' d='M2.72,0C1.22,0,0,1.22,0,2.72s1.22,2.71,2.72,2.71,2.71-1.21,2.71-2.71S4.21,0,2.72,0ZM3.68,4.21l-1.23-1.24v-1.74h.51v1.52l1.09,1.09-.37.37Z'/%3E%3C/svg%3E");
+                            background-size: contain;
+                            background-repeat: no-repeat;
+                            background-position: center;
                             opacity: 0.6;
                             font-size: 14px;
                         }
