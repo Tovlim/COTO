@@ -133,29 +133,22 @@ const CheckboxFactory = {
     const label = document.createElement('label');
     label.className = 'w-checkbox reporterwrap-copy';
     
-    // Create external link
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/${urlPrefix}/${slug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    // Create external link using DOMFactory
+    const link = DOMFactory.createExternalLink(null, slug, urlPrefix);
     
     // Create checkbox input wrapper
     const checkboxInputWrapper = document.createElement('div');
     checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
     
-    // Create checkbox input
-    const checkbox = document.createElement('input');
-    checkbox.setAttribute('data-auto-sidebar', 'true');
-    checkbox.setAttribute('fs-list-value', name);
-    checkbox.setAttribute('fs-list-field', fieldName);
-    checkbox.type = 'checkbox';
-    checkbox.name = type;
-    checkbox.setAttribute('data-name', type);
-    checkbox.setAttribute('activate-filter-indicator', 'place');
-    checkbox.id = `${pluralType}-${cleanName}`;
-    checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+    // Create checkbox input using DOMFactory
+    const checkbox = DOMFactory.createCheckboxInput({
+      name: type,
+      value: name,
+      fieldName: fieldName,
+      id: `${pluralType}-${cleanName}`,
+      autoSidebar: true,
+      filterIndicator: 'place'
+    });
     
     // Create label text
     const labelText = document.createElement('span');
@@ -163,14 +156,8 @@ const CheckboxFactory = {
     labelText.setAttribute('for', checkbox.id);
     labelText.textContent = name;
     
-    // Create count wrapper
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    const countElement = document.createElement('div');
-    countElement.setAttribute('fs-list-element', 'facet-count');
-    countElement.className = 'test33';
-    countElement.textContent = '0';
-    countWrapper.appendChild(countElement);
+    // Create count wrapper using DOMFactory
+    const countWrapper = DOMFactory.createCountElement();
     
     // Assemble structure
     label.appendChild(link);
@@ -198,8 +185,8 @@ const CheckboxFactory = {
     return new Promise((resolve) => {
       const generate = () => {
         try {
-          // Clear and reset
-          container.innerHTML = '';
+          // Clear and reset using DOMFactory
+          DOMFactory.clearContainer(container);
           LazyCheckboxState.clearType(type);
           
           // Extract unique features
@@ -251,6 +238,170 @@ const CheckboxFactory = {
       
       // Generate during idle time for non-blocking performance
       IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
+    });
+  }
+};
+
+// ========================
+// DOM FACTORY PATTERNS (Standardized Element Creation)
+// ========================
+const DOMFactory = {
+  // Standardized external link with SVG icon
+  createExternalLink(href, slug, urlPrefix) {
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/${urlPrefix}/${slug}`;
+    link.target = '_blank';
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = this.getSVGIcon('external');
+    return link;
+  },
+
+  // Standardized SVG icons
+  getSVGIcon(type) {
+    const icons = {
+      external: '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>'
+    };
+    return icons[type] || '';
+  },
+
+  // Standardized loading states
+  createLoadingState(message = 'Loading...') {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding: 10px; opacity: 0.6;';
+    div.textContent = message;
+    return div;
+  },
+
+  // Standardized container clearing
+  clearContainer(container) {
+    if (container) {
+      container.innerHTML = '';
+    }
+  },
+
+  // Standardized count elements
+  createCountElement(initialValue = '0') {
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    const countElement = document.createElement('div');
+    countElement.setAttribute('fs-list-element', 'facet-count');
+    countElement.className = 'test33';
+    countElement.textContent = initialValue;
+    countWrapper.appendChild(countElement);
+    return countWrapper;
+  },
+
+  // Standardized checkbox input creation
+  createCheckboxInput(config) {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = config.name;
+    checkbox.setAttribute('data-name', config.name);
+    checkbox.setAttribute('fs-list-value', config.value);
+    checkbox.setAttribute('fs-list-field', config.fieldName);
+    checkbox.id = config.id;
+    checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+    
+    // Add optional attributes
+    if (config.autoSidebar) checkbox.setAttribute('data-auto-sidebar', 'true');
+    if (config.filterIndicator) checkbox.setAttribute('activate-filter-indicator', config.filterIndicator);
+    
+    return checkbox;
+  }
+};
+
+// ========================
+// EVENT SETUP MODULES (Focused & Reusable)
+// ========================
+const EventSetup = {
+  // Setup sidebar auto-opening events
+  setupSidebarEvents() {
+    const sidebarHandlers = [
+      {selector: '[data-auto-sidebar="true"]', target: 'Left'},
+      {selector: '[data-auto-second-left-sidebar="true"]', target: 'SecondLeft'}
+    ];
+    
+    sidebarHandlers.forEach(({selector, target}) => {
+      const elements = $(selector);
+      elements.forEach(element => {
+        ['change', 'input'].forEach(event => {
+          if (event === 'input' && !['text', 'search'].includes(element.type)) return;
+          
+          eventManager.add(element, event, () => {
+            if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
+              state.setTimer('sidebarUpdate', () => toggleSidebar(target, true), APP_CONFIG.timeouts.debounce);
+            }
+          });
+        });
+      });
+    });
+  },
+  
+  // Setup filter-related events
+  setupFilterEvents() {
+    const filterHandlers = [
+      'select, [fs-cmsfilter-element="select"]',
+      '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select'
+    ];
+    
+    filterHandlers.forEach(selector => {
+      const elements = $(selector);
+      elements.forEach(element => {
+        eventManager.add(element, 'change', () => {
+          state.setTimer('filterUpdate', handleFilterUpdate, APP_CONFIG.timeouts.debounce);
+        });
+      });
+    });
+  },
+  
+  // Setup map filter application events
+  setupMapFilterEvents() {
+    const filterElements = $('[apply-map-filter="true"], .filterrefresh, #filter-button');
+    
+    filterElements.forEach(element => {
+      const events = element.getAttribute('apply-map-filter') === 'true' 
+        ? ['click', 'keypress', 'input'] 
+        : ['click'];
+      
+      events.forEach(eventType => {
+        eventManager.add(element, eventType, () => {
+          state.setTimer('applyFilter', () => {
+            applyFilterToMarkers();
+            state.setTimer('applyFilterCleanup', () => {
+              checkAndToggleFilteredElements();
+            }, APP_CONFIG.timeouts.debounce);
+          }, 50);
+        });
+      });
+    });
+  },
+  
+  // Setup special form handling events
+  setupFormEvents() {
+    $('[fs-cmsfilter-element="form"]').forEach(form => {
+      // Form-specific event handling
+      if (form.action && form.action.includes('cloneable') && window.location.href.includes('cloneable')) {
+        eventManager.add(form, 'submit', (e) => {
+          if (window.navigator.userAgent.includes('Firefox')) {
+            state.setTimer('firefoxSubmit', () => {
+              applyFilterToMarkers();
+              state.setTimer('firefoxSubmitCleanup', () => {
+                checkAndToggleFilteredElements();
+              }, APP_CONFIG.timeouts.debounce);
+            }, 200);
+          }
+        });
+      }
+    });
+  },
+  
+  // Setup Finsweet integration events
+  setupFinsweetEvents() {
+    ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset'].forEach(event => {
+      eventManager.add(document, event, () => {
+        IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
+      });
     });
   }
 };
@@ -365,6 +516,126 @@ const ErrorHandler = {
       };
       
       attemptOperation();
+    });
+  }
+};
+
+// ========================
+// OPTIMIZED EVENT DELEGATION
+// ========================
+const OptimizedEventDelegate = {
+  // Single document-level delegation for better performance
+  init() {
+    // Sidebar events with single delegation
+    this.setupSidebarDelegation();
+    
+    // Filter events with single delegation  
+    this.setupFilterDelegation();
+    
+    // Map filter events with single delegation
+    this.setupMapFilterDelegation();
+    
+    // Finsweet events (already optimal as document events)
+    this.setupFinsweetDelegation();
+  },
+  
+  setupSidebarDelegation() {
+    const sidebarHandler = (e) => {
+      if (window.innerWidth <= APP_CONFIG.breakpoints.tablet) return;
+      
+      const target = e.target;
+      if (target.hasAttribute('data-auto-sidebar')) {
+        state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), APP_CONFIG.timeouts.debounce);
+      } else if (target.hasAttribute('data-auto-second-left-sidebar')) {
+        state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), APP_CONFIG.timeouts.debounce);
+      }
+    };
+    
+    // Single delegated listeners for all sidebar events
+    eventManager.add(document, 'change', sidebarHandler);
+    eventManager.add(document, 'input', sidebarHandler);
+  },
+  
+  setupFilterDelegation() {
+    // Single delegated listener for all filter changes
+    eventManager.add(document, 'change', (e) => {
+      const target = e.target;
+      
+      if (target.matches('select, [fs-cmsfilter-element="select"]') ||
+          target.closest('[fs-cmsfilter-element="filters"]')) {
+        state.setTimer('filterUpdate', handleFilterUpdate, APP_CONFIG.timeouts.debounce);
+      }
+    });
+  },
+  
+  setupMapFilterDelegation() {
+    const mapFilterHandler = (e) => {
+      const target = e.target;
+      
+      // Check for map filter elements
+      if (!target.hasAttribute('apply-map-filter') && 
+          !target.classList.contains('filterrefresh') && 
+          target.id !== 'filter-button') return;
+      
+      if (e.type === 'keypress' && e.key !== 'Enter') return;
+      if (window.isMarkerClick) return;
+      
+      e.preventDefault();
+      
+      state.flags.forceFilteredReframe = true;
+      state.flags.isRefreshButtonAction = true;
+      
+      const delay = e.type === 'input' ? APP_CONFIG.timeouts.filterUpdate : APP_CONFIG.timeouts.debounce;
+      
+      state.setTimer('applyFilter', () => {
+        applyFilterToMarkers(true);
+        state.setTimer('applyFilterCleanup', () => {
+          state.flags.forceFilteredReframe = false;
+          state.flags.isRefreshButtonAction = false;
+        }, 1000);
+      }, delay);
+    };
+    
+    // Single delegated listeners for map filter events
+    ['click', 'keypress', 'input'].forEach(event => {
+      eventManager.add(document, event, mapFilterHandler);
+    });
+  },
+  
+  setupFinsweetDelegation() {
+    // Single optimized handler for all Finsweet events
+    const finsweetHandler = (e) => {
+      if (window.isMarkerClick || state.markerInteractionLock) return;
+      
+      if (e.type.includes('filtered') || e.type.includes('pagination')) {
+        handleFilterUpdate();
+      }
+      
+      IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
+    };
+    
+    // All Finsweet events handled by single function
+    [
+      'fs-cmsfilter-filtered',
+      'fs-cmsfilter-pagination-page-changed',
+      'fs-cmsfilter-change',
+      'fs-cmsfilter-search',
+      'fs-cmsfilter-reset'
+    ].forEach(event => {
+      eventManager.add(document, event, finsweetHandler);
+    });
+    
+    // Delegated link handling
+    eventManager.add(document, 'click', (e) => {
+      const link = e.target.closest('a');
+      if (!link || link.classList.contains('filterrefresh') || link.hasAttribute('fs-cmsfilter-element')) return;
+      
+      if (!link.closest('[fs-cmsfilter-element]') && 
+          !link.classList.contains('w-pagination-next') && 
+          !link.classList.contains('w-pagination-previous')) {
+        window.isLinkClick = true;
+        state.setTimer('linkCleanup', () => window.isLinkClick = false, 500);
+      }
     });
   }
 };
@@ -603,129 +874,8 @@ const Memoize = {
 
 // Event setup with consolidated handlers and better management
 function setupEvents() {
-  const eventHandlers = [
-    {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
-        state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), APP_CONFIG.timeouts.debounce);
-      }
-    }},
-    {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
-        state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), APP_CONFIG.timeouts.debounce);
-      }
-    }},
-    {selector: 'select, [fs-cmsfilter-element="select"]', events: ['change'], handler: () => state.setTimer('filterUpdate', handleFilterUpdate, APP_CONFIG.timeouts.debounce)},
-    {selector: '[fs-cmsfilter-element="filters"] input, [fs-cmsfilter-element="filters"] select', events: ['change'], handler: () => state.setTimer('filterUpdate', handleFilterUpdate, APP_CONFIG.timeouts.debounce)}
-  ];
-  
-  eventHandlers.forEach(({selector, events, handler}) => {
-    const elements = $(selector);
-    elements.forEach(element => {
-      events.forEach(event => {
-        if (event === 'input' && ['text', 'search'].includes(element.type)) {
-          eventManager.add(element, event, handler);
-        } else if (event !== 'input' || element.type !== 'text') {
-          eventManager.add(element, event, handler);
-        }
-      });
-    });
-  });
-  
-  // Consolidated apply-map-filter setup with event delegation
-  const filterElements = $('[apply-map-filter="true"], .filterrefresh, #filter-button');
-  filterElements.forEach(element => {
-    let events;
-    if (element.getAttribute('apply-map-filter') === 'true') {
-      events = ['click', 'keypress', 'input'];
-    } else {
-      events = ['click'];
-    }
-    
-    events.forEach(eventType => {
-      eventManager.add(element, eventType, (e) => {
-        if (eventType === 'keypress' && e.key !== 'Enter') return;
-        if (window.isMarkerClick) return;
-        
-        // Handle all filter elements
-        e.preventDefault();
-        
-        state.flags.forceFilteredReframe = true;
-        state.flags.isRefreshButtonAction = true;
-        
-        const delay = eventType === 'input' ? APP_CONFIG.timeouts.filterUpdate : APP_CONFIG.timeouts.debounce;
-        
-        state.setTimer('applyFilter', () => {
-          applyFilterToMarkers(true); // true = full reframing
-          state.setTimer('applyFilterCleanup', () => {
-            state.flags.forceFilteredReframe = false;
-            state.flags.isRefreshButtonAction = false;
-          }, 1000);
-        }, delay);
-      });
-    });
-  });
-  
-  // Global event listeners with better management
-  ['fs-cmsfilter-filtered', 'fs-cmsfilter-pagination-page-changed'].forEach(event => {
-    eventManager.add(document, event, (e) => {
-      if (window.isMarkerClick || state.markerInteractionLock) return;
-      handleFilterUpdate();
-      
-      // Also check and toggle filtered elements when Finsweet events fire
-      IdleExecution.scheduleUI(checkAndToggleFilteredElements);
-    });
-  });
-  
-  // Additional Finsweet event listeners for filtered elements
-  ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset'].forEach(event => {
-    eventManager.add(document, event, () => {
-      IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
-    });
-  });
-  
-  // Firefox form handling with event delegation
-  if (FeatureDetection.isFirefox) {
-    const forms = $('form');
-    forms.forEach(form => {
-      const hasFilterElements = form.querySelector('[fs-cmsfilter-element]') !== null;
-      const isNearMap = $id('map') && (form.contains($id('map')) || $id('map').contains(form) || form.parentElement === $id('map').parentElement);
-      
-      if (hasFilterElements || isNearMap) {
-        eventManager.add(form, 'submit', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          state.flags.forceFilteredReframe = true;
-          state.flags.isRefreshButtonAction = true;
-          
-          state.setTimer('firefoxSubmit', () => {
-            applyFilterToMarkers();
-            state.setTimer('firefoxSubmitCleanup', () => {
-              state.flags.forceFilteredReframe = false;
-              state.flags.isRefreshButtonAction = false;
-            }, 1000);
-          }, 50);
-          
-          return false;
-        }, {capture: true});
-      }
-    });
-  }
-  
-  // Link click handlers with event delegation
-  const links = $('a:not(.filterrefresh):not([fs-cmsfilter-element])');
-  links.forEach(link => {
-    eventManager.add(link, 'click', () => {
-      if (!link.closest('[fs-cmsfilter-element]') && 
-          !link.classList.contains('w-pagination-next') && 
-          !link.classList.contains('w-pagination-previous')) {
-        window.isLinkClick = true;
-        state.setTimer('linkCleanup', () => window.isLinkClick = false, 500);
-      }
-    });
-  });
-  
-  // Events setup complete
+  // Use optimized event delegation for better performance
+  OptimizedEventDelegate.init();
 }
 
 // Smart dropdown listeners with better timing
@@ -1216,13 +1366,8 @@ function generateSettlementCheckboxes() {
     const label = document.createElement('label');
     label.className = 'w-checkbox reporterwrap-copy';
     
-    // Create the link element
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/settlement/${settlementSlug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    // Create the link element using DOMFactory
+    const link = DOMFactory.createExternalLink(null, settlementSlug, 'settlement');
     
     // Create the custom checkbox div
     const customCheckbox = document.createElement('div');
@@ -1324,8 +1469,8 @@ function generateSingleCheckbox(name, type, properties = {}) {
   link.target = '_blank';
   link.className = 'open-in-new-tab w-inline-block';
   
-  // Add the SVG icon
-  link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+  // Add the SVG icon using DOMFactory
+  link.innerHTML = DOMFactory.getSVGIcon('external');
   
   // Create the custom checkbox input wrapper
   const checkboxInputWrapper = document.createElement('div');
@@ -1451,10 +1596,12 @@ function generateAllCheckboxes() {
   const settlementContainer = $id('settlement-check-list');
   
   if (localityContainer && !LazyCheckboxState.isFullyGenerated('locality')) {
-    localityContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading localities...</div>';
+    DOMFactory.clearContainer(localityContainer);
+    localityContainer.appendChild(DOMFactory.createLoadingState('Loading localities...'));
   }
   if (settlementContainer && !LazyCheckboxState.isFullyGenerated('settlement')) {
-    settlementContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading settlements...</div>';
+    DOMFactory.clearContainer(settlementContainer);
+    settlementContainer.appendChild(DOMFactory.createLoadingState('Loading settlements...'));
   }
   
   return Promise.all([
@@ -1531,7 +1678,7 @@ function generateLocalityCheckboxes() {
     link.href = `/locality/${localitySlug}`;
     link.target = '_blank';
     link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    link.innerHTML = DOMFactory.getSVGIcon('external');
     
     // Create the custom checkbox div
     const customCheckbox = document.createElement('div');
