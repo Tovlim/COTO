@@ -87,6 +87,16 @@ const LazyCheckboxState = {
     this.generatedCheckboxes.add(`${type}:${name}`);
   },
   
+  clearType(type) {
+    // Remove all checkboxes of a specific type from tracking
+    const toRemove = Array.from(this.generatedCheckboxes).filter(key => key.startsWith(`${type}:`));
+    toRemove.forEach(key => this.generatedCheckboxes.delete(key));
+    
+    // Reset fully generated flag
+    if (type === 'locality') this.localitiesFullyGenerated = false;
+    if (type === 'settlement') this.settlementsFullyGenerated = false;
+  },
+  
   isFullyGenerated(type) {
     return type === 'locality' ? this.localitiesFullyGenerated : 
            type === 'settlement' ? this.settlementsFullyGenerated : false;
@@ -1129,10 +1139,11 @@ function generateSingleCheckbox(name, type, properties = {}) {
   // Setup event listeners for the new checkbox
   setupGeneratedCheckboxEvents();
   
-  // Trigger recache if filter script is available (increased delay for DOM update)
+  // Force complete rebuild of filter script cache for better integration
   if (window.checkboxFilterScript) {
     setTimeout(() => {
-      window.checkboxFilterScript.recacheElements();
+      // Use forceRebuild for single checkboxes to ensure cache invalidation
+      window.checkboxFilterScript.forceRebuild();
     }, 150);
   }
   
@@ -1166,6 +1177,9 @@ function generateAllLocalityCheckboxes() {
       try {
         // Clear existing content completely like sidebars script
         container.innerHTML = '';
+        
+        // Clear tracking for localities since we just deleted all checkboxes from DOM
+        LazyCheckboxState.clearType('locality');
         
         const localityFeatures = state.allLocalityFeatures || [];
         const uniqueNames = new Set();
@@ -1216,6 +1230,9 @@ function generateAllSettlementCheckboxes() {
       try {
         // Clear existing content completely like sidebars script
         container.innerHTML = '';
+        
+        // Clear tracking for settlements since we just deleted all checkboxes from DOM
+        LazyCheckboxState.clearType('settlement');
         
         const settlementFeatures = state.allSettlementFeatures || [];
         const uniqueNames = new Set();
@@ -1278,10 +1295,11 @@ function generateAllCheckboxes() {
     // Setup event listeners for all new checkboxes
     setupGeneratedCheckboxEvents();
     
-    // Trigger recache
+    // Force complete rebuild after bulk generation for better integration
     if (window.checkboxFilterScript) {
       setTimeout(() => {
-        window.checkboxFilterScript.recacheElements();
+        // Use forceRebuild after bulk generation to ensure all caches are cleared
+        window.checkboxFilterScript.forceRebuild();
       }, 200);
     }
     
