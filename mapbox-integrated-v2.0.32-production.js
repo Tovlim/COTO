@@ -1182,20 +1182,105 @@ function generateAllLocalityCheckboxes() {
         LazyCheckboxState.clearType('locality');
         
         const localityFeatures = state.allLocalityFeatures || [];
-        const uniqueNames = new Set();
+        
+        // Extract unique features with valid names (like sidebar script)
+        const uniqueFeatures = [];
+        const seenNames = new Set();
         
         localityFeatures.forEach(feature => {
           if (feature?.properties?.name) {
             const name = feature.properties.name.trim();
-            if (!uniqueNames.has(name) && !LazyCheckboxState.hasCheckbox(name, 'locality')) {
-              uniqueNames.add(name);
-              generateSingleCheckbox(name, 'locality', feature.properties);
+            if (name && !seenNames.has(name)) {
+              seenNames.add(name);
+              uniqueFeatures.push(feature);
             }
           }
         });
         
+        // Sort by name for consistent ordering
+        uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
+        
+        // Generate checkboxes using document fragment (FAST like sidebar)
+        const fragment = document.createDocumentFragment();
+        
+        uniqueFeatures.forEach(feature => {
+          const name = feature.properties.name;
+          const properties = feature.properties;
+          const type = 'locality';
+          
+          // Create checkbox structure directly (no individual DOM insertions)
+          const checkboxWrapper = document.createElement('div');
+          checkboxWrapper.setAttribute('checkbox-filter', type);
+          checkboxWrapper.className = 'checbox-item';
+          
+          const label = document.createElement('label');
+          label.className = 'w-checkbox reporterwrap-copy';
+          
+          // Generate slug and URL exactly like sidebars script
+          const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const urlPrefix = 'locality';
+          
+          // Create the external link
+          const link = document.createElement('a');
+          link.setAttribute('open', '');
+          link.href = `/${urlPrefix}/${slug}`;
+          link.target = '_blank';
+          link.className = 'open-in-new-tab w-inline-block';
+          link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+          
+          // Create the custom checkbox input wrapper
+          const checkboxInputWrapper = document.createElement('div');
+          checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+          
+          // Create the actual checkbox input
+          const checkbox = document.createElement('input');
+          const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-');
+          
+          checkbox.setAttribute('data-auto-sidebar', 'true');
+          checkbox.setAttribute('fs-list-value', name);
+          checkbox.setAttribute('fs-list-field', 'Locality');
+          checkbox.type = 'checkbox';
+          checkbox.name = type;
+          checkbox.setAttribute('data-name', type);
+          checkbox.setAttribute('activate-filter-indicator', 'place');
+          checkbox.id = `localities-${cleanName}`;
+          checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+          
+          // Create the label text
+          const labelText = document.createElement('span');
+          labelText.className = 'test3 w-form-label';
+          labelText.setAttribute('for', checkbox.id);
+          labelText.textContent = name;
+          
+          // Create the count wrapper
+          const countWrapper = document.createElement('div');
+          countWrapper.className = 'div-block-31834';
+          const countElement = document.createElement('div');
+          countElement.setAttribute('fs-list-element', 'facet-count');
+          countElement.className = 'test33';
+          countElement.textContent = '0';
+          countWrapper.appendChild(countElement);
+          
+          // Assemble the structure
+          label.appendChild(link);
+          label.appendChild(checkboxInputWrapper);
+          label.appendChild(checkbox);
+          label.appendChild(labelText);
+          label.appendChild(countWrapper);
+          checkboxWrapper.appendChild(label);
+          
+          // Add to fragment (no individual DOM insertion)
+          fragment.appendChild(checkboxWrapper);
+          
+          // Track the checkbox
+          LazyCheckboxState.addCheckbox(name, type);
+        });
+        
+        // Single DOM insertion (FAST!)
+        container.appendChild(fragment);
+        
         LazyCheckboxState.markFullyGenerated('locality');
-        console.log(`Generated ${uniqueNames.size} locality checkboxes`);
+        console.log(`Generated ${uniqueFeatures.length} locality checkboxes using fast batch method`);
         resolve();
       } catch (error) {
         console.error('Error generating locality checkboxes:', error);
@@ -1235,20 +1320,105 @@ function generateAllSettlementCheckboxes() {
         LazyCheckboxState.clearType('settlement');
         
         const settlementFeatures = state.allSettlementFeatures || [];
-        const uniqueNames = new Set();
+        
+        // Extract unique features with valid names (like sidebar script)
+        const uniqueFeatures = [];
+        const seenNames = new Set();
         
         settlementFeatures.forEach(feature => {
           if (feature?.properties?.name) {
             const name = feature.properties.name.trim();
-            if (!uniqueNames.has(name) && !LazyCheckboxState.hasCheckbox(name, 'settlement')) {
-              uniqueNames.add(name);
-              generateSingleCheckbox(name, 'settlement', feature.properties);
+            if (name && !seenNames.has(name)) {
+              seenNames.add(name);
+              uniqueFeatures.push(feature);
             }
           }
         });
         
+        // Sort by name for consistent ordering
+        uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
+        
+        // Generate checkboxes using document fragment (FAST like sidebar)
+        const fragment = document.createDocumentFragment();
+        
+        uniqueFeatures.forEach(feature => {
+          const name = feature.properties.name;
+          const properties = feature.properties;
+          const type = 'settlement';
+          
+          // Create checkbox structure directly (no individual DOM insertions)
+          const checkboxWrapper = document.createElement('div');
+          checkboxWrapper.setAttribute('checkbox-filter', type);
+          checkboxWrapper.className = 'checbox-item';
+          
+          const label = document.createElement('label');
+          label.className = 'w-checkbox reporterwrap-copy';
+          
+          // Generate slug and URL exactly like sidebars script
+          const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const urlPrefix = 'settlement';
+          
+          // Create the external link
+          const link = document.createElement('a');
+          link.setAttribute('open', '');
+          link.href = `/${urlPrefix}/${slug}`;
+          link.target = '_blank';
+          link.className = 'open-in-new-tab w-inline-block';
+          link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+          
+          // Create the custom checkbox input wrapper
+          const checkboxInputWrapper = document.createElement('div');
+          checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+          
+          // Create the actual checkbox input
+          const checkbox = document.createElement('input');
+          const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-');
+          
+          checkbox.setAttribute('data-auto-sidebar', 'true');
+          checkbox.setAttribute('fs-list-value', name);
+          checkbox.setAttribute('fs-list-field', 'Settlement');
+          checkbox.type = 'checkbox';
+          checkbox.name = type;
+          checkbox.setAttribute('data-name', type);
+          checkbox.setAttribute('activate-filter-indicator', 'place');
+          checkbox.id = `settlements-${cleanName}`;
+          checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+          
+          // Create the label text
+          const labelText = document.createElement('span');
+          labelText.className = 'test3 w-form-label';
+          labelText.setAttribute('for', checkbox.id);
+          labelText.textContent = name;
+          
+          // Create the count wrapper
+          const countWrapper = document.createElement('div');
+          countWrapper.className = 'div-block-31834';
+          const countElement = document.createElement('div');
+          countElement.setAttribute('fs-list-element', 'facet-count');
+          countElement.className = 'test33';
+          countElement.textContent = '0';
+          countWrapper.appendChild(countElement);
+          
+          // Assemble the structure
+          label.appendChild(link);
+          label.appendChild(checkboxInputWrapper);
+          label.appendChild(checkbox);
+          label.appendChild(labelText);
+          label.appendChild(countWrapper);
+          checkboxWrapper.appendChild(label);
+          
+          // Add to fragment (no individual DOM insertion)
+          fragment.appendChild(checkboxWrapper);
+          
+          // Track the checkbox
+          LazyCheckboxState.addCheckbox(name, type);
+        });
+        
+        // Single DOM insertion (FAST!)
+        container.appendChild(fragment);
+        
         LazyCheckboxState.markFullyGenerated('settlement');
-        console.log(`Generated ${uniqueNames.size} settlement checkboxes`);
+        console.log(`Generated ${uniqueFeatures.length} settlement checkboxes using fast batch method`);
         resolve();
       } catch (error) {
         console.error('Error generating settlement checkboxes:', error);
@@ -1295,19 +1465,19 @@ function generateAllCheckboxes() {
     // Setup event listeners for all new checkboxes
     setupGeneratedCheckboxEvents();
     
-    // Force complete rebuild after bulk generation for better integration
+    // Recache after bulk generation (lighter than forceRebuild for batch operations)
     if (window.checkboxFilterScript) {
       setTimeout(() => {
-        // Use forceRebuild after bulk generation to ensure all caches are cleared
-        window.checkboxFilterScript.forceRebuild();
-      }, 200);
+        // Use lighter recacheElements for batch operations since we're not mixing individual insertions
+        window.checkboxFilterScript.recacheElements();
+      }, 100);
     }
     
     // Rescan filter indicators for all new checkboxes
     if (window.filterIndicators) {
       setTimeout(() => {
         window.filterIndicators.rescan();
-      }, 150);
+      }, 50);
     }
   }).catch((error) => {
     LazyCheckboxState.isGeneratingBulk = false;
