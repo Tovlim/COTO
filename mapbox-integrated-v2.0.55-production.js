@@ -2180,15 +2180,11 @@ const MarkerLazyLoader = {
   
   // Setup idle detection for preloading
   setupIdleDetection() {
-    // Start idle timer
-    this.resetIdleTimer();
+    // Start idle timer - but don't start preloading immediately
+    this.lastInteraction = Date.now();
     
-    // Use requestIdleCallback if available for browser idle detection
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        this.checkPreloadOpportunity();
-      }, { timeout: 10000 });
-    }
+    // Don't use requestIdleCallback immediately on page load
+    // Only start idle detection after user has interacted with the map
   },
   
   // Reset idle timer on user interaction
@@ -2196,10 +2192,11 @@ const MarkerLazyLoader = {
     this.lastInteraction = Date.now();
     clearTimeout(this.idleTimer);
     
-    // Check for idle after 5 seconds
+    // Only start idle detection after first user interaction
+    // Check for idle after 10 seconds (increased from 5 to be less aggressive)
     this.idleTimer = setTimeout(() => {
       this.checkPreloadOpportunity();
-    }, 5000);
+    }, 10000);
   },
   
   // Reset map idle timer
@@ -2270,9 +2267,10 @@ const MarkerLazyLoader = {
       if (state.allLocalityFeatures) {
         this.localitiesLoaded = true;
         
-        // Add locality markers if we're at zoom threshold
+        // Add locality and subregion markers if we're at zoom threshold
         if (map.getZoom() >= this.ZOOM_THRESHOLD && !map.getSource('localities')) {
           addNativeMarkers();
+          addNativeSubregionMarkers();
         }
         
         EventBus.emit('localities:loaded');
@@ -2366,7 +2364,7 @@ const MarkerLazyLoader = {
   
   // Show markers with viewport optimization
   showMarkers() {
-    // Show localities if loaded
+    // Show localities and subregions if loaded
     if (this.localitiesLoaded) {
       const localityLayers = ['locality-points', 'locality-clusters'];
       localityLayers.forEach(layer => {
@@ -2374,6 +2372,11 @@ const MarkerLazyLoader = {
           map.setLayoutProperty(layer, 'visibility', 'visible');
         }
       });
+      
+      // Also show subregions with localities
+      if (map.getLayer('subregion-points')) {
+        map.setLayoutProperty('subregion-points', 'visibility', 'visible');
+      }
     }
     
     // Show settlements if loaded
@@ -2392,7 +2395,7 @@ const MarkerLazyLoader = {
   
   // Hide all markers
   hideMarkers() {
-    const layers = ['locality-points', 'locality-clusters', 'settlement-points', 'settlement-clusters'];
+    const layers = ['locality-points', 'locality-clusters', 'settlement-points', 'settlement-clusters', 'subregion-points'];
     
     layers.forEach(layer => {
       if (map.getLayer(layer)) {
@@ -7059,8 +7062,7 @@ async function loadLocalitiesFromGeoJSON() {
     // Add localities to map
     addNativeMarkers();
 
-    // Add subregion markers to map (at zoom threshold with localities)
-    addNativeSubregionMarkers();
+    // Subregion markers are now added at zoom threshold with localities (see MarkerLazyLoader)
       
       // Generate checkboxes for localities only (regions already generated from boundaries)
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
@@ -7074,12 +7076,10 @@ async function loadLocalitiesFromGeoJSON() {
         state.setTimer('refreshAutocompleteAfterLocalities', window.refreshAutocomplete, 1000);
       }
       
-      // Mark data as loaded
-      loadingTracker.markComplete('dataLoaded');
+      // Don't mark loading tracker complete here - localities are lazy loaded
   } catch (error) {
     console.error('Failed to load localities:', error);
-    // Mark as loaded even on error to prevent infinite loading
-    loadingTracker.markComplete('dataLoaded');
+    // Don't mark loading tracker complete on error either - let main initialization handle it
   }
 }
 
