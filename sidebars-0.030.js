@@ -1,7 +1,14 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.0.0
+// Version: 1.1.0 - Enhanced with SafeStorage from mapbox v2.0.0
+// 
+// Changes in v1.1.0:
+// - Added SafeStorage wrapper for robust localStorage handling
+// - Updated cache duration from 24 hours to 7 days
+// - Updated GeoJSON URLs to newer versions (localities 0.010, settlements 0.006)
+// - Improved error handling and corrupted data recovery
+// - Added memory fallback for private browsing/restricted environments
 // ====================================================================
 
 (function(window) {
@@ -14,13 +21,104 @@
   // CONFIGURATION
   // ====================================================================
   const CONFIG = {
-    CACHE_VERSION: '1.0.0',
-    CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
+    CACHE_VERSION: '1.0.1',
+    CACHE_DURATION: 7 * 24 * 60 * 60 * 1000, // 7 days (matching mapbox script)
     GEOJSON_URLS: {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
+      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
     }
   };
+  
+  // ====================================================================
+  // SAFE STORAGE WRAPPER (from mapbox v2.0.0)
+  // ====================================================================
+  class SafeStorage {
+    constructor() {
+      this.available = this.testAvailability();
+      this.fallback = new Map();
+    }
+    
+    testAvailability() {
+      try {
+        const test = '__test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+      } catch(e) {
+        console.warn('localStorage not available, using memory fallback');
+        return false;
+      }
+    }
+    
+    getItem(key) {
+      try {
+        if (!this.available) {
+          return this.fallback.get(key) || null;
+        }
+        const item = localStorage.getItem(key);
+        if (item === 'undefined') return null;
+        return item;
+      } catch(e) {
+        console.warn('Storage read error:', e);
+        return this.fallback.get(key) || null;
+      }
+    }
+    
+    setItem(key, value) {
+      try {
+        if (!this.available) {
+          this.fallback.set(key, value);
+          return;
+        }
+        localStorage.setItem(key, value);
+      } catch(e) {
+        console.warn('Storage write error:', e);
+        if (e.name === 'QuotaExceededError') {
+          this.clearOldData();
+          try {
+            localStorage.setItem(key, value);
+          } catch(retryError) {
+            this.fallback.set(key, value);
+          }
+        } else {
+          this.fallback.set(key, value);
+        }
+      }
+    }
+    
+    removeItem(key) {
+      try {
+        if (this.available) {
+          localStorage.removeItem(key);
+        }
+        this.fallback.delete(key);
+      } catch(e) {
+        console.warn('Storage remove error:', e);
+      }
+    }
+    
+    clearOldData() {
+      try {
+        const keys = Object.keys(localStorage);
+        const now = Date.now();
+        keys.forEach(key => {
+          if (key.startsWith('geojson_cache_') || key.startsWith('mapCache_')) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key));
+              if (data.timestamp && (now - data.timestamp) > CONFIG.CACHE_DURATION) {
+                localStorage.removeItem(key);
+              }
+            } catch {
+              // If can't parse, remove it
+              localStorage.removeItem(key);
+            }
+          }
+        });
+      } catch(e) {
+        console.warn('Clear old data error:', e);
+      }
+    }
+  }
   
   // ====================================================================
   // OPTIMIZED DOM CACHE
@@ -191,11 +289,12 @@
   }
   
   // ====================================================================
-  // GEOJSON DATA CACHING
+  // GEOJSON DATA CACHING (Enhanced with SafeStorage)
   // ====================================================================
   class GeoJSONCache {
-    constructor() {
+    constructor(storage) {
       this.cachePrefix = 'geojson_cache_';
+      this.storage = storage;
     }
     
     getCacheKey(type) {
@@ -205,20 +304,25 @@
     get(type) {
       try {
         const key = this.getCacheKey(type);
-        const cached = localStorage.getItem(key);
+        const cached = this.storage.getItem(key);
         if (!cached) return null;
         
         const data = JSON.parse(cached);
         const now = Date.now();
         
         if (now - data.timestamp > CONFIG.CACHE_DURATION) {
-          localStorage.removeItem(key);
+          this.storage.removeItem(key);
           return null;
         }
         
         return data.value;
       } catch (e) {
         console.warn('Cache read failed:', e);
+        // Clean up corrupted entry
+        try {
+          const key = this.getCacheKey(type);
+          this.storage.removeItem(key);
+        } catch {}
         return null;
       }
     }
@@ -230,24 +334,16 @@
           value: value,
           timestamp: Date.now()
         };
-        localStorage.setItem(key, JSON.stringify(data));
+        this.storage.setItem(key, JSON.stringify(data));
       } catch (e) {
         console.warn('Cache write failed:', e);
-        // Clear old cache if storage is full
-        this.clearOldCache();
+        // SafeStorage already handles quota errors internally
       }
     }
     
     clearOldCache() {
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.startsWith(this.cachePrefix)) {
-          const version = key.split('_').pop();
-          if (version !== CONFIG.CACHE_VERSION) {
-            localStorage.removeItem(key);
-          }
-        }
-      });
+      // Now handled by SafeStorage.clearOldData()
+      this.storage.clearOldData();
     }
     
     async fetch(type) {
@@ -280,10 +376,11 @@
   // ====================================================================
   // GLOBAL INSTANCES
   // ====================================================================
+  const safeStorage = new SafeStorage();
   const domCache = new OptimizedDOMCache();
   const eventManager = new OptimizedEventManager();
   const state = new SimpleState();
-  const geoCache = new GeoJSONCache();
+  const geoCache = new GeoJSONCache(safeStorage);
   
   // Shortcuts
   const $ = (selector) => domCache.$(selector);
