@@ -372,6 +372,24 @@
       }
     },
     
+    forceRebuild() {
+      // Force complete cache invalidation and rebuild
+      console.log('Forcing complete checkbox filter rebuild...');
+      
+      // Clear all caches
+      cache.searchBoxes.clear();
+      cache.clearButtons.clear();
+      cache.checkboxGroups.clear();
+      cleanupEventListeners();
+      
+      // Rebuild everything
+      setupElements();
+      setupEventListeners();
+      initializeGroups();
+      
+      console.log('Checkbox filter force rebuild completed:', this.getCacheStats());
+    },
+    
     filterGroup(groupName, searchTerm) {
       filterCheckboxGroup(groupName, searchTerm);
     },
