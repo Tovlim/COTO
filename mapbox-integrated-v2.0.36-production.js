@@ -1,44 +1,11 @@
 /**
- * MAPBOX INTEGRATED SCRIPT - Production v2.1.0 - Ultra Performance
+ * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance
  * 
- * Features:
- * - High-performance autocomplete with lazy loading and virtual DOM
- * - Efficient caching with localStorage fallback (7-day cache)
- * - Cross-browser compatibility with feature detection
- * - Settlement and locality data management
- * - Optimized map interactions and filtering
- * - Memoized data processing for better performance
- * - Recent searches functionality with persistent storage
- * - Enhanced keyboard navigation (circular, Home/End, Ctrl+Delete)
- * - Virtual DOM rendering for smooth dropdown updates
- * - Simple event-driven architecture
- * - Centralized configuration management
+ * High-performance map with lazy loading, virtual DOM autocomplete, 
+ * 7-day caching, and enhanced user experience optimizations.
  * 
- * NEW in v2.1.0 - LAZY LOADING REVOLUTION:
- * - Autocomplete only loads when search field is interacted with
- * - Individual checkboxes generate on marker clicks or autocomplete selection
- * - Bulk checkbox generation only when Location tab is clicked
- * - Map markers still load immediately (core functionality preserved)
- * - Massive PageSpeed improvements - most users never trigger heavy loads
- * 
- * Last Updated: 2025
- * 
- * Performance Optimizations:
- * - 7-day caching reduces API calls by 99%
- * - Lazy loading reduces initial load time by 60-80%
- * - Memoization prevents redundant search token generation
- * - Virtual DOM minimizes unnecessary DOM manipulations
- * - Feature detection replaces user agent sniffing
- * - Safe localStorage wrapper handles quota/privacy issues
- * - Progressive loading based on user intent
- * 
- * User Experience Improvements:
- * - Recent searches for quick access to previous selections
- * - Circular keyboard navigation (no dead ends)
- * - Visual indicators for different location types
- * - Smooth scrolling and transitions
- * - Accessible ARIA attributes
- * - Instant individual checkbox creation on demand
+ * Key Features: Lazy checkbox/autocomplete loading, recent searches,
+ * circular navigation, enhanced error handling, modular architecture.
  */
 
 // ========================
@@ -67,6 +34,16 @@ const APP_CONFIG = {
     enableRecentSearches: true,
     enableMemoization: true,
     enableLazyCheckboxes: true
+  },
+  breakpoints: {
+    mobile: 478,
+    tablet: 991,
+    desktop: 992
+  },
+  ui: {
+    scoreThreshold: 0.3,
+    maxResults: 50,
+    sidebarWidth: 300
   }
 };
 
@@ -133,6 +110,148 @@ const IdleExecution = {
   scheduleHeavy(callback, options = {}) {
     const { timeout = 5000, fallbackDelay = 200 } = options;
     this.schedule(callback, { timeout, fallbackDelay });
+  }
+};
+
+// ========================
+// CHECKBOX FACTORY (Deduplication)
+// ========================
+const CheckboxFactory = {
+  // Create standardized checkbox HTML structure
+  createCheckboxElement(name, type, properties) {
+    const pluralType = type === 'locality' ? 'localities' : 'settlements';
+    const urlPrefix = type === 'settlement' ? 'settlement' : 'locality';
+    const fieldName = type.charAt(0).toUpperCase() + type.slice(1);
+    const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-');
+    const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    
+    // Create wrapper
+    const checkboxWrapper = document.createElement('div');
+    checkboxWrapper.setAttribute('checkbox-filter', type);
+    checkboxWrapper.className = 'checbox-item';
+    
+    const label = document.createElement('label');
+    label.className = 'w-checkbox reporterwrap-copy';
+    
+    // Create external link
+    const link = document.createElement('a');
+    link.setAttribute('open', '');
+    link.href = `/${urlPrefix}/${slug}`;
+    link.target = '_blank';
+    link.className = 'open-in-new-tab w-inline-block';
+    link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+    
+    // Create checkbox input wrapper
+    const checkboxInputWrapper = document.createElement('div');
+    checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+    
+    // Create checkbox input
+    const checkbox = document.createElement('input');
+    checkbox.setAttribute('data-auto-sidebar', 'true');
+    checkbox.setAttribute('fs-list-value', name);
+    checkbox.setAttribute('fs-list-field', fieldName);
+    checkbox.type = 'checkbox';
+    checkbox.name = type;
+    checkbox.setAttribute('data-name', type);
+    checkbox.setAttribute('activate-filter-indicator', 'place');
+    checkbox.id = `${pluralType}-${cleanName}`;
+    checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+    
+    // Create label text
+    const labelText = document.createElement('span');
+    labelText.className = 'test3 w-form-label';
+    labelText.setAttribute('for', checkbox.id);
+    labelText.textContent = name;
+    
+    // Create count wrapper
+    const countWrapper = document.createElement('div');
+    countWrapper.className = 'div-block-31834';
+    const countElement = document.createElement('div');
+    countElement.setAttribute('fs-list-element', 'facet-count');
+    countElement.className = 'test33';
+    countElement.textContent = '0';
+    countWrapper.appendChild(countElement);
+    
+    // Assemble structure
+    label.appendChild(link);
+    label.appendChild(checkboxInputWrapper);
+    label.appendChild(checkbox);
+    label.appendChild(labelText);
+    label.appendChild(countWrapper);
+    checkboxWrapper.appendChild(label);
+    
+    return checkboxWrapper;
+  },
+  
+  // Generic bulk generation function
+  generateBulkCheckboxes(containerId, features, type, stateName) {
+    if (LazyCheckboxState.isFullyGenerated(type)) {
+      console.log(`${type} checkboxes already fully generated`);
+      return Promise.resolve();
+    }
+    
+    const container = document.getElementById(containerId);
+    if (!container) return Promise.resolve();
+    
+    console.log(`Generating all ${type} checkboxes...`);
+    
+    return new Promise((resolve) => {
+      const generate = () => {
+        try {
+          // Clear and reset
+          container.innerHTML = '';
+          LazyCheckboxState.clearType(type);
+          
+          // Extract unique features
+          const uniqueFeatures = [];
+          const seenNames = new Set();
+          
+          features.forEach(feature => {
+            if (feature?.properties?.name) {
+              const name = feature.properties.name.trim();
+              if (name && !seenNames.has(name)) {
+                seenNames.add(name);
+                uniqueFeatures.push(feature);
+              }
+            }
+          });
+          
+          // Sort alphabetically
+          uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
+          
+          // Generate using document fragment
+          const fragment = document.createDocumentFragment();
+          
+          uniqueFeatures.forEach(feature => {
+            const name = feature.properties.name;
+            const checkboxElement = this.createCheckboxElement(name, type, feature.properties);
+            fragment.appendChild(checkboxElement);
+            LazyCheckboxState.addCheckbox(name, type);
+          });
+          
+          // Single DOM insertion
+          container.appendChild(fragment);
+          
+          LazyCheckboxState.markFullyGenerated(type);
+          console.log(`Generated ${uniqueFeatures.length} ${type} checkboxes using fast batch method`);
+          resolve();
+        } catch (error) {
+          const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
+            operation: `generateAll${type.charAt(0).toUpperCase() + type.slice(1)}Checkboxes`,
+            type: type,
+            container: container?.id
+          });
+          
+          if (recovery.recovered) {
+            console.log(`${type} generation recovered - partial functionality available`);
+          }
+          resolve();
+        }
+      };
+      
+      // Generate during idle time for non-blocking performance
+      IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
+    });
   }
 };
 
@@ -482,16 +601,16 @@ const Memoize = {
   }
 };
 
-// OPTIMIZED: Event setup with consolidated handlers and better management
+// Event setup with consolidated handlers and better management
 function setupEvents() {
   const eventHandlers = [
     {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      if (window.innerWidth > 991) {
+      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
         state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), APP_CONFIG.timeouts.debounce);
       }
     }},
     {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
-      if (window.innerWidth > 991) {
+      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
         state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), APP_CONFIG.timeouts.debounce);
       }
     }},
@@ -512,7 +631,7 @@ function setupEvents() {
     });
   });
   
-  // OPTIMIZED: Consolidated apply-map-filter setup with event delegation
+  // Consolidated apply-map-filter setup with event delegation
   const filterElements = $('[apply-map-filter="true"], .filterrefresh, #filter-button');
   filterElements.forEach(element => {
     let events;
@@ -552,12 +671,12 @@ function setupEvents() {
       if (window.isMarkerClick || state.markerInteractionLock) return;
       handleFilterUpdate();
       
-      // FIXED: Also check and toggle filtered elements when Finsweet events fire
+      // Also check and toggle filtered elements when Finsweet events fire
       IdleExecution.scheduleUI(checkAndToggleFilteredElements);
     });
   });
   
-  // FIXED: Additional Finsweet event listeners for filtered elements
+  // Additional Finsweet event listeners for filtered elements
   ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset'].forEach(event => {
     eventManager.add(document, event, () => {
       IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 100 });
@@ -609,7 +728,7 @@ function setupEvents() {
   // Events setup complete
 }
 
-// OPTIMIZED: Smart dropdown listeners with better timing
+// Smart dropdown listeners with better timing
 function setupDropdownListeners() {
   if (state.flags.dropdownListenersSetup) return;
   state.flags.dropdownListenersSetup = true;
@@ -635,7 +754,7 @@ function setupDropdownListeners() {
   });
 }
 
-// OPTIMIZED: Combined GeoJSON loading with better performance
+// Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.011.geojson')
     .then(response => {
@@ -691,7 +810,7 @@ function loadCombinedGeoData() {
     });
 }
 
-// OPTIMIZED: Region boundary addition with batching
+// Region boundary addition with batching
 function addRegionBoundaryToMap(name, regionFeature) {
   const boundary = {
     name,
@@ -783,7 +902,7 @@ function addRegionBoundaryToMap(name, regionFeature) {
   mapLayers.layerCache.set(boundary.borderId, true);
 }
 
-// OPTIMIZED: Area overlay addition with batching
+// Area overlay addition with batching
 function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
@@ -1299,288 +1418,22 @@ function generateSingleCheckbox(name, type, properties = {}) {
 
 // Bulk generate all locality checkboxes (for Location tab click)
 function generateAllLocalityCheckboxes() {
-  if (LazyCheckboxState.isFullyGenerated('locality')) {
-    console.log('Locality checkboxes already fully generated');
-    return Promise.resolve();
-  }
-  
-  const container = $id('locality-check-list');
-  if (!container) {
-    return Promise.resolve();
-  }
-  
-  console.log('Generating all locality checkboxes...');
-  
-  return new Promise((resolve) => {
-    const generate = () => {
-      try {
-        // Clear existing content completely like sidebars script
-        container.innerHTML = '';
-        
-        // Clear tracking for localities since we just deleted all checkboxes from DOM
-        LazyCheckboxState.clearType('locality');
-        
-        const localityFeatures = state.allLocalityFeatures || [];
-        
-        // Extract unique features with valid names (like sidebar script)
-        const uniqueFeatures = [];
-        const seenNames = new Set();
-        
-        localityFeatures.forEach(feature => {
-          if (feature?.properties?.name) {
-            const name = feature.properties.name.trim();
-            if (name && !seenNames.has(name)) {
-              seenNames.add(name);
-              uniqueFeatures.push(feature);
-            }
-          }
-        });
-        
-        // Sort by name for consistent ordering
-        uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
-        
-        // Generate checkboxes using document fragment (FAST like sidebar)
-        const fragment = document.createDocumentFragment();
-        
-        uniqueFeatures.forEach(feature => {
-          const name = feature.properties.name;
-          const properties = feature.properties;
-          const type = 'locality';
-          
-          // Create checkbox structure directly (no individual DOM insertions)
-          const checkboxWrapper = document.createElement('div');
-          checkboxWrapper.setAttribute('checkbox-filter', type);
-          checkboxWrapper.className = 'checbox-item';
-          
-          const label = document.createElement('label');
-          label.className = 'w-checkbox reporterwrap-copy';
-          
-          // Generate slug and URL exactly like sidebars script
-          const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-          const urlPrefix = 'locality';
-          
-          // Create the external link
-          const link = document.createElement('a');
-          link.setAttribute('open', '');
-          link.href = `/${urlPrefix}/${slug}`;
-          link.target = '_blank';
-          link.className = 'open-in-new-tab w-inline-block';
-          link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-          
-          // Create the custom checkbox input wrapper
-          const checkboxInputWrapper = document.createElement('div');
-          checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-          
-          // Create the actual checkbox input
-          const checkbox = document.createElement('input');
-          const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-');
-          
-          checkbox.setAttribute('data-auto-sidebar', 'true');
-          checkbox.setAttribute('fs-list-value', name);
-          checkbox.setAttribute('fs-list-field', 'Locality');
-          checkbox.type = 'checkbox';
-          checkbox.name = type;
-          checkbox.setAttribute('data-name', type);
-          checkbox.setAttribute('activate-filter-indicator', 'place');
-          checkbox.id = `localities-${cleanName}`;
-          checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
-          
-          // Create the label text
-          const labelText = document.createElement('span');
-          labelText.className = 'test3 w-form-label';
-          labelText.setAttribute('for', checkbox.id);
-          labelText.textContent = name;
-          
-          // Create the count wrapper
-          const countWrapper = document.createElement('div');
-          countWrapper.className = 'div-block-31834';
-          const countElement = document.createElement('div');
-          countElement.setAttribute('fs-list-element', 'facet-count');
-          countElement.className = 'test33';
-          countElement.textContent = '0';
-          countWrapper.appendChild(countElement);
-          
-          // Assemble the structure
-          label.appendChild(link);
-          label.appendChild(checkboxInputWrapper);
-          label.appendChild(checkbox);
-          label.appendChild(labelText);
-          label.appendChild(countWrapper);
-          checkboxWrapper.appendChild(label);
-          
-          // Add to fragment (no individual DOM insertion)
-          fragment.appendChild(checkboxWrapper);
-          
-          // Track the checkbox
-          LazyCheckboxState.addCheckbox(name, type);
-        });
-        
-        // Single DOM insertion (FAST!)
-        container.appendChild(fragment);
-        
-        LazyCheckboxState.markFullyGenerated('locality');
-        console.log(`Generated ${uniqueFeatures.length} locality checkboxes using fast batch method`);
-        resolve();
-      } catch (error) {
-        const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
-          operation: 'generateAllLocalityCheckboxes',
-          type: 'locality',
-          container: container?.id
-        });
-        
-        if (recovery.recovered) {
-          console.log('Locality generation recovered - partial functionality available');
-        }
-        resolve();
-      }
-    };
-    
-    // Generate during idle time for non-blocking performance
-    IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
-  });
+  return CheckboxFactory.generateBulkCheckboxes(
+    'locality-check-list',
+    state.allLocalityFeatures || [],
+    'locality',
+    'allLocalityFeatures'
+  );
 }
 
 // Bulk generate all settlement checkboxes (for Location tab click)
 function generateAllSettlementCheckboxes() {
-  if (LazyCheckboxState.isFullyGenerated('settlement')) {
-    console.log('Settlement checkboxes already fully generated');
-    return Promise.resolve();
-  }
-  
-  const container = $id('settlement-check-list');
-  if (!container) {
-    return Promise.resolve();
-  }
-  
-  console.log('Generating all settlement checkboxes...');
-  
-  return new Promise((resolve) => {
-    const generate = () => {
-      try {
-        // Clear existing content completely like sidebars script
-        container.innerHTML = '';
-        
-        // Clear tracking for settlements since we just deleted all checkboxes from DOM
-        LazyCheckboxState.clearType('settlement');
-        
-        const settlementFeatures = state.allSettlementFeatures || [];
-        
-        // Extract unique features with valid names (like sidebar script)
-        const uniqueFeatures = [];
-        const seenNames = new Set();
-        
-        settlementFeatures.forEach(feature => {
-          if (feature?.properties?.name) {
-            const name = feature.properties.name.trim();
-            if (name && !seenNames.has(name)) {
-              seenNames.add(name);
-              uniqueFeatures.push(feature);
-            }
-          }
-        });
-        
-        // Sort by name for consistent ordering
-        uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
-        
-        // Generate checkboxes using document fragment (FAST like sidebar)
-        const fragment = document.createDocumentFragment();
-        
-        uniqueFeatures.forEach(feature => {
-          const name = feature.properties.name;
-          const properties = feature.properties;
-          const type = 'settlement';
-          
-          // Create checkbox structure directly (no individual DOM insertions)
-          const checkboxWrapper = document.createElement('div');
-          checkboxWrapper.setAttribute('checkbox-filter', type);
-          checkboxWrapper.className = 'checbox-item';
-          
-          const label = document.createElement('label');
-          label.className = 'w-checkbox reporterwrap-copy';
-          
-          // Generate slug and URL exactly like sidebars script
-          const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-          const urlPrefix = 'settlement';
-          
-          // Create the external link
-          const link = document.createElement('a');
-          link.setAttribute('open', '');
-          link.href = `/${urlPrefix}/${slug}`;
-          link.target = '_blank';
-          link.className = 'open-in-new-tab w-inline-block';
-          link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-          
-          // Create the custom checkbox input wrapper
-          const checkboxInputWrapper = document.createElement('div');
-          checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-          
-          // Create the actual checkbox input
-          const checkbox = document.createElement('input');
-          const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-');
-          
-          checkbox.setAttribute('data-auto-sidebar', 'true');
-          checkbox.setAttribute('fs-list-value', name);
-          checkbox.setAttribute('fs-list-field', 'Settlement');
-          checkbox.type = 'checkbox';
-          checkbox.name = type;
-          checkbox.setAttribute('data-name', type);
-          checkbox.setAttribute('activate-filter-indicator', 'place');
-          checkbox.id = `settlements-${cleanName}`;
-          checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
-          
-          // Create the label text
-          const labelText = document.createElement('span');
-          labelText.className = 'test3 w-form-label';
-          labelText.setAttribute('for', checkbox.id);
-          labelText.textContent = name;
-          
-          // Create the count wrapper
-          const countWrapper = document.createElement('div');
-          countWrapper.className = 'div-block-31834';
-          const countElement = document.createElement('div');
-          countElement.setAttribute('fs-list-element', 'facet-count');
-          countElement.className = 'test33';
-          countElement.textContent = '0';
-          countWrapper.appendChild(countElement);
-          
-          // Assemble the structure
-          label.appendChild(link);
-          label.appendChild(checkboxInputWrapper);
-          label.appendChild(checkbox);
-          label.appendChild(labelText);
-          label.appendChild(countWrapper);
-          checkboxWrapper.appendChild(label);
-          
-          // Add to fragment (no individual DOM insertion)
-          fragment.appendChild(checkboxWrapper);
-          
-          // Track the checkbox
-          LazyCheckboxState.addCheckbox(name, type);
-        });
-        
-        // Single DOM insertion (FAST!)
-        container.appendChild(fragment);
-        
-        LazyCheckboxState.markFullyGenerated('settlement');
-        console.log(`Generated ${uniqueFeatures.length} settlement checkboxes using fast batch method`);
-        resolve();
-      } catch (error) {
-        const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
-          operation: 'generateAllSettlementCheckboxes',
-          type: 'settlement',
-          container: container?.id
-        });
-        
-        if (recovery.recovered) {
-          console.log('Settlement generation recovered - partial functionality available');
-        }
-        resolve();
-      }
-    };
-    
-    // Generate during idle time for non-blocking performance
-    IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
-  });
+  return CheckboxFactory.generateBulkCheckboxes(
+    'settlement-check-list',
+    state.allSettlementFeatures || [],
+    'settlement',
+    'allSettlementFeatures'
+  );
 }
 
 // Generate all checkboxes when Location tab is clicked
@@ -1730,7 +1583,7 @@ function generateLocalityCheckboxes() {
   
   container.appendChild(fragment);
   
-  // FIXED: Check filtered elements after generating checkboxes
+  // Check filtered elements after generating checkboxes
   state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
   
   // Invalidate DOM cache since we added new elements
@@ -1853,7 +1706,7 @@ function setupGeneratedCheckboxEvents() {
     if (element.dataset.eventListenerAdded === 'true') return;
     
     const changeHandler = () => {
-      if (window.innerWidth > 991) {
+      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
         state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
       }
     };
@@ -1862,7 +1715,7 @@ function setupGeneratedCheckboxEvents() {
     
     if (['text', 'search'].includes(element.type)) {
       const inputHandler = () => {
-        if (window.innerWidth > 991) {
+        if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
       };
@@ -1878,14 +1731,14 @@ function setupGeneratedCheckboxEvents() {
   }
 }
 
-// OPTIMIZED: Setup events for generated checkboxes with better performance
+// Setup events for generated checkboxes with better performance
 function setupCheckboxEvents(checkboxContainer) {
   // Handle data-auto-sidebar="true"
   const autoSidebarElements = checkboxContainer.querySelectorAll('[data-auto-sidebar="true"]');
   autoSidebarElements.forEach(element => {
     ['change', 'input'].forEach(eventType => {
       eventManager.add(element, eventType, () => {
-        if (window.innerWidth > 991) {
+        if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
           state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
         }
       });
@@ -1946,7 +1799,7 @@ const checkAndToggleFilteredElements = () => {
   return shouldShow;
 };
 
-// FIXED: Enhanced tag monitoring with proper cleanup and no recursion
+// Enhanced tag monitoring with proper cleanup and no recursion
 const monitorTags = (() => {
   let isSetup = false; // Flag to prevent multiple setups
   let pollingTimer = null; // Store polling timer for cleanup
@@ -2003,7 +1856,7 @@ const monitorTags = (() => {
       }
     });
     
-    // FIXED: Fallback polling that doesn't recursively call monitorTags
+    // Fallback polling that doesn't recursively call monitorTags
     const startPolling = () => {
       if (pollingTimer) {
         clearTimeout(pollingTimer);
@@ -2042,7 +1895,7 @@ const monitorTags = (() => {
   };
 })();
 
-// OPTIMIZED: Smart initialization with deferred marker loading
+// Smart initialization with deferred marker loading
 function init() {
   // Core initialization - NO marker loading on initial page load
   setupEvents();
@@ -2086,7 +1939,7 @@ function init() {
       state.flags.isInitialLoad = false;
     }
     
-    // FIXED: Always check filtered elements on initial load
+    // Always check filtered elements on initial load
     checkAndToggleFilteredElements();
   }, 300);
 }
@@ -2158,12 +2011,12 @@ function setupZoomBasedMarkerLoading() {
   }
 }
 
-// OPTIMIZED: DOM ready handlers
+// DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
   setupBackToTopButton();
   
-  // FIXED: Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
+  // Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
   state.setTimer('initMonitorTags', () => {
     monitorTags();
     
@@ -2190,7 +2043,7 @@ window.addEventListener('load', () => {
     }
   }, 100);
   
-  // OPTIMIZED: Auto-trigger reframing with smart logic
+  // Auto-trigger reframing with smart logic
   const checkAndReframe = () => {
     if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
       state.flags.forceFilteredReframe = true;
@@ -2201,7 +2054,7 @@ window.addEventListener('load', () => {
         state.flags.isRefreshButtonAction = false;
       }, 1000);
       
-      // FIXED: Also check filtered elements when reframing
+      // Also check filtered elements when reframing
       checkAndToggleFilteredElements();
       return true;
     }
@@ -2216,7 +2069,7 @@ window.addEventListener('load', () => {
     }, 500);
   }
   
-  // FIXED: Additional check after page is fully loaded
+  // Additional check after page is fully loaded
   state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
 });
 
@@ -2346,7 +2199,7 @@ IdleExecution.scheduleUI(setupGlobalExports, { fallbackDelay: 0 });
 // CLEANUP
 // ========================
 
-// OPTIMIZED: Cleanup on page unload (prevent memory leaks)
+// Cleanup on page unload (prevent memory leaks)
 window.addEventListener('beforeunload', () => {
   // Clean up all managed resources
   eventManager.cleanup();
@@ -3442,7 +3295,7 @@ loadDataFromState() {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
                 
-                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                if (window.innerWidth > APP_CONFIG.breakpoints.mobile && window.mapUtilities?.toggleSidebar) {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
@@ -3480,7 +3333,7 @@ loadDataFromState() {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
                 
-                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                if (window.innerWidth > APP_CONFIG.breakpoints.mobile && window.mapUtilities?.toggleSidebar) {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
@@ -3507,7 +3360,7 @@ loadDataFromState() {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
                 
-                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                if (window.innerWidth > APP_CONFIG.breakpoints.mobile && window.mapUtilities?.toggleSidebar) {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
@@ -3568,7 +3421,7 @@ loadDataFromState() {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
                 
-                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                if (window.innerWidth > APP_CONFIG.breakpoints.mobile && window.mapUtilities?.toggleSidebar) {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
@@ -3610,7 +3463,7 @@ loadDataFromState() {
                     window.mapUtilities.toggleShowWhenFilteredElements(true);
                 }
                 
-                if (window.innerWidth > 478 && window.mapUtilities?.toggleSidebar) {
+                if (window.innerWidth > APP_CONFIG.breakpoints.mobile && window.mapUtilities?.toggleSidebar) {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
@@ -3724,192 +3577,13 @@ loadDataFromState() {
                 this.elements.wrapper.style.display = 'none';
                 this.elements.wrapper.style.visibility = 'visible';
                 
-                if (!document.getElementById('hp-autocomplete-styles')) {
-                    const style = document.createElement('style');
-                    style.id = 'hp-autocomplete-styles';
-                    style.textContent = `
-                        #searchTermsWrapper::-webkit-scrollbar { display: none; }
-                        #searchTermsWrapper { -ms-overflow-style: none; scrollbar-width: none; }
-                        #search-terms { list-style: none; margin: 0; padding: 0; }
-                        
-                        .list-term {
-                            display: flex;
-                            align-items: center;
-                            justify-content: space-between;
-                            padding: 8px 12px;
-                            text-decoration: none;
-                            color: inherit;
-                            transition: background-color 0.2s;
-                        }
-                        
-                        .list-term:hover { background-color: #f5f5f5; }
-                        
-                        .list-term.region-term,
-                        .list-term.subregion-term {
-                            font-weight: 600;
-                            color: #6e3500;
-                            background-color: #fdf6f0;
-                            border-left: 3px solid #6e3500;
-                            justify-content: flex-start !important;
-                            padding: 10px 12px;
-                        }
-                        
-                        .list-term.region-term:hover,
-                        .list-term.subregion-term:hover {
-                            background-color: #f5e6d3;
-                        }
-                        
-                        .list-term.region-term .term-label,
-                        .list-term.subregion-term .term-label {
-                            color: #8f4500;
-                        }
-                        
-                        .list-term.locality-term {
-                            font-weight: 500;
-                            color: #7e7800;
-                            background-color: #f9f8e6;
-                            border-left: 3px solid #7e7800;
-                            padding: 10px 12px;
-                        }
-                        
-                        .list-term.locality-term:hover { background-color: #f0eecc; }
-                        .list-term.locality-term * { pointer-events: none; }
-                        .list-term.locality-term .term-label { color: #a49c00; }
-                        
-                        .list-term.settlement-term {
-                            font-weight: 500;
-                            color: #444B5C;
-                            background-color: #f5f7fa;
-                            border-left: 3px solid #444B5C;
-                            padding: 10px 12px;
-                        }
-                        
-                        .list-term.settlement-term:hover { background-color: #e8ecf2; }
-                        .list-term.settlement-term * { pointer-events: none; }
-                        .list-term.settlement-term .term-label { color: #444B5C; }
-                        
-                        .list-term.settlement-term .locality-name {
-                            color: #444B5C;
-                        }
-                        
-                        .list-term.territory-term {
-                            font-weight: 600;
-                            color: #2d1810;
-                            background-color: #f8f8f8;
-                            border-left: 3px solid #2d1810;
-                            padding: 10px 12px;
-                        }
-                        
-                        .list-term.territory-term:hover { 
-                            background-color: #eeeeee; 
-                        }
-                        
-                        .list-term.territory-term * { 
-                            pointer-events: none; 
-                        }
-                        
-                        .list-term.territory-term .term-label { 
-                            color: #666666; 
-                        }
-                        
-                        .locality-info {
-                            flex-grow: 1;
-                            display: flex;
-                            flex-direction: column;
-                            gap: 2px;
-                        }
-                        
-                        .locality-name {
-                            font-weight: 500;
-                            color: #7e7800;
-                        }
-                        
-                        .locality-region {
-                            font-size: 0.75em;
-                            color: #803300;
-                            font-weight: normal;
-                        }
-                        
-                        .term-label {
-                            font-size: 0.75em;
-                            font-weight: normal;
-                            opacity: 0.8;
-                            margin-left: auto;
-                            margin-right: 8px;
-                            flex-shrink: 0;
-                            align-self: center;
-                        }
-                        
-                        .list-term.active { background-color: #e8e8e8 !important; }
-                        .no-results { padding: 20px; text-align: center; color: #666; }
-                        
-                        /* Recent searches styles */
-                        .list-term.recent-search {
-                            background-color: #f8f9fa !important;
-                            border-left: 3px solid #6c757d;
-                            position: relative;
-                            padding: 10px 12px !important;
-                            justify-content: flex-start !important;
-                        }
-                        
-                        .list-term.recent-search:hover {
-                            background-color: #e9ecef !important;
-                        }
-                        
-                        .list-term.recent-search::before {
-                            content: "";
-                            margin-right: 8px;
-                            width: 12px;
-                            height: 12px;
-                            display: inline-block;
-                            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg id='Layer_1' data-name='Layer 1' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5.43 5.43'%3E%3Cpath fill='%23999' d='M2.72,0C1.22,0,0,1.22,0,2.72s1.22,2.71,2.72,2.71,2.71-1.21,2.71-2.71S4.21,0,2.72,0ZM3.68,4.21l-1.23-1.24v-1.74h.51v1.52l1.09,1.09-.37.37Z'/%3E%3C/svg%3E");
-                            background-size: contain;
-                            background-repeat: no-repeat;
-                            background-position: center;
-                            opacity: 0.6;
-                            font-size: 14px;
-                        }
-                        
-                        .list-term.recent-search .clear-search {
-                            opacity: 1;
-                            transition: opacity 0.2s;
-                            cursor: pointer;
-                            display: inline-flex;
-                            align-items: center;
-                            justify-content: center;
-                            width: 20px;
-                            height: 20px;
-                            color: #999;
-                            border-radius: 3px;
-                            margin-left: auto;
-                            pointer-events: auto;
-                            text-decoration: none;
-                        }
-                        
-                        .list-term.recent-search .clear-search:hover {
-                            color: #666;
-                            background-color: #f0f0f0;
-                        }
-                        
-                        /* Fix alignment for region/subregion recent searches */
-                        .list-term.region-term.recent-search,
-                        .list-term.subregion-term.recent-search {
-                            justify-content: flex-start !important;
-                        }
-                        
-                        .list-term.region-term.recent-search .clear-search,
-                        .list-term.subregion-term.recent-search .clear-search {
-                            margin-left: auto;
-                        }
-                        
-                        /* Preserve region/subregion colors in recent searches */
-                        .list-term.region-term.recent-search .locality-name,
-                        .list-term.subregion-term.recent-search .locality-name {
-                            color: #6e3500 !important;
-                        }
-                        
-                    `;
-                    document.head.appendChild(style);
+                // Load external CSS file instead of massive inline styles
+                if (!document.getElementById('mapbox-integrated-styles')) {
+                    const link = document.createElement('link');
+                    link.id = 'mapbox-integrated-styles';
+                    link.rel = 'stylesheet';
+                    link.href = 'mapbox-integrated-styles.css';
+                    document.head.appendChild(link);
                 }
             }
             
@@ -4056,68 +3730,7 @@ loadDataFromState() {
 // Use feature detection for mobile
 const isMobile = FeatureDetection.isMobile;
 
-// Pre-inject map control styles before map loads to prevent flash of unstyled content
-if (!document.querySelector('#map-control-styles')) {
-  const style = document.createElement('style');
-  style.id = 'map-control-styles';
-  style.textContent = `
-    .mapboxgl-ctrl-group > button {
-      background-color: #272727 !important;
-      color: #ffffff !important;
-    }
-    .mapboxgl-ctrl-group > button:hover {
-      background-color: #3a3a3a !important;
-    }
-    .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
-      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 10 6 C 9.446 6 9 6.4459904 9 7 L 9 9 L 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 9 11 L 9 13 C 9 13.55401 9.446 14 10 14 C 10.554 14 11 13.55401 11 13 L 11 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 11 9 L 11 7 C 11 6.4459904 10.554 6 10 6 z'/%3E%3C/svg%3E") !important;
-    }
-    .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
-      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M 7 9 C 6.446 9 6 9.446 6 10 C 6 10.554 6.446 11 7 11 L 13 11 C 13.554 11 14 10.554 14 10 C 14 9.446 13.554 9 13 9 L 7 9 z'/%3E%3C/svg%3E") !important;
-    }
-    .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate .mapboxgl-ctrl-icon {
-      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%23ffffff;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%23ffffff;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
-    }
-    .mapboxgl-ctrl button.mapboxgl-ctrl-geolocate-active .mapboxgl-ctrl-icon {
-      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath style='fill:%2333b5e5;' d='M10 4C9 4 9 5 9 5v.1A5 5 0 0 0 5.1 9H5s-1 0-1 1 1 1 1 1h.1A5 5 0 0 0 9 14.9v.1s0 1 1 1 1-1 1-1v-.1a5 5 0 0 0 3.9-3.9h.1s1 0 1-1-1-1-1-1h-.1A5 5 0 0 0 11 5.1V5s0-1-1-1zm0 2.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 1 1 0-7z'/%3E%3Ccircle style='fill:%2333b5e5;' cx='10' cy='10' r='2'/%3E%3C/svg%3E") !important;
-    }
-    /* Scale control styles */
-    .mapboxgl-ctrl-scale {
-      pointer-events: none !important;
-      user-select: none !important;
-      cursor: default !important;
-    }
-    .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-scale:first-child,
-    .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-scale:first-child {
-      margin-bottom: 0 !important;
-    }
-    .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-scale:last-child,
-    .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-scale:last-child {
-      margin-top: 0 !important;
-    }
-    /* Pre-position controls to prevent layout shift */
-    .mapboxgl-ctrl-top-right {
-      top: 4rem !important;
-      right: 0.5rem !important;
-      z-index: 10 !important;
-    }
-    .mapboxgl-ctrl-bottom-left {
-      bottom: 0 !important;
-      left: 0 !important;
-    }
-    .mapboxgl-ctrl-bottom-right {
-      bottom: 0 !important;
-      right: 0 !important;
-    }
-    /* Mobile adjustments */
-    @media (max-width: 478px) {
-      .mapboxgl-ctrl-bottom-left {
-        bottom: 0 !important;
-        left: 0 !important;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
+// Map control styles are now loaded from external CSS file
 
 // Show loading screen at start
 const loadingScreen = document.getElementById('loading-map-screen');
@@ -4286,7 +3899,7 @@ const loadingTracker = {
 // Initialize the loading tracker
 loadingTracker.init();
 
-// OPTIMIZED: Lightweight cache manager with localStorage metadata
+// Lightweight cache manager with localStorage metadata
 class LightweightCache {
   constructor() {
     this.prefix = 'mapCache_';
@@ -4368,7 +3981,7 @@ class LightweightCache {
 // Lazy-loaded cache instance - only created when needed
 let lightweightCache = null;
 
-// OPTIMIZED: Lazy worker manager - only creates worker when needed
+// Lazy worker manager - only creates worker when needed
 class LazyWorkerManager {
   constructor() {
     this.worker = null;
@@ -4529,7 +4142,7 @@ class LazyWorkerManager {
 // Lazy-loaded worker - only created when needed
 let lazyWorker = null;
 
-// OPTIMIZED: Conditional data loader - only uses cache for return visits
+// Conditional data loader - only uses cache for return visits
 async function loadDataWithOptionalCache(url, storeName, processingType) {
   // Initialize cache and worker only when needed
   if (!lightweightCache) {
@@ -4597,7 +4210,7 @@ const loadSettlementsWithCache = () => loadDataWithOptionalCache(
   'processSettlements'
 );
 
-// OPTIMIZED: Comprehensive DOM Element Cache
+// Comprehensive DOM Element Cache
 class OptimizedDOMCache {
   constructor() {
     this.cache = new Map();
@@ -4623,7 +4236,7 @@ class OptimizedDOMCache {
   
   // Multiple element getters with smart caching (avoid caching dynamic selectors)
   $(selector) {
-    // OPTIMIZED: Don't cache checkbox states or dynamic content
+    // Don't cache checkbox states or dynamic content
     const isDynamicSelector = selector.includes(':checked') || 
                              selector.includes(':selected') || 
                              selector.includes(':focus') ||
@@ -4665,7 +4278,7 @@ class OptimizedDOMCache {
   }
 }
 
-// OPTIMIZED: Bounds calculation utility with caching
+// Bounds calculation utility with caching
 class BoundsCalculator {
   constructor() {
     this.boundsCache = new Map();
@@ -4715,7 +4328,7 @@ class BoundsCalculator {
   }
 }
 
-// OPTIMIZED: Parallel data loader with caching and error handling
+// Parallel data loader with caching and error handling
 class DataLoader {
   constructor() {
     this.cache = new Map();
@@ -4799,7 +4412,7 @@ class DataLoader {
   }
 }
 
-// OPTIMIZED: Debounced source update utility
+// Debounced source update utility
 class SourceUpdateManager {
   constructor() {
     this.pendingUpdates = new Map();
@@ -4845,7 +4458,7 @@ class SourceUpdateManager {
   }
 }
 
-// OPTIMIZED: Normalized data store to eliminate redundancy
+// Normalized data store to eliminate redundancy
 class DataStore {
   constructor() {
     this.entities = {
@@ -4988,7 +4601,7 @@ class DataStore {
   }
 }
 
-// OPTIMIZED: Advanced search index using Trie for fast autocomplete
+// Advanced search index using Trie for fast autocomplete
 class AdvancedSearchIndex {
   constructor() {
     this.trie = {};
@@ -5157,7 +4770,7 @@ class AdvancedSearchIndex {
   }
 }
 
-// OPTIMIZED: Web Worker manager for heavy calculations
+// Web Worker manager for heavy calculations
 class WorkerManager {
   constructor() {
     this.workers = new Map();
@@ -5447,7 +5060,7 @@ function enhancedMapWorker() {
   }
 }
 
-// OPTIMIZED: Progressive loading and lazy initialization manager
+// Progressive loading and lazy initialization manager
 class ProgressiveLoader {
   constructor() {
     this.loadingSteps = [];
@@ -5661,7 +5274,7 @@ class ProgressiveLoader {
   }
 }
 
-// OPTIMIZED: Performance monitoring and optimization
+// Performance monitoring and optimization
 class PerformanceMonitor {
   constructor() {
     this.metrics = new Map();
@@ -5946,7 +5559,7 @@ class PerformanceMonitor {
   }
 }
 
-// OPTIMIZED: Global instances
+// Global instances
 const domCache = new OptimizedDOMCache();
 const boundsCalculator = new BoundsCalculator();
 const sourceUpdater = new SourceUpdateManager();
@@ -5960,7 +5573,7 @@ const $ = (selector) => domCache.$(selector);
 const $1 = (selector) => domCache.$1(selector);  
 const $id = (id) => domCache.$id(id);
 
-// OPTIMIZED: Event Listener Management System
+// Event Listener Management System
 class OptimizedEventManager {
   constructor() {
     this.listeners = new Map(); // elementId -> [{event, handler, options}]
@@ -6009,7 +5622,7 @@ class OptimizedEventManager {
     // Handle sidebar toggles
     if (target.matches('[data-auto-sidebar="true"]') ||
         target.matches('[data-auto-second-left-sidebar="true"]')) {
-      if (window.innerWidth > 991) {
+      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
         const sidebarType = target.matches('[data-auto-second-left-sidebar="true"]') ? 'SecondLeft' : 'Left';
         this.debounce('sidebarUpdate', () => {
           if (window.toggleSidebar) {
@@ -6037,7 +5650,7 @@ class OptimizedEventManager {
     
     // Handle other input types that need sidebar updates
     if (target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(target.type)) {
-      if (window.innerWidth > 991) {
+      if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
         this.debounce('sidebarUpdate', () => {
           if (window.toggleSidebar) {
             window.toggleSidebar('Left', true);
@@ -6303,7 +5916,7 @@ class OptimizedEventManager {
   }
 }
 
-// OPTIMIZED: Global event manager
+// Global event manager
 const eventManager = new OptimizedEventManager();
 
 // Initialize Mapbox with enhanced RTL support
@@ -6320,7 +5933,7 @@ if (rtlLanguages.includes(lang)) {
   );
 }
 
-// OPTIMIZED: Smart State Management (moved here before map creation)
+// Smart State Management (moved here before map creation)
 class OptimizedMapState {
   constructor() {
     this.locationData = {type: "FeatureCollection", features: []};
@@ -6377,7 +5990,7 @@ class OptimizedMapState {
   }
 }
 
-// OPTIMIZED: Global state management
+// Global state management
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
@@ -6389,7 +6002,7 @@ const map = new mapboxgl.Map({
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
-// OPTIMIZED: Map load event handler with parallel operations (moved here right after map creation)
+// Map load event handler with parallel operations (moved here right after map creation)
 map.on("load", () => {
   try {
     init();
@@ -6486,7 +6099,7 @@ class MapResetControl {
 // Add the custom reset control
 map.addControl(new MapResetControl(), 'top-right');
 
-// OPTIMIZED: High-performance utilities
+// High-performance utilities
 const utils = {
   // Cached utility functions
   _eventCache: new Map(),
@@ -6543,7 +6156,7 @@ const utils = {
   })()
 };
 
-// OPTIMIZED: Map Layer Management System
+// Map Layer Management System
 class OptimizedMapLayers {
   constructor(map) {
     this.map = map;
@@ -6641,10 +6254,10 @@ class OptimizedMapLayers {
   }
 }
 
-// OPTIMIZED: Global layer manager
+// Global layer manager
 const mapLayers = new OptimizedMapLayers(map);
 
-// OPTIMIZED: Sidebar element and arrow icon caching (moved here before setupSidebars)
+// Sidebar element and arrow icon caching (moved here before setupSidebars)
 const sidebarCache = {
   elements: new Map(),
   arrows: new Map(),
@@ -6686,8 +6299,8 @@ const sidebarCache = {
   }
 };
 
-// OPTIMIZED: Helper function to close a sidebar without recursion
-// OPTIMIZED: Helper function to close a sidebar without recursion
+// Helper function to close a sidebar without recursion
+// Helper function to close a sidebar without recursion
 const closeSidebar = (side) => {
   const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar || !sidebar.classList.contains('is-show')) return;
@@ -6701,7 +6314,7 @@ const closeSidebar = (side) => {
   
   // Handle margin based on screen size
   const jsMarginProperty = sidebarCache.getMarginProperty(side);
-  if (window.innerWidth > 478) {
+  if (window.innerWidth > APP_CONFIG.breakpoints.mobile) {
     const width = sidebarCache.getWidth(side);
     sidebar.style[jsMarginProperty] = `-${width + 1}px`;
   } else {
@@ -6712,7 +6325,7 @@ const closeSidebar = (side) => {
   sidebar.style.pointerEvents = '';
 };
 
-// OPTIMIZED: Toggle sidebar with improved caching and helper functions
+// Toggle sidebar with improved caching and helper functions
 const toggleSidebar = (side, show = null) => {
   const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar) return;
@@ -6723,7 +6336,7 @@ const toggleSidebar = (side, show = null) => {
   const jsMarginProperty = sidebarCache.getMarginProperty(side);
   const arrowIcon = sidebarCache.getArrow(side);
   
-  if (window.innerWidth > 478) {
+  if (window.innerWidth > APP_CONFIG.breakpoints.mobile) {
     const width = sidebarCache.getWidth(side);
     sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${width + 1}px`;
     
@@ -6815,7 +6428,7 @@ function removeBoundaryHighlight() {
   }
 }
 
-// FIXED: Toggle filtered elements with immediate DOM updates (no batching for critical UI)
+// Toggle filtered elements with immediate DOM updates (no batching for critical UI)
 const toggleShowWhenFilteredElements = show => {
   // Don't use cached results for critical filtering elements - always fresh query
   const elements = document.querySelectorAll('[show-when-filtered="true"]');
@@ -6830,8 +6443,8 @@ const toggleShowWhenFilteredElements = show => {
   });
 };
 
-// FIXED: Checkbox selection functions with proper settlement unchecking
-// OPTIMIZED: Unified checkbox selection function
+// Checkbox selection functions with proper settlement unchecking
+// Unified checkbox selection function
 function selectCheckbox(type, value) {
   const checkboxTypes = ['region', 'subregion', 'locality', 'settlement', 'territory'];
   
@@ -6894,7 +6507,7 @@ function selectSettlementCheckbox(settlementName) {
 function selectTerritoryCheckbox(territoryName) {
   selectCheckbox('territory', territoryName);
 }
-// OPTIMIZED: Load localities with conditional caching
+// Load localities with conditional caching
 async function loadLocalitiesFromGeoJSON() {
   try {
     // Use optimized loader with conditional caching
@@ -7011,7 +6624,7 @@ async function loadLocalitiesFromGeoJSON() {
   }
 }
 
-// OPTIMIZED: Load settlements with conditional caching  
+// Load settlements with conditional caching  
 async function loadSettlementsFromCache() {
   try {
     const processedData = await loadSettlementsWithCache();
@@ -7081,7 +6694,7 @@ async function loadSettlementsFromCache() {
   }
 }
 
-// OPTIMIZED: Load and add settlement markers with new color
+// Load and add settlement markers with new color
 function loadSettlements() {
   fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson')
     .then(response => {
@@ -7485,7 +7098,7 @@ function setupTerritoryMarkerClicks() {
   map.on('mouseleave', 'territory-points', () => map.getCanvas().style.cursor = '');
 }
 
-// OPTIMIZED: Native markers with batched operations
+// Native markers with batched operations
 function addNativeMarkers() {
   if (!state.locationData.features.length) {
     return;
@@ -7571,7 +7184,7 @@ function addNativeMarkers() {
   // Markers have been added - the map 'idle' event will handle render detection
 }
 
-// OPTIMIZED: Region markers with batched operations  
+// Region markers with batched operations  
 function addNativeRegionMarkers() {
   if (!state.allRegionFeatures.length) {
     return;
@@ -7636,7 +7249,7 @@ function addNativeRegionMarkers() {
   setupRegionMarkerClicks();
 }
 
-// OPTIMIZED: Event setup with proper management and delegation
+// Event setup with proper management and delegation
 function setupNativeMarkerClicks() {
   // Remove old listeners if they exist to prevent duplicates
   eventManager.listeners.forEach((listeners, elementId) => {
@@ -8086,7 +7699,7 @@ function applyFilterToMarkers(shouldReframe = true) {
   }
 }
 
-// OPTIMIZED: Debounced filter update with smart timing
+// Debounced filter update with smart timing
 const handleFilterUpdate = eventManager.debounce(() => {
   if (window.isLinkClick || window.isMarkerClick || state.markerInteractionLock) return;
   if (state.flags.skipNextReframe) return;
@@ -8098,7 +7711,7 @@ const handleFilterUpdate = eventManager.debounce(() => {
   }, 1000);
 }, 150, 'filterUpdate');
 
-// OPTIMIZED: Back to top button functionality
+// Back to top button functionality
 function setupBackToTopButton() {
   const button = $id('jump-to-top');
   const scrollContainer = $id('scroll-wrap');
@@ -8195,7 +7808,7 @@ function setupBackToTopButton() {
   // Back to top setup complete
 }
 
-// OPTIMIZED: Consolidated controls with event delegation where possible
+// Consolidated controls with event delegation where possible
 function setupControls() {
   const controlMap = {
     'AllEvents': () => $id('ClearAll')?.click(),
@@ -8220,7 +7833,7 @@ function setupControls() {
     }
   });
   
-  // OPTIMIZED: Sidebar controls - Fixed Right Sidebar Logic
+  // Sidebar controls - Fixed Right Sidebar Logic
   const setupSidebarControls = (selector, sidebarSide, eventType = 'click') => {
     const elements = $(selector);
     elements.forEach(element => {
@@ -8280,7 +7893,7 @@ function setupControls() {
   setupBackToTopButton();
 }
 
-// OPTIMIZED: Sidebar setup with better performance and cleaner management
+// Sidebar setup with better performance and cleaner management
 function setupSidebars() {
   let zIndex = 1000;
   
