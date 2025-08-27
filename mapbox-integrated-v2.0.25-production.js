@@ -1037,27 +1037,72 @@ function generateSingleCheckbox(name, type, properties = {}) {
     return false;
   }
   
-  // Create checkbox elements
+  // Create the complex checkbox structure to match sidebars script
   const checkboxWrapper = document.createElement('div');
-  checkboxWrapper.className = 'checkbox-wrapper';
-  
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.id = `${type}-${name.replace(/\s+/g, '-').toLowerCase()}`;
-  checkbox.name = type;
-  checkbox.value = name;
-  checkbox.className = `${type}-checkbox`;
+  checkboxWrapper.setAttribute('checkbox-filter', type);
+  checkboxWrapper.className = 'checbox-item'; // Note: keeping original typo to match existing structure
   
   const label = document.createElement('label');
-  label.htmlFor = checkbox.id;
-  label.textContent = name;
-  label.className = 'checkbox-label';
+  label.className = 'w-checkbox reporterwrap-copy';
   
-  checkboxWrapper.appendChild(checkbox);
+  // Create the external link
+  const link = document.createElement('a');
+  link.setAttribute('open', '');
+  link.href = `/${type}/${name.toLowerCase().replace(/\s+/g, '-')}`;
+  link.target = '_blank';
+  link.className = 'open-in-new-tab w-inline-block';
+  
+  // Add the SVG icon
+  link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>`;
+  
+  // Create the custom checkbox input wrapper
+  const checkboxInputWrapper = document.createElement('div');
+  checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+  
+  // Create the actual checkbox input
+  const checkbox = document.createElement('input');
+  const cleanName = name.replace(/'/g, ''); // Clean name for ID generation
+  const fieldName = type.charAt(0).toUpperCase() + type.slice(1); // Capitalize for field name
+  
+  checkbox.setAttribute('data-auto-sidebar', 'true');
+  checkbox.setAttribute('fs-list-value', name);
+  checkbox.setAttribute('fs-list-field', fieldName);
+  checkbox.type = 'checkbox';
+  checkbox.name = type;
+  checkbox.setAttribute('data-name', type);
+  checkbox.setAttribute('activate-filter-indicator', 'place');
+  checkbox.id = `${type}s-${cleanName}`;
+  checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+  checkbox.setAttribute('data-event-listener-added', 'true');
+  
+  // Create the label text
+  const labelText = document.createElement('span');
+  labelText.className = 'test3 w-form-label';
+  labelText.setAttribute('for', checkbox.id);
+  labelText.textContent = name;
+  
+  // Create the count wrapper
+  const countWrapper = document.createElement('div');
+  countWrapper.className = 'div-block-31834';
+  
+  const countElement = document.createElement('div');
+  countElement.setAttribute('fs-list-element', 'facet-count');
+  countElement.className = 'test33';
+  countElement.textContent = '0'; // Default count
+  
+  countWrapper.appendChild(countElement);
+  
+  // Assemble the structure
+  label.appendChild(link);
+  label.appendChild(checkboxInputWrapper);
+  label.appendChild(checkbox);
+  label.appendChild(labelText);
+  label.appendChild(countWrapper);
+  
   checkboxWrapper.appendChild(label);
   
   // Insert in alphabetical order
-  const existingCheckboxes = Array.from(container.querySelectorAll('.checkbox-wrapper label'));
+  const existingCheckboxes = Array.from(container.querySelectorAll('.checbox-item .test3'));
   let insertPosition = existingCheckboxes.length;
   
   for (let i = 0; i < existingCheckboxes.length; i++) {
@@ -1070,7 +1115,7 @@ function generateSingleCheckbox(name, type, properties = {}) {
   if (insertPosition >= existingCheckboxes.length) {
     container.appendChild(checkboxWrapper);
   } else {
-    container.insertBefore(checkboxWrapper, existingCheckboxes[insertPosition].closest('.checkbox-wrapper'));
+    container.insertBefore(checkboxWrapper, existingCheckboxes[insertPosition].closest('.checbox-item'));
   }
   
   // Track the generated checkbox
