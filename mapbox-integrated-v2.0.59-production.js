@@ -2189,6 +2189,33 @@ const MarkerLazyLoader = {
       this.resetMapIdleTimer();
     });
     
+    // Set up event listeners for when data loads to update UI
+    EventBus.on('localities:loaded', () => {
+      // Regenerate checkboxes if Location tab is active
+      const locationTab = document.querySelector('[data-w-tab="Locality/Region"].w--current');
+      if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
+        generateAllCheckboxes();
+      }
+      
+      // Refresh autocomplete if it exists
+      if (window.refreshAutocomplete) {
+        window.refreshAutocomplete();
+      }
+    });
+    
+    EventBus.on('settlements:loaded', () => {
+      // Regenerate checkboxes if Location tab is active
+      const locationTab = document.querySelector('[data-w-tab="Locality/Region"].w--current');
+      if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
+        generateAllCheckboxes();
+      }
+      
+      // Refresh autocomplete if it exists
+      if (window.refreshAutocomplete) {
+        window.refreshAutocomplete();
+      }
+    });
+    
     // Track user interactions for idle detection
     ['click', 'touchstart', 'wheel'].forEach(event => {
       map.on(event, () => this.resetIdleTimer());
@@ -2283,10 +2310,18 @@ const MarkerLazyLoader = {
   },
   
   // Load locality data (with region extraction for immediate display)
-  async loadLocalityData() {
+  async loadLocalityData(showIndicator = true) {
     if (this.localitiesLoading || this.localitiesLoaded) return;
     
     this.localitiesLoading = true;
+    
+    // Show loading indicator if requested (not for silent preloading)
+    if (showIndicator) {
+      const loadingMarkers = document.getElementById('loading-map-markers');
+      if (loadingMarkers) {
+        loadingMarkers.style.display = 'flex';
+      }
+    }
     
     try {
       await loadLocalitiesFromGeoJSON();
@@ -2307,14 +2342,27 @@ const MarkerLazyLoader = {
       EventBus.emit('localities:load-error', error);
     } finally {
       this.localitiesLoading = false;
+      // Hide loading indicator
+      const loadingMarkers = document.getElementById('loading-map-markers');
+      if (loadingMarkers) {
+        loadingMarkers.style.display = 'none';
+      }
     }
   },
   
   // Load settlement data
-  async loadSettlementData() {
+  async loadSettlementData(showIndicator = false) {
     if (this.settlementsLoading || this.settlementsLoaded) return;
     
     this.settlementsLoading = true;
+    
+    // Usually settlements load in background, but can show indicator if needed
+    if (showIndicator) {
+      const loadingMarkers = document.getElementById('loading-map-markers');
+      if (loadingMarkers) {
+        loadingMarkers.style.display = 'flex';
+      }
+    }
     
     try {
       await loadSettlementsFromCache();
@@ -2351,20 +2399,11 @@ const MarkerLazyLoader = {
   async preloadLocalityData() {
     if (this.localitiesLoaded || this.localitiesLoading) return;
     
-    // Silent load without indicator
-    this.localitiesLoading = true;
+    // Use loadLocalityData with silent mode (no indicator)
+    await this.loadLocalityData(false);
     
-    try {
-      await loadLocalitiesFromGeoJSON();
-      
-      if (state.allLocalityFeatures) {
-        this.localitiesLoaded = true;
-        EventBus.emit('localities:preloaded');
-      }
-    } catch (error) {
-      // Silent fail for preload
-    } finally {
-      this.localitiesLoading = false;
+    if (this.localitiesLoaded) {
+      EventBus.emit('localities:preloaded');
     }
   },
   
@@ -2372,20 +2411,11 @@ const MarkerLazyLoader = {
   async preloadSettlementData() {
     if (this.settlementsLoaded || this.settlementsLoading) return;
     
-    // Silent load without indicator
-    this.settlementsLoading = true;
+    // Use loadSettlementData with silent mode (no indicator)
+    await this.loadSettlementData(false);
     
-    try {
-      await loadSettlementsFromCache();
-      
-      if (state.allSettlementFeatures) {
-        this.settlementsLoaded = true;
-        EventBus.emit('settlements:preloaded');
-      }
-    } catch (error) {
-      // Silent fail for preload
-    } finally {
-      this.settlementsLoading = false;
+    if (this.settlementsLoaded) {
+      EventBus.emit('settlements:preloaded');
     }
   },
   
@@ -4223,7 +4253,20 @@ loadDataFromState() {
         // Only load autocomplete when user interacts with search (huge performance win)
         const searchInput = document.getElementById('map-search');
         if (searchInput) {
-            const loadOnInteraction = () => {
+            const loadOnInteraction = async () => {
+                // First ensure locality/settlement data is loading
+                if (MarkerLazyLoader) {
+                    // Load localities if not loaded (silently)
+                    if (!MarkerLazyLoader.localitiesLoaded && !MarkerLazyLoader.localitiesLoading) {
+                        MarkerLazyLoader.loadLocalityData(false); // Don't await, let it load in background
+                    }
+                    // Load settlements in background if localities are loaded
+                    if (MarkerLazyLoader.localitiesLoaded && !MarkerLazyLoader.settlementsLoaded && !MarkerLazyLoader.settlementsLoading) {
+                        MarkerLazyLoader.loadSettlementData(false);
+                    }
+                }
+                
+                // Then load autocomplete
                 if (autocompleteLoadState === 'pending') {
                     loadAutocomplete('user-interaction');
                 }
@@ -8755,7 +8798,19 @@ if (document.readyState === 'loading') {
       elements.forEach(element => {
         if (element.dataset.mapboxCheckboxListenerAdded === 'true') return;
         
-        element.addEventListener('click', function(e) {
+        element.addEventListener('click', async function(e) {
+          // First ensure data is loaded when Location tab is clicked
+          if (MarkerLazyLoader) {
+            // Load localities if not loaded (silently - no indicator in sidebar)
+            if (!MarkerLazyLoader.localitiesLoaded && !MarkerLazyLoader.localitiesLoading) {
+              await MarkerLazyLoader.loadLocalityData(false);
+            }
+            // Load settlements in background if localities are loaded
+            if (MarkerLazyLoader.localitiesLoaded && !MarkerLazyLoader.settlementsLoaded && !MarkerLazyLoader.settlementsLoading) {
+              MarkerLazyLoader.loadSettlementData(false);
+            }
+          }
+          
           // Generate all checkboxes when Location tab is clicked
           if (APP_CONFIG.features.enableLazyCheckboxes) {
             generateAllCheckboxes();
@@ -8767,12 +8822,25 @@ if (document.readyState === 'loading') {
     });
     
     // Also use event delegation for dynamically added tabs
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', async function(e) {
       const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
                          e.target.closest('#w-tabs-0-data-w-tab-2');
       
-      if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
-        generateAllCheckboxes();
+      if (locationTab) {
+        // Ensure data is loaded
+        if (MarkerLazyLoader) {
+          if (!MarkerLazyLoader.localitiesLoaded && !MarkerLazyLoader.localitiesLoading) {
+            await MarkerLazyLoader.loadLocalityData(false);
+          }
+          if (MarkerLazyLoader.localitiesLoaded && !MarkerLazyLoader.settlementsLoaded && !MarkerLazyLoader.settlementsLoading) {
+            MarkerLazyLoader.loadSettlementData(false);
+          }
+        }
+        
+        // Generate checkboxes
+        if (APP_CONFIG.features.enableLazyCheckboxes) {
+          generateAllCheckboxes();
+        }
       }
     });
   }
