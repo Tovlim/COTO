@@ -2082,7 +2082,7 @@ function init() {
 // Zoom-based marker loading implementation
 function setupZoomBasedMarkerLoading() {
   // Mobile users get markers at lower zoom level for better experience
-  const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 8 : 9;
+  const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 11 : 12;
   let markersLoaded = false;
   
   async function checkZoomAndLoadMarkers() {
@@ -6937,10 +6937,10 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6.5, 0,    // Completely transparent below 6.5
-            7.5, 0,    // Still transparent at 7.5
-            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
-            9.5, 1     // Fully visible at desktop threshold and beyond
+            9.5, 0,    // Completely transparent below 9.5
+            10.5, 0,   // Still transparent at 10.5
+            11.5, 1,   // Fade in between 10.5 and 11.5 (mobile threshold)
+            12.5, 1    // Fully visible at desktop threshold and beyond
           ]
         }
       };
@@ -6985,10 +6985,10 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6.5, 0,    // Completely transparent below 6.5
-            7.5, 0,    // Still transparent at 7.5
-            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
-            9.5, 1     // Fully visible at desktop threshold and beyond
+            9.5, 0,    // Completely transparent below 9.5
+            10.5, 0,   // Still transparent at 10.5
+            11.5, 1,   // Fade in between 10.5 and 11.5 (mobile threshold)
+            12.5, 1    // Fully visible at desktop threshold and beyond
           ]
         }
       };
@@ -7266,10 +7266,10 @@ function addNativeMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6.5, 0,    // Completely transparent below 6.5
-            7.5, 0,    // Still transparent at 7.5
-            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
-            9.5, 1     // Fully visible at desktop threshold and beyond
+            9.5, 0,    // Completely transparent below 9.5
+            10.5, 0,   // Still transparent at 10.5
+            11.5, 1,   // Fade in between 10.5 and 11.5 (mobile threshold)
+            12.5, 1    // Fully visible at desktop threshold and beyond
           ]
         }
       });
@@ -7308,10 +7308,10 @@ function addNativeMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6.5, 0,    // Completely transparent below 6.5
-            7.5, 0,    // Still transparent at 7.5
-            8.5, 1,    // Fade in between 7.5 and 8.5 (mobile threshold)
-            9.5, 1     // Fully visible at desktop threshold and beyond
+            9.5, 0,    // Completely transparent below 9.5
+            10.5, 0,   // Still transparent at 10.5
+            11.5, 1,   // Fade in between 10.5 and 11.5 (mobile threshold)
+            12.5, 1    // Fully visible at desktop threshold and beyond
           ]
         }
       });
