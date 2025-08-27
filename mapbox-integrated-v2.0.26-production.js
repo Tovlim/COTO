@@ -1064,16 +1064,22 @@ function generateSingleCheckbox(name, type, properties = {}) {
   const cleanName = name.replace(/'/g, ''); // Clean name for ID generation
   const fieldName = type.charAt(0).toUpperCase() + type.slice(1); // Capitalize for field name
   
-  checkbox.setAttribute('data-auto-sidebar', 'true');
-  checkbox.setAttribute('fs-list-value', name);
-  checkbox.setAttribute('fs-list-field', fieldName);
+  // Set all attributes explicitly
   checkbox.type = 'checkbox';
   checkbox.name = type;
-  checkbox.setAttribute('data-name', type);
-  checkbox.setAttribute('activate-filter-indicator', 'place');
   checkbox.id = `${type}s-${cleanName}`;
+  checkbox.value = name; // Add value attribute
   checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+  
+  // Set data attributes
+  checkbox.setAttribute('data-auto-sidebar', 'true');
+  checkbox.setAttribute('data-name', type);
   checkbox.setAttribute('data-event-listener-added', 'true');
+  
+  // Set filtering system attributes
+  checkbox.setAttribute('fs-list-value', name);
+  checkbox.setAttribute('fs-list-field', fieldName);
+  checkbox.setAttribute('activate-filter-indicator', 'place');
   
   // Create the label text
   const labelText = document.createElement('span');
@@ -1149,6 +1155,10 @@ function generateAllLocalityCheckboxes() {
   return new Promise((resolve) => {
     const generate = () => {
       try {
+        // Clear loading indicator first
+        const loadingElements = container.querySelectorAll('div[style*="Loading localities"]');
+        loadingElements.forEach(el => el.remove());
+        
         const localityFeatures = state.allLocalityFeatures || [];
         const uniqueNames = new Set();
         
@@ -1196,6 +1206,10 @@ function generateAllSettlementCheckboxes() {
   return new Promise((resolve) => {
     const generate = () => {
       try {
+        // Clear loading indicator first
+        const loadingElements = container.querySelectorAll('div[style*="Loading settlements"]');
+        loadingElements.forEach(el => el.remove());
+        
         const settlementFeatures = state.allSettlementFeatures || [];
         const uniqueNames = new Set();
         
@@ -1254,6 +1268,10 @@ function generateAllCheckboxes() {
     LazyCheckboxState.isGeneratingBulk = false;
     console.log('Bulk checkbox generation completed');
     
+    // Clear any remaining loading indicators
+    const allLoadingElements = document.querySelectorAll('div[style*="Loading localities"], div[style*="Loading settlements"]');
+    allLoadingElements.forEach(el => el.remove());
+    
     // Trigger recache
     if (window.checkboxFilterScript) {
       setTimeout(() => {
@@ -1263,6 +1281,10 @@ function generateAllCheckboxes() {
   }).catch((error) => {
     LazyCheckboxState.isGeneratingBulk = false;
     console.error('Bulk checkbox generation failed:', error);
+    
+    // Clear loading indicators even on error
+    const allLoadingElements = document.querySelectorAll('div[style*="Loading localities"], div[style*="Loading settlements"]');
+    allLoadingElements.forEach(el => el.remove());
   });
 }
 
