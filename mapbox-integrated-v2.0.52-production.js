@@ -901,6 +901,19 @@ function setupDropdownListeners() {
 }
 
 // Combined GeoJSON loading with better performance
+// Calculate centroid of a polygon from coordinates
+function calculatePolygonCentroid(coordinates) {
+  let x = 0, y = 0;
+  const numPoints = coordinates.length - 1; // Exclude closing point
+  
+  for (let i = 0; i < numPoints; i++) {
+    x += coordinates[i][0];
+    y += coordinates[i][1];
+  }
+  
+  return [x / numPoints, y / numPoints];
+}
+
 function loadCombinedGeoData() {
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.011.geojson')
     .then(response => {
@@ -922,7 +935,34 @@ function loadCombinedGeoData() {
         }
       });
       
-      // Batch process districts as regions
+      // Extract region features directly from district data
+      state.allRegionFeatures = districts.map(districtFeature => {
+        // Calculate centroid from polygon coordinates
+        const geometry = districtFeature.geometry;
+        let centroid;
+        
+        if (geometry.type === 'Polygon') {
+          centroid = calculatePolygonCentroid(geometry.coordinates[0]);
+        } else if (geometry.type === 'MultiPolygon') {
+          // Use the first polygon for centroid calculation
+          centroid = calculatePolygonCentroid(geometry.coordinates[0][0]);
+        }
+        
+        return {
+          type: "Feature",
+          properties: {
+            name: districtFeature.properties.name,
+            type: "region",
+            territory: districtFeature.properties.territory || null
+          },
+          geometry: {
+            type: "Point",
+            coordinates: centroid
+          }
+        };
+      });
+      
+      // Batch process districts as boundaries
       mapLayers.addToBatch(() => {
         districts.forEach(districtFeature => {
           const name = districtFeature.properties.name;
@@ -938,13 +978,16 @@ function loadCombinedGeoData() {
         });
       });
       
-      // Update region markers after processing
-      state.setTimer('updateRegionMarkers', () => {
+      // Add region markers immediately after extraction
+      state.setTimer('addRegionMarkers', () => {
         addNativeRegionMarkers();
+        
+        // Generate region checkboxes for filtering
+        state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 200);
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
         
-        // GeoData loaded
+        // GeoData loaded - regions are now ready
       }, 100);
     })
     .catch(error => {
@@ -6472,10 +6515,7 @@ map.on("load", () => {
     // Load regions and territories immediately (they should always be visible)
     loadCombinedGeoData();
     
-    // Extract region/subregion data from localities for immediate display
-    extractRegionDataOnly();
-    
-    // Mark data as loaded for loading screen (essential data is ready)
+    // Mark data as loaded for loading screen (regions from boundary data are ready)
     loadingTracker.markComplete('dataLoaded');
     
     // Note: Settlement and locality markers are lazy-loaded at zoom level 7.5+ (mobile) or 8.5+ (desktop)
@@ -6969,31 +7009,24 @@ function selectSettlementCheckbox(settlementName) {
 function selectTerritoryCheckbox(territoryName) {
   selectCheckbox('territory', territoryName);
 }
-// Extract region and subregion data only for immediate display
-async function extractRegionDataOnly() {
+
+// Load localities with conditional caching
+async function loadLocalitiesFromGeoJSON() {
   try {
-    // Load and process only the data we need for regions/subregions
+    // Use optimized loader with conditional caching
     const processedData = await loadLocalitiesWithCache();
     
-    if (!processedData || !processedData.features) return;
-    
-    // Extract unique regions and subregions without storing full locality data
-    const regionMap = new Map();
+    // Store the data in state (maintaining compatibility)
+    state.locationData = { features: processedData.features };
+    state.allLocalityFeatures = processedData.features;
+      
+    // Extract subregions from localities (regions come from boundary data now)
     const subregionMap = new Map();
     
     processedData.features.forEach(feature => {
-      const regionName = feature.properties.region;
       const subregionName = feature.properties.subRegion;
         
-      // Process regions
-      if (regionName && !regionMap.has(regionName)) {
-        regionMap.set(regionName, []);
-      }
-      if (regionName) {
-        regionMap.get(regionName).push(feature.geometry.coordinates);
-      }
-      
-      // Process subregions
+      // Process subregions only
       if (subregionName && !subregionMap.has(subregionName)) {
         subregionMap.set(subregionName, []);
       }
@@ -7001,36 +7034,10 @@ async function extractRegionDataOnly() {
         subregionMap.get(subregionName).push(feature.geometry.coordinates);
       }
     });
-    
-    // Create region features for immediate display
-    state.allRegionFeatures = Array.from(regionMap.entries()).map(([regionName, coordinates]) => {
-      // Calculate centroid
-      let totalLat = 0, totalLng = 0;
-      coordinates.forEach(coord => {
-        totalLng += coord[0];
-        totalLat += coord[1];
-      });
       
-      // Find a locality with this region to get the territory
-      const localityInRegion = processedData.features.find(f => f.properties.region === regionName);
-      
-      return {
-        type: "Feature",
-        properties: {
-          name: regionName,
-          type: "region",
-          territory: localityInRegion ? localityInRegion.properties.territory : null
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
-        }
-      };
-    });
-    
-    // Create subregion features for immediate display
+    // Create subregion features from the extracted data
     state.allSubregionFeatures = Array.from(subregionMap.entries()).map(([subregionName, coordinates]) => {
-      // Calculate centroid
+      // Calculate centroid of all localities in this subregion
       let totalLat = 0, totalLng = 0;
       coordinates.forEach(coord => {
         totalLng += coord[0];
@@ -7049,122 +7056,15 @@ async function extractRegionDataOnly() {
         }
       };
     });
-    
-    // Add region and subregion markers immediately
-    addNativeRegionMarkers();
+      
+    // Add localities to map
+    addNativeMarkers();
+
+    // Add subregion markers to map (at zoom threshold with localities)
     addNativeSubregionMarkers();
-    
-    // Generate checkboxes for regions if needed
-    state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 100);
-    
-    // Mark that regions have been extracted
-    if (MarkerLazyLoader) {
-      MarkerLazyLoader.regionsExtracted = true;
-    }
-    
-  } catch (error) {
-    console.error('Error extracting region data:', error);
-    // Don't fail the loading screen if region extraction fails
-  }
-}
-
-// Load localities with conditional caching
-async function loadLocalitiesFromGeoJSON() {
-  try {
-    // Use optimized loader with conditional caching
-    const processedData = await loadLocalitiesWithCache();
-    
-    // Store the data in state (maintaining compatibility)
-    state.locationData = { features: processedData.features };
-    state.allLocalityFeatures = processedData.features;
       
-    // The worker already processed regions and subregions for us
-    // Extract unique regions from localities with their coordinates
-    const regionMap = new Map();
-    // Extract unique subregions from localities with their coordinates
-    const subregionMap = new Map();
-    
-    processedData.features.forEach(feature => {
-      const regionName = feature.properties.region;
-      const subregionName = feature.properties.subRegion;
-        
-        // Process regions
-        if (regionName && !regionMap.has(regionName)) {
-          regionMap.set(regionName, []);
-        }
-        if (regionName) {
-          regionMap.get(regionName).push(feature.geometry.coordinates);
-        }
-        
-        // Process subregions
-        if (subregionName && !subregionMap.has(subregionName)) {
-          subregionMap.set(subregionName, []);
-        }
-        if (subregionName) {
-          subregionMap.get(subregionName).push(feature.geometry.coordinates);
-        }
-      });
-      
-      // Create region features from the extracted data
-      state.allRegionFeatures = Array.from(regionMap.entries()).map(([regionName, coordinates]) => {
-        // Calculate centroid of all localities in this region
-        let totalLat = 0, totalLng = 0;
-        coordinates.forEach(coord => {
-          totalLng += coord[0];
-          totalLat += coord[1];
-        });
-        
-        // Find a locality with this region to get the territory
-        const localityInRegion = processedData.features.find(f => f.properties.region === regionName);
-        
-        return {
-          type: "Feature",
-          properties: {
-            name: regionName,
-            type: "region",
-            territory: localityInRegion ? localityInRegion.properties.territory : null
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
-          }
-        };
-      });
-      
-      // Create subregion features from the extracted data
-      state.allSubregionFeatures = Array.from(subregionMap.entries()).map(([subregionName, coordinates]) => {
-        // Calculate centroid of all localities in this subregion
-        let totalLat = 0, totalLng = 0;
-        coordinates.forEach(coord => {
-          totalLng += coord[0];
-          totalLat += coord[1];
-        });
-        
-        return {
-          type: "Feature",
-          properties: {
-            name: subregionName,
-            type: "subregion"
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
-          }
-        };
-      });
-      
-      // Add localities to map
-      addNativeMarkers();
-      
-      // Add region markers to map
-      addNativeRegionMarkers();
-
-      // Add subregion markers to map
-      addNativeSubregionMarkers();
-      
-      // Generate checkboxes
+      // Generate checkboxes for localities only (regions already generated from boundaries)
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
-      state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
       
       
       // Settlements now lazy-loaded with localities at zoom threshold
