@@ -1,11 +1,14 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.2.0 - Enhanced with SafeStorage + Lazy Loading
+// Version: 1.2.1 - Enhanced with SafeStorage + Targeted Lazy Loading
+// 
+// Changes in v1.2.1:
+// - Checkboxes now load only when Location tab is clicked (not just sidebar open)
+// - Even better performance - most users never trigger the load
 // 
 // Changes in v1.2.0:
-// - Deferred checkbox generation until right sidebar opens (huge PageSpeed boost)
-// - Uses requestIdleCallback for non-blocking checkbox generation
+// - Deferred checkbox generation with requestIdleCallback
 // - Shows loading states during checkbox generation
 // - Prevents duplicate checkbox generation with state tracking
 // 
@@ -627,6 +630,45 @@
     }
   }
   
+  // Setup Location tab click listener
+  function setupLocationTabListener() {
+    // Use event delegation for the Location tab - multiple selectors for reliability
+    const locationTabSelectors = [
+      '[data-w-tab="Locality/Region"]',  // Primary selector
+      '#w-tabs-0-data-w-tab-2',          // ID selector as backup
+      '.filtertabs:has(.filter-tabs-text:contains("Location"))'  // Text-based fallback
+    ];
+    
+    // Try immediate setup
+    locationTabSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => {
+        if (element.dataset.checkboxListenerAdded === 'true') return;
+        
+        element.addEventListener('click', function(e) {
+          // Only load if not already generated
+          if (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated) {
+            console.log('Location tab clicked - loading checkboxes...');
+            lazyLoadCheckboxes();
+          }
+        });
+        
+        element.dataset.checkboxListenerAdded = 'true';
+      });
+    });
+    
+    // Also use event delegation for dynamically added tabs
+    document.addEventListener('click', function(e) {
+      const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
+                         e.target.closest('#w-tabs-0-data-w-tab-2');
+      
+      if (locationTab && (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
+        console.log('Location tab clicked (delegated) - loading checkboxes...');
+        lazyLoadCheckboxes();
+      }
+    });
+  }
+  
   // ====================================================================
   // SIDEBAR MANAGEMENT
   // ====================================================================
@@ -697,12 +739,6 @@
     
     const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
     sidebar.classList.toggle('is-show', isShowing);
-    
-    // Lazy load checkboxes when right sidebar opens for the first time
-    if (side === 'Right' && isShowing && 
-        (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
-      lazyLoadCheckboxes();
-    }
     
     const jsMarginProperty = sidebarCache.getMarginProperty(side);
     const arrowIcon = sidebarCache.getArrow(side);
@@ -1145,6 +1181,9 @@
   }
   
   function setupEvents() {
+    // Setup Location tab click listener for lazy loading checkboxes
+    setupLocationTabListener();
+    
     const eventHandlers = [
       {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
         if (window.innerWidth > 991) {
