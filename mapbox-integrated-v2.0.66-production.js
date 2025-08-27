@@ -926,7 +926,7 @@ function loadCombinedGeoData() {
       mapLayers.addToBatch(() => {
         districts.forEach(districtFeature => {
           const name = districtFeature.properties.name;
-          addRegionBoundaryToMap(name, districtFeature);
+          addGovernorateBoundaryToMap(name, districtFeature);
         });
       });
       
@@ -939,8 +939,8 @@ function loadCombinedGeoData() {
       });
       
       // Update region markers after processing
-      state.setTimer('updateRegionMarkers', () => {
-        addNativeRegionMarkers();
+      state.setTimer('updateGovernorateMarkers', () => {
+        addNativeGovernorateMarkers();
         
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
         
@@ -949,7 +949,7 @@ function loadCombinedGeoData() {
     })
     .catch(error => {
       // Still update region markers in case some data was loaded
-      addNativeRegionMarkers();
+      addNativeGovernorateMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
       
       // Continue even with error
@@ -957,7 +957,7 @@ function loadCombinedGeoData() {
 }
 
 // Region boundary addition with batching
-function addRegionBoundaryToMap(name, regionFeature) {
+function addGovernorateBoundaryToMap(name, regionFeature) {
   const boundary = {
     name,
     sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
@@ -1124,11 +1124,11 @@ function setupDeferredAreaControls() {
     
     const markerControls = [
       {
-        keyId: 'region-toggle-key', 
-        wrapId: 'region-toggle-key-wrap',
-        type: 'region',
-        layers: ['region-points', 'subregion-points'],
-        label: 'Region Markers & Boundaries'
+        keyId: 'governorate-toggle-key', 
+        wrapId: 'governorate-toggle-key-wrap',
+        type: 'governorate',
+        layers: ['governorate-points', 'governorate-points'],
+        label: 'Governorate Markers & Boundaries'
       },
       {
         keyId: 'locality-toggle-key', 
@@ -1231,11 +1231,11 @@ function setupDeferredAreaControls() {
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
           if (control.type === 'region') {
-            if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
+            if (mapLayers.hasLayer('governorate-points')) {
+              map.setPaintProperty('governorate-points', 'text-halo-color', '#8f4500');
             }
-            if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
+            if (mapLayers.hasLayer('governorate-points')) {
+              map.setPaintProperty('governorate-points', 'text-halo-color', '#8f4500');
             }
             
             const allLayers = map.getStyle().layers;
@@ -1268,11 +1268,11 @@ function setupDeferredAreaControls() {
         
         const mouseLeaveHandler = () => {
           if (control.type === 'region') {
-            if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
+            if (mapLayers.hasLayer('governorate-points')) {
+              map.setPaintProperty('governorate-points', 'text-halo-color', '#6e3500');
             }
-            if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
+            if (mapLayers.hasLayer('governorate-points')) {
+              map.setPaintProperty('governorate-points', 'text-halo-color', '#6e3500');
             }
             
             const allLayers = map.getStyle().layers;
@@ -1732,8 +1732,8 @@ function generateLocalityCheckboxes() {
 }
 
 // Generate region checkboxes from map data
-function generateRegionCheckboxes() {
-  const container = $id('region-check-list');
+function generateGovernorateCheckboxes() {
+  const container = $id('governorate-check-list');
   if (!container) {
     return;
   }
@@ -1741,21 +1741,21 @@ function generateRegionCheckboxes() {
   // Clear the container
   container.innerHTML = '';
   
+  // Extract unique governorate names
+  const governorateNames = [...new Set(state.allGovernorateFeatures.map(feature => feature.properties.name))].sort();
+  
   // Extract unique region names
-  const regionNames = [...new Set(state.allRegionFeatures.map(feature => feature.properties.name))].sort();
+  const regionNames = state.allRegionFeatures ? 
+    [...new Set(state.allRegionFeatures.map(feature => feature.properties.name))].sort() : [];
   
-  // Extract unique subregion names
-  const subregionNames = state.allSubregionFeatures ? 
-    [...new Set(state.allSubregionFeatures.map(feature => feature.properties.name))].sort() : [];
-  
-  if (regionNames.length === 0 && subregionNames.length === 0) {
+  if (governorateNames.length === 0 && regionNames.length === 0) {
     return;
   }
   
   // Combine both lists for alphabetical display
   const allItems = [
-    ...regionNames.map(name => ({ name, type: 'region' })),
-    ...subregionNames.map(name => ({ name, type: 'subregion' }))
+    ...governorateNames.map(name => ({ name, type: 'governorate' })),
+    ...regionNames.map(name => ({ name, type: 'region' }))
   ].sort((a, b) => a.name.localeCompare(b.name));
   
   // Batch generate checkboxes using document fragment
@@ -1779,7 +1779,7 @@ function generateRegionCheckboxes() {
     const input = document.createElement('input');
     input.setAttribute('data-auto-sidebar', 'true');
     input.setAttribute('fs-list-value', item.name);
-    input.setAttribute('fs-list-field', item.type === 'region' ? 'Region' : 'SubRegion');
+    input.setAttribute('fs-list-field', item.type === 'governorate' ? 'Governorate' : 'Region');
     input.type = 'checkbox';
     input.name = item.type;
     input.setAttribute('data-name', item.type);
@@ -2220,8 +2220,8 @@ function setupGlobalExports() {
     checkboxes: {
       state: LazyCheckboxState,
       select: {
-        region: selectRegionCheckbox,
-        subregion: selectSubregionCheckbox,
+        region: selectGovernorateCheckbox,
+        region: selectGovernorateCheckbox,
         territory: selectTerritoryCheckbox,
         locality: selectLocalityCheckbox,
         settlement: selectSettlementCheckbox
@@ -2255,7 +2255,7 @@ function setupGlobalExports() {
       operations: {
         applyFilter: applyFilterToMarkers,
         highlightBoundary: highlightBoundary,
-        frameRegionBoundary: frameRegionBoundary
+        frameGovernorateBoundary: frameGovernorateBoundary
       }
     },
     
@@ -2276,14 +2276,14 @@ function setupGlobalExports() {
   };
   
   // Legacy global exports for backwards compatibility
-  window.selectRegionCheckbox = selectRegionCheckbox;
-  window.selectSubregionCheckbox = selectSubregionCheckbox;
+  window.selectGovernorateCheckbox = selectGovernorateCheckbox;
+  window.selectGovernorateCheckbox = selectGovernorateCheckbox;
   window.selectLocalityCheckbox = selectLocalityCheckbox;
   window.selectSettlementCheckbox = selectSettlementCheckbox;
   window.selectTerritoryCheckbox = selectTerritoryCheckbox;
   window.applyFilterToMarkers = applyFilterToMarkers;
   window.highlightBoundary = highlightBoundary;
-  window.frameRegionBoundary = frameRegionBoundary;
+  window.frameGovernorateBoundary = frameGovernorateBoundary;
   window.map = map;
   window.mapboxgl = mapboxgl;
   
@@ -2506,7 +2506,7 @@ window.addEventListener('beforeunload', () => {
                 // Data storage
                 this.data = {
                     regions: [],
-                    subregions: [],
+                    regions: [],
                     localities: [],
                     settlements: [],
                     filteredResults: [],
@@ -2621,14 +2621,14 @@ loadDataFromState() {
   }
   const state = window.mapUtilities.state;
   
-  // Load regions (districts) - now from extracted data
-  if (state.allRegionFeatures && state.allRegionFeatures.length > 0) {
-    this.data.regions = state.allRegionFeatures
+  // Load governorates (districts) - now from extracted data
+  if (state.allGovernorateFeatures && state.allGovernorateFeatures.length > 0) {
+    this.data.governorates = state.allGovernorateFeatures
       .filter(feature => feature.geometry && feature.geometry.coordinates)
       .map(feature => ({
         name: feature.properties.name,
         nameLower: feature.properties.name.toLowerCase(),
-        type: 'region',
+        type: 'governorate',
         territory: feature.properties.territory,
         lat: feature.geometry.coordinates[1],
         lng: feature.geometry.coordinates[0],
@@ -2637,14 +2637,14 @@ loadDataFromState() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
   
-  // Load subregions - now from extracted data
-  if (state.allSubregionFeatures && state.allSubregionFeatures.length > 0) {
-    this.data.subregions = state.allSubregionFeatures
+  // Load regions - now from extracted data
+  if (state.allRegionFeatures && state.allRegionFeatures.length > 0) {
+    this.data.regions = state.allRegionFeatures
       .filter(feature => feature.geometry && feature.geometry.coordinates)
       .map(feature => ({
         name: feature.properties.name,
         nameLower: feature.properties.name.toLowerCase(),
-        type: 'subregion',
+        type: 'region',
         lat: feature.geometry.coordinates[1],
         lng: feature.geometry.coordinates[0],
         searchTokens: this.createSearchTokens(feature.properties.name)
@@ -2659,7 +2659,7 @@ loadDataFromState() {
                     this.data.localities = state.allLocalityFeatures
                         .filter(feature => feature.geometry && feature.geometry.coordinates)
                         .map(feature => {
-                            const subregion = feature.properties.subRegion;
+                            const subregion = feature.properties.region;
                             if (subregion) {
                                 subregionSet.add(subregion);
                             }
@@ -2668,7 +2668,7 @@ loadDataFromState() {
                                 name: feature.properties.name,
                                 nameLower: feature.properties.name.toLowerCase(),
                                 region: feature.properties.region,
-                                subregion: subregion,
+                                region: subregion,
                                 territory: feature.properties.territory,
                                 lat: feature.geometry.coordinates[1],
                                 lng: feature.geometry.coordinates[0],
@@ -2679,15 +2679,15 @@ loadDataFromState() {
                         .sort((a, b) => a.name.localeCompare(b.name));
                     
                     // Create subregions array
-                    this.data.subregions = Array.from(subregionSet)
+                    this.data.regions = Array.from(subregionSet)
                         .filter(subregion => subregion) // Filter out null/undefined
                         .map(subregion => {
                             // Find a locality with this subregion to get the territory
-                            const localityWithSubregion = this.data.localities.find(loc => loc.subregion === subregion);
+                            const localityWithSubregion = this.data.localities.find(loc => loc.region === subregion);
                             return {
                                 name: subregion,
                                 nameLower: subregion.toLowerCase(),
-                                type: 'subregion',
+                                type: 'region',
                                 territory: localityWithSubregion ? localityWithSubregion.territory : null,
                                 searchTokens: this.createSearchTokens(subregion)
                             };
@@ -2704,7 +2704,7 @@ loadDataFromState() {
                             nameLower: feature.properties.name.toLowerCase(),
                             type: 'settlement',
                             region: feature.properties.region,
-                            subRegion: feature.properties.subRegion,
+                            region: feature.properties.region,
                             territory: feature.properties.territory,
                             lat: feature.geometry.coordinates[1],
                             lng: feature.geometry.coordinates[0],
@@ -2729,8 +2729,8 @@ loadDataFromState() {
                 }
                 
                 // Shuffle each category once for variety in dropdown display
+                this.shuffleArray(this.data.governorates);
                 this.shuffleArray(this.data.regions);
-                this.shuffleArray(this.data.subregions);
                 this.shuffleArray(this.data.localities);
                 this.shuffleArray(this.data.settlements);
                 if (this.data.territories) {
@@ -2888,26 +2888,26 @@ loadDataFromState() {
                 }
                 
                 // Make sure we have data before showing items
-                if (this.data.regions.length === 0 && 
+                if (this.data.governorates.length === 0 && this.data.regions.length === 0 && 
                     this.data.localities.length === 0 && 
                     this.data.settlements.length === 0) {
                     this.data.filteredResults = results;
                     return;
                 }
                 
-                // Hierarchical display: Regions → Subregions → Localities → Settlements
+                // Hierarchical display: Governorates → Regions → Localities → Settlements
                 // (Territories excluded from default view - only appear in search)
                 // results array already initialized with recent searches
                 
-                // 1. Show top 2-3 regions (most important geographic areas)
+                // 1. Show top 2-3 governorates (most important geographic areas)
+                const maxGovernorates = Math.min(3, this.data.governorates.length);
+                const selectedGovernorates = this.data.governorates.slice(0, maxGovernorates);
+                results.push(...selectedGovernorates);
+                
+                // 2. Show top 2-3 regions (subdivisions of governorates)
                 const maxRegions = Math.min(3, this.data.regions.length);
                 const selectedRegions = this.data.regions.slice(0, maxRegions);
                 results.push(...selectedRegions);
-                
-                // 2. Show top 2-3 subregions (subdivisions of regions)
-                const maxSubregions = Math.min(3, this.data.subregions.length);
-                const selectedSubregions = this.data.subregions.slice(0, maxSubregions);
-                results.push(...selectedSubregions);
                 
                 // 3. Show 4-5 major localities (important cities/towns)
                 const maxLocalities = Math.min(5, this.data.localities.length);
@@ -2932,8 +2932,8 @@ loadDataFromState() {
                 
                 // Search all categories including settlements and territories
                 const allItems = [
+                    ...this.data.governorates, 
                     ...this.data.regions, 
-                    ...this.data.subregions, 
                     ...this.data.localities, 
                     ...this.data.settlements,
                     ...(this.data.territories || [])
@@ -2960,7 +2960,7 @@ loadDataFromState() {
                 const limitedResults = [];
                 
                 for (const result of scoredResults) {
-                    if (result.type === 'region' || result.type === 'subregion') {
+                    if (result.type === 'governorate' || result.type === 'region') {
                         if (regionCount < 3) {
                             limitedResults.push(result);
                             regionCount++;
@@ -3196,9 +3196,9 @@ loadDataFromState() {
                 } else if (item.type === 'locality' || item.type === 'settlement') {
                     let location = '';
                     if (item.type === 'locality') {
-                        location = [item.subregion, item.region, item.territory].filter(Boolean).join(', ');
+                        location = [item.governorate, item.governorate, item.territory].filter(Boolean).join(', ');
                     } else if (item.type === 'settlement') {
-                        location = [item.subRegion, item.region, item.territory].filter(Boolean).join(', ');
+                        location = [item.subRegion, item.governorate, item.territory].filter(Boolean).join(', ');
                     }
                     const typeLabel = item.type === 'locality' ? 'Locality' : 'Settlement';
                     
@@ -3210,7 +3210,7 @@ loadDataFromState() {
                         <span class="term-label">${typeLabel}</span>
                     `;
                 } else {
-                    const typeLabel = item.type === 'region' ? 'Region' : 'Sub-Region';
+                    const typeLabel = item.type === 'governorate' ? 'Governorate' : 'Region';
                     if (item.territory) {
                         a.innerHTML = `
                             <div class="locality-info">
@@ -3377,10 +3377,10 @@ loadDataFromState() {
                     });
                 }
                 
-                if (type === 'region') {
+                if (type === 'governorate') {
+                    this.triggerGovernorateSelection(term);
+                } else if (type === 'region') {
                     this.triggerRegionSelection(term);
-                } else if (type === 'subregion') {
-                    this.triggerSubregionSelection(term);
                 } else if (type === 'locality') {
                     this.triggerLocalitySelection(term);
                 } else if (type === 'settlement') {
@@ -3457,15 +3457,15 @@ loadDataFromState() {
                 }, 800);
             }
             
-            triggerRegionSelection(regionName) {
+            triggerGovernorateSelection(governorateName) {
                 window.isMarkerClick = true;
                 
                 if (window.mapUtilities && window.mapUtilities.state) {
                     window.mapUtilities.state.markerInteractionLock = false;
                 }
                 
-                if (window.selectRegionCheckbox) {
-                    window.selectRegionCheckbox(regionName);
+                if (window.selectGovernorateCheckbox) {
+                    window.selectGovernorateCheckbox(governorateName);
                 }
                 
                 if (window.mapUtilities?.toggleShowWhenFilteredElements) {
@@ -3482,8 +3482,8 @@ loadDataFromState() {
                 }
                 
                 // Use the global function to frame region boundaries
-                if (window.frameRegionBoundary) {
-                    if (!window.frameRegionBoundary(regionName)) {
+                if (window.frameGovernorateBoundary) {
+                    if (!window.frameGovernorateBoundary(regionName)) {
                         // No boundary found - fallback to filtered reframing
                         setTimeout(() => {
                             if (window.mapUtilities && window.mapUtilities.state) {
@@ -3503,7 +3503,7 @@ loadDataFromState() {
                         }, 200);
                     }
                 } else {
-                    // Fallback if frameRegionBoundary doesn't exist
+                    // Fallback if frameGovernorateBoundary doesn't exist
                     setTimeout(() => {
                         window.isMarkerClick = false;
                         if (window.applyFilterToMarkers) {
@@ -3517,7 +3517,7 @@ loadDataFromState() {
                 }, 800);
             }
             
-            triggerSubregionSelection(subregionName) {
+            triggerRegionSelection(regionName) {
                 window.isMarkerClick = true;
                 
                 if (window.mapUtilities && window.mapUtilities.state) {
@@ -3525,8 +3525,8 @@ loadDataFromState() {
                 }
                 
                 // Use checkbox selection like regions do
-                if (window.selectSubregionCheckbox) {
-                    window.selectSubregionCheckbox(subregionName);
+                if (window.selectRegionCheckbox) {
+                    window.selectRegionCheckbox(regionName);
                 }
                 
                 if (window.mapUtilities?.toggleShowWhenFilteredElements) {
@@ -3747,9 +3747,9 @@ loadDataFromState() {
             
             getStats() {
                 return {
-                    totalItems: this.data.regions.length + this.data.subregions.length + this.data.localities.length + this.data.settlements.length,
+                    totalItems: this.data.governorates.length + this.data.regions.length + this.data.localities.length + this.data.settlements.length,
+                    governorates: this.data.governorates.length,
                     regions: this.data.regions.length,
-                    subregions: this.data.subregions.length,
                     localities: this.data.localities.length,
                     settlements: this.data.settlements.length,
                     filteredResults: this.data.filteredResults.length,
@@ -4133,7 +4133,7 @@ class LazyWorkerManager {
         lat: feature.geometry.coordinates[1],
         lng: feature.geometry.coordinates[0],
         region: feature.properties.region || '',
-        subregion: feature.properties.subregion || ''
+        region: feature.properties.subregion || ''
       }));
 
     return Promise.resolve({
@@ -4207,7 +4207,7 @@ class LazyWorkerManager {
               lat: f.geometry.coordinates[1],
               lng: f.geometry.coordinates[0],
               region: f.properties.region || '',
-              subregion: f.properties.subregion || ''
+              region: f.properties.subregion || ''
             }));
           return { localities, features: data.features };
         }
@@ -4574,7 +4574,7 @@ class DataStore {
   constructor() {
     this.entities = {
       regions: new Map(),
-      subregions: new Map(), 
+      regions: new Map(), 
       localities: new Map(),
       settlements: new Map()
     };
@@ -4590,7 +4590,7 @@ class DataStore {
       localities: null,
       settlements: null,
       regions: null,
-      subregions: null
+      regions: null
     };
   }
   
@@ -6051,8 +6051,8 @@ class OptimizedMapState {
     this.settlementData = {type: "FeatureCollection", features: []};
     this.allLocalityFeatures = [];
     this.allSettlementFeatures = [];
-    this.allRegionFeatures = [];
-    this.allSubregionFeatures = []; // ADD THIS LINE
+    this.allGovernorateFeatures = [];
+    this.allGovernorateFeatures = []; // ADD THIS LINE
     this.timers = new Map();
     this.lastClickedMarker = null;
     this.lastClickTime = 0;
@@ -6326,7 +6326,7 @@ class OptimizedMapLayers {
   
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
-    const markerLayers = ['settlement-clusters', 'settlement-points', 'locality-clusters', 'locality-points', 'region-points'];
+    const markerLayers = ['settlement-clusters', 'settlement-points', 'locality-clusters', 'locality-points', 'governorate-points'];
     
     // Check if all expected layers exist first
     const existingLayers = markerLayers.filter(id => this.hasLayer(id));
@@ -6480,7 +6480,7 @@ const toggleSidebar = (side, show = null) => {
 };
 
 // Global function to frame region boundaries (used by both markers and autocomplete)
-function frameRegionBoundary(regionName) {
+function frameGovernorateBoundary(regionName) {
   const boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
   const source = map.getSource(boundarySourceId);
   
@@ -6599,11 +6599,11 @@ function selectCheckbox(type, value) {
 }
 
 // Wrapper functions for backward compatibility
-function selectRegionCheckbox(regionName) {
+function selectGovernorateCheckbox(regionName) {
   selectCheckbox('region', regionName);
 }
 
-function selectSubregionCheckbox(subregionName) {
+function selectGovernorateCheckbox(subregionName) {
   selectCheckbox('subregion', subregionName);
 }
 
@@ -6636,7 +6636,7 @@ async function loadLocalitiesFromGeoJSON() {
     
     processedData.features.forEach(feature => {
       const regionName = feature.properties.region;
-      const subregionName = feature.properties.subRegion;
+      const subregionName = feature.properties.region;
         
         // Process regions
         if (regionName && !regionMap.has(regionName)) {
@@ -6656,7 +6656,7 @@ async function loadLocalitiesFromGeoJSON() {
       });
       
       // Create region features from the extracted data
-      state.allRegionFeatures = Array.from(regionMap.entries()).map(([regionName, coordinates]) => {
+      state.allGovernorateFeatures = Array.from(regionMap.entries()).map(([regionName, coordinates]) => {
         // Calculate centroid of all localities in this region
         let totalLat = 0, totalLng = 0;
         coordinates.forEach(coord => {
@@ -6682,7 +6682,7 @@ async function loadLocalitiesFromGeoJSON() {
       });
       
       // Create subregion features from the extracted data
-      state.allSubregionFeatures = Array.from(subregionMap.entries()).map(([subregionName, coordinates]) => {
+      state.allGovernorateFeatures = Array.from(subregionMap.entries()).map(([subregionName, coordinates]) => {
         // Calculate centroid of all localities in this subregion
         let totalLat = 0, totalLng = 0;
         coordinates.forEach(coord => {
@@ -6707,14 +6707,14 @@ async function loadLocalitiesFromGeoJSON() {
       addNativeMarkers();
       
       // Add region markers to map
-      addNativeRegionMarkers();
+      addNativeGovernorateMarkers();
 
       // Add subregion markers to map
-      addNativeSubregionMarkers();
+      addNativeGovernorateMarkers();
       
       // Generate checkboxes
       state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
-      state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
+      state.setTimer('generateGovernorateCheckboxes', generateGovernorateCheckboxes, 500);
       
       
       // Load settlements after locality/region layers are created for proper layer ordering
@@ -6889,7 +6889,7 @@ function addSettlementMarkers() {
   
   // Find proper insertion point - before locality layers but after areas
   const getBeforeLayerId = () => {
-    const markerLayers = ['locality-clusters', 'locality-points', 'region-points'];
+    const markerLayers = ['locality-clusters', 'locality-points', 'governorate-points'];
     const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
     
     if (existingMarkerLayer) {
@@ -7328,30 +7328,30 @@ function addNativeMarkers() {
 }
 
 // Region markers with batched operations  
-function addNativeRegionMarkers() {
-  if (!state.allRegionFeatures.length) {
+function addNativeGovernorateMarkers() {
+  if (!state.allGovernorateFeatures.length) {
     return;
   }
   
   mapLayers.addToBatch(() => {
-    if (mapLayers.hasSource('regions-source')) {
-      map.getSource('regions-source').setData({
+    if (mapLayers.hasSource('governorates-source')) {
+      map.getSource('governorates-source').setData({
         type: "FeatureCollection",
-        features: state.allRegionFeatures
+        features: state.allGovernorateFeatures
       });
     } else {
-      map.addSource('regions-source', {
+      map.addSource('governorates-source', {
         type: 'geojson',
         data: {
           type: "FeatureCollection",
-          features: state.allRegionFeatures
+          features: state.allGovernorateFeatures
         }
       });
       
       map.addLayer({
-        id: 'region-points',
+        id: 'governorate-points',
         type: 'symbol',
-        source: 'regions-source',
+        source: 'governorates-source',
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7524,7 +7524,7 @@ function setupRegionMarkerClicks() {
     state.lastClickTime = currentTime;
     window.isMarkerClick = true;
     
-    selectRegionCheckbox(regionName);
+    selectGovernorateCheckbox(regionName);
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
@@ -7542,7 +7542,7 @@ function setupRegionMarkerClicks() {
         if (state.clickPriority < myPriority) return;
         
         // Use the global function to frame boundaries
-        if (!frameRegionBoundary(regionName)) {
+        if (!frameGovernorateBoundary(regionName)) {
           // Fallback if no boundary found
           removeBoundaryHighlight();
           state.setTimer('regionFallback', () => {
@@ -7589,34 +7589,34 @@ function setupRegionMarkerClicks() {
     }, 50);
   };
   
-  map.on('click', 'region-points', regionClickHandler);
-  map.on('mouseenter', 'region-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'region-points', () => map.getCanvas().style.cursor = '');
+  map.on('click', 'governorate-points', regionClickHandler);
+  map.on('mouseenter', 'governorate-points', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'governorate-points', () => map.getCanvas().style.cursor = '');
 }
 
 // Add this new function to display subregion markers on the map
-function addNativeSubregionMarkers() {
-  if (!state.allSubregionFeatures || state.allSubregionFeatures.length === 0) return;
+function addNativeGovernorateMarkers() {
+  if (!state.allGovernorateFeatures || state.allGovernorateFeatures.length === 0) return;
   
   mapLayers.addToBatch(() => {
-    if (mapLayers.hasSource('subregions-source')) {
-      map.getSource('subregions-source').setData({
+    if (mapLayers.hasSource('governorates-source')) {
+      map.getSource('governorates-source').setData({
         type: "FeatureCollection",
-        features: state.allSubregionFeatures
+        features: state.allGovernorateFeatures
       });
     } else {
-      map.addSource('subregions-source', {
+      map.addSource('governorates-source', {
         type: 'geojson',
         data: {
           type: "FeatureCollection",
-          features: state.allSubregionFeatures
+          features: state.allGovernorateFeatures
         }
       });
       
       map.addLayer({
-        id: 'subregion-points',
+        id: 'governorate-points',
         type: 'symbol',
-        source: 'subregions-source',
+        source: 'governorates-source',
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7685,7 +7685,7 @@ function setupSubregionMarkerClicks() {
     window.isMarkerClick = true;
     
     // Use checkbox selection like regions do
-    selectSubregionCheckbox(subregionName);
+    selectGovernorateCheckbox(subregionName);
     
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
@@ -7715,9 +7715,9 @@ function setupSubregionMarkerClicks() {
     }, 50);
   };
   
-  map.on('click', 'subregion-points', subregionClickHandler);
-  map.on('mouseenter', 'subregion-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'subregion-points', () => map.getCanvas().style.cursor = '');
+  map.on('click', 'governorate-points', subregionClickHandler);
+  map.on('mouseenter', 'governorate-points', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'governorate-points', () => map.getCanvas().style.cursor = '');
 }
 
 
@@ -7779,9 +7779,9 @@ function applyFilterToMarkers(shouldReframe = true) {
     }
     
     // For single subregion selection, use the subregion centroid instead of all localities
-    if (checkedSubregions.length === 1 && state.allSubregionFeatures) {
+    if (checkedSubregions.length === 1 && state.allGovernorateFeatures) {
       const selectedSubregion = checkedSubregions[0];
-      const subregionFeature = state.allSubregionFeatures.find(f => 
+      const subregionFeature = state.allGovernorateFeatures.find(f => 
         f.properties.name === selectedSubregion
       );
       
