@@ -643,8 +643,8 @@
     // Use event delegation for the Location tab - multiple selectors for reliability
     const locationTabSelectors = [
       '[data-w-tab="Locality/Region"]',  // Primary selector
-      '#w-tabs-0-data-w-tab-2',          // ID selector as backup
-      '.filtertabs:has(.filter-tabs-text:contains("Location"))'  // Text-based fallback
+      '#w-tabs-0-data-w-tab-2'           // ID selector as backup
+      // Removed invalid CSS selector that was causing syntax error
     ];
     
     // Try immediate setup
@@ -913,12 +913,25 @@
           tagParent._mutationObserver.disconnect();
         }
         
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver((mutations) => {
+          console.log('[DEBUG] TagParent mutation detected:', mutations.length, 'mutations');
+          mutations.forEach(mutation => {
+            console.log('[DEBUG] Mutation type:', mutation.type);
+            if (mutation.type === 'childList') {
+              const hiddenTagParent = document.getElementById('hiddentagparent');
+              console.log('[DEBUG] After mutation - hiddentagparent exists:', !!hiddenTagParent);
+              if (hiddenTagParent) {
+                console.log('[DEBUG] hiddentagparent found via mutation - immediate show!');
+                toggleShowWhenFilteredElements(true, true);
+              }
+            }
+          });
           checkAndToggleFilteredElements(true);
         });
         observer.observe(tagParent, {childList: true, subtree: true});
         
         tagParent._mutationObserver = observer;
+        console.log('[DEBUG] MutationObserver setup on tagParent with enhanced logging');
       }
       
       const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
@@ -1358,6 +1371,17 @@
     if (hiddenTagParent) {
       console.log('[DEBUG] FOUND hiddentagparent on immediate check!');
       console.log(hiddenTagParent.outerHTML.substring(0, 300));
+      
+      // Show filtered elements immediately!
+      console.log('[DEBUG] Showing filtered elements immediately due to hiddentagparent presence');
+      const elements = document.querySelectorAll('[show-when-filtered="true"]');
+      elements.forEach(element => {
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        element.style.pointerEvents = 'auto';
+      });
+      console.log(`[DEBUG] Applied immediate styles to ${elements.length} filtered elements`);
     }
   };
   immediateCheck();
@@ -1406,10 +1430,24 @@
     document.addEventListener('DOMContentLoaded', () => {
       console.log('[DEBUG] DOMContentLoaded fired');
       immediateCheck();
+      
+      // IMPORTANT: Check immediately since hiddentagparent exists now!
+      const hiddenTagParent = document.getElementById('hiddentagparent');
+      if (hiddenTagParent) {
+        console.log('[DEBUG] hiddentagparent found on DOMContentLoaded - showing filtered elements!');
+        toggleShowWhenFilteredElements(true, true);
+      }
+      
       initializeCore();
     });
   } else {
     console.log('[DEBUG] Document already loaded, initializing immediately');
+    // Check immediately if hiddentagparent exists
+    const hiddenTagParent = document.getElementById('hiddentagparent');
+    if (hiddenTagParent) {
+      console.log('[DEBUG] hiddentagparent found on immediate init - showing filtered elements!');
+      toggleShowWhenFilteredElements(true, true);
+    }
     initializeCore();
   }
   
