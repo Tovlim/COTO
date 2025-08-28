@@ -621,8 +621,8 @@
         // Re-run the setupGeneratedCheckboxEvents for newly created checkboxes
         setupGeneratedCheckboxEvents();
         
-        // Also re-run monitorTags to ensure new checkboxes are monitored
-        monitorTags();
+        // Check for filtered elements after checkbox generation
+        checkAndToggleFilteredElements(true);
         
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
@@ -1189,82 +1189,32 @@
     attemptSetup();
   }
   
-  // Setup global event delegation for dynamic elements - moved outside to run immediately
-  function setupDynamicEventDelegation() {
-    // Use event delegation for data-auto-sidebar elements (both existing and future)
-    document.addEventListener('change', (e) => {
-      if (e.target.matches('[data-auto-sidebar="true"]')) {
-        if (window.innerWidth > 991) {
-          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
-        }
-      }
-      if (e.target.matches('[data-auto-second-left-sidebar="true"]')) {
-        if (window.innerWidth > 991) {
-          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
-        }
-      }
-    }, true);
-    
-    // Handle input events for text/search fields
-    document.addEventListener('input', (e) => {
-      if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
-        if (window.innerWidth > 991) {
-          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
-        }
-      }
-      if (e.target.matches('[data-auto-second-left-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
-        if (window.innerWidth > 991) {
-          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
-        }
-      }
-    }, true);
-  }
-  
   function setupEvents() {
-    // Setup Location tab click listener for lazy loading checkboxes
-    setupLocationTabListener();
-    
-    // Setup events for existing elements on the page
-    const setupExistingElements = () => {
-      // Find and setup existing data-auto-sidebar elements
-      const autoSidebarElements = document.querySelectorAll('[data-auto-sidebar="true"]');
-      autoSidebarElements.forEach(element => {
-        if (element.dataset.eventSetup === 'true') return;
-        
-        const handler = () => {
-          if (window.innerWidth > 991) {
-            state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
-          }
-        };
-        
-        eventManager.add(element, 'change', handler);
-        if (['text', 'search'].includes(element.type)) {
-          eventManager.add(element, 'input', handler);
+    const eventHandlers = [
+      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
         }
-        element.dataset.eventSetup = 'true';
-      });
-      
-      // Find and setup existing data-auto-second-left-sidebar elements
-      const secondLeftElements = document.querySelectorAll('[data-auto-second-left-sidebar="true"]');
-      secondLeftElements.forEach(element => {
-        if (element.dataset.eventSetup === 'true') return;
-        
-        const handler = () => {
-          if (window.innerWidth > 991) {
-            state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
-          }
-        };
-        
-        eventManager.add(element, 'change', handler);
-        if (['text', 'search'].includes(element.type)) {
-          eventManager.add(element, 'input', handler);
+      }},
+      {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
+        if (window.innerWidth > 991) {
+          state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
         }
-        element.dataset.eventSetup = 'true';
-      });
-    };
+      }}
+    ];
     
-    // Setup existing elements immediately
-    setupExistingElements();
+    eventHandlers.forEach(({selector, events, handler}) => {
+      const elements = $(selector);
+      elements.forEach(element => {
+        events.forEach(event => {
+          if (event === 'input' && ['text', 'search'].includes(element.type)) {
+            eventManager.add(element, event, handler);
+          } else if (event !== 'input' || element.type !== 'text') {
+            eventManager.add(element, event, handler);
+          }
+        });
+      });
+    });
     
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
@@ -1281,15 +1231,20 @@
   // INITIALIZATION
   // ====================================================================
   function initializeCore() {
-    // Don't generate checkboxes on load - wait for Location tab click (lazy loading)
-    console.log('Core initialized - checkboxes will load when Location tab is clicked');
+    // Generate checkboxes immediately like the working version
+    Promise.all([
+      generateLocalityCheckboxes(),
+      generateSettlementCheckboxes()
+    ]).then(() => {
+      console.log('All checkboxes generated');
+    });
     
     setupSidebars();
     setupEvents();
-    // setupDynamicEventDelegation removed - now called before DOM ready
     
-    // Run monitorTags immediately to check for existing filters
-    monitorTags();
+    state.setTimer('initMonitorTags', () => {
+      monitorTags();
+    }, 100);
   }
   
   // ====================================================================
@@ -1336,8 +1291,35 @@
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
-  // Setup event delegation immediately (before DOM ready)
-  setupDynamicEventDelegation();
+  // Setup event delegation immediately for existing elements on the page
+  (function setupImmediateEventDelegation() {
+    // Use capturing phase to catch all events, even from existing elements
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-auto-sidebar="true"]')) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      }
+      if (e.target.matches('[data-auto-second-left-sidebar="true"]')) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
+        }
+      }
+    }, true);
+    
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      }
+      if (e.target.matches('[data-auto-second-left-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
+        }
+      }
+    }, true);
+  })();
   
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeCore);
@@ -1346,16 +1328,10 @@
   }
   
   window.addEventListener('load', () => {
-    // Removed automatic checkbox generation - now lazy loaded on demand
-    console.log('Page loaded - checkboxes ready for lazy loading');
-    
-    // Re-run setupEvents to catch any elements that may have been added after DOMContentLoaded
-    setupEvents();
+    // Checkboxes already generated in initializeCore
+    console.log('Page fully loaded');
     
     setupSidebars();
-    
-    // Check filtered elements immediately on page load
-    checkAndToggleFilteredElements(true);
     
     // Check for default tag values after 1000ms delay (same as show-when-filtered)
     state.setTimer('checkDefaultTags', () => {
@@ -1363,9 +1339,6 @@
       if (hasDefaultTag) {
         // If we found and hid default tags, also hide show-when-filtered elements
         toggleShowWhenFilteredElements(false, true);
-      } else {
-        // If no default tags, check again for filters
-        checkAndToggleFilteredElements(true);
       }
     }, 1000);
     
