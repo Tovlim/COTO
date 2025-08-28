@@ -1,13 +1,13 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.2.5 - OPTIMIZED - Lazy loading with immediate filtering
+// Version: 1.2.6 - ULTRA OPTIMIZED - Matching mapbox performance
 // 
-// Changes in v1.2.5:
-// - Removed debug logging for performance
-// - Optimized immediate filtering detection
-// - Reduced redundant DOM queries
-// - Lazy loading for checkboxes with immediate element support
+// Changes in v1.2.6:
+// - Added IdleExecution utility for browser idle time scheduling
+// - Simplified filter functions to match mapbox script performance
+// - Removed delay complexity for faster execution
+// - Updated all timing to use requestIdleCallback
 // 
 // Changes in v1.2.0:
 // - Deferred checkbox generation with requestIdleCallback
@@ -399,6 +399,34 @@
   const $id = (id) => domCache.$id(id);
   
   // ====================================================================
+  // IDLE EXECUTION UTILITY (from mapbox script)
+  // ====================================================================
+  const IdleExecution = {
+    // Execute function during browser idle time with fallback
+    schedule(callback, options = {}) {
+      const { timeout = 2000, fallbackDelay = 100 } = options;
+      
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(callback, { timeout });
+      } else {
+        setTimeout(callback, fallbackDelay);
+      }
+    },
+    
+    // Execute with shorter timeout for UI operations
+    scheduleUI(callback, options = {}) {
+      const { timeout = 500, fallbackDelay = 16 } = options;
+      this.schedule(callback, { timeout, fallbackDelay });
+    },
+    
+    // Execute with longer timeout for heavy operations
+    scheduleHeavy(callback, options = {}) {
+      const { timeout = 5000, fallbackDelay = 200 } = options;
+      this.schedule(callback, { timeout, fallbackDelay });
+    }
+  };
+  
+  // ====================================================================
   // UTILITIES
   // ====================================================================
   const utils = {
@@ -530,12 +558,12 @@
       
       setupGeneratedCheckboxEvents();
       
-      // Refresh search script cache if available (with small delay for DOM update)
-      setTimeout(() => {
+      // Refresh search script cache if available using idle execution
+      IdleExecution.scheduleUI(() => {
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
         }
-      }, 100);
+      }, { fallbackDelay: 50 });
       
     } catch (error) {
       console.error(`Failed to generate ${type} checkboxes:`, error);
@@ -596,9 +624,9 @@
           }, { timeout: 2000 }); // 2 second timeout
         } else {
           // Fallback for browsers without requestIdleCallback
-          setTimeout(() => {
+          IdleExecution.schedule(() => {
             performCheckboxGeneration().then(resolve);
-          }, 100);
+          }, { fallbackDelay: 100 });
         }
       };
       generateWithIdle();
@@ -617,19 +645,19 @@
       
       console.log('All checkboxes generated successfully');
       
-      // Recache elements after generation and setup events
-      setTimeout(() => {
+      // Recache elements after generation using idle execution
+      IdleExecution.scheduleUI(() => {
         // Re-run the setupGeneratedCheckboxEvents for newly created checkboxes
         setupGeneratedCheckboxEvents();
         
         // Check for filtered elements after checkbox generation
-        checkAndToggleFilteredElements(true);
+        checkAndToggleFilteredElements();
         
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
           console.log('Checkboxes recached after lazy generation');
         }
-      }, 200);
+      }, { fallbackDelay: 100 });
       
     } catch (error) {
       console.error('Failed to generate checkboxes:', error);
@@ -807,7 +835,9 @@
     return hasDefaultTag;
   };
   
-  const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
+  // Toggle filtered elements with immediate DOM updates (matching mapbox)
+  const toggleShowWhenFilteredElements = show => {
+    // Don't use cached results for critical filtering elements - always fresh query
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
     
@@ -815,40 +845,29 @@
     if (state.flags.hasDefaultTags) {
       elements.forEach(element => {
         element.style.display = 'none';
-        element.style.visibility = 'hidden';
-        element.style.opacity = '0';
-        element.style.pointerEvents = 'none';
       });
       return;
     }
     
-    const applyStyles = () => {
-      elements.forEach(element => {
-        element.style.display = show ? 'block' : 'none';
-        element.style.visibility = show ? 'visible' : 'hidden';
-        element.style.opacity = show ? '1' : '0';
-        element.style.pointerEvents = show ? 'auto' : 'none';
-      });
-    };
-    
-    if (show && !skipDelay && !state.flags.pageLoadDelayComplete) {
-      state.setTimer('showFilteredElementsDelay', applyStyles, 1000);
-    } else {
-      applyStyles();
-    }
+    // Apply changes immediately - no delay logic needed
+    elements.forEach(element => {
+      element.style.display = show ? 'block' : 'none';
+    });
   };
   
-  const checkAndToggleFilteredElements = (skipDelay = false) => {
+  // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
+  const checkAndToggleFilteredElements = () => {
     // If default tags were detected, never show filtered elements
     if (state.flags.hasDefaultTags) {
-      toggleShowWhenFilteredElements(false, true);
+      toggleShowWhenFilteredElements(false);
       return false;
     }
     
+    // Check for hiddentagparent (Finsweet official filtering indicator)
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
     
-    toggleShowWhenFilteredElements(shouldShow, skipDelay);
+    toggleShowWhenFilteredElements(shouldShow);
     return shouldShow;
   };
   
@@ -868,7 +887,8 @@
         }
         
         const observer = new MutationObserver(() => {
-          checkAndToggleFilteredElements(true);
+          // Immediate check when DOM changes (like mapbox)
+          checkAndToggleFilteredElements();
         });
         observer.observe(tagParent, {childList: true, subtree: true});
         
@@ -879,7 +899,7 @@
       allCheckboxes.forEach(checkbox => {
         if (!checkbox.dataset.filteredElementListener) {
           eventManager.add(checkbox, 'change', () => {
-            setTimeout(() => checkAndToggleFilteredElements(true), 50);
+            IdleExecution.scheduleUI(checkAndToggleFilteredElements);
           });
           checkbox.dataset.filteredElementListener = 'true';
         }
@@ -889,10 +909,10 @@
       forms.forEach(form => {
         if (!form.dataset.filteredElementListener) {
           eventManager.add(form, 'change', () => {
-            setTimeout(() => checkAndToggleFilteredElements(true), 100);
+            IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
           });
           eventManager.add(form, 'input', () => {
-            setTimeout(() => checkAndToggleFilteredElements(true), 100);
+            IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
           });
           form.dataset.filteredElementListener = 'true';
         }
@@ -902,8 +922,8 @@
         if (pollingTimer) clearTimeout(pollingTimer);
         
         pollingTimer = setTimeout(() => {
-          checkAndToggleFilteredElements(true);
-          startPolling();
+          checkAndToggleFilteredElements(); // Just check, don't setup again
+          startPolling(); // Continue polling
         }, 1000);
       };
       
@@ -1219,7 +1239,7 @@
     
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
-        setTimeout(() => checkAndToggleFilteredElements(true), 100);
+        IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
       });
     });
     
@@ -1341,7 +1361,7 @@
       // Check immediately since hiddentagparent might exist
       const hiddenTagParent = document.getElementById('hiddentagparent');
       if (hiddenTagParent) {
-        toggleShowWhenFilteredElements(true, true);
+        toggleShowWhenFilteredElements(true);
       }
       
       initializeCore();
@@ -1350,32 +1370,30 @@
     // Check immediately if hiddentagparent exists
     const hiddenTagParent = document.getElementById('hiddentagparent');
     if (hiddenTagParent) {
-      toggleShowWhenFilteredElements(true, true);
+      toggleShowWhenFilteredElements(true);
     }
     initializeCore();
   }
   
   window.addEventListener('load', () => {
     // Check immediately on window load
-    checkAndToggleFilteredElements(true);
+    checkAndToggleFilteredElements();
     
     setupSidebars();
     
-    // Check for default tag values after delay
-    state.setTimer('checkDefaultTags', () => {
+    // Check for default tag values using idle execution
+    IdleExecution.scheduleUI(() => {
       const hasDefaultTag = checkForDefaultTagValues();
       if (hasDefaultTag) {
         // If we found and hid default tags, also hide show-when-filtered elements
-        toggleShowWhenFilteredElements(false, true);
+        toggleShowWhenFilteredElements(false);
       } else {
-        checkAndToggleFilteredElements(true);
+        checkAndToggleFilteredElements();
       }
-    }, 1000);
+    }, { fallbackDelay: 300 });
     
-    state.setTimer('loadCheckFiltered', () => {
-      state.flags.pageLoadDelayComplete = true;
-      checkAndToggleFilteredElements();
-    }, 1200);
+    // Additional check after page is fully loaded (matching mapbox timing)
+    state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
   });
   
   window.addEventListener('beforeunload', () => {
