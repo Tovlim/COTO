@@ -1,11 +1,13 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.2.1 - Enhanced with SafeStorage + Targeted Lazy Loading
+// Version: 1.2.5 - OPTIMIZED - Lazy loading with immediate filtering
 // 
-// Changes in v1.2.1:
-// - Checkboxes now load only when Location tab is clicked (not just sidebar open)
-// - Even better performance - most users never trigger the load
+// Changes in v1.2.5:
+// - Removed debug logging for performance
+// - Optimized immediate filtering detection
+// - Reduced redundant DOM queries
+// - Lazy loading for checkboxes with immediate element support
 // 
 // Changes in v1.2.0:
 // - Deferred checkbox generation with requestIdleCallback
@@ -425,7 +427,7 @@
     isGenerating: false,
     generationPromise: null
   };
-
+  
   async function generateCheckboxes(type, containerId, fieldName) {
     const container = $id(containerId);
     if (!container) {
@@ -557,7 +559,7 @@
     return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement')
       .then(() => { checkboxState.settlementsGenerated = true; });
   }
-
+  
   // Lazy load checkboxes when right sidebar opens
   function lazyLoadCheckboxes() {
     // Prevent multiple simultaneous generations
@@ -615,8 +617,14 @@
       
       console.log('All checkboxes generated successfully');
       
-      // Recache elements after generation
+      // Recache elements after generation and setup events
       setTimeout(() => {
+        // Re-run the setupGeneratedCheckboxEvents for newly created checkboxes
+        setupGeneratedCheckboxEvents();
+        
+        // Check for filtered elements after checkbox generation
+        checkAndToggleFilteredElements(true);
+        
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
           console.log('Checkboxes recached after lazy generation');
@@ -629,14 +637,14 @@
       checkboxState.isGenerating = false;
     }
   }
-
+  
   // Setup Location tab click listener
   function setupLocationTabListener() {
     // Use event delegation for the Location tab - multiple selectors for reliability
     const locationTabSelectors = [
       '[data-w-tab="Locality/Region"]',  // Primary selector
-      '#w-tabs-0-data-w-tab-2',          // ID selector as backup
-      '.filtertabs:has(.filter-tabs-text:contains("Location"))'  // Text-based fallback
+      '#w-tabs-0-data-w-tab-2'           // ID selector as backup
+      // Removed invalid CSS selector that was causing syntax error
     ];
     
     // Try immediate setup
@@ -831,6 +839,11 @@
   };
   
   const checkAndToggleFilteredElements = (skipDelay = false) => {
+    // Skip check if suppressed (during bulk operations like AllEvents)
+    if (state.flags.suppressFilterChecks) {
+      return false;
+    }
+    
     // If default tags were detected, never show filtered elements
     if (state.flags.hasDefaultTags) {
       toggleShowWhenFilteredElements(false, true);
@@ -860,7 +873,10 @@
         }
         
         const observer = new MutationObserver(() => {
-          checkAndToggleFilteredElements(true);
+          // Only respond to mutations if not suppressed
+          if (!state.flags.suppressFilterChecks) {
+            checkAndToggleFilteredElements(true);
+          }
         });
         observer.observe(tagParent, {childList: true, subtree: true});
         
@@ -976,11 +992,13 @@
   // EVENT HANDLERS
   // ====================================================================
   function setupGeneratedCheckboxEvents() {
-    const autoSidebarCheckboxes = $('[data-auto-sidebar="true"]');
+    // Setup events for dynamically generated checkboxes
+    const autoSidebarCheckboxes = document.querySelectorAll('[data-auto-sidebar="true"]');
     let newListenersCount = 0;
     
     autoSidebarCheckboxes.forEach(element => {
-      if (element.dataset.eventListenerAdded === 'true') return;
+      // Skip if already handled by setupEvents or event delegation
+      if (element.dataset.eventListenerAdded === 'true' || element.dataset.eventSetup === 'true') return;
       
       const changeHandler = () => {
         if (window.innerWidth > 991) {
@@ -1004,13 +1022,29 @@
     });
     
     if (newListenersCount > 0) {
-      console.log(`Added event listeners to ${newListenersCount} new elements`);
+      console.log(`Added event listeners to ${newListenersCount} new checkbox elements`);
     }
   }
   
   function setupControls() {
     const controlMap = {
-      'AllEvents': () => $id('ClearAll')?.click(),
+      'AllEvents': () => {
+        // Optimize AllEvents by preventing multiple filter checks during clear
+        const clearAllBtn = $id('ClearAll');
+        if (clearAllBtn) {
+          // Temporarily disable filter checking during bulk clear
+          const originalFlag = state.flags.suppressFilterChecks;
+          state.flags.suppressFilterChecks = true;
+          
+          clearAllBtn.click();
+          
+          // Re-enable and do a single check after a brief delay
+          setTimeout(() => {
+            state.flags.suppressFilterChecks = originalFlag;
+            checkAndToggleFilteredElements(true);
+          }, 100);
+        }
+      },
       'ToggleLeft': () => {
         const leftSidebar = $id('LeftSidebar');
         if (leftSidebar) toggleSidebar('Left', !leftSidebar.classList.contains('is-show'));
@@ -1181,9 +1215,6 @@
   }
   
   function setupEvents() {
-    // Setup Location tab click listener for lazy loading checkboxes
-    setupLocationTabListener();
-    
     const eventHandlers = [
       {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
         if (window.innerWidth > 991) {
@@ -1210,9 +1241,16 @@
       });
     });
     
+    // Debounce filter events to prevent cascading performance issues
+    let filterEventTimer = null;
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
-        setTimeout(() => checkAndToggleFilteredElements(true), 100);
+        // Clear previous timer to debounce rapid events (like AllEvents clearing multiple filters)
+        if (filterEventTimer) clearTimeout(filterEventTimer);
+        filterEventTimer = setTimeout(() => {
+          checkAndToggleFilteredElements(true);
+          filterEventTimer = null;
+        }, 50); // Reduced from 100ms for better responsiveness
       });
     });
     
@@ -1225,15 +1263,16 @@
   // INITIALIZATION
   // ====================================================================
   function initializeCore() {
-    // Don't generate checkboxes on load - wait for Location tab click
-    console.log('Core initialized - checkboxes will load when Location tab is clicked');
-    
+    // Don't generate checkboxes immediately - wait for Location tab click
     setupSidebars();
     setupEvents();
+    setupLocationTabListener();
     
-    state.setTimer('initMonitorTags', () => {
-      monitorTags();
-    }, 100);
+    // Check for filters immediately
+    checkAndToggleFilteredElements(true);
+    
+    // Start monitoring immediately
+    monitorTags();
   }
   
   // ====================================================================
@@ -1280,24 +1319,87 @@
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
+  // Check for filters immediately when script loads - optimized version
+  const immediateCheck = () => {
+    const hiddenTagParent = document.getElementById('hiddentagparent');
+    if (hiddenTagParent) {
+      // Show filtered elements immediately!
+      const elements = document.querySelectorAll('[show-when-filtered="true"]');
+      elements.forEach(element => {
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        element.style.pointerEvents = 'auto';
+      });
+    }
+  };
+  immediateCheck();
+  
+  // Setup event delegation immediately for existing elements on the page
+  (function setupImmediateEventDelegation() {
+    // Use capturing phase to catch all events, even from existing elements
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-auto-sidebar="true"]')) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      }
+      if (e.target.matches('[data-auto-second-left-sidebar="true"]')) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
+        }
+      }
+    }, true);
+    
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      }
+      if (e.target.matches('[data-auto-second-left-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
+        }
+      }
+    }, true);
+  })();
+  
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeCore);
+    document.addEventListener('DOMContentLoaded', () => {
+      immediateCheck();
+      
+      // Check immediately since hiddentagparent might exist
+      const hiddenTagParent = document.getElementById('hiddentagparent');
+      if (hiddenTagParent) {
+        toggleShowWhenFilteredElements(true, true);
+      }
+      
+      initializeCore();
+    });
   } else {
+    // Check immediately if hiddentagparent exists
+    const hiddenTagParent = document.getElementById('hiddentagparent');
+    if (hiddenTagParent) {
+      toggleShowWhenFilteredElements(true, true);
+    }
     initializeCore();
   }
   
   window.addEventListener('load', () => {
-    // Removed automatic checkbox generation - now lazy loaded on demand
-    console.log('Page loaded - checkboxes ready for lazy loading');
+    // Check immediately on window load
+    checkAndToggleFilteredElements(true);
     
     setupSidebars();
     
-    // Check for default tag values after 1000ms delay (same as show-when-filtered)
+    // Check for default tag values after delay
     state.setTimer('checkDefaultTags', () => {
       const hasDefaultTag = checkForDefaultTagValues();
       if (hasDefaultTag) {
         // If we found and hid default tags, also hide show-when-filtered elements
         toggleShowWhenFilteredElements(false, true);
+      } else {
+        checkAndToggleFilteredElements(true);
       }
     }, 1000);
     
