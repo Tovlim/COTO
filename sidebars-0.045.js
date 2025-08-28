@@ -839,11 +839,6 @@
   };
   
   const checkAndToggleFilteredElements = (skipDelay = false) => {
-    // Skip check if suppressed (during bulk operations like AllEvents)
-    if (state.flags.suppressFilterChecks) {
-      return false;
-    }
-    
     // If default tags were detected, never show filtered elements
     if (state.flags.hasDefaultTags) {
       toggleShowWhenFilteredElements(false, true);
@@ -873,10 +868,7 @@
         }
         
         const observer = new MutationObserver(() => {
-          // Only respond to mutations if not suppressed
-          if (!state.flags.suppressFilterChecks) {
-            checkAndToggleFilteredElements(true);
-          }
+          checkAndToggleFilteredElements(true);
         });
         observer.observe(tagParent, {childList: true, subtree: true});
         
@@ -1028,23 +1020,7 @@
   
   function setupControls() {
     const controlMap = {
-      'AllEvents': () => {
-        // Optimize AllEvents by preventing multiple filter checks during clear
-        const clearAllBtn = $id('ClearAll');
-        if (clearAllBtn) {
-          // Temporarily disable filter checking during bulk clear
-          const originalFlag = state.flags.suppressFilterChecks;
-          state.flags.suppressFilterChecks = true;
-          
-          clearAllBtn.click();
-          
-          // Re-enable and do a single check after a brief delay
-          setTimeout(() => {
-            state.flags.suppressFilterChecks = originalFlag;
-            checkAndToggleFilteredElements(true);
-          }, 100);
-        }
-      },
+      'AllEvents': () => $id('ClearAll')?.click(),
       'ToggleLeft': () => {
         const leftSidebar = $id('LeftSidebar');
         if (leftSidebar) toggleSidebar('Left', !leftSidebar.classList.contains('is-show'));
@@ -1241,16 +1217,9 @@
       });
     });
     
-    // Debounce filter events to prevent cascading performance issues
-    let filterEventTimer = null;
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
-        // Clear previous timer to debounce rapid events (like AllEvents clearing multiple filters)
-        if (filterEventTimer) clearTimeout(filterEventTimer);
-        filterEventTimer = setTimeout(() => {
-          checkAndToggleFilteredElements(true);
-          filterEventTimer = null;
-        }, 50); // Reduced from 100ms for better responsiveness
+        setTimeout(() => checkAndToggleFilteredElements(true), 100);
       });
     });
     
