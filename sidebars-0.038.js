@@ -1,7 +1,24 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.0.0
+// Version: 1.2.3 - Lazy loading with proper event handling
+// 
+// Changes in v1.2.3:
+// - Restored lazy loading for checkboxes (performance optimization)
+// - Fixed data-auto-sidebar to work with existing elements
+// - Fixed show-when-filtered functionality
+// 
+// Changes in v1.2.0:
+// - Deferred checkbox generation with requestIdleCallback
+// - Shows loading states during checkbox generation
+// - Prevents duplicate checkbox generation with state tracking
+// 
+// Changes in v1.1.0:
+// - Added SafeStorage wrapper for robust localStorage handling
+// - Updated cache duration from 24 hours to 7 days
+// - Updated GeoJSON URLs to newer versions (localities 0.010, settlements 0.006)
+// - Improved error handling and corrupted data recovery
+// - Added memory fallback for private browsing/restricted environments
 // ====================================================================
 
 (function(window) {
@@ -14,13 +31,104 @@
   // CONFIGURATION
   // ====================================================================
   const CONFIG = {
-    CACHE_VERSION: '1.0.0',
-    CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
+    CACHE_VERSION: '1.0.1',
+    CACHE_DURATION: 7 * 24 * 60 * 60 * 1000, // 7 days (matching mapbox script)
     GEOJSON_URLS: {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.006.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.002.geojson'
+      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
+      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
     }
   };
+  
+  // ====================================================================
+  // SAFE STORAGE WRAPPER (from mapbox v2.0.0)
+  // ====================================================================
+  class SafeStorage {
+    constructor() {
+      this.available = this.testAvailability();
+      this.fallback = new Map();
+    }
+    
+    testAvailability() {
+      try {
+        const test = '__test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+      } catch(e) {
+        console.warn('localStorage not available, using memory fallback');
+        return false;
+      }
+    }
+    
+    getItem(key) {
+      try {
+        if (!this.available) {
+          return this.fallback.get(key) || null;
+        }
+        const item = localStorage.getItem(key);
+        if (item === 'undefined') return null;
+        return item;
+      } catch(e) {
+        console.warn('Storage read error:', e);
+        return this.fallback.get(key) || null;
+      }
+    }
+    
+    setItem(key, value) {
+      try {
+        if (!this.available) {
+          this.fallback.set(key, value);
+          return;
+        }
+        localStorage.setItem(key, value);
+      } catch(e) {
+        console.warn('Storage write error:', e);
+        if (e.name === 'QuotaExceededError') {
+          this.clearOldData();
+          try {
+            localStorage.setItem(key, value);
+          } catch(retryError) {
+            this.fallback.set(key, value);
+          }
+        } else {
+          this.fallback.set(key, value);
+        }
+      }
+    }
+    
+    removeItem(key) {
+      try {
+        if (this.available) {
+          localStorage.removeItem(key);
+        }
+        this.fallback.delete(key);
+      } catch(e) {
+        console.warn('Storage remove error:', e);
+      }
+    }
+    
+    clearOldData() {
+      try {
+        const keys = Object.keys(localStorage);
+        const now = Date.now();
+        keys.forEach(key => {
+          if (key.startsWith('geojson_cache_') || key.startsWith('mapCache_')) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key));
+              if (data.timestamp && (now - data.timestamp) > CONFIG.CACHE_DURATION) {
+                localStorage.removeItem(key);
+              }
+            } catch {
+              // If can't parse, remove it
+              localStorage.removeItem(key);
+            }
+          }
+        });
+      } catch(e) {
+        console.warn('Clear old data error:', e);
+      }
+    }
+  }
   
   // ====================================================================
   // OPTIMIZED DOM CACHE
@@ -191,11 +299,12 @@
   }
   
   // ====================================================================
-  // GEOJSON DATA CACHING
+  // GEOJSON DATA CACHING (Enhanced with SafeStorage)
   // ====================================================================
   class GeoJSONCache {
-    constructor() {
+    constructor(storage) {
       this.cachePrefix = 'geojson_cache_';
+      this.storage = storage;
     }
     
     getCacheKey(type) {
@@ -205,20 +314,25 @@
     get(type) {
       try {
         const key = this.getCacheKey(type);
-        const cached = localStorage.getItem(key);
+        const cached = this.storage.getItem(key);
         if (!cached) return null;
         
         const data = JSON.parse(cached);
         const now = Date.now();
         
         if (now - data.timestamp > CONFIG.CACHE_DURATION) {
-          localStorage.removeItem(key);
+          this.storage.removeItem(key);
           return null;
         }
         
         return data.value;
       } catch (e) {
         console.warn('Cache read failed:', e);
+        // Clean up corrupted entry
+        try {
+          const key = this.getCacheKey(type);
+          this.storage.removeItem(key);
+        } catch {}
         return null;
       }
     }
@@ -230,24 +344,16 @@
           value: value,
           timestamp: Date.now()
         };
-        localStorage.setItem(key, JSON.stringify(data));
+        this.storage.setItem(key, JSON.stringify(data));
       } catch (e) {
         console.warn('Cache write failed:', e);
-        // Clear old cache if storage is full
-        this.clearOldCache();
+        // SafeStorage already handles quota errors internally
       }
     }
     
     clearOldCache() {
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.startsWith(this.cachePrefix)) {
-          const version = key.split('_').pop();
-          if (version !== CONFIG.CACHE_VERSION) {
-            localStorage.removeItem(key);
-          }
-        }
-      });
+      // Now handled by SafeStorage.clearOldData()
+      this.storage.clearOldData();
     }
     
     async fetch(type) {
@@ -280,10 +386,11 @@
   // ====================================================================
   // GLOBAL INSTANCES
   // ====================================================================
+  const safeStorage = new SafeStorage();
   const domCache = new OptimizedDOMCache();
   const eventManager = new OptimizedEventManager();
   const state = new SimpleState();
-  const geoCache = new GeoJSONCache();
+  const geoCache = new GeoJSONCache(safeStorage);
   
   // Shortcuts
   const $ = (selector) => domCache.$(selector);
@@ -311,8 +418,15 @@
   };
   
   // ====================================================================
-  // CHECKBOX GENERATION
+  // CHECKBOX GENERATION (Lazy-loaded)
   // ====================================================================
+  const checkboxState = {
+    localitiesGenerated: false,
+    settlementsGenerated: false,
+    isGenerating: false,
+    generationPromise: null
+  };
+  
   async function generateCheckboxes(type, containerId, fieldName) {
     const container = $id(containerId);
     if (!container) {
@@ -428,11 +542,138 @@
   }
   
   function generateLocalityCheckboxes() {
-    return generateCheckboxes('localities', 'locality-check-list', 'Locality');
+    if (checkboxState.localitiesGenerated) {
+      console.log('Locality checkboxes already generated');
+      return Promise.resolve();
+    }
+    return generateCheckboxes('localities', 'locality-check-list', 'Locality')
+      .then(() => { checkboxState.localitiesGenerated = true; });
   }
   
   function generateSettlementCheckboxes() {
-    return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement');
+    if (checkboxState.settlementsGenerated) {
+      console.log('Settlement checkboxes already generated');
+      return Promise.resolve();
+    }
+    return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement')
+      .then(() => { checkboxState.settlementsGenerated = true; });
+  }
+  
+  // Lazy load checkboxes when right sidebar opens
+  function lazyLoadCheckboxes() {
+    // Prevent multiple simultaneous generations
+    if (checkboxState.isGenerating) {
+      return checkboxState.generationPromise;
+    }
+    
+    // Check if already generated
+    if (checkboxState.localitiesGenerated && checkboxState.settlementsGenerated) {
+      console.log('Checkboxes already generated');
+      return Promise.resolve();
+    }
+    
+    console.log('Lazy loading checkboxes for filter sidebar...');
+    checkboxState.isGenerating = true;
+    
+    // Show loading state if containers exist
+    const localityContainer = $id('locality-check-list');
+    const settlementContainer = $id('settlement-check-list');
+    
+    if (localityContainer && !checkboxState.localitiesGenerated) {
+      localityContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading localities...</div>';
+    }
+    if (settlementContainer && !checkboxState.settlementsGenerated) {
+      settlementContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading settlements...</div>';
+    }
+    
+    // Use requestIdleCallback for non-urgent generation
+    checkboxState.generationPromise = new Promise((resolve) => {
+      const generateWithIdle = () => {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(() => {
+            performCheckboxGeneration().then(resolve);
+          }, { timeout: 2000 }); // 2 second timeout
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => {
+            performCheckboxGeneration().then(resolve);
+          }, 100);
+        }
+      };
+      generateWithIdle();
+    });
+    
+    return checkboxState.generationPromise;
+  }
+  
+  async function performCheckboxGeneration() {
+    try {
+      // Generate in parallel but with idle priority
+      await Promise.all([
+        generateLocalityCheckboxes(),
+        generateSettlementCheckboxes()
+      ]);
+      
+      console.log('All checkboxes generated successfully');
+      
+      // Recache elements after generation and setup events
+      setTimeout(() => {
+        // Re-run the setupGeneratedCheckboxEvents for newly created checkboxes
+        setupGeneratedCheckboxEvents();
+        
+        // Also re-run monitorTags to ensure new checkboxes are monitored
+        monitorTags();
+        
+        if (window.checkboxFilterScript) {
+          window.checkboxFilterScript.recacheElements();
+          console.log('Checkboxes recached after lazy generation');
+        }
+      }, 200);
+      
+    } catch (error) {
+      console.error('Failed to generate checkboxes:', error);
+    } finally {
+      checkboxState.isGenerating = false;
+    }
+  }
+  
+  // Setup Location tab click listener
+  function setupLocationTabListener() {
+    // Use event delegation for the Location tab - multiple selectors for reliability
+    const locationTabSelectors = [
+      '[data-w-tab="Locality/Region"]',  // Primary selector
+      '#w-tabs-0-data-w-tab-2',          // ID selector as backup
+      '.filtertabs:has(.filter-tabs-text:contains("Location"))'  // Text-based fallback
+    ];
+    
+    // Try immediate setup
+    locationTabSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(element => {
+        if (element.dataset.checkboxListenerAdded === 'true') return;
+        
+        element.addEventListener('click', function(e) {
+          // Only load if not already generated
+          if (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated) {
+            console.log('Location tab clicked - loading checkboxes...');
+            lazyLoadCheckboxes();
+          }
+        });
+        
+        element.dataset.checkboxListenerAdded = 'true';
+      });
+    });
+    
+    // Also use event delegation for dynamically added tabs
+    document.addEventListener('click', function(e) {
+      const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
+                         e.target.closest('#w-tabs-0-data-w-tab-2');
+      
+      if (locationTab && (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
+        console.log('Location tab clicked (delegated) - loading checkboxes...');
+        lazyLoadCheckboxes();
+      }
+    });
   }
   
   // ====================================================================
@@ -742,11 +983,13 @@
   // EVENT HANDLERS
   // ====================================================================
   function setupGeneratedCheckboxEvents() {
-    const autoSidebarCheckboxes = $('[data-auto-sidebar="true"]');
+    // Setup events for dynamically generated checkboxes
+    const autoSidebarCheckboxes = document.querySelectorAll('[data-auto-sidebar="true"]');
     let newListenersCount = 0;
     
     autoSidebarCheckboxes.forEach(element => {
-      if (element.dataset.eventListenerAdded === 'true') return;
+      // Skip if already handled by setupEvents or event delegation
+      if (element.dataset.eventListenerAdded === 'true' || element.dataset.eventSetup === 'true') return;
       
       const changeHandler = () => {
         if (window.innerWidth > 991) {
@@ -770,7 +1013,7 @@
     });
     
     if (newListenersCount > 0) {
-      console.log(`Added event listeners to ${newListenersCount} new elements`);
+      console.log(`Added event listeners to ${newListenersCount} new checkbox elements`);
     }
   }
   
@@ -946,32 +1189,82 @@
     attemptSetup();
   }
   
-  function setupEvents() {
-    const eventHandlers = [
-      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
+  // Setup global event delegation for dynamic elements
+  function setupDynamicEventDelegation() {
+    // Use event delegation for data-auto-sidebar elements (both existing and future)
+    document.addEventListener('change', (e) => {
+      if (e.target.matches('[data-auto-sidebar="true"]')) {
         if (window.innerWidth > 991) {
-          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
-      }},
-      {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      }
+      if (e.target.matches('[data-auto-second-left-sidebar="true"]')) {
         if (window.innerWidth > 991) {
-          state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
+          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
-      }}
-    ];
+      }
+    }, true);
     
-    eventHandlers.forEach(({selector, events, handler}) => {
-      const elements = $(selector);
-      elements.forEach(element => {
-        events.forEach(event => {
-          if (event === 'input' && ['text', 'search'].includes(element.type)) {
-            eventManager.add(element, event, handler);
-          } else if (event !== 'input' || element.type !== 'text') {
-            eventManager.add(element, event, handler);
+    // Handle input events for text/search fields
+    document.addEventListener('input', (e) => {
+      if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+        }
+      }
+      if (e.target.matches('[data-auto-second-left-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        if (window.innerWidth > 991) {
+          state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
+        }
+      }
+    }, true);
+  }
+  
+  function setupEvents() {
+    // Setup Location tab click listener for lazy loading checkboxes
+    setupLocationTabListener();
+    
+    // Setup events for existing elements on the page
+    const setupExistingElements = () => {
+      // Find and setup existing data-auto-sidebar elements
+      const autoSidebarElements = document.querySelectorAll('[data-auto-sidebar="true"]');
+      autoSidebarElements.forEach(element => {
+        if (element.dataset.eventSetup === 'true') return;
+        
+        const handler = () => {
+          if (window.innerWidth > 991) {
+            state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
           }
-        });
+        };
+        
+        eventManager.add(element, 'change', handler);
+        if (['text', 'search'].includes(element.type)) {
+          eventManager.add(element, 'input', handler);
+        }
+        element.dataset.eventSetup = 'true';
       });
-    });
+      
+      // Find and setup existing data-auto-second-left-sidebar elements
+      const secondLeftElements = document.querySelectorAll('[data-auto-second-left-sidebar="true"]');
+      secondLeftElements.forEach(element => {
+        if (element.dataset.eventSetup === 'true') return;
+        
+        const handler = () => {
+          if (window.innerWidth > 991) {
+            state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
+          }
+        };
+        
+        eventManager.add(element, 'change', handler);
+        if (['text', 'search'].includes(element.type)) {
+          eventManager.add(element, 'input', handler);
+        }
+        element.dataset.eventSetup = 'true';
+      });
+    };
+    
+    // Setup existing elements immediately
+    setupExistingElements();
     
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
@@ -988,16 +1281,12 @@
   // INITIALIZATION
   // ====================================================================
   function initializeCore() {
-    // Generate checkboxes
-    Promise.all([
-      generateLocalityCheckboxes(),
-      generateSettlementCheckboxes()
-    ]).then(() => {
-      console.log('All checkboxes generated');
-    });
+    // Don't generate checkboxes on load - wait for Location tab click (lazy loading)
+    console.log('Core initialized - checkboxes will load when Location tab is clicked');
     
     setupSidebars();
     setupEvents();
+    setupDynamicEventDelegation(); // Setup delegation for dynamic elements
     
     state.setTimer('initMonitorTags', () => {
       monitorTags();
@@ -1032,6 +1321,10 @@
     // Initialization
     init: initializeCore,
     
+    // Checkbox generation (lazy-loaded)
+    lazyLoadCheckboxes,
+    checkboxState,
+    
     // For map page
     getGeoJSONData: async function() {
       return {
@@ -1051,20 +1344,8 @@
   }
   
   window.addEventListener('load', () => {
-    state.setTimer('loadGenerateCheckboxes', () => {
-      Promise.all([
-        generateLocalityCheckboxes(),
-        generateSettlementCheckboxes()
-      ]).then(() => {
-        // Recache after the second generation completes
-        setTimeout(() => {
-          if (window.checkboxFilterScript) {
-            window.checkboxFilterScript.recacheElements();
-            console.log('Sidebars: Recached checkboxes after load generation');
-          }
-        }, 200);
-      });
-    }, 500);
+    // Removed automatic checkbox generation - now lazy loaded on demand
+    console.log('Page loaded - checkboxes ready for lazy loading');
     
     setupSidebars();
     
