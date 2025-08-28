@@ -1189,7 +1189,7 @@
     attemptSetup();
   }
   
-  // Setup global event delegation for dynamic elements
+  // Setup global event delegation for dynamic elements - moved outside to run immediately
   function setupDynamicEventDelegation() {
     // Use event delegation for data-auto-sidebar elements (both existing and future)
     document.addEventListener('change', (e) => {
@@ -1286,11 +1286,10 @@
     
     setupSidebars();
     setupEvents();
-    setupDynamicEventDelegation(); // Setup delegation for dynamic elements
+    // setupDynamicEventDelegation removed - now called before DOM ready
     
-    state.setTimer('initMonitorTags', () => {
-      monitorTags();
-    }, 100);
+    // Run monitorTags immediately to check for existing filters
+    monitorTags();
   }
   
   // ====================================================================
@@ -1337,6 +1336,9 @@
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
+  // Setup event delegation immediately (before DOM ready)
+  setupDynamicEventDelegation();
+  
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeCore);
   } else {
@@ -1347,7 +1349,13 @@
     // Removed automatic checkbox generation - now lazy loaded on demand
     console.log('Page loaded - checkboxes ready for lazy loading');
     
+    // Re-run setupEvents to catch any elements that may have been added after DOMContentLoaded
+    setupEvents();
+    
     setupSidebars();
+    
+    // Check filtered elements immediately on page load
+    checkAndToggleFilteredElements(true);
     
     // Check for default tag values after 1000ms delay (same as show-when-filtered)
     state.setTimer('checkDefaultTags', () => {
@@ -1355,6 +1363,9 @@
       if (hasDefaultTag) {
         // If we found and hid default tags, also hide show-when-filtered elements
         toggleShowWhenFilteredElements(false, true);
+      } else {
+        // If no default tags, check again for filters
+        checkAndToggleFilteredElements(true);
       }
     }, 1000);
     
