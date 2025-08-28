@@ -776,39 +776,66 @@
     const tagFieldElements = document.querySelectorAll('[fs-list-element="tag-field"]');
     const tagValueElements = document.querySelectorAll('[fs-list-element="tag-value"]');
     
+    console.log('[DEBUG] checkForDefaultTagValues:', {
+      tagFieldElements: tagFieldElements.length,
+      tagValueElements: tagValueElements.length
+    });
+    
     let hasDefaultTag = false;
     
     // Check if any tag has both default values
     tagFieldElements.forEach(fieldEl => {
-      if (fieldEl.textContent.trim() === 'tag-field') {
+      const fieldText = fieldEl.textContent.trim();
+      console.log('[DEBUG] Tag field text:', fieldText);
+      
+      if (fieldText === 'tag-field') {
         // Find corresponding tag-value in the same parent structure
         const parentTag = fieldEl.closest('#tag, [id*="tag"]');
         if (parentTag) {
           const valueEl = parentTag.querySelector('[fs-list-element="tag-value"]');
-          if (valueEl && valueEl.textContent.trim() === 'tag-value') {
-            // Found a tag with default values - hide the entire tagparent
-            const tagParent = parentTag.closest('#tagparent');
-            if (tagParent) {
-              tagParent.style.display = 'none';
-              hasDefaultTag = true;
-              // Set permanent flag to prevent show-when-filtered elements from appearing
-              state.flags.hasDefaultTags = true;
+          if (valueEl) {
+            const valueText = valueEl.textContent.trim();
+            console.log('[DEBUG] Tag value text:', valueText);
+            
+            if (valueText === 'tag-value') {
+              // Found a tag with default values - hide the entire tagparent
+              const tagParent = parentTag.closest('#tagparent');
+              if (tagParent) {
+                console.log('[DEBUG] Found default tags, hiding tagparent');
+                tagParent.style.display = 'none';
+                hasDefaultTag = true;
+                // Set permanent flag to prevent show-when-filtered elements from appearing
+                state.flags.hasDefaultTags = true;
+              }
             }
           }
         }
       }
     });
     
+    console.log('[DEBUG] checkForDefaultTagValues result:', hasDefaultTag);
     return hasDefaultTag;
   };
   
   const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
     // Always use fresh DOM query for critical filtering elements
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
-    if (elements.length === 0) return;
+    console.log('[DEBUG] toggleShowWhenFilteredElements called:', {
+      show,
+      skipDelay,
+      elementsFound: elements.length,
+      hasDefaultTags: state.flags.hasDefaultTags,
+      pageLoadDelayComplete: state.flags.pageLoadDelayComplete
+    });
+    
+    if (elements.length === 0) {
+      console.log('[DEBUG] No show-when-filtered elements found');
+      return;
+    }
     
     // If default tags were detected, never show these elements
     if (state.flags.hasDefaultTags) {
+      console.log('[DEBUG] Default tags detected, hiding filtered elements');
       elements.forEach(element => {
         element.style.display = 'none';
         element.style.visibility = 'hidden';
@@ -819,6 +846,7 @@
     }
     
     const applyStyles = () => {
+      console.log('[DEBUG] Applying styles to show-when-filtered elements, show:', show);
       elements.forEach(element => {
         // Use simpler display toggle like in mapbox script
         element.style.display = show ? 'block' : 'none';
@@ -828,10 +856,12 @@
           element.style.opacity = '1';
           element.style.pointerEvents = 'auto';
         }
+        console.log('[DEBUG] Element styled:', element, 'display:', element.style.display);
       });
     };
     
     if (show && !skipDelay && !state.flags.pageLoadDelayComplete) {
+      console.log('[DEBUG] Delaying style application by 1000ms');
       state.setTimer('showFilteredElementsDelay', applyStyles, 1000);
     } else {
       applyStyles();
@@ -839,14 +869,25 @@
   };
   
   const checkAndToggleFilteredElements = (skipDelay = false) => {
+    console.log('[DEBUG] checkAndToggleFilteredElements called, skipDelay:', skipDelay);
+    
     // If default tags were detected, never show filtered elements
     if (state.flags.hasDefaultTags) {
+      console.log('[DEBUG] Has default tags, hiding filtered elements');
       toggleShowWhenFilteredElements(false, true);
       return false;
     }
     
     const hiddenTagParent = document.getElementById('hiddentagparent');
+    const tagParent = document.getElementById('tagparent');
     const shouldShow = !!hiddenTagParent;
+    
+    console.log('[DEBUG] Checking filtered elements:', {
+      hiddenTagParent: !!hiddenTagParent,
+      tagParent: !!tagParent,
+      shouldShow,
+      tagParentChildren: tagParent ? tagParent.children.length : 0
+    });
     
     toggleShowWhenFilteredElements(shouldShow, skipDelay);
     return shouldShow;
@@ -857,22 +898,28 @@
     let pollingTimer = null;
     
     return () => {
+      console.log('[DEBUG] monitorTags called, isSetup:', isSetup);
       if (isSetup) return;
       
+      console.log('[DEBUG] Setting up tag monitoring');
       checkAndToggleFilteredElements();
       
       const tagParent = document.getElementById('tagparent');
+      console.log('[DEBUG] TagParent element:', !!tagParent);
+      
       if (tagParent) {
         if (tagParent._mutationObserver) {
           tagParent._mutationObserver.disconnect();
         }
         
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver((mutations) => {
+          console.log('[DEBUG] TagParent mutation detected:', mutations.length, 'mutations');
           checkAndToggleFilteredElements(true);
         });
         observer.observe(tagParent, {childList: true, subtree: true});
         
         tagParent._mutationObserver = observer;
+        console.log('[DEBUG] MutationObserver attached to tagParent');
       }
       
       // Use event delegation for dynamically added checkboxes
@@ -915,15 +962,19 @@
         }
       });
       
+      let pollCount = 0;
       const startPolling = () => {
         if (pollingTimer) clearTimeout(pollingTimer);
         
         pollingTimer = setTimeout(() => {
+          pollCount++;
+          console.log('[DEBUG] Polling check #', pollCount);
           checkAndToggleFilteredElements(true);
           startPolling();
         }, 1000);
       };
       
+      console.log('[DEBUG] Starting polling for filtered elements');
       startPolling();
       isSetup = true;
     };
@@ -1280,6 +1331,7 @@
     }
     
     state.setTimer('initMonitorTags', () => {
+      console.log('[DEBUG] Initializing monitorTags after 100ms delay');
       monitorTags();
     }, 100);
   }
@@ -1342,14 +1394,17 @@
     
     // Check for default tag values after 1000ms delay (same as show-when-filtered)
     state.setTimer('checkDefaultTags', () => {
+      console.log('[DEBUG] Checking for default tags after 1000ms delay');
       const hasDefaultTag = checkForDefaultTagValues();
       if (hasDefaultTag) {
+        console.log('[DEBUG] Found default tags, hiding show-when-filtered elements');
         // If we found and hid default tags, also hide show-when-filtered elements
         toggleShowWhenFilteredElements(false, true);
       }
     }, 1000);
     
     state.setTimer('loadCheckFiltered', () => {
+      console.log('[DEBUG] Page load delay complete, checking filtered elements');
       state.flags.pageLoadDelayComplete = true;
       checkAndToggleFilteredElements();
     }, 1200);
