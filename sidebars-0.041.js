@@ -1,12 +1,13 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.2.3 - Lazy loading with proper event handling
+// Version: 1.2.4 - DEBUG VERSION - Lazy loading with immediate filtering
 // 
-// Changes in v1.2.3:
-// - Restored lazy loading for checkboxes (performance optimization)
-// - Fixed data-auto-sidebar to work with existing elements
-// - Fixed show-when-filtered functionality
+// Changes in v1.2.4:
+// - Added extensive debugging for show-when-filtered
+// - Restored true lazy loading for checkboxes
+// - Fixed monitoring system to work continuously
+// - Event delegation works immediately for existing elements
 // 
 // Changes in v1.2.0:
 // - Deferred checkbox generation with requestIdleCallback
@@ -808,10 +809,24 @@
   
   const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
-    if (elements.length === 0) return;
+    
+    console.log('[DEBUG] toggleShowWhenFilteredElements:', {
+      show,
+      skipDelay,
+      elementsFound: elements.length,
+      hasDefaultTags: state.flags.hasDefaultTags,
+      pageLoadDelayComplete: state.flags.pageLoadDelayComplete,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (elements.length === 0) {
+      console.log('[DEBUG] No show-when-filtered elements found');
+      return;
+    }
     
     // If default tags were detected, never show these elements
     if (state.flags.hasDefaultTags) {
+      console.log('[DEBUG] hasDefaultTags true, forcing hide');
       elements.forEach(element => {
         element.style.display = 'none';
         element.style.visibility = 'hidden';
@@ -822,30 +837,55 @@
     }
     
     const applyStyles = () => {
-      elements.forEach(element => {
+      console.log('[DEBUG] Applying styles to', elements.length, 'elements, show:', show);
+      elements.forEach((element, index) => {
+        const oldDisplay = element.style.display;
         element.style.display = show ? 'block' : 'none';
         element.style.visibility = show ? 'visible' : 'hidden';
         element.style.opacity = show ? '1' : '0';
         element.style.pointerEvents = show ? 'auto' : 'none';
+        
+        console.log(`[DEBUG] Element ${index}:`, {
+          id: element.id,
+          class: element.className,
+          oldDisplay,
+          newDisplay: element.style.display,
+          element: element
+        });
       });
     };
     
     if (show && !skipDelay && !state.flags.pageLoadDelayComplete) {
+      console.log('[DEBUG] Delaying style application by 1000ms');
       state.setTimer('showFilteredElementsDelay', applyStyles, 1000);
     } else {
+      console.log('[DEBUG] Applying styles immediately');
       applyStyles();
     }
   };
   
   const checkAndToggleFilteredElements = (skipDelay = false) => {
+    console.log('[DEBUG] checkAndToggleFilteredElements called, skipDelay:', skipDelay);
+    
     // If default tags were detected, never show filtered elements
     if (state.flags.hasDefaultTags) {
+      console.log('[DEBUG] hasDefaultTags is true, hiding filtered elements');
       toggleShowWhenFilteredElements(false, true);
       return false;
     }
     
     const hiddenTagParent = document.getElementById('hiddentagparent');
+    const tagParent = document.getElementById('tagparent');
     const shouldShow = !!hiddenTagParent;
+    
+    console.log('[DEBUG] Filter check results:', {
+      hiddenTagParent: !!hiddenTagParent,
+      tagParent: !!tagParent,
+      shouldShow,
+      timestamp: new Date().toISOString(),
+      tagParentHTML: tagParent ? tagParent.outerHTML.substring(0, 200) + '...' : null,
+      hiddenTagParentHTML: hiddenTagParent ? hiddenTagParent.outerHTML.substring(0, 200) + '...' : null
+    });
     
     toggleShowWhenFilteredElements(shouldShow, skipDelay);
     return shouldShow;
@@ -854,10 +894,17 @@
   const monitorTags = (() => {
     let isSetup = false;
     let pollingTimer = null;
+    let pollCount = 0;
     
     return () => {
-      if (isSetup) return;
+      console.log('[DEBUG] monitorTags called, isSetup:', isSetup);
       
+      if (isSetup) {
+        console.log('[DEBUG] monitorTags already setup, skipping');
+        return;
+      }
+      
+      console.log('[DEBUG] Setting up tag monitoring system');
       checkAndToggleFilteredElements();
       
       const tagParent = document.getElementById('tagparent');
@@ -901,11 +948,14 @@
         if (pollingTimer) clearTimeout(pollingTimer);
         
         pollingTimer = setTimeout(() => {
+          pollCount++;
+          console.log(`[DEBUG] Polling check #${pollCount}`);
           checkAndToggleFilteredElements(true);
           startPolling();
         }, 1000);
       };
       
+      console.log('[DEBUG] Starting continuous polling');
       startPolling();
       isSetup = true;
     };
@@ -1231,20 +1281,22 @@
   // INITIALIZATION
   // ====================================================================
   function initializeCore() {
-    // Generate checkboxes immediately like the working version
-    Promise.all([
-      generateLocalityCheckboxes(),
-      generateSettlementCheckboxes()
-    ]).then(() => {
-      console.log('All checkboxes generated');
-    });
+    console.log('[DEBUG] initializeCore started - LAZY LOADING enabled');
+    
+    // Don't generate checkboxes immediately - wait for Location tab click
+    console.log('[DEBUG] Checkboxes will be lazy loaded when Location tab is clicked');
     
     setupSidebars();
     setupEvents();
+    setupLocationTabListener();
     
-    state.setTimer('initMonitorTags', () => {
-      monitorTags();
-    }, 100);
+    // Check for filters immediately
+    console.log('[DEBUG] Checking for filters immediately in initializeCore');
+    checkAndToggleFilteredElements(true);
+    
+    // Start monitoring immediately
+    console.log('[DEBUG] Starting monitoring system');
+    monitorTags();
   }
   
   // ====================================================================
@@ -1291,16 +1343,40 @@
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
+  console.log('[DEBUG] Script loading, document.readyState:', document.readyState);
+  
+  // Check for filters IMMEDIATELY when script loads
+  console.log('[DEBUG] Immediate filter check on script load');
+  const immediateCheck = () => {
+    const hiddenTagParent = document.getElementById('hiddentagparent');
+    const tagParent = document.getElementById('tagparent');
+    console.log('[DEBUG] IMMEDIATE CHECK:', {
+      hiddenTagParent: !!hiddenTagParent,
+      tagParent: !!tagParent,
+      timestamp: new Date().toISOString()
+    });
+    if (hiddenTagParent) {
+      console.log('[DEBUG] FOUND hiddentagparent on immediate check!');
+      console.log(hiddenTagParent.outerHTML.substring(0, 300));
+    }
+  };
+  immediateCheck();
+  
   // Setup event delegation immediately for existing elements on the page
   (function setupImmediateEventDelegation() {
+    console.log('[DEBUG] Setting up immediate event delegation');
+    
     // Use capturing phase to catch all events, even from existing elements
     document.addEventListener('change', (e) => {
+      console.log('[DEBUG] Change event captured:', e.target);
       if (e.target.matches('[data-auto-sidebar="true"]')) {
+        console.log('[DEBUG] data-auto-sidebar change event triggered');
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
       }
       if (e.target.matches('[data-auto-second-left-sidebar="true"]')) {
+        console.log('[DEBUG] data-auto-second-left-sidebar change event triggered');
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
@@ -1309,43 +1385,70 @@
     
     document.addEventListener('input', (e) => {
       if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        console.log('[DEBUG] data-auto-sidebar input event triggered');
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
       }
       if (e.target.matches('[data-auto-second-left-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        console.log('[DEBUG] data-auto-second-left-sidebar input event triggered');
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
       }
     }, true);
+    
+    console.log('[DEBUG] Event delegation setup complete');
   })();
   
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeCore);
+    console.log('[DEBUG] Document still loading, waiting for DOMContentLoaded');
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('[DEBUG] DOMContentLoaded fired');
+      immediateCheck();
+      initializeCore();
+    });
   } else {
+    console.log('[DEBUG] Document already loaded, initializing immediately');
     initializeCore();
   }
   
   window.addEventListener('load', () => {
-    // Checkboxes already generated in initializeCore
-    console.log('Page fully loaded');
+    console.log('[DEBUG] Window load event fired');
+    
+    // Check immediately on window load
+    console.log('[DEBUG] Filter check on window load');
+    checkAndToggleFilteredElements(true);
     
     setupSidebars();
     
-    // Check for default tag values after 1000ms delay (same as show-when-filtered)
+    // Check for default tag values after 500ms delay
     state.setTimer('checkDefaultTags', () => {
+      console.log('[DEBUG] Running default tag check after 500ms delay');
       const hasDefaultTag = checkForDefaultTagValues();
       if (hasDefaultTag) {
+        console.log('[DEBUG] Found default tags, hiding show-when-filtered elements');
         // If we found and hid default tags, also hide show-when-filtered elements
         toggleShowWhenFilteredElements(false, true);
+      } else {
+        console.log('[DEBUG] No default tags found, checking filters again');
+        checkAndToggleFilteredElements(true);
       }
-    }, 1000);
+    }, 500);
+    
+    // Multiple checks at different intervals
+    [100, 300, 600, 1200, 2000].forEach(delay => {
+      state.setTimer(`delayedCheck-${delay}`, () => {
+        console.log(`[DEBUG] Delayed check after ${delay}ms`);
+        checkAndToggleFilteredElements(true);
+      }, delay);
+    });
     
     state.setTimer('loadCheckFiltered', () => {
+      console.log('[DEBUG] Final load check - setting pageLoadDelayComplete = true');
       state.flags.pageLoadDelayComplete = true;
       checkAndToggleFilteredElements();
-    }, 1200);
+    }, 2500);
   });
   
   window.addEventListener('beforeunload', () => {
