@@ -615,8 +615,11 @@
       
       console.log('All checkboxes generated successfully');
       
-      // Recache elements after generation
+      // Recache elements after generation and setup events
       setTimeout(() => {
+        // Re-run the setupGeneratedCheckboxEvents for newly created checkboxes
+        setupGeneratedCheckboxEvents();
+        
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
           console.log('Checkboxes recached after lazy generation');
@@ -800,6 +803,7 @@
   };
   
   const toggleShowWhenFilteredElements = (show, skipDelay = false) => {
+    // Always use fresh DOM query for critical filtering elements
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
     
@@ -816,10 +820,14 @@
     
     const applyStyles = () => {
       elements.forEach(element => {
+        // Use simpler display toggle like in mapbox script
         element.style.display = show ? 'block' : 'none';
-        element.style.visibility = show ? 'visible' : 'hidden';
-        element.style.opacity = show ? '1' : '0';
-        element.style.pointerEvents = show ? 'auto' : 'none';
+        // Remove the extra visibility/opacity/pointer-events for simplicity
+        if (show) {
+          element.style.visibility = 'visible';
+          element.style.opacity = '1';
+          element.style.pointerEvents = 'auto';
+        }
       });
     };
     
@@ -867,15 +875,32 @@
         tagParent._mutationObserver = observer;
       }
       
-      const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-      allCheckboxes.forEach(checkbox => {
-        if (!checkbox.dataset.filteredElementListener) {
-          eventManager.add(checkbox, 'change', () => {
+      // Use event delegation for dynamically added checkboxes
+      if (!document.body.dataset.checkboxDelegationSetup) {
+        document.addEventListener('change', (e) => {
+          if (e.target.matches('[checkbox-filter] input[type="checkbox"]')) {
             setTimeout(() => checkAndToggleFilteredElements(true), 50);
-          });
-          checkbox.dataset.filteredElementListener = 'true';
-        }
-      });
+          }
+          
+          // Also handle data-auto-sidebar dynamically
+          if (e.target.matches('[data-auto-sidebar="true"]')) {
+            if (window.innerWidth > 991) {
+              state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+            }
+          }
+        });
+        
+        // Handle input events for text/search fields with data-auto-sidebar
+        document.addEventListener('input', (e) => {
+          if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+            if (window.innerWidth > 991) {
+              state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+            }
+          }
+        });
+        
+        document.body.dataset.checkboxDelegationSetup = 'true';
+      }
       
       const forms = document.querySelectorAll('form');
       forms.forEach(form => {
@@ -976,7 +1001,8 @@
   // EVENT HANDLERS
   // ====================================================================
   function setupGeneratedCheckboxEvents() {
-    const autoSidebarCheckboxes = $('[data-auto-sidebar="true"]');
+    // Force re-query the DOM instead of using cached results
+    const autoSidebarCheckboxes = document.querySelectorAll('[data-auto-sidebar="true"]');
     let newListenersCount = 0;
     
     autoSidebarCheckboxes.forEach(element => {
@@ -1198,7 +1224,8 @@
     ];
     
     eventHandlers.forEach(({selector, events, handler}) => {
-      const elements = $(selector);
+      // Use fresh DOM query instead of cached results
+      const elements = document.querySelectorAll(selector);
       elements.forEach(element => {
         events.forEach(event => {
           if (event === 'input' && ['text', 'search'].includes(element.type)) {
@@ -1230,6 +1257,27 @@
     
     setupSidebars();
     setupEvents();
+    
+    // Setup global event delegation for data-auto-sidebar early
+    if (!document.body.dataset.globalDelegationSetup) {
+      document.addEventListener('change', (e) => {
+        if (e.target.matches('[data-auto-sidebar="true"]')) {
+          if (window.innerWidth > 991) {
+            state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+          }
+        }
+      }, true);
+      
+      document.addEventListener('input', (e) => {
+        if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+          if (window.innerWidth > 991) {
+            state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
+          }
+        }
+      }, true);
+      
+      document.body.dataset.globalDelegationSetup = 'true';
+    }
     
     state.setTimer('initMonitorTags', () => {
       monitorTags();
