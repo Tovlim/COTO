@@ -878,15 +878,20 @@
       return false;
     }
     
+    // The hiddentagparent is INSIDE tagparent when filters are active
+    // Check if hiddentagparent exists (it contains the actual filter tags)
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const tagParent = document.getElementById('tagparent');
+    
+    // hiddentagparent exists = filters are active
     const shouldShow = !!hiddenTagParent;
     
     console.log('[DEBUG] Checking filtered elements:', {
       hiddenTagParent: !!hiddenTagParent,
       tagParent: !!tagParent,
       shouldShow,
-      tagParentChildren: tagParent ? tagParent.children.length : 0
+      tagParentChildren: tagParent ? tagParent.children.length : 0,
+      hiddenTagParentHTML: hiddenTagParent ? hiddenTagParent.outerHTML.substring(0, 100) + '...' : 'null'
     });
     
     toggleShowWhenFilteredElements(shouldShow, skipDelay);
@@ -1261,32 +1266,63 @@
     // Setup Location tab click listener for lazy loading checkboxes
     setupLocationTabListener();
     
-    const eventHandlers = [
-      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
-        if (window.innerWidth > 991) {
-          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
-        }
-      }},
-      {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
-        if (window.innerWidth > 991) {
-          state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
-        }
-      }}
-    ];
-    
-    eventHandlers.forEach(({selector, events, handler}) => {
-      // Use fresh DOM query instead of cached results
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(element => {
-        events.forEach(event => {
-          if (event === 'input' && ['text', 'search'].includes(element.type)) {
-            eventManager.add(element, event, handler);
-          } else if (event !== 'input' || element.type !== 'text') {
-            eventManager.add(element, event, handler);
+    // Setup events for existing elements with data-auto-sidebar
+    const setupAutoSidebarForExisting = () => {
+      const autoSidebarElements = document.querySelectorAll('[data-auto-sidebar="true"]');
+      console.log('[DEBUG] Found existing data-auto-sidebar elements:', autoSidebarElements.length);
+      
+      autoSidebarElements.forEach(element => {
+        if (element.dataset.eventListenerAdded === 'true') return;
+        
+        const handler = () => {
+          if (window.innerWidth > 991) {
+            state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
           }
-        });
+        };
+        
+        // Add change event for all input types
+        eventManager.add(element, 'change', handler);
+        
+        // Add input event for text/search types
+        if (['text', 'search'].includes(element.type)) {
+          eventManager.add(element, 'input', handler);
+        }
+        
+        element.dataset.eventListenerAdded = 'true';
       });
+    };
+    
+    // Setup for second left sidebar
+    const setupSecondLeftSidebar = () => {
+      const elements = document.querySelectorAll('[data-auto-second-left-sidebar="true"]');
+      elements.forEach(element => {
+        if (element.dataset.eventListenerAdded === 'true') return;
+        
+        const handler = () => {
+          if (window.innerWidth > 991) {
+            state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
+          }
+        };
+        
+        eventManager.add(element, 'change', handler);
+        if (['text', 'search'].includes(element.type)) {
+          eventManager.add(element, 'input', handler);
+        }
+        
+        element.dataset.eventListenerAdded = 'true';
+      });
+    };
+    
+    // Run setup for existing elements
+    setupAutoSidebarForExisting();
+    setupSecondLeftSidebar();
+    
+    // Also setup mutation observer to catch any dynamically added elements
+    const observer = new MutationObserver(() => {
+      setupAutoSidebarForExisting();
+      setupSecondLeftSidebar();
     });
+    observer.observe(document.body, { childList: true, subtree: true });
     
     ['fs-cmsfilter-change', 'fs-cmsfilter-search', 'fs-cmsfilter-reset', 'fs-cmsfilter-filtered'].forEach(event => {
       eventManager.add(document, event, () => {
