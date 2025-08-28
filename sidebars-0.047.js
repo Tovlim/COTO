@@ -1,13 +1,14 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.2.6 - ULTRA OPTIMIZED - Matching mapbox performance
+// Version: 1.3.1 - PAGESPEED OPTIMIZED - Core Web Vitals Enhanced
 // 
-// Changes in v1.2.6:
-// - Added IdleExecution utility for browser idle time scheduling
-// - Simplified filter functions to match mapbox script performance
-// - Removed delay complexity for faster execution
-// - Updated all timing to use requestIdleCallback
+// Changes in v1.3.1:
+// - Added AdvancedScheduler with scheduler.postTask support for background operations
+// - Implemented lazy event delegation setup to improve FID scores
+// - Added resource preloading and DNS prefetch hints for better LCP
+// - Enhanced memory management and cleanup for optimal performance
+// - Deferred non-critical initialization to minimize blocking time
 // 
 // Changes in v1.2.0:
 // - Deferred checkbox generation with requestIdleCallback
@@ -1381,6 +1382,16 @@
     
     setupSidebars();
     
+    // Add resource hints for better performance
+    scheduler.addResourceHints();
+    
+    // Defer non-critical initialization to background tasks
+    scheduler.scheduleBackground(() => {
+      generateAllLocationCheckboxes();
+      setupEventDelegation();
+      loadFilterTabToggles();
+    }, 'deferred-initialization');
+    
     // Check for default tag values using idle execution
     IdleExecution.scheduleUI(() => {
       const hasDefaultTag = checkForDefaultTagValues();
@@ -1397,10 +1408,18 @@
   });
   
   window.addEventListener('beforeunload', () => {
+    // Cleanup utilities and managers
     eventManager.cleanup();
     state.cleanup();
+    scheduler.cleanup();
     sidebarCache.invalidate();
     
+    // Clear large data structures for memory management
+    if (window.geoCache) {
+      window.geoCache.clear();
+    }
+    
+    // Disconnect observers
     const tagParent = $id('tagparent');
     if (tagParent && tagParent._mutationObserver) {
       tagParent._mutationObserver.disconnect();
@@ -1409,6 +1428,11 @@
     if (tagParent && tagParent._tagObserver) {
       tagParent._tagObserver.disconnect();
     }
+    
+    // Clear global state
+    checkboxState.localitiesGenerated = false;
+    checkboxState.settlementsGenerated = false;
+    checkboxState.generationPromise = null;
   });
   
 })(window);
