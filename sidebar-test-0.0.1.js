@@ -562,53 +562,6 @@
   }
 
   // ====================================================================
-  // GLOBAL INSTANCES
-  // ====================================================================
-  const safeStorage = new SafeStorage();
-  const domCache = new OptimizedDOMCache();
-  const eventManager = new OptimizedEventManager();
-  const state = new SimpleState();
-  const geoCache = new GeoJSONCache(safeStorage);
-  const checkboxCache = new CheckboxHTMLCache(safeStorage);
-  const sidebarStateManager = new SidebarStateManager();
-  const scheduler = new AdvancedScheduler();
-  
-  // Shortcuts
-  const $ = (selector) => domCache.$(selector);
-  const $1 = (selector) => domCache.$1(selector);  
-  const $id = (id) => domCache.$id(id);
-  
-  // ====================================================================
-  // IDLE EXECUTION UTILITY (from mapbox script)
-  // ====================================================================
-  const IdleExecution = {
-    // Execute function during browser idle time with fallback
-    schedule(callback, options = {}) {
-      const { timeout = 2000, fallbackDelay = 100 } = options;
-      
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(callback, { timeout });
-      } else {
-        setTimeout(callback, fallbackDelay);
-      }
-    },
-    
-    // Execute with shorter timeout for UI operations
-    scheduleUI(callback, options = {}) {
-      const { timeout = 500, fallbackDelay = 16 } = options;
-      this.schedule(callback, { timeout, fallbackDelay });
-    },
-    
-    // Execute with longer timeout for heavy operations
-    scheduleHeavy(callback, options = {}) {
-      const { timeout = 5000, fallbackDelay = 200 } = options;
-      this.schedule(callback, { timeout, fallbackDelay });
-    }
-  };
-  
-  // ====================================================================
-  // UTILITIES
-  // ====================================================================
   // ADVANCED SCHEDULER WITH PRELOADING
   // ====================================================================
   class AdvancedScheduler {
@@ -764,7 +717,54 @@
       this.preloadedResources.clear();
     }
   }
+
+  // ====================================================================
+  // GLOBAL INSTANCES
+  // ====================================================================
+  const safeStorage = new SafeStorage();
+  const domCache = new OptimizedDOMCache();
+  const eventManager = new OptimizedEventManager();
+  const state = new SimpleState();
+  const geoCache = new GeoJSONCache(safeStorage);
+  const checkboxCache = new CheckboxHTMLCache(safeStorage);
+  const sidebarStateManager = new SidebarStateManager();
+  const scheduler = new AdvancedScheduler();
   
+  // Shortcuts
+  const $ = (selector) => domCache.$(selector);
+  const $1 = (selector) => domCache.$1(selector);  
+  const $id = (id) => domCache.$id(id);
+  
+  // ====================================================================
+  // IDLE EXECUTION UTILITY (from mapbox script)
+  // ====================================================================
+  const IdleExecution = {
+    // Execute function during browser idle time with fallback
+    schedule(callback, options = {}) {
+      const { timeout = 2000, fallbackDelay = 100 } = options;
+      
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(callback, { timeout });
+      } else {
+        setTimeout(callback, fallbackDelay);
+      }
+    },
+    
+    // Execute with shorter timeout for UI operations
+    scheduleUI(callback, options = {}) {
+      const { timeout = 500, fallbackDelay = 16 } = options;
+      this.schedule(callback, { timeout, fallbackDelay });
+    },
+    
+    // Execute with longer timeout for heavy operations
+    scheduleHeavy(callback, options = {}) {
+      const { timeout = 5000, fallbackDelay = 200 } = options;
+      this.schedule(callback, { timeout, fallbackDelay });
+    }
+  };
+  
+  // ====================================================================
+  // UTILITIES
   // ====================================================================
   const utils = {
     setStyles: (el, styles) => {
