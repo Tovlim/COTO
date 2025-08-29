@@ -427,7 +427,7 @@ const ErrorHandler = {
     };
     
     // Log error with context
-    console.error(`[${category.toUpperCase()}] Error in ${context.operation || 'unknown'}:`, errorInfo);
+    // // console.error(`[${category.toUpperCase()}] Error in ${context.operation || 'unknown'}:`, errorInfo);
     
     // Category-specific handling
     switch (category) {
@@ -447,13 +447,13 @@ const ErrorHandler = {
   },
   
   handleStorageError(error, context) {
-    console.warn('Storage error - falling back to memory storage');
+    // console.warn('Storage error - falling back to memory storage');
     // Storage errors are already handled by SafeStorage
     return { recovered: true, fallback: 'memory' };
   },
   
   handleNetworkError(error, context) {
-    console.warn('Network error - will retry with cached data if available');
+    // console.warn('Network error - will retry with cached data if available');
     return { 
       recovered: false, 
       retry: true,
@@ -463,7 +463,7 @@ const ErrorHandler = {
   },
   
   handleDOMError(error, context) {
-    console.warn('DOM error - element may not exist yet');
+    // console.warn('DOM error - element may not exist yet');
     return { 
       recovered: false, 
       retry: true,
@@ -473,7 +473,7 @@ const ErrorHandler = {
   },
   
   handleGenerationError(error, context) {
-    console.warn('Checkbox generation error - continuing with partial generation');
+    // console.warn('Checkbox generation error - continuing with partial generation');
     return { 
       recovered: true, 
       continuePartial: true,
@@ -482,12 +482,12 @@ const ErrorHandler = {
   },
   
   handleUIError(error, context) {
-    console.warn('UI error - interface may continue with reduced functionality');
+    // console.warn('UI error - interface may continue with reduced functionality');
     return { recovered: true, reducedFunctionality: true };
   },
   
   handleGenericError(error, context) {
-    console.error('Unhandled error - check console for details');
+    // console.error('Unhandled error - check console for details');
     return { recovered: false };
   },
   
@@ -505,7 +505,7 @@ const ErrorHandler = {
               reject(error);
             } else {
               const delay = baseDelay * Math.pow(2, attempts - 1);
-              console.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempts}/${maxRetries})`);
+              // console.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempts}/${maxRetries})`);
               setTimeout(attemptOperation, delay);
             }
           });
@@ -650,7 +650,7 @@ const SafeStorage = {
       this.available = true;
     } catch(e) {
       this.available = false;
-      console.warn('localStorage not available, caching disabled');
+      // console.warn('localStorage not available, caching disabled');
     }
     return this.available;
   },
@@ -818,7 +818,7 @@ const EventBus = {
       try {
         context ? callback.call(context, ...args) : callback(...args);
       } catch (error) {
-        console.error(`Error in event listener for '${event}':`, error);
+        // console.error(`Error in event listener for '${event}':`, error);
       }
     });
   },
@@ -1185,13 +1185,13 @@ function setupDeferredAreaControls() {
     
     // Setup marker controls
     markerControls.forEach(control => {
-      console.log(`🔍 Looking for marker control: keyId="${control.keyId}", wrapId="${control.wrapId}"`);
+      // console.log(`🔍 Looking for marker control: keyId="${control.keyId}", wrapId="${control.wrapId}"`);
       const checkbox = $id(control.keyId);
       if (!checkbox) {
-        console.log(`❌ Could not find checkbox element with id: ${control.keyId}`);
+        // console.log(`❌ Could not find checkbox element with id: ${control.keyId}`);
         return;
       }
-      console.log(`✅ Found checkbox element: ${control.keyId}`);
+      // console.log(`✅ Found checkbox element: ${control.keyId}`);
       
       checkbox.checked = false;
       
@@ -1233,11 +1233,11 @@ function setupDeferredAreaControls() {
       }
       
       const wrapperDiv = $id(control.wrapId);
-      console.log(`🔍 Looking for wrapper element: ${control.wrapId}`);
+      // console.log(`🔍 Looking for wrapper element: ${control.wrapId}`);
       if (!wrapperDiv) {
-        console.log(`❌ Could not find wrapper element with id: ${control.wrapId}`);
+        // console.log(`❌ Could not find wrapper element with id: ${control.wrapId}`);
       } else {
-        console.log(`✅ Found wrapper element: ${control.wrapId}`);
+        // console.log(`✅ Found wrapper element: ${control.wrapId}`);
       }
       
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
@@ -1452,7 +1452,7 @@ function generateSingleCheckbox(name, type, properties = {}) {
   const containerId = type === 'locality' ? 'locality-check-list' : 'settlement-check-list';
   const container = $id(containerId);
   if (!container) {
-    console.warn(`Container ${containerId} not found for single checkbox generation`);
+    // console.warn(`Container ${containerId} not found for single checkbox generation`);
     return false;
   }
   
@@ -1632,7 +1632,7 @@ function generateAllCheckboxes() {
     }
   }).catch((error) => {
     LazyCheckboxState.isGeneratingBulk = false;
-    console.error('Bulk checkbox generation failed:', error);
+    // console.error('Bulk checkbox generation failed:', error);
   });
 }
 
@@ -2110,7 +2110,7 @@ function setupZoomBasedMarkerLoading() {
           await loadSettlementsFromCache();
           EventBus.emit('data:settlement-loaded');
         } catch (error) {
-          console.error('Error loading settlement data:', error);
+          // console.error('Error loading settlement data:', error);
           EventBus.emit('data:settlement-error', error);
         }
       }
@@ -2479,7 +2479,7 @@ window.addEventListener('beforeunload', () => {
                     autocompleteLoadState = 'loaded';
                     resolve();
                 } catch (error) {
-                    console.error('Failed to load autocomplete:', error);
+                    // console.error('Failed to load autocomplete:', error);
                     autocompleteLoadState = 'pending'; // Reset to allow retry
                     resolve(); // Resolve anyway to prevent blocking
                 }
@@ -2571,7 +2571,7 @@ window.addEventListener('beforeunload', () => {
                 };
                 
                 if (!this.elements.input || !this.elements.wrapper) {
-                    console.error('Required elements not found');
+                    // console.error('Required elements not found');
                     return;
                 }
                 
@@ -3029,7 +3029,7 @@ loadDataFromState() {
             renderResults() {
                 // Safety check - ensure we're properly initialized
                 if (!this.elements || !this.elements.list) {
-                    console.warn('Autocomplete not properly initialized, skipping render');
+                    // console.warn('Autocomplete not properly initialized, skipping render');
                     return;
                 }
                 
@@ -3041,7 +3041,7 @@ loadDataFromState() {
                     try {
                         this.renderWithVirtualDOM();
                     } catch (error) {
-                        console.error('Error in renderWithVirtualDOM:', error);
+                        // console.error('Error in renderWithVirtualDOM:', error);
                         // Fallback to simple render
                         this.fallbackRender();
                     }
@@ -3100,7 +3100,7 @@ loadDataFromState() {
             fullRender(items) {
                 // Ensure elements exist
                 if (!this.elements || !this.elements.list) {
-                    console.warn('Autocomplete elements not initialized yet');
+                    // console.warn('Autocomplete elements not initialized yet');
                     return;
                 }
                 
@@ -4492,7 +4492,7 @@ class DataLoader {
     })
     .catch(error => {
       this.loadingPromises.delete(key);
-      console.error(`Failed to load ${url}:`, error);
+      // console.error(`Failed to load ${url}:`, error);
       throw error;
     });
     
@@ -4525,7 +4525,7 @@ class DataLoader {
       
       return organizedData;
     } catch (error) {
-      console.error('Failed to load data:', error);
+      // console.error('Failed to load data:', error);
       throw error;
     }
   }
@@ -4925,7 +4925,7 @@ class WorkerManager {
       URL.revokeObjectURL(workerUrl);
       return this.workers.get(name);
     } catch (error) {
-      console.warn('Web Worker not supported:', error);
+      // console.warn('Web Worker not supported:', error);
       return null;
     }
   }
@@ -4965,7 +4965,7 @@ class WorkerManager {
   
   // Handle worker errors
   handleWorkerError(workerName, error) {
-    console.error(`Worker ${workerName} error:`, error);
+    // console.error(`Worker ${workerName} error:`, error);
     const workerInfo = this.workers.get(workerName);
     
     if (workerInfo) {
@@ -5238,7 +5238,7 @@ class ProgressiveLoader {
   // Enhanced lazy loading with intersection observer
   setupLazyLoading() {
     if (!('IntersectionObserver' in window)) {
-      console.warn('IntersectionObserver not supported, falling back to immediate loading');
+      // console.warn('IntersectionObserver not supported, falling back to immediate loading');
       return this.loadAllSteps();
     }
     
@@ -5316,7 +5316,7 @@ class ProgressiveLoader {
       document.dispatchEvent(event);
       
     } catch (error) {
-      console.error(`Failed to load step ${stepName}:`, error);
+      // console.error(`Failed to load step ${stepName}:`, error);
       throw error;
     }
     
@@ -5373,14 +5373,14 @@ class ProgressiveLoader {
     if ('requestIdleCallback' in window) {
       deferredSteps.forEach((step, index) => {
         requestIdleCallback(() => {
-          this.loadStep(step.name).catch(console.error);
+          this.loadStep(step.name).catch(() => {});
         }, { timeout: 5000 + (index * 1000) });
       });
     } else {
       // Fallback with setTimeout
       deferredSteps.forEach((step, index) => {
         setTimeout(() => {
-          this.loadStep(step.name).catch(console.error);
+          this.loadStep(step.name).catch(() => {});
         }, 2000 + (index * 1000));
       });
     }
@@ -5421,7 +5421,7 @@ class PerformanceMonitor {
         observer.observe({ entryTypes: ['navigation', 'resource', 'measure', 'mark'] });
         this.observers.push(observer);
       } catch (e) {
-        console.warn('PerformanceObserver not fully supported');
+        // console.warn('PerformanceObserver not fully supported');
       }
     }
     
@@ -5460,7 +5460,7 @@ class PerformanceMonitor {
   }
   
   recordLongTask(entry) {
-    console.warn('Long task detected:', entry.duration + 'ms');
+    // console.warn('Long task detected:', entry.duration + 'ms');
     
     if (window.gtag) {
       gtag('event', 'long_task', {
@@ -5522,7 +5522,7 @@ class PerformanceMonitor {
       
       // Warn if memory usage is high
       if (memoryMetrics.usage_percentage > 80) {
-        console.warn('High memory usage detected:', memoryMetrics);
+        // console.warn('High memory usage detected:', memoryMetrics);
         this.triggerMemoryCleanup();
       }
       
@@ -5567,7 +5567,7 @@ class PerformanceMonitor {
         
         // Log warning if FPS is low
         if (fps < 30) {
-          console.warn('Low FPS detected:', fps);
+          // console.warn('Low FPS detected:', fps);
         }
         
         frameCount = 0;
@@ -6019,7 +6019,7 @@ class OptimizedEventManager {
         }
         break;
       default:
-        console.warn('Unknown button action:', action);
+        // console.warn('Unknown button action:', action);
     }
   }
 
@@ -6569,24 +6569,24 @@ const toggleShowWhenFilteredElements = show => {
 // Checkbox selection functions with proper settlement unchecking
 // Unified checkbox selection function
 function selectCheckbox(type, value) {
-  console.log(`🔍 selectCheckbox called with type: "${type}", value: "${value}"`);
+  // console.log(`🔍 selectCheckbox called with type: "${type}", value: "${value}"`);
   
   const checkboxTypes = ['Governorate', 'Region', 'locality', 'settlement', 'territory'];
   
   requestAnimationFrame(() => {
-    console.log(`🔍 Looking for checkboxes with selector: [checkbox-filter="${type}"] input[fs-list-value]`);
+    // console.log(`🔍 Looking for checkboxes with selector: [checkbox-filter="${type}"] input[fs-list-value]`);
     
     // Get all checkbox groups - using native queries to avoid caching
     const allCheckboxes = checkboxTypes.flatMap(checkboxType => 
       Array.from(document.querySelectorAll(`[checkbox-filter="${checkboxType}"] input[fs-list-value]`))
     );
     
-    console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
+    // console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
     
     // Clear all checkboxes first
     allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
-        console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
+        // console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
         
@@ -6600,10 +6600,10 @@ function selectCheckbox(type, value) {
     
     // Find and check the target checkbox
     const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
-    console.log(`🔍 Found ${targetCheckboxes.length} checkboxes for type "${type}"`);
+    // console.log(`🔍 Found ${targetCheckboxes.length} checkboxes for type "${type}"`);
     
     targetCheckboxes.forEach((cb, index) => {
-      console.log(`🔍 Checkbox ${index}: fs-list-value="${cb.getAttribute('fs-list-value')}", checkbox-filter="${cb.parentElement.getAttribute('checkbox-filter')}"`);
+      // console.log(`🔍 Checkbox ${index}: fs-list-value="${cb.getAttribute('fs-list-value')}", checkbox-filter="${cb.parentElement.getAttribute('checkbox-filter')}"`);
     });
     
     const targetCheckbox = targetCheckboxes.find(checkbox => 
@@ -6611,7 +6611,7 @@ function selectCheckbox(type, value) {
     );
     
     if (targetCheckbox) {
-      console.log(`✅ Found target checkbox for "${value}", checking it`);
+      // console.log(`✅ Found target checkbox for "${value}", checking it`);
       targetCheckbox.checked = true;
       utils.triggerEvent(targetCheckbox, ['change', 'input']);
       
@@ -6621,14 +6621,14 @@ function selectCheckbox(type, value) {
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
     } else {
-      console.log(`❌ Could not find checkbox for type "${type}" with value "${value}"`);
+      // console.log(`❌ Could not find checkbox for type "${type}" with value "${value}"`);
       
       // Additional debugging - show all available checkboxes
-      console.log(`🔍 All available checkboxes in DOM:`);
+      // console.log(`🔍 All available checkboxes in DOM:`);
       document.querySelectorAll('[checkbox-filter]').forEach((wrapper, index) => {
         const input = wrapper.querySelector('input[fs-list-value]');
         if (input) {
-          console.log(`  ${index}: checkbox-filter="${wrapper.getAttribute('checkbox-filter')}", fs-list-value="${input.getAttribute('fs-list-value')}"`);
+          // console.log(`  ${index}: checkbox-filter="${wrapper.getAttribute('checkbox-filter')}", fs-list-value="${input.getAttribute('fs-list-value')}"`);
         }
       });
     }
@@ -6637,12 +6637,12 @@ function selectCheckbox(type, value) {
 
 // Wrapper functions for backward compatibility
 function selectRegionCheckbox(regionName) {
-  console.log(`🔍 selectRegionCheckbox called with: "${regionName}"`);
+  // console.log(`🔍 selectRegionCheckbox called with: "${regionName}"`);
   selectCheckbox('Governorate', regionName);
 }
 
 function selectSubregionCheckbox(subregionName) {
-  console.log(`🔍 selectSubregionCheckbox called with: "${subregionName}"`);
+  // console.log(`🔍 selectSubregionCheckbox called with: "${subregionName}"`);
   selectCheckbox('Region', subregionName);
 }
 
@@ -6768,7 +6768,7 @@ async function loadLocalitiesFromGeoJSON() {
       // Mark data as loaded
       loadingTracker.markComplete('dataLoaded');
   } catch (error) {
-    console.error('Failed to load localities:', error);
+    // console.error('Failed to load localities:', error);
     // Mark as loaded even on error to prevent infinite loading
     loadingTracker.markComplete('dataLoaded');
   }
@@ -6840,7 +6840,7 @@ async function loadSettlementsFromCache() {
     state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
     
   } catch (error) {
-    console.error('Failed to load settlements:', error);
+    // console.error('Failed to load settlements:', error);
   }
 }
 
@@ -6903,7 +6903,7 @@ function loadSettlements() {
       
     })
     .catch(error => {
-      console.error('Failed to load settlements:', error);
+      // console.error('Failed to load settlements:', error);
     });
 }
 
@@ -7047,7 +7047,7 @@ function addSettlementMarkers() {
           }
         });
       } catch (error) {
-        console.error('[DEBUG] Error hiding base layers:', error);
+        // console.error('[DEBUG] Error hiding base layers:', error);
       }
       
       mapLayers.invalidateCache();
@@ -8315,7 +8315,7 @@ function initializeOptimizationSystems() {
     if (window.performanceMonitor) {
       window.performanceMonitor.trackUserInteraction('error', 0);
     }
-    console.error('Optimization system error:', event.error);
+    // console.error('Optimization system error:', event.error);
   });
   
   // Periodic performance checks
@@ -8323,7 +8323,7 @@ function initializeOptimizationSystems() {
     if (window.performanceMonitor && window.performanceMonitor.enabled) {
       const bottlenecks = window.performanceMonitor.detectBottlenecks();
       if (bottlenecks.length > 0) {
-        console.warn('Performance bottlenecks detected:', bottlenecks);
+        // console.warn('Performance bottlenecks detected:', bottlenecks);
         
         // Auto-optimize if possible
         bottlenecks.forEach(bottleneck => {
