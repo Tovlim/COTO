@@ -3198,6 +3198,12 @@ loadDataFromState() {
                 a.dataset.type = item.type;
                 a.dataset.term = item.name;
                 
+                // Add coordinates for localities and settlements
+                if ((item.type === 'locality' || item.type === 'settlement') && item.lat && item.lng) {
+                    a.dataset.lat = item.lat;
+                    a.dataset.lng = item.lng;
+                }
+                
                 if (item.type === 'territory') {
                     a.innerHTML = `
                         <div class="locality-info">
@@ -3330,6 +3336,8 @@ loadDataFromState() {
                 const term = itemElement.getAttribute('data-term');
                 const type = itemElement.getAttribute('data-type');
                 const isRecent = itemElement.dataset.isRecent === 'true';
+                const lat = itemElement.dataset.lat ? parseFloat(itemElement.dataset.lat) : null;
+                const lng = itemElement.dataset.lng ? parseFloat(itemElement.dataset.lng) : null;
                 
                 // Handle recent search removal with Ctrl+Click
                 if (isRecent && event.ctrlKey) {
@@ -3394,15 +3402,15 @@ loadDataFromState() {
                 } else if (type === 'subregion') {
                     this.triggerSubregionSelection(term);
                 } else if (type === 'locality') {
-                    this.triggerLocalitySelection(term);
+                    this.triggerLocalitySelection(term, lat, lng);
                 } else if (type === 'settlement') {
-                    this.triggerSettlementSelection(term);
+                    this.triggerSettlementSelection(term, lat, lng);
                 } else if (type === 'territory') {
                     this.triggerTerritorySelection(term);
                 }
             }
             
-            triggerSettlementSelection(settlementName) {
+            triggerSettlementSelection(settlementName, lat, lng) {
                 // Set marker click flag
                 window.isMarkerClick = true;
                 
@@ -3423,15 +3431,26 @@ loadDataFromState() {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // Find settlement and fly to it
-                const settlement = this.data.settlements.find(s => s.name === settlementName);
-                if (window.map && settlement && settlement.lat && settlement.lng) {
+                // Fly to settlement using passed coordinates or find by name as fallback
+                if (window.map && lat && lng) {
+                    // Use passed coordinates directly (handles duplicates)
                     window.map.flyTo({
-                        center: [settlement.lng, settlement.lat],
+                        center: [lng, lat],
                         zoom: 13.5,
                         duration: 1000,
                         essential: true
                     });
+                } else if (window.map) {
+                    // Fallback to finding by name (for backward compatibility)
+                    const settlement = this.data.settlements.find(s => s.name === settlementName);
+                    if (settlement && settlement.lat && settlement.lng) {
+                        window.map.flyTo({
+                            center: [settlement.lng, settlement.lat],
+                            zoom: 13.5,
+                            duration: 1000,
+                            essential: true
+                        });
+                    }
                 }
                 
                 // Clean up flag
@@ -3572,7 +3591,7 @@ loadDataFromState() {
                 }, 800);
             }
             
-            triggerLocalitySelection(localityName) {
+            triggerLocalitySelection(localityName, lat, lng) {
                 window.isMarkerClick = true;
                 
                 if (window.mapUtilities && window.mapUtilities.state) {
@@ -3591,14 +3610,26 @@ loadDataFromState() {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                const locality = this.data.localities.find(l => l.name === localityName);
-                if (window.map && locality && locality.lat && locality.lng) {
+                // Fly to locality using passed coordinates or find by name as fallback
+                if (window.map && lat && lng) {
+                    // Use passed coordinates directly (handles duplicates)
                     window.map.flyTo({
-                        center: [locality.lng, locality.lat],
+                        center: [lng, lat],
                         zoom: 13.5,
                         duration: 1000,
                         essential: true
                     });
+                } else if (window.map) {
+                    // Fallback to finding by name (for backward compatibility)
+                    const locality = this.data.localities.find(l => l.name === localityName);
+                    if (locality && locality.lat && locality.lng) {
+                        window.map.flyTo({
+                            center: [locality.lng, locality.lat],
+                            zoom: 13.5,
+                            duration: 1000,
+                            essential: true
+                        });
+                    }
                 }
                 
                 setTimeout(() => {
