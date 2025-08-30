@@ -3354,7 +3354,9 @@ loadDataFromState() {
                 
                 this.selectTerm(term, type, { 
                     isRecent,
-                    searchTerm: this.elements.input.value 
+                    searchTerm: this.elements.input.value,
+                    lat: lat,
+                    lng: lng
                 });
             }
             
@@ -3402,9 +3404,9 @@ loadDataFromState() {
                 } else if (type === 'subregion') {
                     this.triggerSubregionSelection(term);
                 } else if (type === 'locality') {
-                    this.triggerLocalitySelection(term, lat, lng);
+                    this.triggerLocalitySelection(term, options.lat, options.lng);
                 } else if (type === 'settlement') {
-                    this.triggerSettlementSelection(term, lat, lng);
+                    this.triggerSettlementSelection(term, options.lat, options.lng);
                 } else if (type === 'territory') {
                     this.triggerTerritorySelection(term);
                 }
