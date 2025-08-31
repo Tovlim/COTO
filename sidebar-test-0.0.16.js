@@ -990,8 +990,8 @@
       }
       
       const checkFinsweet = () => {
-        const hiddenTagParent = $id('hiddentagparent');
-        const tagParent = $id('tagparent');
+        const hiddenTagParent = document.getElementById('hiddentagparent');
+        const tagParent = document.getElementById('tagparent');
         
         
         // Check if Finsweet has loaded (hiddentagparent gone OR tagparent empty)
@@ -1047,7 +1047,7 @@
       return;
     }
     
-    const allFieldItems = $('[field-item]');
+    const allFieldItems = document.querySelectorAll('[field-item]');
     const fieldItems = Array.from(allFieldItems).filter(item => {
       return !item.classList.contains('w-condition-invisible');
     });
@@ -1095,7 +1095,7 @@
         }
         
         // Check if checkbox already exists
-        let input = $1(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+        let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
         
         if (!input && !skipGeneration) {
           // Generate the missing checkbox (only for localities and settlements)
@@ -1103,7 +1103,7 @@
           
           if (success) {
             // Try to find the checkbox again after generation
-            input = $1(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+            input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
           }
         }
         
@@ -1148,7 +1148,7 @@
   // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
   const checkAndToggleFilteredElements = () => {
     // Check for hiddentagparent (Finsweet official filtering indicator)
-    const hiddenTagParent = $id('hiddentagparent');
+    const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
     
     toggleShowWhenFilteredElements(shouldShow);
@@ -1164,7 +1164,7 @@
       
       checkAndToggleFilteredElements();
       
-      const tagParent = $id('tagparent');
+      const tagParent = document.getElementById('tagparent');
       if (tagParent) {
         if (tagParent._mutationObserver) {
           tagParent._mutationObserver.disconnect();
@@ -1543,7 +1543,7 @@
   // ====================================================================
   // Check for filters immediately when script loads - optimized version
   const immediateCheck = () => {
-    const hiddenTagParent = $id('hiddentagparent');
+    const hiddenTagParent = document.getElementById('hiddentagparent');
     if (hiddenTagParent) {
       // Show filtered elements immediately!
       const elements = document.querySelectorAll('[show-when-filtered="true"]');
@@ -1618,7 +1618,7 @@
       immediateCheck();
       
       // Check immediately since hiddentagparent might exist
-      const hiddenTagParent = $id('hiddentagparent');
+      const hiddenTagParent = document.getElementById('hiddentagparent');
       if (hiddenTagParent) {
         toggleShowWhenFilteredElements(true);
       }
@@ -1634,7 +1634,7 @@
     });
   } else {
     // Check immediately if hiddentagparent exists
-    const hiddenTagParent = $id('hiddentagparent');
+    const hiddenTagParent = document.getElementById('hiddentagparent');
     if (hiddenTagParent) {
       toggleShowWhenFilteredElements(true);
     }
