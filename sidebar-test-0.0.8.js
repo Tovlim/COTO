@@ -962,20 +962,38 @@
     return true;
   }
   
-  // Wait for Finsweet filters to initialize before processing field items
+  // Track if Finsweet initialization has been checked (run only once)
+  let finsweetInitialized = false;
+  
+  // Wait for Finsweet filters to initialize before processing field items (only once)
   function waitForFinsweet() {
     return new Promise((resolve) => {
+      // If already checked, resolve immediately
+      if (finsweetInitialized) {
+        console.log('Finsweet already initialized - proceeding immediately');
+        resolve();
+        return;
+      }
+      
       const checkFinsweet = () => {
         const hiddenTagParent = document.getElementById('hiddentagparent');
         const tagParent = document.getElementById('tagparent');
+        
+        // Log current state for debugging
+        console.log('Checking Finsweet state:', {
+          hiddenTagParent: hiddenTagParent ? 'exists' : 'not found',
+          tagParent: tagParent ? `exists (${tagParent.children.length} children)` : 'not found'
+        });
         
         // Check if Finsweet has loaded (hiddentagparent gone OR tagparent empty)
         const finsweetReady = !hiddenTagParent || (tagParent && tagParent.children.length === 0);
         
         if (finsweetReady) {
           console.log('Finsweet filters ready - proceeding with field-item processing');
+          finsweetInitialized = true; // Mark as initialized
           resolve();
         } else {
+          console.log('Finsweet not ready yet, checking again in 100ms...');
           // Check again in 100ms
           setTimeout(checkFinsweet, 100);
         }
@@ -987,6 +1005,7 @@
       // Fallback timeout after 5 seconds
       setTimeout(() => {
         console.log('Finsweet wait timeout - proceeding with field-item processing anyway');
+        finsweetInitialized = true; // Mark as initialized even on timeout
         resolve();
       }, 5000);
     });
