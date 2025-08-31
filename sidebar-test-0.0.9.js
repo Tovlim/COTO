@@ -965,6 +965,10 @@
   // Track if Finsweet initialization has been checked (run only once)
   let finsweetInitialized = false;
   
+  // Debounce state for processFieldItems
+  let processFieldItemsRunning = false;
+  let processFieldItemsTimer = null;
+  
   // Wait for Finsweet filters to initialize before processing field items (only once)
   function waitForFinsweet() {
     return new Promise((resolve) => {
@@ -1011,73 +1015,116 @@
     });
   }
 
-  // Process field-item elements and ensure corresponding checkboxes are checked
-  async function processFieldItems() {
+  // Debounced wrapper for processFieldItems
+  function processFieldItemsDebounced() {
+    // Clear existing timer
+    if (processFieldItemsTimer) {
+      clearTimeout(processFieldItemsTimer);
+      processFieldItemsTimer = null;
+    }
+    
+    // If already running, schedule for later
+    if (processFieldItemsRunning) {
+      console.log('processFieldItems already running - scheduling retry in 500ms');
+      processFieldItemsTimer = setTimeout(processFieldItemsDebounced, 500);
+      return;
+    }
+    
+    // Execute immediately
+    processFieldItemsTimer = setTimeout(processFieldItemsInternal, 100);
+  }
+
+  // Internal implementation of processFieldItems (debounced)
+  async function processFieldItemsInternal() {
+    // Prevent multiple simultaneous executions
+    if (processFieldItemsRunning) {
+      console.log('processFieldItems already running - aborting');
+      return;
+    }
+    
     const fieldItems = document.querySelectorAll('[field-item]');
-    if (fieldItems.length === 0) return;
+    if (fieldItems.length === 0) {
+      console.log('No field-item elements found');
+      return;
+    }
     
-    // Wait for Finsweet to be ready before processing
-    await waitForFinsweet();
+    // Set running flag
+    processFieldItemsRunning = true;
+    console.log(`Starting processFieldItems - found ${fieldItems.length} field-item elements`);
     
-    console.log(`Found ${fieldItems.length} field-item elements to process`);
-    
-    const processedItems = new Set(); // Avoid duplicates
-    
-    for (const item of fieldItems) {
-      const fieldType = item.getAttribute('field-item');
-      const fieldValue = item.textContent.trim();
+    try {
+      // Wait for Finsweet to be ready before processing
+      await waitForFinsweet();
       
-      if (!fieldType || !fieldValue) continue;
+      console.log(`Processing ${fieldItems.length} field-item elements`);
       
-      const processKey = `${fieldType}:${fieldValue}`;
-      if (processedItems.has(processKey)) continue;
-      processedItems.add(processKey);
+      const processedItems = new Set(); // Avoid duplicates
       
-      // Use field-item value directly as fs-list-field (modular approach)
-      const fieldName = fieldType;
-      
-      // Check if this is a generatable type (only localities and settlements need generation)
-      let checkboxType, containerId, skipGeneration = false;
-      
-      if (fieldType.toLowerCase() === 'locality') {
-        checkboxType = 'localities';
-        containerId = 'locality-check-list';
-      } else if (fieldType.toLowerCase() === 'settlement') {
-        checkboxType = 'settlements';
-        containerId = 'settlement-check-list';
-      } else {
-        // For all other types (Governorate, Category, etc.), skip generation
-        // They should already exist on the page
-        skipGeneration = true;
-        console.log(`Processing existing checkbox type: ${fieldType}`);
-      }
-      
-      // Check if checkbox already exists
-      let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
-      
-      if (!input && !skipGeneration) {
-        // Generate the missing checkbox (only for localities and settlements)
-        console.log(`Generating missing checkbox for ${fieldValue} (${fieldType})`);
-        const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
+      for (const item of fieldItems) {
+        const fieldType = item.getAttribute('field-item');
+        const fieldValue = item.textContent.trim();
         
-        if (success) {
-          // Try to find the checkbox again after generation
-          input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+        if (!fieldType || !fieldValue) continue;
+        
+        const processKey = `${fieldType}:${fieldValue}`;
+        if (processedItems.has(processKey)) continue;
+        processedItems.add(processKey);
+        
+        // Use field-item value directly as fs-list-field (modular approach)
+        const fieldName = fieldType;
+        
+        // Check if this is a generatable type (only localities and settlements need generation)
+        let checkboxType, containerId, skipGeneration = false;
+        
+        if (fieldType.toLowerCase() === 'locality') {
+          checkboxType = 'localities';
+          containerId = 'locality-check-list';
+        } else if (fieldType.toLowerCase() === 'settlement') {
+          checkboxType = 'settlements';
+          containerId = 'settlement-check-list';
+        } else {
+          // For all other types (Governorate, Category, etc.), skip generation
+          // They should already exist on the page
+          skipGeneration = true;
+          console.log(`Processing existing checkbox type: ${fieldType}`);
+        }
+        
+        // Check if checkbox already exists
+        let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+        
+        if (!input && !skipGeneration) {
+          // Generate the missing checkbox (only for localities and settlements)
+          console.log(`Generating missing checkbox for ${fieldValue} (${fieldType})`);
+          const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
+          
+          if (success) {
+            // Try to find the checkbox again after generation
+            input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+          }
+        }
+        
+        // Check the checkbox if found
+        if (input) {
+          checkCheckboxProgrammatically(input);
+        } else {
+          console.warn(`Could not find or generate checkbox for ${fieldValue} (${fieldType})`);
         }
       }
       
-      // Check the checkbox if found
-      if (input) {
-        checkCheckboxProgrammatically(input);
-      } else {
-        console.warn(`Could not find or generate checkbox for ${fieldValue} (${fieldType})`);
-      }
+      // Trigger filtered elements check after processing all field items
+      IdleExecution.scheduleUI(() => {
+        checkAndToggleFilteredElements();
+      }, { fallbackDelay: 100 });
+      
+      console.log('processFieldItems completed successfully');
+      
+    } catch (error) {
+      console.error('Error in processFieldItems:', error);
+    } finally {
+      // Always clear the running flag
+      processFieldItemsRunning = false;
+      console.log('processFieldItems finished - cleared running flag');
     }
-    
-    // Trigger filtered elements check after processing all field items
-    IdleExecution.scheduleUI(() => {
-      checkAndToggleFilteredElements();
-    }, { fallbackDelay: 100 });
   }
   
   // ====================================================================
@@ -1564,7 +1611,7 @@
     
     // Process field-item elements immediately to auto-check corresponding checkboxes
     IdleExecution.scheduleUI(() => {
-      processFieldItems();
+      processFieldItemsDebounced();
     }, { fallbackDelay: 200 });
   };
   immediateCheck();
@@ -1611,7 +1658,7 @@
       
       // Process field items after DOM is ready
       IdleExecution.scheduleUI(() => {
-        processFieldItems();
+        processFieldItemsDebounced();
       }, { fallbackDelay: 300 });
       
       initializeCore();
@@ -1625,7 +1672,7 @@
     
     // Process field items if DOM is already ready
     IdleExecution.scheduleUI(() => {
-      processFieldItems();
+      processFieldItemsDebounced();
     }, { fallbackDelay: 100 });
     
     initializeCore();
@@ -1646,7 +1693,7 @@
     state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
     
     // Process field items after full page load as final fallback
-    state.setTimer('loadProcessFieldItems', processFieldItems, 400);
+    state.setTimer('loadProcessFieldItems', processFieldItemsDebounced, 400);
   });
   
   window.addEventListener('beforeunload', () => {
