@@ -805,6 +805,13 @@
           console.log('Event target:', e.target);
           console.log('Event currentTarget:', e.currentTarget);
           
+          // Prevent checkbox events from triggering tab loading
+          // Check if the event originated from a checkbox or input element
+          if (e.target.tagName === 'INPUT' || e.target.hasAttribute('fs-list-field')) {
+            console.log('Ignoring checkbox event in Location tab');
+            return;
+          }
+          
           // Only load if not already generated
           if (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated) {
             console.log('Location tab clicked - loading checkboxes...');
@@ -833,6 +840,13 @@
       const locationTab = locationTab1 || locationTab2;
       
       if (locationTab && (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
+        // Prevent checkbox events from triggering tab loading
+        // Check if the event originated from a checkbox or input element
+        if (e.target.tagName === 'INPUT' || e.target.hasAttribute('fs-list-field')) {
+          console.log('Ignoring checkbox event in Location tab (delegated)');
+          return;
+        }
+        
         console.log('Location tab matched! Element:', locationTab);
         console.log('Location tab clicked (delegated) - loading checkboxes...');
         lazyLoadCheckboxes();
