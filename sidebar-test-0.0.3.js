@@ -978,27 +978,30 @@
       if (processedItems.has(processKey)) continue;
       processedItems.add(processKey);
       
-      // Map field types to checkbox types and containers
-      let checkboxType, containerId, fieldName;
+      // Use field-item value directly as fs-list-field (modular approach)
+      const fieldName = fieldType;
+      
+      // Check if this is a generatable type (only localities and settlements need generation)
+      let checkboxType, containerId, skipGeneration = false;
       
       if (fieldType.toLowerCase() === 'locality') {
         checkboxType = 'localities';
         containerId = 'locality-check-list';
-        fieldName = 'Locality';
       } else if (fieldType.toLowerCase() === 'settlement') {
         checkboxType = 'settlements';
         containerId = 'settlement-check-list';
-        fieldName = 'Settlement';
       } else {
-        console.warn(`Unknown field-item type: ${fieldType}`);
-        continue;
+        // For all other types (Governorate, Category, etc.), skip generation
+        // They should already exist on the page
+        skipGeneration = true;
+        console.log(`Processing existing checkbox type: ${fieldType}`);
       }
       
       // Check if checkbox already exists
       let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
       
-      if (!input) {
-        // Generate the missing checkbox
+      if (!input && !skipGeneration) {
+        // Generate the missing checkbox (only for localities and settlements)
         console.log(`Generating missing checkbox for ${fieldValue} (${fieldType})`);
         const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
         
@@ -1623,16 +1626,6 @@
     
     setupSidebars();
     
-    // Add resource hints for better performance
-    scheduler.addResourceHints();
-    
-    // Defer non-critical initialization to background tasks
-    scheduler.scheduleBackground(() => {
-      generateAllLocationCheckboxes();
-      setupEventDelegation();
-      loadFilterTabToggles();
-    }, 'deferred-initialization');
-    
     // Check for default tag values using idle execution
     IdleExecution.scheduleUI(() => {
       const hasDefaultTag = checkForDefaultTagValues();
@@ -1655,7 +1648,6 @@
     // Cleanup utilities and managers
     eventManager.cleanup();
     state.cleanup();
-    scheduler.cleanup();
     sidebarCache.invalidate();
     
     // Clear large data structures for memory management
