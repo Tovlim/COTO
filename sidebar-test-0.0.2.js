@@ -1,18 +1,14 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
 // Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.4.0 - INTELLIGENT CACHING - First Load + Navigation Optimized
+// Version: 1.3.1 - PAGESPEED OPTIMIZED - Core Web Vitals Enhanced
 // 
-// Changes in v1.4.0:
-// - Added intelligent GeoJSON caching with TTL for faster page navigation
-// - Implemented checkbox HTML persistence across page loads
-// - Added progressive cache warming after first load completion  
-// - Smart resource preloading based on user behavior patterns
-// - Sidebar state persistence for seamless navigation experience
-// 
-// Performance Balance:
-// - First load: Fast initial rendering (same PageSpeed performance)
-// - Navigation: 200-500ms faster with cached data and instant checkboxes
+// Changes in v1.3.1:
+// - Added AdvancedScheduler with scheduler.postTask support for background operations
+// - Implemented lazy event delegation setup to improve FID scores
+// - Added resource preloading and DNS prefetch hints for better LCP
+// - Enhanced memory management and cleanup for optimal performance
+// - Deferred non-critical initialization to minimize blocking time
 // 
 // Changes in v1.2.0:
 // - Deferred checkbox generation with requestIdleCallback
@@ -390,335 +386,6 @@
   }
   
   // ====================================================================
-  // CHECKBOX HTML PERSISTENCE CACHE
-  // ====================================================================
-  class CheckboxHTMLCache {
-    constructor(storage) {
-      this.storage = storage;
-      this.prefix = 'checkbox_html_';
-      this.ttl = 24 * 60 * 60 * 1000; // 24 hours
-    }
-    
-    getCacheKey(type) {
-      return `${this.prefix}${type}_v${CONFIG.CACHE_VERSION}`;
-    }
-    
-    get(type) {
-      try {
-        const key = this.getCacheKey(type);
-        const cached = this.storage.getItem(key);
-        if (!cached) return null;
-        
-        const data = JSON.parse(cached);
-        if (Date.now() - data.timestamp > this.ttl) {
-          this.storage.removeItem(key);
-          return null;
-        }
-        
-        return data.html;
-      } catch (e) {
-        console.warn('Checkbox HTML cache read failed:', e);
-        return null;
-      }
-    }
-    
-    set(type, html) {
-      try {
-        const key = this.getCacheKey(type);
-        const data = {
-          html: html,
-          timestamp: Date.now()
-        };
-        // Store in sessionStorage for faster page-to-page, localStorage as backup
-        sessionStorage.setItem(key, JSON.stringify(data));
-        this.storage.setItem(key, JSON.stringify(data));
-      } catch (e) {
-        console.warn('Checkbox HTML cache write failed:', e);
-      }
-    }
-    
-    // Try sessionStorage first, then localStorage
-    getFromAnyStorage(type) {
-      return this.getFromStorage(type, sessionStorage) || this.getFromStorage(type, this.storage);
-    }
-    
-    getFromStorage(type, storage) {
-      try {
-        const key = this.getCacheKey(type);
-        const cached = storage.getItem(key);
-        if (!cached) return null;
-        
-        const data = JSON.parse(cached);
-        if (Date.now() - data.timestamp > this.ttl) {
-          storage.removeItem(key);
-          return null;
-        }
-        
-        return data.html;
-      } catch (e) {
-        return null;
-      }
-    }
-    
-    clear() {
-      try {
-        ['localities', 'settlements'].forEach(type => {
-          const key = this.getCacheKey(type);
-          sessionStorage.removeItem(key);
-          this.storage.removeItem(key);
-        });
-      } catch (e) {
-        console.warn('Failed to clear checkbox HTML cache:', e);
-      }
-    }
-  }
-
-  // ====================================================================
-  // SIDEBAR STATE PERSISTENCE
-  // ====================================================================
-  class SidebarStateManager {
-    constructor() {
-      this.stateKey = 'sidebar_state_v1';
-      this.ttl = 30 * 60 * 1000; // 30 minutes
-    }
-    
-    saveState() {
-      try {
-        const state = {
-          timestamp: Date.now(),
-          hiddenTagParentExists: !!document.getElementById('hiddentagparent'),
-          showWhenFilteredVisible: this.getShowWhenFilteredState(),
-          autoSidebarStates: this.getAutoSidebarStates()
-        };
-        sessionStorage.setItem(this.stateKey, JSON.stringify(state));
-      } catch (e) {
-        console.warn('Failed to save sidebar state:', e);
-      }
-    }
-    
-    loadState() {
-      try {
-        const cached = sessionStorage.getItem(this.stateKey);
-        if (!cached) return null;
-        
-        const state = JSON.parse(cached);
-        if (Date.now() - state.timestamp > this.ttl) {
-          sessionStorage.removeItem(this.stateKey);
-          return null;
-        }
-        
-        return state;
-      } catch (e) {
-        console.warn('Failed to load sidebar state:', e);
-        return null;
-      }
-    }
-    
-    getShowWhenFilteredState() {
-      const elements = document.querySelectorAll('[show-when-filtered]');
-      return Array.from(elements).map(el => ({
-        selector: this.getElementSelector(el),
-        visible: el.style.display !== 'none'
-      }));
-    }
-    
-    getAutoSidebarStates() {
-      const elements = document.querySelectorAll('[data-auto-sidebar]');
-      return Array.from(elements).map(el => ({
-        selector: this.getElementSelector(el),
-        visible: el.style.display !== 'none'
-      }));
-    }
-    
-    getElementSelector(el) {
-      return el.id ? `#${el.id}` : el.className ? `.${el.className.split(' ')[0]}` : el.tagName.toLowerCase();
-    }
-    
-    restoreState(state) {
-      try {
-        // Restore show-when-filtered elements
-        if (state.showWhenFilteredVisible) {
-          state.showWhenFilteredVisible.forEach(item => {
-            const el = document.querySelector(item.selector);
-            if (el) {
-              el.style.display = item.visible ? '' : 'none';
-            }
-          });
-        }
-        
-        // Restore auto-sidebar elements
-        if (state.autoSidebarStates) {
-          state.autoSidebarStates.forEach(item => {
-            const el = document.querySelector(item.selector);
-            if (el) {
-              el.style.display = item.visible ? '' : 'none';
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to restore sidebar state:', e);
-      }
-    }
-  }
-
-  // ====================================================================
-  // ADVANCED SCHEDULER WITH PRELOADING
-  // ====================================================================
-  class AdvancedScheduler {
-    constructor() {
-      this.tasks = new Map();
-      this.preloadedResources = new Set();
-    }
-    
-    scheduleBackground(callback, taskId) {
-      if (this.tasks.has(taskId)) return;
-      
-      this.tasks.set(taskId, true);
-      
-      // Use scheduler.postTask if available, fallback to requestIdleCallback
-      if ('scheduler' in window && 'postTask' in window.scheduler) {
-        window.scheduler.postTask(callback, { priority: 'background' })
-          .finally(() => this.tasks.delete(taskId));
-      } else if ('requestIdleCallback' in window) {
-        requestIdleCallback(callback, { timeout: 5000 });
-        this.tasks.delete(taskId);
-      } else {
-        setTimeout(callback, 100);
-        this.tasks.delete(taskId);
-      }
-    }
-    
-    addResourceHints() {
-      // Add DNS prefetch and preconnect hints for likely resources
-      this.addResourceHint('dns-prefetch', window.location.origin);
-      
-      // Preload likely next page resources based on current URL patterns
-      this.preloadLikelyResources();
-      
-      // Add connection hints for external resources
-      this.scheduleBackground(() => {
-        this.addConnectionHints();
-      }, 'connection-hints');
-    }
-    
-    addResourceHint(rel, href) {
-      if (this.preloadedResources.has(href)) return;
-      
-      try {
-        const link = document.createElement('link');
-        link.rel = rel;
-        link.href = href;
-        document.head.appendChild(link);
-        this.preloadedResources.add(href);
-      } catch (e) {
-        console.warn('Failed to add resource hint:', e);
-      }
-    }
-    
-    preloadLikelyResources() {
-      // Smart preloading based on navigation patterns
-      const currentPath = window.location.pathname;
-      const likelyPaths = this.predictLikelyNavigation(currentPath);
-      
-      likelyPaths.forEach(path => {
-        this.scheduleBackground(() => {
-          this.preloadPage(path);
-        }, `preload-${path}`);
-      });
-    }
-    
-    predictLikelyNavigation(currentPath) {
-      // Simple heuristics for common navigation patterns
-      const paths = [];
-      
-      // If on detail page, user might go back to list
-      if (currentPath.includes('/settlement/') || currentPath.includes('/locality/')) {
-        paths.push('/directory');
-        paths.push('/places');
-      }
-      
-      // If on directory/listing, user might visit specific items
-      if (currentPath === '/' || currentPath.includes('directory')) {
-        // Don't preload specific items to avoid too many requests
-      }
-      
-      return paths;
-    }
-    
-    preloadPage(path) {
-      // Preload the page HTML (as low priority)
-      fetch(path, {
-        method: 'GET',
-        priority: 'low',
-        credentials: 'same-origin'
-      }).then(response => {
-        if (response.ok) {
-          console.log(`Preloaded page: ${path}`);
-        }
-      }).catch(() => {
-        // Fail silently for preload attempts
-      });
-    }
-    
-    addConnectionHints() {
-      // Add preconnect for any external resources that might be loaded
-      const externalDomains = new Set();
-      
-      // Check for external images, scripts, etc.
-      document.querySelectorAll('img[src], script[src], link[href]').forEach(el => {
-        try {
-          const url = new URL(el.src || el.href);
-          if (url.origin !== window.location.origin) {
-            externalDomains.add(url.origin);
-          }
-        } catch (e) {
-          // Ignore invalid URLs
-        }
-      });
-      
-      // Add preconnect hints for external domains
-      externalDomains.forEach(origin => {
-        this.addResourceHint('preconnect', origin);
-      });
-    }
-    
-    // Progressive enhancement: hover preloading for navigation links
-    setupHoverPreloading() {
-      let hoverTimer;
-      
-      document.addEventListener('mouseover', (e) => {
-        const link = e.target.closest('a[href]');
-        if (!link || !link.href) return;
-        
-        // Only preload internal links
-        try {
-          const url = new URL(link.href);
-          if (url.origin !== window.location.origin) return;
-          
-          clearTimeout(hoverTimer);
-          hoverTimer = setTimeout(() => {
-            this.scheduleBackground(() => {
-              this.preloadPage(url.pathname);
-            }, `hover-preload-${url.pathname}`);
-          }, 100); // Small delay to avoid preloading on quick mouse movements
-          
-        } catch (e) {
-          // Ignore invalid URLs
-        }
-      });
-      
-      document.addEventListener('mouseout', () => {
-        clearTimeout(hoverTimer);
-      });
-    }
-    
-    cleanup() {
-      this.tasks.clear();
-      this.preloadedResources.clear();
-    }
-  }
-
-  // ====================================================================
   // GLOBAL INSTANCES
   // ====================================================================
   const safeStorage = new SafeStorage();
@@ -726,9 +393,6 @@
   const eventManager = new OptimizedEventManager();
   const state = new SimpleState();
   const geoCache = new GeoJSONCache(safeStorage);
-  const checkboxCache = new CheckboxHTMLCache(safeStorage);
-  const sidebarStateManager = new SidebarStateManager();
-  const scheduler = new AdvancedScheduler();
   
   // Shortcuts
   const $ = (selector) => domCache.$(selector);
@@ -784,104 +448,119 @@
   };
   
   // ====================================================================
-  // CACHE VALIDATION AND CLEANUP
-  // ====================================================================
-  function validateAndCleanCaches() {
-    console.log('Validating cache integrity...');
-    
-    try {
-      // Validate GeoJSON cache
-      ['localities', 'settlements'].forEach(type => {
-        const cached = geoCache.get(type);
-        if (cached) {
-          // Basic validation - ensure it has expected structure
-          if (!cached.features || !Array.isArray(cached.features)) {
-            console.warn(`Invalid GeoJSON cache for ${type}, clearing...`);
-            geoCache.set(type, null); // This will effectively remove it
-          } else {
-            console.log(`✓ GeoJSON cache for ${type} is valid (${cached.features.length} features)`);
-          }
-        }
-      });
-      
-      // Validate checkbox HTML cache
-      ['localities', 'settlements'].forEach(type => {
-        const cachedHTML = checkboxCache.getFromAnyStorage(type);
-        if (cachedHTML) {
-          // Basic validation - ensure it contains expected elements
-          if (!cachedHTML.includes('checbox-item') || !cachedHTML.includes('w-checkbox')) {
-            console.warn(`Invalid checkbox HTML cache for ${type}, clearing...`);
-            const key = checkboxCache.getCacheKey(type);
-            sessionStorage.removeItem(key);
-            safeStorage.removeItem(key);
-          } else {
-            console.log(`✓ Checkbox HTML cache for ${type} is valid`);
-          }
-        }
-      });
-      
-      // Clean up old cache versions
-      cleanupOldCacheVersions();
-      
-      console.log('Cache validation completed');
-      
-    } catch (e) {
-      console.warn('Cache validation failed:', e);
-    }
-  }
-  
-  function cleanupOldCacheVersions() {
-    try {
-      // Clean up localStorage and sessionStorage from old versions
-      const storages = [localStorage, sessionStorage];
-      
-      storages.forEach(storage => {
-        const keys = Object.keys(storage);
-        keys.forEach(key => {
-          // Remove old cache versions
-          if (key.startsWith('geojson_cache_') || key.startsWith('checkbox_html_')) {
-            if (!key.includes(`_v${CONFIG.CACHE_VERSION}`) && !key.includes(`_${CONFIG.CACHE_VERSION}`)) {
-              try {
-                storage.removeItem(key);
-                console.log(`Cleaned up old cache: ${key}`);
-              } catch (e) {
-                // Ignore cleanup errors
-              }
-            }
-          }
-        });
-      });
-    } catch (e) {
-      console.warn('Failed to cleanup old cache versions:', e);
-    }
-  }
-
-  // ====================================================================
   // CHECKBOX GENERATION (Lazy-loaded)
   // ====================================================================
   const checkboxState = {
     localitiesGenerated: false,
     settlementsGenerated: false,
     isGenerating: false,
-    generationPromise: null
+    generationPromise: null,
+    generatedCheckboxes: new Set() // Track individual generated checkboxes
   };
   
-  async function generateCheckboxes(type, containerId, fieldName) {
+  // Generate a single checkbox for a specific name and type
+  async function generateSingleCheckbox(type, name, containerId, fieldName) {
     const container = $id(containerId);
     if (!container) {
       console.warn(`Target container #${containerId} not found`);
-      return;
+      return false;
     }
     
-    // Try cached HTML first for instant loading
-    const cachedHTML = checkboxCache.getFromAnyStorage(type);
-    if (cachedHTML) {
-      console.log(`Loading ${type} checkboxes from cache (instant)`);
-      container.innerHTML = cachedHTML;
+    // Check if already generated
+    const checkboxKey = `${type}:${name}`;
+    if (checkboxState.generatedCheckboxes.has(checkboxKey)) {
+      console.log(`Checkbox for ${name} (${type}) already exists`);
+      return true;
+    }
+    
+    try {
+      // Get data to find the specific feature
+      const data = await geoCache.fetch(type);
+      const feature = data.features.find(f => f.properties.name === name);
       
-      // Update caches and setup events
+      if (!feature) {
+        console.warn(`Feature '${name}' not found in ${type} data`);
+        return false;
+      }
+      
+      // Generate the checkbox HTML
+      const slug = feature.properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
+      const filterType = type === 'settlements' ? 'settlement' : 'locality';
+      
+      const wrapperDiv = document.createElement('div');
+      wrapperDiv.setAttribute('checkbox-filter', filterType);
+      wrapperDiv.className = 'checbox-item';
+      
+      const label = document.createElement('label');
+      label.className = 'w-checkbox reporterwrap-copy';
+      
+      const link = document.createElement('a');
+      link.setAttribute('open', '');
+      link.href = `/${urlPrefix}/${slug}`;
+      link.target = '_blank';
+      link.className = 'open-in-new-tab w-inline-block';
+      link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+      
+      const checkboxDiv = document.createElement('div');
+      checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+      
+      const input = document.createElement('input');
+      input.setAttribute('data-auto-sidebar', 'true');
+      input.setAttribute('fs-list-value', name);
+      input.setAttribute('fs-list-field', fieldName);
+      input.type = 'checkbox';
+      input.name = filterType;
+      input.setAttribute('data-name', filterType);
+      input.setAttribute('activate-filter-indicator', 'place');
+      input.id = `${type}-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+      
+      const span = document.createElement('span');
+      span.className = 'test3 w-form-label';
+      span.setAttribute('for', input.id);
+      span.textContent = name;
+      
+      const countContainer = document.createElement('div');
+      countContainer.className = 'div-block-31834';
+      const countDiv = document.createElement('div');
+      countDiv.setAttribute('fs-list-element', 'facet-count');
+      countDiv.className = 'test33';
+      countDiv.textContent = '0';
+      countContainer.appendChild(countDiv);
+      
+      label.appendChild(link);
+      label.appendChild(checkboxDiv);
+      label.appendChild(input);
+      label.appendChild(span);
+      label.appendChild(countContainer);
+      wrapperDiv.appendChild(label);
+      
+      // Insert in alphabetical order
+      const existingItems = Array.from(container.querySelectorAll('.checbox-item'));
+      let inserted = false;
+      
+      for (let i = 0; i < existingItems.length; i++) {
+        const existingName = existingItems[i].querySelector('span.test3').textContent;
+        if (name.localeCompare(existingName) < 0) {
+          container.insertBefore(wrapperDiv, existingItems[i]);
+          inserted = true;
+          break;
+        }
+      }
+      
+      if (!inserted) {
+        container.appendChild(wrapperDiv);
+      }
+      
+      // Track the generated checkbox
+      checkboxState.generatedCheckboxes.add(checkboxKey);
+      
+      console.log(`Generated single checkbox for ${name} (${type})`);
+      
       domCache.markStale();
       domCache.refresh();
+      
       setupGeneratedCheckboxEvents();
       
       // Refresh search script cache if available
@@ -891,7 +570,19 @@
         }
       }, { fallbackDelay: 50 });
       
-      return; // Exit early with cached content
+      return true;
+      
+    } catch (error) {
+      console.error(`Failed to generate single checkbox for ${name} (${type}):`, error);
+      return false;
+    }
+  }
+
+  async function generateCheckboxes(type, containerId, fieldName) {
+    const container = $id(containerId);
+    if (!container) {
+      console.warn(`Target container #${containerId} not found`);
+      return;
     }
     
     try {
@@ -984,11 +675,11 @@
       container.appendChild(fragment);
       console.log(`Generated ${uniqueFeatures.length} ${type} checkboxes`);
       
-      // Cache the generated HTML for future page loads (background task)
-      scheduler.scheduleBackground(() => {
-        checkboxCache.set(type, container.innerHTML);
-        console.log(`${type} checkboxes HTML cached for faster navigation`);
-      }, 'cache-checkbox-html');
+      // Track generated checkboxes
+      uniqueFeatures.forEach(feature => {
+        const name = feature.properties.name;
+        checkboxState.generatedCheckboxes.add(`${type}:${name}`);
+      });
       
       domCache.markStale();
       domCache.refresh();
@@ -1237,6 +928,99 @@
     utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
     if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
   };
+  
+  // ====================================================================
+  // FIELD ITEM AUTO-CHECKING
+  // ====================================================================
+  
+  // Function to programmatically check a checkbox with proper visual states
+  function checkCheckboxProgrammatically(input) {
+    if (!input || input.checked) return false;
+    
+    // Check the input
+    input.checked = true;
+    
+    // Add visual classes to match checked state
+    const label = input.closest('label');
+    if (label) {
+      label.classList.add('is-list-active');
+    }
+    
+    const checkboxDiv = input.parentElement.querySelector('.w-checkbox-input');
+    if (checkboxDiv) {
+      checkboxDiv.classList.add('w--redirected-checked');
+    }
+    
+    // Trigger change event to ensure any listeners are notified
+    const changeEvent = new Event('change', { bubbles: true });
+    input.dispatchEvent(changeEvent);
+    
+    console.log(`Programmatically checked checkbox: ${input.getAttribute('fs-list-value')}`);
+    return true;
+  }
+  
+  // Process field-item elements and ensure corresponding checkboxes are checked
+  async function processFieldItems() {
+    const fieldItems = document.querySelectorAll('[field-item]');
+    if (fieldItems.length === 0) return;
+    
+    console.log(`Found ${fieldItems.length} field-item elements to process`);
+    
+    const processedItems = new Set(); // Avoid duplicates
+    
+    for (const item of fieldItems) {
+      const fieldType = item.getAttribute('field-item');
+      const fieldValue = item.textContent.trim();
+      
+      if (!fieldType || !fieldValue) continue;
+      
+      const processKey = `${fieldType}:${fieldValue}`;
+      if (processedItems.has(processKey)) continue;
+      processedItems.add(processKey);
+      
+      // Map field types to checkbox types and containers
+      let checkboxType, containerId, fieldName;
+      
+      if (fieldType.toLowerCase() === 'locality') {
+        checkboxType = 'localities';
+        containerId = 'locality-check-list';
+        fieldName = 'Locality';
+      } else if (fieldType.toLowerCase() === 'settlement') {
+        checkboxType = 'settlements';
+        containerId = 'settlement-check-list';
+        fieldName = 'Settlement';
+      } else {
+        console.warn(`Unknown field-item type: ${fieldType}`);
+        continue;
+      }
+      
+      // Check if checkbox already exists
+      let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+      
+      if (!input) {
+        // Generate the missing checkbox
+        console.log(`Generating missing checkbox for ${fieldValue} (${fieldType})`);
+        const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
+        
+        if (success) {
+          // Try to find the checkbox again after generation
+          input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+        }
+      }
+      
+      // Check the checkbox if found
+      if (input) {
+        checkCheckboxProgrammatically(input);
+      } else {
+        console.warn(`Could not find or generate checkbox for ${fieldValue} (${fieldType})`);
+      }
+    }
+    
+    // Trigger filtered elements check after processing all field items
+    IdleExecution.scheduleUI(() => {
+      checkAndToggleFilteredElements();
+    }, { fallbackDelay: 100 });
+  }
   
   // ====================================================================
   // FILTERED ELEMENTS
@@ -1732,6 +1516,11 @@
     // Checkbox generation (lazy-loaded)
     lazyLoadCheckboxes,
     checkboxState,
+    generateSingleCheckbox,
+    
+    // Field-item auto-checking
+    processFieldItems,
+    checkCheckboxProgrammatically,
     
     // For map page
     getGeoJSONData: async function() {
@@ -1758,6 +1547,11 @@
         element.style.pointerEvents = 'auto';
       });
     }
+    
+    // Process field-item elements immediately to auto-check corresponding checkboxes
+    IdleExecution.scheduleUI(() => {
+      processFieldItems();
+    }, { fallbackDelay: 200 });
   };
   immediateCheck();
   
@@ -1801,6 +1595,11 @@
         toggleShowWhenFilteredElements(true);
       }
       
+      // Process field items after DOM is ready
+      IdleExecution.scheduleUI(() => {
+        processFieldItems();
+      }, { fallbackDelay: 300 });
+      
       initializeCore();
     });
   } else {
@@ -1809,6 +1608,12 @@
     if (hiddenTagParent) {
       toggleShowWhenFilteredElements(true);
     }
+    
+    // Process field items if DOM is already ready
+    IdleExecution.scheduleUI(() => {
+      processFieldItems();
+    }, { fallbackDelay: 100 });
+    
     initializeCore();
   }
   
@@ -1820,23 +1625,6 @@
     
     // Add resource hints for better performance
     scheduler.addResourceHints();
-    
-    // Validate and clean up stale caches in background
-    scheduler.scheduleBackground(() => {
-      validateAndCleanCaches();
-    }, 'validate-caches');
-    
-    // Try to restore previous sidebar state for smooth navigation
-    const savedState = sidebarStateManager.loadState();
-    if (savedState) {
-      console.log('Restoring sidebar state from previous navigation');
-      sidebarStateManager.restoreState(savedState);
-    }
-    
-    // Setup hover preloading for navigation links
-    scheduler.scheduleBackground(() => {
-      scheduler.setupHoverPreloading();
-    }, 'setup-hover-preloading');
     
     // Defer non-critical initialization to background tasks
     scheduler.scheduleBackground(() => {
@@ -1858,17 +1646,12 @@
     
     // Additional check after page is fully loaded (matching mapbox timing)
     state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+    
+    // Process field items after full page load as final fallback
+    state.setTimer('loadProcessFieldItems', processFieldItems, 400);
   });
   
   window.addEventListener('beforeunload', () => {
-    // Save current sidebar state for next page navigation
-    try {
-      sidebarStateManager.saveState();
-      console.log('Sidebar state saved for next navigation');
-    } catch (e) {
-      console.warn('Failed to save sidebar state:', e);
-    }
-    
     // Cleanup utilities and managers
     eventManager.cleanup();
     state.cleanup();
