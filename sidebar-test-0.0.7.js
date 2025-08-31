@@ -962,10 +962,43 @@
     return true;
   }
   
+  // Wait for Finsweet filters to initialize before processing field items
+  function waitForFinsweet() {
+    return new Promise((resolve) => {
+      const checkFinsweet = () => {
+        const hiddenTagParent = document.getElementById('hiddentagparent');
+        const tagParent = document.getElementById('tagparent');
+        
+        // Check if Finsweet has loaded (hiddentagparent gone OR tagparent empty)
+        const finsweetReady = !hiddenTagParent || (tagParent && tagParent.children.length === 0);
+        
+        if (finsweetReady) {
+          console.log('Finsweet filters ready - proceeding with field-item processing');
+          resolve();
+        } else {
+          // Check again in 100ms
+          setTimeout(checkFinsweet, 100);
+        }
+      };
+      
+      // Start checking immediately
+      checkFinsweet();
+      
+      // Fallback timeout after 5 seconds
+      setTimeout(() => {
+        console.log('Finsweet wait timeout - proceeding with field-item processing anyway');
+        resolve();
+      }, 5000);
+    });
+  }
+
   // Process field-item elements and ensure corresponding checkboxes are checked
   async function processFieldItems() {
     const fieldItems = document.querySelectorAll('[field-item]');
     if (fieldItems.length === 0) return;
+    
+    // Wait for Finsweet to be ready before processing
+    await waitForFinsweet();
     
     console.log(`Found ${fieldItems.length} field-item elements to process`);
     
