@@ -933,27 +933,30 @@
   // FIELD ITEM AUTO-CHECKING
   // ====================================================================
   
-  // Function to programmatically check a checkbox with proper visual states
+  // Utility function to trigger multiple events (like mapbox script)
+  function triggerEvent(element, events) {
+    events.forEach(eventType => {
+      const event = new Event(eventType, { bubbles: true });
+      element.dispatchEvent(event);
+    });
+  }
+  
+  // Function to programmatically check a checkbox with proper visual states (mapbox approach)
   function checkCheckboxProgrammatically(input) {
     if (!input || input.checked) return false;
     
-    // Check the input
+    // Check the input (like mapbox script)
     input.checked = true;
     
-    // Add visual classes to match checked state
-    const label = input.closest('label');
-    if (label) {
-      label.classList.add('is-list-active');
-    }
+    // Trigger events like mapbox script - let Webflow handle visual classes
+    triggerEvent(input, ['change', 'input']);
     
-    const checkboxDiv = input.parentElement.querySelector('.w-checkbox-input');
-    if (checkboxDiv) {
-      checkboxDiv.classList.add('w--redirected-checked');
+    // Also trigger form events like mapbox script
+    const form = input.closest('form');
+    if (form) {
+      form.dispatchEvent(new Event('change', { bubbles: true }));
+      form.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    
-    // Trigger change event to ensure any listeners are notified
-    const changeEvent = new Event('change', { bubbles: true });
-    input.dispatchEvent(changeEvent);
     
     console.log(`Programmatically checked checkbox: ${input.getAttribute('fs-list-value')}`);
     return true;
