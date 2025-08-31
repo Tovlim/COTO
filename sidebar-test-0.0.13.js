@@ -969,6 +969,17 @@
   let processFieldItemsRunning = false;
   let processFieldItemsTimer = null;
   
+  // Early detection of field-items to skip unnecessary processing
+  let hasFieldItemsOnPage = false;
+  
+  // Check once if page has field-items
+  function checkForFieldItems() {
+    if (!hasFieldItemsOnPage) {
+      hasFieldItemsOnPage = document.querySelector('[field-item]') !== null;
+    }
+    return hasFieldItemsOnPage;
+  }
+  
   // Wait for Finsweet filters to initialize before processing field items (only once)
   function waitForFinsweet() {
     return new Promise((resolve) => {
@@ -1008,6 +1019,11 @@
 
   // Debounced wrapper for processFieldItems
   function processFieldItemsDebounced() {
+    // Early exit if no field-items on page
+    if (!checkForFieldItems()) {
+      return;
+    }
+    
     // Clear existing timer
     if (processFieldItemsTimer) {
       clearTimeout(processFieldItemsTimer);
@@ -1540,9 +1556,12 @@
     }
     
     // Process field-item elements immediately to auto-check corresponding checkboxes
-    IdleExecution.scheduleUI(() => {
-      processFieldItemsDebounced();
-    }, { fallbackDelay: 200 });
+    // Only schedule if field-items exist
+    if (checkForFieldItems()) {
+      IdleExecution.scheduleUI(() => {
+        processFieldItemsDebounced();
+      }, { fallbackDelay: 200 });
+    }
   };
   immediateCheck();
   
@@ -1605,9 +1624,11 @@
       }
       
       // Process field items after DOM is ready
-      IdleExecution.scheduleUI(() => {
-        processFieldItemsDebounced();
-      }, { fallbackDelay: 300 });
+      if (checkForFieldItems()) {
+        IdleExecution.scheduleUI(() => {
+          processFieldItemsDebounced();
+        }, { fallbackDelay: 300 });
+      }
       
       initializeCore();
     });
@@ -1619,9 +1640,11 @@
     }
     
     // Process field items if DOM is already ready
-    IdleExecution.scheduleUI(() => {
-      processFieldItemsDebounced();
-    }, { fallbackDelay: 100 });
+    if (checkForFieldItems()) {
+      IdleExecution.scheduleUI(() => {
+        processFieldItemsDebounced();
+      }, { fallbackDelay: 100 });
+    }
     
     initializeCore();
   }
@@ -1641,7 +1664,9 @@
     state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
     
     // Process field items after full page load as final fallback
-    state.setTimer('loadProcessFieldItems', processFieldItemsDebounced, 400);
+    if (checkForFieldItems()) {
+      state.setTimer('loadProcessFieldItems', processFieldItemsDebounced, 400);
+    }
   });
   
   window.addEventListener('beforeunload', () => {
