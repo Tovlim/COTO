@@ -934,9 +934,13 @@
   // ====================================================================
   
   // Utility function to trigger multiple events (like mapbox script)
-  function triggerEvent(element, events) {
+  function triggerEvent(element, events, isProgrammatic = false) {
     events.forEach(eventType => {
       const event = new Event(eventType, { bubbles: true });
+      if (isProgrammatic) {
+        // Mark programmatic events to prevent auto-sidebar opening
+        event.isProgrammaticFieldItemCheck = true;
+      }
       element.dispatchEvent(event);
     });
   }
@@ -949,13 +953,21 @@
     input.checked = true;
     
     // Trigger events like mapbox script - let Webflow handle visual classes
-    triggerEvent(input, ['change', 'input']);
+    // Mark as programmatic to prevent auto-sidebar opening
+    triggerEvent(input, ['change', 'input'], true);
     
     // Also trigger form events like mapbox script
     const form = input.closest('form');
     if (form) {
-      form.dispatchEvent(new Event('change', { bubbles: true }));
-      form.dispatchEvent(new Event('input', { bubbles: true }));
+      const changeEvent = new Event('change', { bubbles: true });
+      const inputEvent = new Event('input', { bubbles: true });
+      
+      // Mark form events as programmatic too
+      changeEvent.isProgrammaticFieldItemCheck = true;
+      inputEvent.isProgrammaticFieldItemCheck = true;
+      
+      form.dispatchEvent(changeEvent);
+      form.dispatchEvent(inputEvent);
     }
     
     console.log(`Programmatically checked checkbox: ${input.getAttribute('fs-list-value')}`);
@@ -1042,9 +1054,17 @@
       return;
     }
     
-    const fieldItems = document.querySelectorAll('[field-item]');
+    const allFieldItems = document.querySelectorAll('[field-item]');
+    const fieldItems = Array.from(allFieldItems).filter(item => {
+      const isHidden = item.classList.contains('w-condition-invisible');
+      if (isHidden) {
+        console.log(`Skipping hidden field-item: ${item.getAttribute('field-item')}="${item.textContent.trim()}" (w-condition-invisible)`);
+      }
+      return !isHidden;
+    });
+    
     if (fieldItems.length === 0) {
-      console.log('No field-item elements found');
+      console.log(`No visible field-item elements found (${allFieldItems.length} total, all hidden)`);
       return;
     }
     
@@ -1294,7 +1314,12 @@
       // Skip if already handled by setupEvents or event delegation
       if (element.dataset.eventListenerAdded === 'true' || element.dataset.eventSetup === 'true') return;
       
-      const changeHandler = () => {
+      const changeHandler = (e) => {
+        // Skip auto-sidebar for programmatic field-item checks
+        if (e && e.isProgrammaticFieldItemCheck) {
+          console.log('Skipping auto-sidebar for programmatic field-item check');
+          return;
+        }
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
@@ -1303,7 +1328,12 @@
       eventManager.add(element, 'change', changeHandler);
       
       if (['text', 'search'].includes(element.type)) {
-        const inputHandler = () => {
+        const inputHandler = (e) => {
+          // Skip auto-sidebar for programmatic field-item checks
+          if (e && e.isProgrammaticFieldItemCheck) {
+            console.log('Skipping auto-sidebar for programmatic field-item input check');
+            return;
+          }
           if (window.innerWidth > 991) {
             state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
           }
@@ -1494,7 +1524,12 @@
   
   function setupEvents() {
     const eventHandlers = [
-      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
+      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: (e) => {
+        // Skip auto-sidebar for programmatic field-item checks
+        if (e && e.isProgrammaticFieldItemCheck) {
+          console.log('Skipping auto-sidebar for programmatic field-item event (setupEvents)');
+          return;
+        }
         if (window.innerWidth > 991) {
           state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
         }
@@ -1621,6 +1656,11 @@
     // Use capturing phase to catch all events, even from existing elements
     document.addEventListener('change', (e) => {
       if (e.target.matches('[data-auto-sidebar="true"]')) {
+        // Skip auto-sidebar for programmatic field-item checks
+        if (e.isProgrammaticFieldItemCheck) {
+          console.log('Skipping auto-sidebar for programmatic field-item change (delegation)');
+          return;
+        }
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
@@ -1634,6 +1674,11 @@
     
     document.addEventListener('input', (e) => {
       if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        // Skip auto-sidebar for programmatic field-item checks
+        if (e.isProgrammaticFieldItemCheck) {
+          console.log('Skipping auto-sidebar for programmatic field-item input (delegation)');
+          return;
+        }
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
