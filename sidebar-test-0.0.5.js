@@ -1028,50 +1028,12 @@
   // ====================================================================
   // FILTERED ELEMENTS
   // ====================================================================
-  const checkForDefaultTagValues = () => {
-    // Find elements with default placeholder values
-    const tagFieldElements = document.querySelectorAll('[fs-list-element="tag-field"]');
-    const tagValueElements = document.querySelectorAll('[fs-list-element="tag-value"]');
-    
-    let hasDefaultTag = false;
-    
-    // Check if any tag has both default values
-    tagFieldElements.forEach(fieldEl => {
-      if (fieldEl.textContent.trim() === 'tag-field') {
-        // Find corresponding tag-value in the same parent structure
-        const parentTag = fieldEl.closest('#tag, [id*="tag"]');
-        if (parentTag) {
-          const valueEl = parentTag.querySelector('[fs-list-element="tag-value"]');
-          if (valueEl && valueEl.textContent.trim() === 'tag-value') {
-            // Found a tag with default values - hide the entire tagparent
-            const tagParent = parentTag.closest('#tagparent');
-            if (tagParent) {
-              tagParent.style.display = 'none';
-              hasDefaultTag = true;
-              // Set permanent flag to prevent show-when-filtered elements from appearing
-              state.flags.hasDefaultTags = true;
-            }
-          }
-        }
-      }
-    });
-    
-    return hasDefaultTag;
-  };
   
   // Toggle filtered elements with immediate DOM updates (matching mapbox)
   const toggleShowWhenFilteredElements = show => {
     // Don't use cached results for critical filtering elements - always fresh query
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
-    
-    // If default tags were detected, never show these elements
-    if (state.flags.hasDefaultTags) {
-      elements.forEach(element => {
-        element.style.display = 'none';
-      });
-      return;
-    }
     
     // Apply changes immediately - no delay logic needed
     elements.forEach(element => {
@@ -1081,12 +1043,6 @@
   
   // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
   const checkAndToggleFilteredElements = () => {
-    // If default tags were detected, never show filtered elements
-    if (state.flags.hasDefaultTags) {
-      toggleShowWhenFilteredElements(false);
-      return false;
-    }
-    
     // Check for hiddentagparent (Finsweet official filtering indicator)
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
@@ -1626,15 +1582,9 @@
     
     setupSidebars();
     
-    // Check for default tag values using idle execution
+    // Check for filtered elements using idle execution
     IdleExecution.scheduleUI(() => {
-      const hasDefaultTag = checkForDefaultTagValues();
-      if (hasDefaultTag) {
-        // If we found and hid default tags, also hide show-when-filtered elements
-        toggleShowWhenFilteredElements(false);
-      } else {
-        checkAndToggleFilteredElements();
-      }
+      checkAndToggleFilteredElements();
     }, { fallbackDelay: 300 });
     
     // Additional check after page is fully loaded (matching mapbox timing)
