@@ -1136,7 +1136,7 @@
   // Toggle filtered elements with immediate DOM updates (matching mapbox)
   const toggleShowWhenFilteredElements = show => {
     // Don't use cached results for critical filtering elements - always fresh query
-    const elements = $('[show-when-filtered="true"]');
+    const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
     
     // Apply changes immediately - no delay logic needed
@@ -1546,7 +1546,7 @@
     const hiddenTagParent = $id('hiddentagparent');
     if (hiddenTagParent) {
       // Show filtered elements immediately!
-      const elements = $('[show-when-filtered="true"]');
+      const elements = document.querySelectorAll('[show-when-filtered="true"]');
       elements.forEach(element => {
         element.style.display = 'block';
         element.style.visibility = 'visible';
