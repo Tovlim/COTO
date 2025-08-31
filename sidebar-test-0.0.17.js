@@ -799,6 +799,12 @@
         if (element.dataset.checkboxListenerAdded === 'true') return;
         
         element.addEventListener('click', function(e) {
+          // Debug logging for direct listener
+          console.log('Direct Location tab listener triggered!');
+          console.log('Element that has listener:', element);
+          console.log('Event target:', e.target);
+          console.log('Event currentTarget:', e.currentTarget);
+          
           // Only load if not already generated
           if (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated) {
             console.log('Location tab clicked - loading checkboxes...');
@@ -812,10 +818,22 @@
     
     // Also use event delegation for dynamically added tabs
     document.addEventListener('click', function(e) {
-      const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
-                         e.target.closest('#w-tabs-0-data-w-tab-2');
+      // Debug logging
+      console.log('Click detected on:', e.target);
+      console.log('Target ID:', e.target.id);
+      console.log('Target classes:', e.target.className);
+      console.log('Parent element:', e.target.parentElement);
+      
+      const locationTab1 = e.target.closest('[data-w-tab="Locality/Region"]');
+      const locationTab2 = e.target.closest('#w-tabs-0-data-w-tab-2');
+      
+      console.log('Closest [data-w-tab="Locality/Region"]:', locationTab1);
+      console.log('Closest #w-tabs-0-data-w-tab-2:', locationTab2);
+      
+      const locationTab = locationTab1 || locationTab2;
       
       if (locationTab && (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
+        console.log('Location tab matched! Element:', locationTab);
         console.log('Location tab clicked (delegated) - loading checkboxes...');
         lazyLoadCheckboxes();
       }
