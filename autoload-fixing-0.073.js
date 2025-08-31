@@ -1077,6 +1077,8 @@ function initFilteringDetection() {
 }
 
 // SHARE BUTTON FUNCTIONALITY
+let shareButtonTimeouts = new Map(); // Track timeouts for each button
+
 document.addEventListener('click', async function(e) {
   const shareButton = e.target.closest('[share-button]');
   if (shareButton) {
@@ -1114,6 +1116,26 @@ document.addEventListener('click', async function(e) {
         document.execCommand('copy');
         document.body.removeChild(textArea);
       });
+      
+      // Update button text to show "Copied Link"
+      const shareText = shareButton.querySelector('.share-text');
+      if (shareText) {
+        const originalText = shareText.textContent;
+        shareText.textContent = 'Copied Link';
+        
+        // Clear any existing timeout for this button
+        if (shareButtonTimeouts.has(shareButton)) {
+          clearTimeout(shareButtonTimeouts.get(shareButton));
+        }
+        
+        // Set new timeout to restore original text
+        const timeoutId = setTimeout(() => {
+          shareText.textContent = originalText;
+          shareButtonTimeouts.delete(shareButton);
+        }, 2000);
+        
+        shareButtonTimeouts.set(shareButton, timeoutId);
+      }
     }
   }
 });
