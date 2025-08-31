@@ -1077,7 +1077,7 @@ function initFilteringDetection() {
 }
 
 // SHARE BUTTON FUNCTIONALITY
-document.addEventListener('click', function(e) {
+document.addEventListener('click', async function(e) {
   const shareButton = e.target.closest('[share-button]');
   if (shareButton) {
     e.preventDefault();
@@ -1092,6 +1092,19 @@ document.addEventListener('click', function(e) {
     }
     
     if (url) {
+      // Try native share first (for mobile devices)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            url: url
+          });
+          return; // Successfully shared, exit
+        } catch (err) {
+          // User cancelled or share failed, fall through to clipboard
+        }
+      }
+      
+      // Fallback to clipboard copy (for desktop or if share fails)
       navigator.clipboard.writeText(url).catch(() => {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
