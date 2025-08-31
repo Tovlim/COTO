@@ -1580,7 +1580,7 @@
     generateSingleCheckbox,
     
     // Field-item auto-checking
-    processFieldItems,
+    processFieldItems: processFieldItemsDebounced,
     checkCheckboxProgrammatically,
     
     // For map page
