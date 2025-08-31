@@ -362,7 +362,6 @@
       // Check cache first
       const cached = this.get(type);
       if (cached) {
-        console.log(`Using cached ${type} data`);
         return cached;
       }
       
@@ -376,7 +375,6 @@
         
         const data = await response.json();
         this.set(type, data);
-        console.log(`Fetched and cached ${type} data`);
         return data;
       } catch (error) {
         console.error(`Failed to fetch ${type} data:`, error);
@@ -454,9 +452,128 @@
     localitiesGenerated: false,
     settlementsGenerated: false,
     isGenerating: false,
-    generationPromise: null
+    generationPromise: null,
+    generatedCheckboxes: new Set() // Track individual generated checkboxes
   };
   
+  // Generate a single checkbox for a specific name and type
+  async function generateSingleCheckbox(type, name, containerId, fieldName) {
+    const container = $id(containerId);
+    if (!container) {
+      console.warn(`Target container #${containerId} not found`);
+      return false;
+    }
+    
+    // Check if already generated
+    const checkboxKey = `${type}:${name}`;
+    if (checkboxState.generatedCheckboxes.has(checkboxKey)) {
+      return true;
+    }
+    
+    try {
+      // Get data to find the specific feature
+      const data = await geoCache.fetch(type);
+      const feature = data.features.find(f => f.properties.name === name);
+      
+      if (!feature) {
+        console.warn(`Feature '${name}' not found in ${type} data`);
+        return false;
+      }
+      
+      // Generate the checkbox HTML
+      const slug = feature.properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
+      const filterType = type === 'settlements' ? 'settlement' : 'locality';
+      
+      const wrapperDiv = document.createElement('div');
+      wrapperDiv.setAttribute('checkbox-filter', filterType);
+      wrapperDiv.className = 'checbox-item';
+      
+      const label = document.createElement('label');
+      label.className = 'w-checkbox reporterwrap-copy';
+      
+      const link = document.createElement('a');
+      link.setAttribute('open', '');
+      link.href = `/${urlPrefix}/${slug}`;
+      link.target = '_blank';
+      link.className = 'open-in-new-tab w-inline-block';
+      link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
+      
+      const checkboxDiv = document.createElement('div');
+      checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
+      
+      const input = document.createElement('input');
+      input.setAttribute('data-auto-sidebar', 'true');
+      input.setAttribute('fs-list-value', name);
+      input.setAttribute('fs-list-field', fieldName);
+      input.type = 'checkbox';
+      input.name = filterType;
+      input.setAttribute('data-name', filterType);
+      input.setAttribute('activate-filter-indicator', 'place');
+      input.id = `${type}-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
+      
+      const span = document.createElement('span');
+      span.className = 'test3 w-form-label';
+      span.setAttribute('for', input.id);
+      span.textContent = name;
+      
+      const countContainer = document.createElement('div');
+      countContainer.className = 'div-block-31834';
+      const countDiv = document.createElement('div');
+      countDiv.setAttribute('fs-list-element', 'facet-count');
+      countDiv.className = 'test33';
+      countDiv.textContent = '0';
+      countContainer.appendChild(countDiv);
+      
+      label.appendChild(link);
+      label.appendChild(checkboxDiv);
+      label.appendChild(input);
+      label.appendChild(span);
+      label.appendChild(countContainer);
+      wrapperDiv.appendChild(label);
+      
+      // Insert in alphabetical order
+      const existingItems = Array.from(container.querySelectorAll('.checbox-item'));
+      let inserted = false;
+      
+      for (let i = 0; i < existingItems.length; i++) {
+        const existingName = existingItems[i].querySelector('span.test3').textContent;
+        if (name.localeCompare(existingName) < 0) {
+          container.insertBefore(wrapperDiv, existingItems[i]);
+          inserted = true;
+          break;
+        }
+      }
+      
+      if (!inserted) {
+        container.appendChild(wrapperDiv);
+      }
+      
+      // Track the generated checkbox
+      checkboxState.generatedCheckboxes.add(checkboxKey);
+      
+      
+      domCache.markStale();
+      domCache.refresh();
+      
+      setupGeneratedCheckboxEvents();
+      
+      // Refresh search script cache if available
+      IdleExecution.scheduleUI(() => {
+        if (window.checkboxFilterScript) {
+          window.checkboxFilterScript.recacheElements();
+        }
+      }, { fallbackDelay: 50 });
+      
+      return true;
+      
+    } catch (error) {
+      console.error(`Failed to generate single checkbox for ${name} (${type}):`, error);
+      return false;
+    }
+  }
+
   async function generateCheckboxes(type, containerId, fieldName) {
     const container = $id(containerId);
     if (!container) {
@@ -552,7 +669,12 @@
       });
       
       container.appendChild(fragment);
-      console.log(`Generated ${uniqueFeatures.length} ${type} checkboxes`);
+      
+      // Track generated checkboxes
+      uniqueFeatures.forEach(feature => {
+        const name = feature.properties.name;
+        checkboxState.generatedCheckboxes.add(`${type}:${name}`);
+      });
       
       domCache.markStale();
       domCache.refresh();
@@ -573,7 +695,6 @@
   
   function generateLocalityCheckboxes() {
     if (checkboxState.localitiesGenerated) {
-      console.log('Locality checkboxes already generated');
       return Promise.resolve();
     }
     return generateCheckboxes('localities', 'locality-check-list', 'Locality')
@@ -582,7 +703,6 @@
   
   function generateSettlementCheckboxes() {
     if (checkboxState.settlementsGenerated) {
-      console.log('Settlement checkboxes already generated');
       return Promise.resolve();
     }
     return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement')
@@ -598,11 +718,9 @@
     
     // Check if already generated
     if (checkboxState.localitiesGenerated && checkboxState.settlementsGenerated) {
-      console.log('Checkboxes already generated');
       return Promise.resolve();
     }
     
-    console.log('Lazy loading checkboxes for filter sidebar...');
     checkboxState.isGenerating = true;
     
     // Show loading state if containers exist
@@ -644,7 +762,6 @@
         generateSettlementCheckboxes()
       ]);
       
-      console.log('All checkboxes generated successfully');
       
       // Recache elements after generation using idle execution
       IdleExecution.scheduleUI(() => {
@@ -656,7 +773,6 @@
         
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
-          console.log('Checkboxes recached after lazy generation');
         }
       }, { fallbackDelay: 100 });
       
@@ -683,9 +799,14 @@
         if (element.dataset.checkboxListenerAdded === 'true') return;
         
         element.addEventListener('click', function(e) {
+          // Prevent checkbox events from triggering tab loading
+          // Check if the event originated from a checkbox or input element
+          if (e.target.tagName === 'INPUT' || e.target.hasAttribute('fs-list-field')) {
+            return;
+          }
+          
           // Only load if not already generated
           if (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated) {
-            console.log('Location tab clicked - loading checkboxes...');
             lazyLoadCheckboxes();
           }
         });
@@ -696,11 +817,17 @@
     
     // Also use event delegation for dynamically added tabs
     document.addEventListener('click', function(e) {
-      const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
-                         e.target.closest('#w-tabs-0-data-w-tab-2');
+      const locationTab1 = e.target.closest('[data-w-tab="Locality/Region"]');
+      const locationTab2 = e.target.closest('#w-tabs-0-data-w-tab-2');
+      const locationTab = locationTab1 || locationTab2;
       
       if (locationTab && (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
-        console.log('Location tab clicked (delegated) - loading checkboxes...');
+        // Prevent checkbox events from triggering tab loading
+        // Check if the event originated from a checkbox or input element
+        if (e.target.tagName === 'INPUT' || e.target.hasAttribute('fs-list-field')) {
+          return;
+        }
+        
         lazyLoadCheckboxes();
       }
     });
@@ -803,52 +930,225 @@
   };
   
   // ====================================================================
-  // FILTERED ELEMENTS
+  // FIELD ITEM AUTO-CHECKING
   // ====================================================================
-  const checkForDefaultTagValues = () => {
-    // Find elements with default placeholder values
-    const tagFieldElements = document.querySelectorAll('[fs-list-element="tag-field"]');
-    const tagValueElements = document.querySelectorAll('[fs-list-element="tag-value"]');
-    
-    let hasDefaultTag = false;
-    
-    // Check if any tag has both default values
-    tagFieldElements.forEach(fieldEl => {
-      if (fieldEl.textContent.trim() === 'tag-field') {
-        // Find corresponding tag-value in the same parent structure
-        const parentTag = fieldEl.closest('#tag, [id*="tag"]');
-        if (parentTag) {
-          const valueEl = parentTag.querySelector('[fs-list-element="tag-value"]');
-          if (valueEl && valueEl.textContent.trim() === 'tag-value') {
-            // Found a tag with default values - hide the entire tagparent
-            const tagParent = parentTag.closest('#tagparent');
-            if (tagParent) {
-              tagParent.style.display = 'none';
-              hasDefaultTag = true;
-              // Set permanent flag to prevent show-when-filtered elements from appearing
-              state.flags.hasDefaultTags = true;
-            }
-          }
-        }
+  
+  // Utility function to trigger multiple events (like mapbox script)
+  function triggerEvent(element, events, isProgrammatic = false) {
+    events.forEach(eventType => {
+      const event = new Event(eventType, { bubbles: true });
+      if (isProgrammatic) {
+        // Mark programmatic events to prevent auto-sidebar opening
+        event.isProgrammaticFieldItemCheck = true;
       }
+      element.dispatchEvent(event);
+    });
+  }
+  
+  // Function to programmatically check a checkbox with proper visual states (mapbox approach)
+  function checkCheckboxProgrammatically(input) {
+    if (!input || input.checked) return false;
+    
+    // Check the input (like mapbox script)
+    input.checked = true;
+    
+    // Trigger events like mapbox script - let Webflow handle visual classes
+    // Mark as programmatic to prevent auto-sidebar opening
+    triggerEvent(input, ['change', 'input'], true);
+    
+    // Also trigger form events like mapbox script
+    const form = input.closest('form');
+    if (form) {
+      const changeEvent = new Event('change', { bubbles: true });
+      const inputEvent = new Event('input', { bubbles: true });
+      
+      // Mark form events as programmatic too
+      changeEvent.isProgrammaticFieldItemCheck = true;
+      inputEvent.isProgrammaticFieldItemCheck = true;
+      
+      form.dispatchEvent(changeEvent);
+      form.dispatchEvent(inputEvent);
+    }
+    
+    return true;
+  }
+  
+  // Track if Finsweet initialization has been checked (run only once)
+  let finsweetInitialized = false;
+  
+  // Debounce state for processFieldItems
+  let processFieldItemsRunning = false;
+  let processFieldItemsTimer = null;
+  
+  // Early detection of field-items to skip unnecessary processing
+  let hasFieldItemsOnPage = false;
+  
+  // Check once if page has field-items
+  function checkForFieldItems() {
+    if (!hasFieldItemsOnPage) {
+      hasFieldItemsOnPage = document.querySelector('[field-item]') !== null;
+    }
+    return hasFieldItemsOnPage;
+  }
+  
+  // Wait for Finsweet filters to initialize before processing field items (only once)
+  function waitForFinsweet() {
+    return new Promise((resolve) => {
+      // If already checked, resolve immediately
+      if (finsweetInitialized) {
+        resolve();
+        return;
+      }
+      
+      const checkFinsweet = () => {
+        const hiddenTagParent = document.getElementById('hiddentagparent');
+        const tagParent = document.getElementById('tagparent');
+        
+        
+        // Check if Finsweet has loaded (hiddentagparent gone OR tagparent empty)
+        const finsweetReady = !hiddenTagParent || (tagParent && tagParent.children.length === 0);
+        
+        if (finsweetReady) {
+          finsweetInitialized = true; // Mark as initialized
+          resolve();
+        } else {
+          // Check again in 100ms
+          setTimeout(checkFinsweet, 100);
+        }
+      };
+      
+      // Start checking immediately
+      checkFinsweet();
+      
+      // Fallback timeout after 5 seconds
+      setTimeout(() => {
+        finsweetInitialized = true; // Mark as initialized even on timeout
+        resolve();
+      }, 5000);
+    });
+  }
+
+  // Debounced wrapper for processFieldItems
+  function processFieldItemsDebounced() {
+    // Early exit if no field-items on page
+    if (!checkForFieldItems()) {
+      return;
+    }
+    
+    // Clear existing timer
+    if (processFieldItemsTimer) {
+      clearTimeout(processFieldItemsTimer);
+      processFieldItemsTimer = null;
+    }
+    
+    // If already running, schedule for later
+    if (processFieldItemsRunning) {
+      processFieldItemsTimer = setTimeout(processFieldItemsDebounced, 500);
+      return;
+    }
+    
+    // Execute immediately
+    processFieldItemsTimer = setTimeout(processFieldItemsInternal, 100);
+  }
+
+  // Internal implementation of processFieldItems (debounced)
+  async function processFieldItemsInternal() {
+    // Prevent multiple simultaneous executions
+    if (processFieldItemsRunning) {
+      return;
+    }
+    
+    const allFieldItems = document.querySelectorAll('[field-item]');
+    const fieldItems = Array.from(allFieldItems).filter(item => {
+      return !item.classList.contains('w-condition-invisible');
     });
     
-    return hasDefaultTag;
-  };
+    if (fieldItems.length === 0) {
+      return;
+    }
+    
+    // Set running flag
+    processFieldItemsRunning = true;
+    
+    try {
+      // Wait for Finsweet to be ready before processing
+      await waitForFinsweet();
+      
+      
+      const processedItems = new Set(); // Avoid duplicates
+      
+      for (const item of fieldItems) {
+        const fieldType = item.getAttribute('field-item');
+        const fieldValue = item.textContent.trim();
+        
+        if (!fieldType || !fieldValue) continue;
+        
+        const processKey = `${fieldType}:${fieldValue}`;
+        if (processedItems.has(processKey)) continue;
+        processedItems.add(processKey);
+        
+        // Use field-item value directly as fs-list-field (modular approach)
+        const fieldName = fieldType;
+        
+        // Check if this is a generatable type (only localities and settlements need generation)
+        let checkboxType, containerId, skipGeneration = false;
+        
+        if (fieldType.toLowerCase() === 'locality') {
+          checkboxType = 'localities';
+          containerId = 'locality-check-list';
+        } else if (fieldType.toLowerCase() === 'settlement') {
+          checkboxType = 'settlements';
+          containerId = 'settlement-check-list';
+        } else {
+          // For all other types (Governorate, Category, etc.), skip generation
+          // They should already exist on the page
+          skipGeneration = true;
+        }
+        
+        // Check if checkbox already exists
+        let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+        
+        if (!input && !skipGeneration) {
+          // Generate the missing checkbox (only for localities and settlements)
+          const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
+          
+          if (success) {
+            // Try to find the checkbox again after generation
+            input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+          }
+        }
+        
+        // Check the checkbox if found
+        if (input) {
+          checkCheckboxProgrammatically(input);
+        } else {
+          console.warn(`Could not find or generate checkbox for ${fieldValue} (${fieldType})`);
+        }
+      }
+      
+      // Trigger filtered elements check after processing all field items
+      IdleExecution.scheduleUI(() => {
+        checkAndToggleFilteredElements();
+      }, { fallbackDelay: 100 });
+      
+      
+    } catch (error) {
+      console.error('Error in processFieldItems:', error);
+    } finally {
+      // Always clear the running flag
+      processFieldItemsRunning = false;
+    }
+  }
+  
+  // ====================================================================
+  // FILTERED ELEMENTS
+  // ====================================================================
   
   // Toggle filtered elements with immediate DOM updates (matching mapbox)
   const toggleShowWhenFilteredElements = show => {
     // Don't use cached results for critical filtering elements - always fresh query
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
-    
-    // If default tags were detected, never show these elements
-    if (state.flags.hasDefaultTags) {
-      elements.forEach(element => {
-        element.style.display = 'none';
-      });
-      return;
-    }
     
     // Apply changes immediately - no delay logic needed
     elements.forEach(element => {
@@ -858,12 +1158,6 @@
   
   // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
   const checkAndToggleFilteredElements = () => {
-    // If default tags were detected, never show filtered elements
-    if (state.flags.hasDefaultTags) {
-      toggleShowWhenFilteredElements(false);
-      return false;
-    }
-    
     // Check for hiddentagparent (Finsweet official filtering indicator)
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
@@ -896,28 +1190,7 @@
         tagParent._mutationObserver = observer;
       }
       
-      const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-      allCheckboxes.forEach(checkbox => {
-        if (!checkbox.dataset.filteredElementListener) {
-          eventManager.add(checkbox, 'change', () => {
-            IdleExecution.scheduleUI(checkAndToggleFilteredElements);
-          });
-          checkbox.dataset.filteredElementListener = 'true';
-        }
-      });
-      
-      const forms = document.querySelectorAll('form');
-      forms.forEach(form => {
-        if (!form.dataset.filteredElementListener) {
-          eventManager.add(form, 'change', () => {
-            IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
-          });
-          eventManager.add(form, 'input', () => {
-            IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
-          });
-          form.dataset.filteredElementListener = 'true';
-        }
-      });
+      // Individual event listeners removed - using document delegation only
       
       const startPolling = () => {
         if (pollingTimer) clearTimeout(pollingTimer);
@@ -1005,38 +1278,8 @@
   // EVENT HANDLERS
   // ====================================================================
   function setupGeneratedCheckboxEvents() {
-    // Setup events for dynamically generated checkboxes
-    const autoSidebarCheckboxes = document.querySelectorAll('[data-auto-sidebar="true"]');
-    let newListenersCount = 0;
-    
-    autoSidebarCheckboxes.forEach(element => {
-      // Skip if already handled by setupEvents or event delegation
-      if (element.dataset.eventListenerAdded === 'true' || element.dataset.eventSetup === 'true') return;
-      
-      const changeHandler = () => {
-        if (window.innerWidth > 991) {
-          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
-        }
-      };
-      
-      eventManager.add(element, 'change', changeHandler);
-      
-      if (['text', 'search'].includes(element.type)) {
-        const inputHandler = () => {
-          if (window.innerWidth > 991) {
-            state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
-          }
-        };
-        eventManager.add(element, 'input', inputHandler);
-      }
-      
-      element.dataset.eventListenerAdded = 'true';
-      newListenersCount++;
-    });
-    
-    if (newListenersCount > 0) {
-      console.log(`Added event listeners to ${newListenersCount} new checkbox elements`);
-    }
+    // No longer needed - using document-level delegation only
+    // This function is kept for backward compatibility but does nothing
   }
   
   function setupControls() {
@@ -1213,11 +1456,6 @@
   
   function setupEvents() {
     const eventHandlers = [
-      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: () => {
-        if (window.innerWidth > 991) {
-          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
-        }
-      }},
       {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
         if (window.innerWidth > 991) {
           state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
@@ -1296,6 +1534,11 @@
     // Checkbox generation (lazy-loaded)
     lazyLoadCheckboxes,
     checkboxState,
+    generateSingleCheckbox,
+    
+    // Field-item auto-checking
+    processFieldItems: processFieldItemsDebounced,
+    checkCheckboxProgrammatically,
     
     // For map page
     getGeoJSONData: async function() {
@@ -1322,6 +1565,14 @@
         element.style.pointerEvents = 'auto';
       });
     }
+    
+    // Process field-item elements immediately to auto-check corresponding checkboxes
+    // Only schedule if field-items exist
+    if (checkForFieldItems()) {
+      IdleExecution.scheduleUI(() => {
+        processFieldItemsDebounced();
+      }, { fallbackDelay: 200 });
+    }
   };
   immediateCheck();
   
@@ -1330,6 +1581,10 @@
     // Use capturing phase to catch all events, even from existing elements
     document.addEventListener('change', (e) => {
       if (e.target.matches('[data-auto-sidebar="true"]')) {
+        // Skip auto-sidebar for programmatic field-item checks
+        if (e.isProgrammaticFieldItemCheck) {
+          return;
+        }
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
@@ -1339,10 +1594,19 @@
           state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
       }
+      
+      // Handle form filtering events via delegation
+      if (e.target.closest('form')) {
+        IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
+      }
     }, true);
     
     document.addEventListener('input', (e) => {
       if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
+        // Skip auto-sidebar for programmatic field-item checks
+        if (e.isProgrammaticFieldItemCheck) {
+          return;
+        }
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
         }
@@ -1351,6 +1615,11 @@
         if (window.innerWidth > 991) {
           state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
+      }
+      
+      // Handle form filtering input events via delegation
+      if (e.target.closest('form')) {
+        IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
       }
     }, true);
   })();
@@ -1365,6 +1634,13 @@
         toggleShowWhenFilteredElements(true);
       }
       
+      // Process field items after DOM is ready
+      if (checkForFieldItems()) {
+        IdleExecution.scheduleUI(() => {
+          processFieldItemsDebounced();
+        }, { fallbackDelay: 300 });
+      }
+      
       initializeCore();
     });
   } else {
@@ -1373,6 +1649,14 @@
     if (hiddenTagParent) {
       toggleShowWhenFilteredElements(true);
     }
+    
+    // Process field items if DOM is already ready
+    if (checkForFieldItems()) {
+      IdleExecution.scheduleUI(() => {
+        processFieldItemsDebounced();
+      }, { fallbackDelay: 100 });
+    }
+    
     initializeCore();
   }
   
@@ -1382,36 +1666,24 @@
     
     setupSidebars();
     
-    // Add resource hints for better performance
-    scheduler.addResourceHints();
-    
-    // Defer non-critical initialization to background tasks
-    scheduler.scheduleBackground(() => {
-      generateAllLocationCheckboxes();
-      setupEventDelegation();
-      loadFilterTabToggles();
-    }, 'deferred-initialization');
-    
-    // Check for default tag values using idle execution
+    // Check for filtered elements using idle execution
     IdleExecution.scheduleUI(() => {
-      const hasDefaultTag = checkForDefaultTagValues();
-      if (hasDefaultTag) {
-        // If we found and hid default tags, also hide show-when-filtered elements
-        toggleShowWhenFilteredElements(false);
-      } else {
-        checkAndToggleFilteredElements();
-      }
+      checkAndToggleFilteredElements();
     }, { fallbackDelay: 300 });
     
     // Additional check after page is fully loaded (matching mapbox timing)
     state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+    
+    // Process field items after full page load as final fallback
+    if (checkForFieldItems()) {
+      state.setTimer('loadProcessFieldItems', processFieldItemsDebounced, 400);
+    }
   });
   
   window.addEventListener('beforeunload', () => {
     // Cleanup utilities and managers
     eventManager.cleanup();
     state.cleanup();
-    scheduler.cleanup();
     sidebarCache.invalidate();
     
     // Clear large data structures for memory management
