@@ -362,7 +362,6 @@
       // Check cache first
       const cached = this.get(type);
       if (cached) {
-        console.log(`Using cached ${type} data`);
         return cached;
       }
       
@@ -376,7 +375,6 @@
         
         const data = await response.json();
         this.set(type, data);
-        console.log(`Fetched and cached ${type} data`);
         return data;
       } catch (error) {
         console.error(`Failed to fetch ${type} data:`, error);
@@ -469,7 +467,6 @@
     // Check if already generated
     const checkboxKey = `${type}:${name}`;
     if (checkboxState.generatedCheckboxes.has(checkboxKey)) {
-      console.log(`Checkbox for ${name} (${type}) already exists`);
       return true;
     }
     
@@ -556,7 +553,6 @@
       // Track the generated checkbox
       checkboxState.generatedCheckboxes.add(checkboxKey);
       
-      console.log(`Generated single checkbox for ${name} (${type})`);
       
       domCache.markStale();
       domCache.refresh();
@@ -673,7 +669,6 @@
       });
       
       container.appendChild(fragment);
-      console.log(`Generated ${uniqueFeatures.length} ${type} checkboxes`);
       
       // Track generated checkboxes
       uniqueFeatures.forEach(feature => {
@@ -700,7 +695,6 @@
   
   function generateLocalityCheckboxes() {
     if (checkboxState.localitiesGenerated) {
-      console.log('Locality checkboxes already generated');
       return Promise.resolve();
     }
     return generateCheckboxes('localities', 'locality-check-list', 'Locality')
@@ -709,7 +703,6 @@
   
   function generateSettlementCheckboxes() {
     if (checkboxState.settlementsGenerated) {
-      console.log('Settlement checkboxes already generated');
       return Promise.resolve();
     }
     return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement')
@@ -725,11 +718,9 @@
     
     // Check if already generated
     if (checkboxState.localitiesGenerated && checkboxState.settlementsGenerated) {
-      console.log('Checkboxes already generated');
       return Promise.resolve();
     }
     
-    console.log('Lazy loading checkboxes for filter sidebar...');
     checkboxState.isGenerating = true;
     
     // Show loading state if containers exist
@@ -771,7 +762,6 @@
         generateSettlementCheckboxes()
       ]);
       
-      console.log('All checkboxes generated successfully');
       
       // Recache elements after generation using idle execution
       IdleExecution.scheduleUI(() => {
@@ -783,7 +773,6 @@
         
         if (window.checkboxFilterScript) {
           window.checkboxFilterScript.recacheElements();
-          console.log('Checkboxes recached after lazy generation');
         }
       }, { fallbackDelay: 100 });
       
@@ -970,7 +959,6 @@
       form.dispatchEvent(inputEvent);
     }
     
-    console.log(`Programmatically checked checkbox: ${input.getAttribute('fs-list-value')}`);
     return true;
   }
   
@@ -986,30 +974,22 @@
     return new Promise((resolve) => {
       // If already checked, resolve immediately
       if (finsweetInitialized) {
-        console.log('Finsweet already initialized - proceeding immediately');
         resolve();
         return;
       }
       
       const checkFinsweet = () => {
-        const hiddenTagParent = document.getElementById('hiddentagparent');
-        const tagParent = document.getElementById('tagparent');
+        const hiddenTagParent = $id('hiddentagparent');
+        const tagParent = $id('tagparent');
         
-        // Log current state for debugging
-        console.log('Checking Finsweet state:', {
-          hiddenTagParent: hiddenTagParent ? 'exists' : 'not found',
-          tagParent: tagParent ? `exists (${tagParent.children.length} children)` : 'not found'
-        });
         
         // Check if Finsweet has loaded (hiddentagparent gone OR tagparent empty)
         const finsweetReady = !hiddenTagParent || (tagParent && tagParent.children.length === 0);
         
         if (finsweetReady) {
-          console.log('Finsweet filters ready - proceeding with field-item processing');
           finsweetInitialized = true; // Mark as initialized
           resolve();
         } else {
-          console.log('Finsweet not ready yet, checking again in 100ms...');
           // Check again in 100ms
           setTimeout(checkFinsweet, 100);
         }
@@ -1020,7 +1000,6 @@
       
       // Fallback timeout after 5 seconds
       setTimeout(() => {
-        console.log('Finsweet wait timeout - proceeding with field-item processing anyway');
         finsweetInitialized = true; // Mark as initialized even on timeout
         resolve();
       }, 5000);
@@ -1037,7 +1016,6 @@
     
     // If already running, schedule for later
     if (processFieldItemsRunning) {
-      console.log('processFieldItems already running - scheduling retry in 500ms');
       processFieldItemsTimer = setTimeout(processFieldItemsDebounced, 500);
       return;
     }
@@ -1050,33 +1028,25 @@
   async function processFieldItemsInternal() {
     // Prevent multiple simultaneous executions
     if (processFieldItemsRunning) {
-      console.log('processFieldItems already running - aborting');
       return;
     }
     
-    const allFieldItems = document.querySelectorAll('[field-item]');
+    const allFieldItems = $('[field-item]');
     const fieldItems = Array.from(allFieldItems).filter(item => {
-      const isHidden = item.classList.contains('w-condition-invisible');
-      if (isHidden) {
-        console.log(`Skipping hidden field-item: ${item.getAttribute('field-item')}="${item.textContent.trim()}" (w-condition-invisible)`);
-      }
-      return !isHidden;
+      return !item.classList.contains('w-condition-invisible');
     });
     
     if (fieldItems.length === 0) {
-      console.log(`No visible field-item elements found (${allFieldItems.length} total, all hidden)`);
       return;
     }
     
     // Set running flag
     processFieldItemsRunning = true;
-    console.log(`Starting processFieldItems - found ${fieldItems.length} field-item elements`);
     
     try {
       // Wait for Finsweet to be ready before processing
       await waitForFinsweet();
       
-      console.log(`Processing ${fieldItems.length} field-item elements`);
       
       const processedItems = new Set(); // Avoid duplicates
       
@@ -1106,20 +1076,18 @@
           // For all other types (Governorate, Category, etc.), skip generation
           // They should already exist on the page
           skipGeneration = true;
-          console.log(`Processing existing checkbox type: ${fieldType}`);
         }
         
         // Check if checkbox already exists
-        let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+        let input = $1(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
         
         if (!input && !skipGeneration) {
           // Generate the missing checkbox (only for localities and settlements)
-          console.log(`Generating missing checkbox for ${fieldValue} (${fieldType})`);
           const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
           
           if (success) {
             // Try to find the checkbox again after generation
-            input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+            input = $1(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
           }
         }
         
@@ -1136,14 +1104,12 @@
         checkAndToggleFilteredElements();
       }, { fallbackDelay: 100 });
       
-      console.log('processFieldItems completed successfully');
       
     } catch (error) {
       console.error('Error in processFieldItems:', error);
     } finally {
       // Always clear the running flag
       processFieldItemsRunning = false;
-      console.log('processFieldItems finished - cleared running flag');
     }
   }
   
@@ -1154,7 +1120,7 @@
   // Toggle filtered elements with immediate DOM updates (matching mapbox)
   const toggleShowWhenFilteredElements = show => {
     // Don't use cached results for critical filtering elements - always fresh query
-    const elements = document.querySelectorAll('[show-when-filtered="true"]');
+    const elements = $('[show-when-filtered="true"]');
     if (elements.length === 0) return;
     
     // Apply changes immediately - no delay logic needed
@@ -1166,7 +1132,7 @@
   // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
   const checkAndToggleFilteredElements = () => {
     // Check for hiddentagparent (Finsweet official filtering indicator)
-    const hiddenTagParent = document.getElementById('hiddentagparent');
+    const hiddenTagParent = $id('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
     
     toggleShowWhenFilteredElements(shouldShow);
@@ -1182,7 +1148,7 @@
       
       checkAndToggleFilteredElements();
       
-      const tagParent = document.getElementById('tagparent');
+      const tagParent = $id('tagparent');
       if (tagParent) {
         if (tagParent._mutationObserver) {
           tagParent._mutationObserver.disconnect();
@@ -1197,28 +1163,7 @@
         tagParent._mutationObserver = observer;
       }
       
-      const allCheckboxes = document.querySelectorAll('[checkbox-filter] input[type="checkbox"]');
-      allCheckboxes.forEach(checkbox => {
-        if (!checkbox.dataset.filteredElementListener) {
-          eventManager.add(checkbox, 'change', () => {
-            IdleExecution.scheduleUI(checkAndToggleFilteredElements);
-          });
-          checkbox.dataset.filteredElementListener = 'true';
-        }
-      });
-      
-      const forms = document.querySelectorAll('form');
-      forms.forEach(form => {
-        if (!form.dataset.filteredElementListener) {
-          eventManager.add(form, 'change', () => {
-            IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
-          });
-          eventManager.add(form, 'input', () => {
-            IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
-          });
-          form.dataset.filteredElementListener = 'true';
-        }
-      });
+      // Individual event listeners removed - using document delegation only
       
       const startPolling = () => {
         if (pollingTimer) clearTimeout(pollingTimer);
@@ -1306,48 +1251,8 @@
   // EVENT HANDLERS
   // ====================================================================
   function setupGeneratedCheckboxEvents() {
-    // Setup events for dynamically generated checkboxes
-    const autoSidebarCheckboxes = document.querySelectorAll('[data-auto-sidebar="true"]');
-    let newListenersCount = 0;
-    
-    autoSidebarCheckboxes.forEach(element => {
-      // Skip if already handled by setupEvents or event delegation
-      if (element.dataset.eventListenerAdded === 'true' || element.dataset.eventSetup === 'true') return;
-      
-      const changeHandler = (e) => {
-        // Skip auto-sidebar for programmatic field-item checks
-        if (e && e.isProgrammaticFieldItemCheck) {
-          console.log('Skipping auto-sidebar for programmatic field-item check');
-          return;
-        }
-        if (window.innerWidth > 991) {
-          state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
-        }
-      };
-      
-      eventManager.add(element, 'change', changeHandler);
-      
-      if (['text', 'search'].includes(element.type)) {
-        const inputHandler = (e) => {
-          // Skip auto-sidebar for programmatic field-item checks
-          if (e && e.isProgrammaticFieldItemCheck) {
-            console.log('Skipping auto-sidebar for programmatic field-item input check');
-            return;
-          }
-          if (window.innerWidth > 991) {
-            state.setTimer('autoSidebar', () => toggleSidebar('Left', true), 50);
-          }
-        };
-        eventManager.add(element, 'input', inputHandler);
-      }
-      
-      element.dataset.eventListenerAdded = 'true';
-      newListenersCount++;
-    });
-    
-    if (newListenersCount > 0) {
-      console.log(`Added event listeners to ${newListenersCount} new checkbox elements`);
-    }
+    // No longer needed - using document-level delegation only
+    // This function is kept for backward compatibility but does nothing
   }
   
   function setupControls() {
@@ -1524,16 +1429,6 @@
   
   function setupEvents() {
     const eventHandlers = [
-      {selector: '[data-auto-sidebar="true"]', events: ['change', 'input'], handler: (e) => {
-        // Skip auto-sidebar for programmatic field-item checks
-        if (e && e.isProgrammaticFieldItemCheck) {
-          console.log('Skipping auto-sidebar for programmatic field-item event (setupEvents)');
-          return;
-        }
-        if (window.innerWidth > 991) {
-          state.setTimer('sidebarUpdate', () => toggleSidebar('Left', true), 50);
-        }
-      }},
       {selector: '[data-auto-second-left-sidebar="true"]', events: ['change', 'input'], handler: () => {
         if (window.innerWidth > 991) {
           state.setTimer('sidebarUpdate', () => toggleSidebar('SecondLeft', true), 50);
@@ -1632,10 +1527,10 @@
   // ====================================================================
   // Check for filters immediately when script loads - optimized version
   const immediateCheck = () => {
-    const hiddenTagParent = document.getElementById('hiddentagparent');
+    const hiddenTagParent = $id('hiddentagparent');
     if (hiddenTagParent) {
       // Show filtered elements immediately!
-      const elements = document.querySelectorAll('[show-when-filtered="true"]');
+      const elements = $('[show-when-filtered="true"]');
       elements.forEach(element => {
         element.style.display = 'block';
         element.style.visibility = 'visible';
@@ -1658,7 +1553,6 @@
       if (e.target.matches('[data-auto-sidebar="true"]')) {
         // Skip auto-sidebar for programmatic field-item checks
         if (e.isProgrammaticFieldItemCheck) {
-          console.log('Skipping auto-sidebar for programmatic field-item change (delegation)');
           return;
         }
         if (window.innerWidth > 991) {
@@ -1670,13 +1564,17 @@
           state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
       }
+      
+      // Handle form filtering events via delegation
+      if (e.target.closest('form')) {
+        IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
+      }
     }, true);
     
     document.addEventListener('input', (e) => {
       if (e.target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(e.target.type)) {
         // Skip auto-sidebar for programmatic field-item checks
         if (e.isProgrammaticFieldItemCheck) {
-          console.log('Skipping auto-sidebar for programmatic field-item input (delegation)');
           return;
         }
         if (window.innerWidth > 991) {
@@ -1688,6 +1586,11 @@
           state.setTimer('autoSidebar', () => toggleSidebar('SecondLeft', true), 50);
         }
       }
+      
+      // Handle form filtering input events via delegation
+      if (e.target.closest('form')) {
+        IdleExecution.scheduleUI(checkAndToggleFilteredElements, { fallbackDelay: 50 });
+      }
     }, true);
   })();
   
@@ -1696,7 +1599,7 @@
       immediateCheck();
       
       // Check immediately since hiddentagparent might exist
-      const hiddenTagParent = document.getElementById('hiddentagparent');
+      const hiddenTagParent = $id('hiddentagparent');
       if (hiddenTagParent) {
         toggleShowWhenFilteredElements(true);
       }
@@ -1710,7 +1613,7 @@
     });
   } else {
     // Check immediately if hiddentagparent exists
-    const hiddenTagParent = document.getElementById('hiddentagparent');
+    const hiddenTagParent = $id('hiddentagparent');
     if (hiddenTagParent) {
       toggleShowWhenFilteredElements(true);
     }
