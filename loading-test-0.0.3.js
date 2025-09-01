@@ -511,6 +511,39 @@ function processFancyBoxGroups(item) {
   // First check if already configured
   const alreadyConfigured = item.querySelector('[data-fancybox-configured="true"]');
   if (alreadyConfigured) {
+    console.log('✅ Item already configured, checking for openers to set up...');
+    
+    // Still need to set up opener click handlers even if pre-configured
+    const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
+    if (openerLinks.length > 0) {
+      console.log('🎯 Found', openerLinks.length, 'pre-configured openers to set up');
+      
+      openerLinks.forEach(openerLink => {
+        const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+        if (triggerGroup && !openerLink.hasAttribute('data-opener-setup')) {
+          console.log('🔧 Setting up pre-configured opener for group:', triggerGroup);
+          
+          openerLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('🖱️ Pre-configured opener clicked! Group:', triggerGroup);
+            
+            const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
+            console.log('📸 Found', galleryItems.length, 'gallery items');
+            
+            if (galleryItems.length > 0) {
+              console.log('🚀 Opening gallery...');
+              galleryItems[0].click();
+            } else {
+              console.error('❌ No gallery items found with data-fancybox="' + triggerGroup + '"');
+            }
+          });
+          
+          openerLink.setAttribute('data-opener-setup', 'true');
+          openerLink.style.cursor = 'pointer';
+        }
+      });
+    }
+    
     updateProcessingState(item, 'lightbox', ProcessingState.COMPLETED);
     return true; // Already configured, just need FancyBox re-init
   }
@@ -1090,6 +1123,7 @@ function processFilteredItems() {
 
 function processInitialVisibleItems() {
   const initialItems = document.querySelectorAll('[wfu-lightbox-group]');
+  console.log('🎬 Initial page load: Found', initialItems.length, 'items with [wfu-lightbox-group]');
   const visibleItems = [];
   const itemsToQueue = [];
   
