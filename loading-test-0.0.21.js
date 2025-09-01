@@ -1297,6 +1297,12 @@ function initOpenerEventDelegation() {
     const openerLink = e.target.closest('a[lightbox-image="open"], a[lightbox-image="opener"]');
     if (!openerLink) return;
     
+    console.log('🎯 Opener link clicked:', {
+      lightboxImageValue: openerLink.getAttribute('lightbox-image'),
+      triggerGroup: openerLink.getAttribute('data-fancybox-trigger'),
+      hasFallback: openerLink.hasAttribute('data-fallback-click')
+    });
+    
     e.preventDefault();
     
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
@@ -1307,14 +1313,26 @@ function initOpenerEventDelegation() {
         const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
         
         if (galleryItems.length > 0) {
+          console.log('🔍 Found gallery items for opener:', galleryItems.length, triggerGroup);
+          
           // Direct FancyBox API call - most reliable method
           if (window.Fancybox && typeof Fancybox.show === 'function') {
             // Build gallery items array from DOM elements
-            const fancyboxItems = Array.from(galleryItems).map(item => ({
-              src: item.getAttribute('href'),
-              caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
-              thumb: item.querySelector('img')?.getAttribute('src') || ''
-            }));
+            const fancyboxItems = Array.from(galleryItems).map((item, index) => {
+              const itemData = {
+                src: item.getAttribute('href'),
+                caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
+                thumb: item.querySelector('img')?.getAttribute('src') || ''
+              };
+              console.log(`📸 Gallery item ${index}:`, itemData);
+              return itemData;
+            });
+            
+            console.log('🎯 Opening FancyBox with config:', {
+              itemCount: fancyboxItems.length,
+              hasThumbConfig: true,
+              startIndex: 0
+            });
             
             // Open FancyBox directly with the gallery using same config as main initialization
             Fancybox.show(fancyboxItems, {
@@ -1340,8 +1358,14 @@ function initOpenerEventDelegation() {
                 }
               }
             });
+          } else {
+            console.log('❌ FancyBox not available or show method missing');
           }
-        } else if (attempt < 2) {
+        } else {
+          console.log('❌ No gallery items found for trigger group:', triggerGroup);
+        }
+        
+        if (galleryItems.length === 0 && attempt < 2) {
           // Retry after a short delay in case FancyBox hasn't finished initializing
           setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
         }
