@@ -1316,17 +1316,22 @@ function initOpenerEventDelegation() {
               thumb: item.querySelector('img')?.getAttribute('src') || ''
             }));
             
-            // Open FancyBox directly with the gallery
+            // Open FancyBox directly with the gallery using same config as main initialization
             Fancybox.show(fancyboxItems, {
               startIndex: 0,
+              // Enable thumbnails
               Thumbs: {
                 autoStart: true,
                 axis: 'x'
               },
+              // Mobile optimizations
               touch: {
                 vertical: true,
                 momentum: true
               },
+              // Performance settings
+              preload: 1,
+              // UI customizations
               Toolbar: {
                 display: {
                   left: ['infobar'],
