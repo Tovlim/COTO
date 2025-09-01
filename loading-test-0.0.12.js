@@ -515,6 +515,38 @@ function processFancyBoxGroups(item) {
       existingFancyboxItems: item.querySelectorAll('[data-fancybox]').length,
       allLinks: item.querySelectorAll('a[lightbox-image]')
     });
+    
+    // Clean up any empty FancyBox images from previous configurations
+    const existingFancyboxItems = item.querySelectorAll('[data-fancybox]');
+    let removedCount = 0;
+    
+    existingFancyboxItems.forEach(fancyboxLink => {
+      const img = fancyboxLink.querySelector('img');
+      if (img) {
+        const srcValue = img.getAttribute('src');
+        const hrefValue = fancyboxLink.getAttribute('href');
+        
+        console.log('🔍 Checking existing FancyBox item:', {
+          src: srcValue,
+          href: hrefValue,
+          isEmpty: !srcValue || srcValue.trim() === '' || srcValue === 'about:blank'
+        });
+        
+        // Remove FancyBox attributes from empty images
+        if (!srcValue || srcValue.trim() === '' || srcValue === 'about:blank') {
+          console.log('🧹 Removing empty image from FancyBox:', fancyboxLink);
+          fancyboxLink.removeAttribute('data-fancybox');
+          fancyboxLink.removeAttribute('data-caption');
+          fancyboxLink.removeAttribute('data-thumb');
+          removedCount++;
+        }
+      }
+    });
+    
+    if (removedCount > 0) {
+      console.log(`✨ Cleaned up ${removedCount} empty images from pre-configured item`);
+    }
+    
     // Still need to set up opener click handlers even if pre-configured
     const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
     if (openerLinks.length > 0) {
