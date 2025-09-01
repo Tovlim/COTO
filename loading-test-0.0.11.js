@@ -506,9 +506,15 @@ function updateProcessingState(item, type, state) {
 
 // FancyBox 6 grouping system based on attributes
 function processFancyBoxGroups(item) {
+  console.log('🎯 Starting processFancyBoxGroups for item:', item);
+  
   // First check if already configured
   const alreadyConfigured = item.querySelector('[data-fancybox-configured="true"]');
   if (alreadyConfigured) {
+    console.log('⚡ Item already configured, checking existing fancybox items:', {
+      existingFancyboxItems: item.querySelectorAll('[data-fancybox]').length,
+      allLinks: item.querySelectorAll('a[lightbox-image]')
+    });
     // Still need to set up opener click handlers even if pre-configured
     const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
     if (openerLinks.length > 0) {
@@ -560,9 +566,16 @@ function processFancyBoxGroups(item) {
   allLightboxLinks.forEach((linkElement) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
     
+    console.log('🔍 Processing lightbox link:', {
+      lightboxImageValue,
+      groupAttribute,
+      linkElement
+    });
+    
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      console.log('⚠️ Skipping hidden link');
       return; // Skip this hidden link
     }
     
@@ -572,9 +585,21 @@ function processFancyBoxGroups(item) {
       if (img) {
         // Get the full-size image URL
         const fullSizeImageUrl = img.getAttribute('src');
+        const hrefValue = linkElement.getAttribute('href');
+        
+        console.log('📸 Found image:', {
+          src: fullSizeImageUrl,
+          href: hrefValue,
+          srcEmpty: fullSizeImageUrl === '',
+          srcTrimEmpty: fullSizeImageUrl && fullSizeImageUrl.trim() === '',
+          srcNull: fullSizeImageUrl === null,
+          srcUndefined: fullSizeImageUrl === undefined
+        });
         
         // Only process if there's actually a valid image URL (skip empty images)
         if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '' && fullSizeImageUrl !== 'about:blank') {
+          console.log('✅ Adding valid image to FancyBox:', fullSizeImageUrl);
+          
           // Set FancyBox data attribute for grouping
           linkElement.setAttribute('data-fancybox', groupAttribute);
           
@@ -590,8 +615,17 @@ function processFancyBoxGroups(item) {
           }
           
           hasProcessedGroups = true;
+        } else {
+          console.log('❌ Skipping empty/invalid image:', {
+            src: fullSizeImageUrl,
+            reason: !fullSizeImageUrl ? 'src is falsy' : 
+                   fullSizeImageUrl.trim() === '' ? 'src is empty string' :
+                   fullSizeImageUrl === 'about:blank' ? 'src is about:blank' : 'unknown'
+          });
         }
         // If image URL is empty, skip this item completely - don't add to FancyBox
+      } else {
+        console.log('⚠️ No img element found in lightbox link');
       }
     }
   });
