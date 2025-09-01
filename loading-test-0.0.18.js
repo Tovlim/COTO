@@ -506,95 +506,49 @@ function updateProcessingState(item, type, state) {
 
 // FancyBox 6 grouping system based on attributes
 function processFancyBoxGroups(item) {
-  console.log('🎯 Starting processFancyBoxGroups for item:', item);
-  
   // First check if already configured
   const alreadyConfigured = item.querySelector('[data-fancybox-configured="true"]');
   if (alreadyConfigured) {
-    console.log('⚡ Item already configured, checking existing fancybox items:', {
-      existingFancyboxItems: item.querySelectorAll('[data-fancybox]').length,
-      allLinks: item.querySelectorAll('a[lightbox-image]')
-    });
-    
     // Clean up any empty FancyBox images from previous configurations
     const existingFancyboxItems = item.querySelectorAll('[data-fancybox]');
-    let removedCount = 0;
     
     existingFancyboxItems.forEach(fancyboxLink => {
       const img = fancyboxLink.querySelector('img');
       if (img) {
         const srcValue = img.getAttribute('src');
-        const hrefValue = fancyboxLink.getAttribute('href');
-        
-        console.log('🔍 Checking existing FancyBox item:', {
-          src: srcValue,
-          href: hrefValue,
-          isEmpty: !srcValue || srcValue.trim() === '' || srcValue === 'about:blank'
-        });
         
         // Remove FancyBox attributes from empty images
         if (!srcValue || srcValue.trim() === '' || srcValue === 'about:blank') {
-          console.log('🧹 Removing empty image from FancyBox:', fancyboxLink);
           fancyboxLink.removeAttribute('data-fancybox');
           fancyboxLink.removeAttribute('data-caption');
           fancyboxLink.removeAttribute('data-thumb');
-          removedCount++;
         }
       }
     });
     
-    if (removedCount > 0) {
-      console.log(`✨ Cleaned up ${removedCount} empty images from pre-configured item`);
-    }
-    
     // Still need to set up opener click handlers even if pre-configured
     const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
     if (openerLinks.length > 0) {
-      console.log('🔧 PRE-CONFIGURED ITEM - Setting up opener links:', {
-        openerCount: openerLinks.length,
-        isMobile: isMobileDevice
-      });
-      
-      openerLinks.forEach((openerLink, index) => {
+      openerLinks.forEach((openerLink) => {
         const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
         const alreadySetup = openerLink.hasAttribute('data-opener-setup');
         
-        console.log(`🎯 Pre-configured opener ${index}:`, {
-          triggerGroup,
-          alreadySetup
-        });
-        
         if (triggerGroup && !alreadySetup) {
-          console.log(`✅ Setting up pre-configured opener ${index} with group: ${triggerGroup}`);
-          
           openerLink.addEventListener('click', (e) => {
             e.preventDefault();
-            
-            console.log(`🖱️ PRE-CONFIGURED OPENER CLICKED for group: ${triggerGroup}`);
             
             const tryTrigger = (attempt = 0) => {
               const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
               
-              console.log(`📸 Pre-configured gallery items found (attempt ${attempt + 1}):`, {
-                triggerGroup,
-                galleryItemsCount: galleryItems.length
-              });
-              
               if (galleryItems.length > 0) {
-                console.log(`✅ Opening FancyBox gallery directly (attempt ${attempt + 1})`);
-                
                 // Direct FancyBox API call - most reliable method
                 if (window.Fancybox && typeof Fancybox.show === 'function') {
-                  console.log('📱 Using direct Fancybox.show() API call');
-                  
                   // Build gallery items array from DOM elements
                   const fancyboxItems = Array.from(galleryItems).map(item => ({
                     src: item.getAttribute('href'),
                     caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
                     thumb: item.querySelector('img')?.getAttribute('src') || ''
                   }));
-                  
-                  console.log('📸 FancyBox items to show:', fancyboxItems.length);
                   
                   // Open FancyBox directly with the gallery
                   Fancybox.show(fancyboxItems, {
@@ -615,16 +569,10 @@ function processFancyBoxGroups(item) {
                       }
                     }
                   });
-                  
-                } else {
-                  console.log('❌ Fancybox.show() not available, API call failed');
                 }
               } else if (attempt < 2) {
-                // On mobile, retry after a short delay in case FancyBox hasn't finished initializing
-                console.log(`🔄 No gallery items found, retrying in ${(attempt + 1) * 100}ms...`);
+                // Retry after a short delay in case FancyBox hasn't finished initializing
                 setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
-              } else {
-                console.log('❌ No gallery items found for pre-configured opener after 3 attempts!');
               }
             };
             
@@ -633,10 +581,6 @@ function processFancyBoxGroups(item) {
           
           openerLink.setAttribute('data-opener-setup', 'true');
           openerLink.style.cursor = 'pointer';
-        } else if (!triggerGroup) {
-          console.log(`⚠️ Pre-configured opener ${index} has no trigger group`);
-        } else {
-          console.log(`⚡ Pre-configured opener ${index} already set up, skipping`);
         }
       });
     }
@@ -735,75 +679,38 @@ function processFancyBoxGroups(item) {
   // Second pass: Process opener links
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
-  console.log('🔍 OPENER DEBUG:', {
-    itemGroupAttribute: groupAttribute,
-    openerLinksFound: openerLinks.length,
-    isMobile: isMobileDevice,
-    openerLinks: Array.from(openerLinks).map(link => ({
-      triggerGroup: link.getAttribute('data-fancybox-trigger'),
-      isHidden: getComputedStyle(link).display === 'none' || getComputedStyle(link).visibility === 'hidden',
-      alreadyConfigured: link.getAttribute('data-opener-configured'),
-      hasSetupAttr: link.hasAttribute('data-opener-setup')
-    }))
-  });
-  
-  openerLinks.forEach((openerLink, index) => {
+  openerLinks.forEach((openerLink) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log(`🚫 Skipping hidden opener link ${index}`);
       return;
     }
     
     // Check if opener is already configured to trigger FancyBox directly
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
     
-    console.log(`🎯 Processing opener ${index}:`, {
-      triggerGroup,
-      hasExistingListener: openerLink.hasAttribute('data-opener-setup'),
-      firstImageLink: !!firstImageLink
-    });
-    
     if (triggerGroup) {
       // Check if we already set up this opener
       if (openerLink.hasAttribute('data-opener-setup')) {
-        console.log(`⚡ Opener ${index} already has event listener, skipping`);
         return;
       }
       
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
         
-        console.log(`🖱️ OPENER CLICKED for group: ${triggerGroup}`);
-        
         const tryTrigger = (attempt = 0) => {
           // Trigger FancyBox for the group directly
           const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
           
-          console.log(`📸 Gallery items found (attempt ${attempt + 1}):`, {
-            triggerGroup,
-            galleryItemsCount: galleryItems.length,
-            galleryItems: Array.from(galleryItems).map(item => ({
-              href: item.getAttribute('href'),
-              src: item.querySelector('img')?.getAttribute('src')
-            }))
-          });
-          
           if (galleryItems.length > 0) {
-            console.log(`✅ Opening FancyBox gallery directly (attempt ${attempt + 1})`);
-            
             // Direct FancyBox API call - most reliable method
             if (window.Fancybox && typeof Fancybox.show === 'function') {
-              console.log('📱 Using direct Fancybox.show() API call');
-              
               // Build gallery items array from DOM elements
               const fancyboxItems = Array.from(galleryItems).map(item => ({
                 src: item.getAttribute('href'),
                 caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
                 thumb: item.querySelector('img')?.getAttribute('src') || ''
               }));
-              
-              console.log('📸 FancyBox items to show:', fancyboxItems.length);
               
               // Open FancyBox directly with the gallery
               Fancybox.show(fancyboxItems, {
@@ -824,20 +731,13 @@ function processFancyBoxGroups(item) {
                   }
                 }
               });
-              
-            } else {
-              console.log('❌ Fancybox.show() not available, API call failed');
             }
           } else if (firstImageLink && attempt === 0) {
-            console.log('🔄 No gallery items found, falling back to firstImageLink');
             // Fallback to clicking first image if no gallery items found
             firstImageLink.click();
           } else if (attempt < 2) {
-            // On mobile, retry after a short delay in case FancyBox hasn't finished initializing
-            console.log(`🔄 No gallery items found, retrying in ${(attempt + 1) * 100}ms...`);
+            // Retry after a short delay in case FancyBox hasn't finished initializing
             setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
-          } else {
-            console.log('❌ No gallery items OR firstImageLink found after 3 attempts!');
           }
         };
         
@@ -847,27 +747,21 @@ function processFancyBoxGroups(item) {
       openerLink.setAttribute('data-opener-setup', 'true');
       openerLink.style.cursor = 'pointer';
       hasProcessedGroups = true;
-      console.log(`✅ Set up opener ${index} with trigger group: ${triggerGroup}`);
     } else if (firstImageLink) {
       // Check if we already set up this opener
       if (openerLink.hasAttribute('data-opener-setup')) {
-        console.log(`⚡ Opener ${index} (no trigger) already has event listener, skipping`);
         return;
       }
       
       // Original behavior: make the opener trigger the first image
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('🖱️ OPENER CLICKED (no trigger group), clicking firstImageLink');
         firstImageLink.click();
       });
       
       openerLink.setAttribute('data-opener-setup', 'true');
       openerLink.style.cursor = 'pointer';
       hasProcessedGroups = true;
-      console.log(`✅ Set up opener ${index} to trigger firstImageLink`);
-    } else {
-      console.log(`⚠️ Opener ${index} has no triggerGroup and no firstImageLink available`);
     }
   });
   
@@ -1173,13 +1067,7 @@ function processNewlyAddedItems() {
   const loadMoreItems = document.querySelectorAll('[wfu-lightbox-group]');
   const newItems = [];
   
-  console.log('🔄 PROCESSING NEWLY ADDED ITEMS:', {
-    totalItemsFound: loadMoreItems.length,
-    isMobile: isMobileDevice,
-    timestamp: new Date().toISOString()
-  });
-  
-  loadMoreItems.forEach((item, index) => {
+  loadMoreItems.forEach((item) => {
     // Check processing state first
     const processingState = item.getAttribute('data-processing-state');
     const alreadyProcessed = processingState === ProcessingState.COMPLETED || processedItems.has(item);
@@ -1195,30 +1083,11 @@ function processNewlyAddedItems() {
     const needsProcessing = (!hasDataFancybox && !hasConfigured && !alreadyProcessed) || 
                            (hasConfigured && !hasOpenerSetup);
     
-    // Debug info for this item
-    const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
-    
-    console.log(`📋 Item ${index}:`, {
-      groupAttribute: item.getAttribute('wfu-lightbox-group'),
-      processingState,
-      alreadyProcessed,
-      hasDataFancybox: !!hasDataFancybox,
-      hasConfigured: !!hasConfigured,
-      hasOpenerSetup: !!hasOpenerSetup,
-      needsProcessing,
-      openerLinksCount: openerLinks.length,
-      openerSetup: Array.from(openerLinks).map(link => link.hasAttribute('data-opener-setup')),
-      reason: needsProcessing ? 
-        (hasConfigured && !hasOpenerSetup ? 'opener needs setup' : 'needs full processing') : 
-        'already processed or no processing needed'
-    });
-    
     if (needsProcessing) {
       // On mobile, process all new items immediately to avoid viewport detection issues
       if (isMobileDevice) {
         newItems.push(item);
         processedItems.add(item);
-        console.log(`📱 Added mobile item ${index} to processing queue`);
       } else {
         // On desktop, use viewport detection as before
         const rect = item.getBoundingClientRect();
@@ -1227,31 +1096,17 @@ function processNewlyAddedItems() {
         if (isVisible) {
           newItems.push(item);
           processedItems.add(item);
-          console.log(`💻 Added desktop visible item ${index} to processing queue`);
         } else {
           // Queue non-visible items for lazy processing
           queueItemForLazyProcessing(item);
-          console.log(`⏳ Queued desktop non-visible item ${index} for lazy processing`);
         }
       }
-    } else {
-      console.log(`⚠️ Item ${index} doesn't need processing or already processed`);
     }
-  });
-  
-  console.log('📦 BATCH PROCESSING:', {
-    itemsToProcess: newItems.length,
-    isMobile: isMobileDevice
   });
   
   if (newItems.length > 0) {
     // On mobile, add a small delay to ensure FancyBox re-init has finished
     const processingDelay = isMobileDevice ? 200 : 0;
-    
-    console.log('⏱️ SCHEDULING BATCH PROCESSING:', {
-      delayMs: processingDelay,
-      reason: isMobileDevice ? 'mobile FancyBox timing' : 'immediate'
-    });
     
     setTimeout(() => {
       // Process all items in one batch instead of chunked processing
@@ -1260,25 +1115,14 @@ function processNewlyAddedItems() {
   }
 }
 
-// Simplified batch processing for debugging
+// Batch processing for newly loaded items
 function processItemsBatch(items) {
   if (!items?.length) return;
   
-  console.log('🔧 BATCH PROCESSING STARTED:', {
-    itemCount: items.length,
-    isMobile: isMobileDevice,
-    timestamp: new Date().toISOString()
-  });
-  
   showLoadingIndicator();
   
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     try {
-      console.log(`🔧 Processing item ${index}/${items.length}:`, {
-        groupAttribute: item.getAttribute('wfu-lightbox-group'),
-        hasOpeners: !!item.querySelector('a[lightbox-image="open"], a[lightbox-image="opener"]')
-      });
-      
       // Update processing state
       updateProcessingState(item, 'lazy', ProcessingState.PROCESSING);
       
@@ -1286,32 +1130,22 @@ function processItemsBatch(items) {
       const processed = processFancyBoxGroups(item);
       if (processed) {
         needsFancyBoxReInit = true;
-        console.log(`✅ Item ${index} processed, FancyBox re-init needed`);
-      } else {
-        console.log(`⚠️ Item ${index} not processed by processFancyBoxGroups`);
       }
       
       // Mark as complete
       updateProcessingState(item, 'lazy', ProcessingState.COMPLETED);
     } catch (error) {
-      console.error(`❌ Error processing item ${index}:`, error);
+      // Silently handle error
     }
-  });
-  
-  console.log('⏱️ SCHEDULING POST-PROCESSING:', {
-    needsFancyBoxReInit,
-    delayMs: 100
   });
   
   // Update LazyLoad and schedule FancyBox re-init
   setTimeout(() => {
     updateLazyLoad();
     if (needsFancyBoxReInit) {
-      console.log('🔄 Scheduling FancyBox re-init...');
       scheduleFancyBoxReInit();
     }
     hideLoadingIndicator();
-    console.log('✅ BATCH PROCESSING COMPLETED');
   }, 100);
 }
 
