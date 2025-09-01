@@ -780,19 +780,20 @@ function performFancyBoxReInit(retryAttempt = 0) {
       }
       
       console.log('🔧 Initializing FancyBox with configuration');
+      const hasThumbsPlugin = !!window.Fancybox?.Thumbs;
       console.log('🔌 FancyBox Thumbs plugin check:', {
-        hasThumbsPlugin: !!window.Fancybox?.Thumbs,
+        hasThumbsPlugin: hasThumbsPlugin,
         ThumbsObject: window.Fancybox?.Thumbs
       });
       
-      // FancyBox 6 initialization with thumbnails
-      Fancybox.bind('[data-fancybox]', {
-        // Enable thumbnails
-        Thumbs: {
-          autoStart: true,
-          axis: 'x',
-          showOnStart: true
-        },
+      if (!hasThumbsPlugin) {
+        console.warn('⚠️ FANCYBOX THUMBS PLUGIN NOT LOADED!');
+        console.warn('To enable thumbnails, add this script AFTER the main FancyBox script:');
+        console.warn('<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0/dist/fancybox/fancybox.thumbs.umd.js"></script>');
+      }
+      
+      // Build config based on available plugins
+      const bindConfig = {
         // Mobile optimizations
         touch: {
           vertical: true,
@@ -805,10 +806,22 @@ function performFancyBoxReInit(retryAttempt = 0) {
           display: {
             left: ['infobar'],
             middle: [],
-            right: ['slideshow', 'thumbs', 'close']
+            right: hasThumbsPlugin ? ['slideshow', 'thumbs', 'close'] : ['slideshow', 'close']
           }
         }
-      });
+      };
+      
+      // Only add Thumbs config if plugin is loaded
+      if (hasThumbsPlugin) {
+        bindConfig.Thumbs = {
+          autoStart: true,
+          axis: 'x',
+          showOnStart: true
+        };
+      }
+      
+      // FancyBox 6 initialization
+      Fancybox.bind('[data-fancybox]', bindConfig);
       
       console.log('✅ FancyBox bound to elements with [data-fancybox]');
       
@@ -1350,39 +1363,36 @@ function initOpenerEventDelegation() {
         const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
         
         if (galleryItems.length > 0) {
-          // Direct FancyBox API call - most reliable method
+          console.log('📸 Found gallery items:', galleryItems.length);
+          
+          // Method 1: Try to programmatically click the first gallery item
+          // This lets FancyBox handle everything naturally with its bound configuration
+          const firstGalleryItem = galleryItems[0];
+          if (firstGalleryItem) {
+            console.log('🎯 Triggering click on first gallery item to open FancyBox with thumbnails');
+            firstGalleryItem.click();
+            return;
+          }
+          
+          // Method 2: Fallback to Fancybox.show() if direct click doesn't work
           if (window.Fancybox && typeof Fancybox.show === 'function') {
+            console.log('⚠️ Falling back to Fancybox.show() - thumbnails may not work');
+            
             // Build gallery items array from DOM elements
             const fancyboxItems = Array.from(galleryItems).map(item => {
-              // Get the image element inside the link
               const img = item.querySelector('img');
-              // Use data-thumb if available, otherwise use the image src
               const thumbUrl = item.getAttribute('data-thumb') || (img ? img.getAttribute('src') : '') || item.getAttribute('href');
               
-              const itemData = {
+              return {
                 src: item.getAttribute('href'),
                 caption: item.getAttribute('data-caption') || (img ? img.getAttribute('alt') : '') || '',
-                thumb: thumbUrl
+                thumb: thumbUrl,
+                type: 'image'
               };
-              
-              console.log('🖼️ FancyBox item data:', itemData);
-              return itemData;
             });
             
-            console.log('📸 Opening FancyBox with items:', {
-              totalItems: fancyboxItems.length,
-              items: fancyboxItems,
-              triggerGroup: triggerGroup
-            });
-            
-            // Log available FancyBox plugins
-            console.log('🔌 FancyBox plugins available:', {
-              Thumbs: window.Fancybox?.Thumbs,
-              hasThumbsPlugin: !!window.Fancybox?.Thumbs,
-              FancyboxVersion: window.Fancybox?.version
-            });
-            
-            const fancyboxConfig = {
+            // Use the same configuration as the bound version
+            Fancybox.show(fancyboxItems, {
               startIndex: 0,
               Thumbs: {
                 autoStart: true,
@@ -1393,6 +1403,7 @@ function initOpenerEventDelegation() {
                 vertical: true,
                 momentum: true
               },
+              preload: 1,
               Toolbar: {
                 display: {
                   left: ['infobar'],
@@ -1400,12 +1411,7 @@ function initOpenerEventDelegation() {
                   right: ['slideshow', 'thumbs', 'close']
                 }
               }
-            };
-            
-            console.log('⚙️ FancyBox configuration:', fancyboxConfig);
-            
-            // Open FancyBox directly with the gallery
-            Fancybox.show(fancyboxItems, fancyboxConfig);
+            });
           }
         } else if (attempt < 2) {
           // Retry after a short delay in case FancyBox hasn't finished initializing
