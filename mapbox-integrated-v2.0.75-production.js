@@ -1124,6 +1124,13 @@ function setupDeferredAreaControls() {
     
     const markerControls = [
       {
+        keyId: 'territory-toggle-key',
+        wrapId: 'territory-toggle-key-wrap',
+        type: 'territory',
+        layers: ['territory-points'],
+        label: 'Territory Markers'
+      },
+      {
         keyId: 'governorate-toggle-key', 
         wrapId: 'governorate-toggle-key-wrap',
         type: 'region',
@@ -1199,7 +1206,13 @@ function setupDeferredAreaControls() {
         const changeHandler = (e) => {
           const visibility = e.target.checked ? 'none' : 'visible';
           
-          if (control.type === 'region') {
+          if (control.type === 'territory') {
+            control.layers.forEach(layerId => {
+              if (mapLayers.hasLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+              }
+            });
+          } else if (control.type === 'region') {
             control.layers.forEach(layerId => {
               if (mapLayers.hasLayer(layerId)) {
                 map.setLayoutProperty(layerId, 'visibility', visibility);
@@ -1242,7 +1255,11 @@ function setupDeferredAreaControls() {
       
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         const mouseEnterHandler = () => {
-          if (control.type === 'region') {
+          if (control.type === 'territory') {
+            if (mapLayers.hasLayer('territory-points')) {
+              map.setPaintProperty('territory-points', 'text-halo-color', '#9a9a9a');
+            }
+          } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
             }
@@ -1279,7 +1296,11 @@ function setupDeferredAreaControls() {
         };
         
         const mouseLeaveHandler = () => {
-          if (control.type === 'region') {
+          if (control.type === 'territory') {
+            if (mapLayers.hasLayer('territory-points')) {
+              map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
+            }
+          } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
             }
