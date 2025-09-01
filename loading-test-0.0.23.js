@@ -661,6 +661,13 @@ function processFancyBoxGroups(item) {
           // Set thumbnail for FancyBox gallery view
           linkElement.setAttribute('data-thumb', fullSizeImageUrl);
           
+          console.log('🎨 Setting thumbnail for image:', {
+            group: groupAttribute,
+            src: fullSizeImageUrl,
+            thumb: fullSizeImageUrl,
+            caption: img.getAttribute('alt') || ''
+          });
+          
           // Remember the first image link for the opener
           if (lightboxImageValue === 'first') {
             firstImageLink = linkElement;
@@ -755,12 +762,19 @@ function performFancyBoxReInit(retryAttempt = 0) {
         }
       }
       
+      console.log('🔧 Initializing FancyBox with configuration');
+      console.log('🔌 FancyBox Thumbs plugin check:', {
+        hasThumbsPlugin: !!window.Fancybox?.Thumbs,
+        ThumbsObject: window.Fancybox?.Thumbs
+      });
+      
       // FancyBox 6 initialization with thumbnails
       Fancybox.bind('[data-fancybox]', {
         // Enable thumbnails
         Thumbs: {
           autoStart: true,
-          axis: 'x'
+          axis: 'x',
+          showOnStart: true
         },
         // Mobile optimizations
         touch: {
@@ -778,6 +792,8 @@ function performFancyBoxReInit(retryAttempt = 0) {
           }
         }
       });
+      
+      console.log('✅ FancyBox bound to elements with [data-fancybox]');
       
       // Mark elements as bound to prevent unnecessary re-binding
       existingFancyboxElements.forEach(el => {
@@ -1319,19 +1335,35 @@ function initOpenerEventDelegation() {
               // Use data-thumb if available, otherwise use the image src
               const thumbUrl = item.getAttribute('data-thumb') || (img ? img.getAttribute('src') : '') || item.getAttribute('href');
               
-              return {
+              const itemData = {
                 src: item.getAttribute('href'),
                 caption: item.getAttribute('data-caption') || (img ? img.getAttribute('alt') : '') || '',
                 thumb: thumbUrl
               };
+              
+              console.log('🖼️ FancyBox item data:', itemData);
+              return itemData;
             });
             
-            // Open FancyBox directly with the gallery
-            Fancybox.show(fancyboxItems, {
+            console.log('📸 Opening FancyBox with items:', {
+              totalItems: fancyboxItems.length,
+              items: fancyboxItems,
+              triggerGroup: triggerGroup
+            });
+            
+            // Log available FancyBox plugins
+            console.log('🔌 FancyBox plugins available:', {
+              Thumbs: window.Fancybox?.Thumbs,
+              hasThumbsPlugin: !!window.Fancybox?.Thumbs,
+              FancyboxVersion: window.Fancybox?.version
+            });
+            
+            const fancyboxConfig = {
               startIndex: 0,
               Thumbs: {
                 autoStart: true,
-                axis: 'x'
+                axis: 'x',
+                showOnStart: true
               },
               touch: {
                 vertical: true,
@@ -1344,7 +1376,12 @@ function initOpenerEventDelegation() {
                   right: ['slideshow', 'thumbs', 'close']
                 }
               }
-            });
+            };
+            
+            console.log('⚙️ FancyBox configuration:', fancyboxConfig);
+            
+            // Open FancyBox directly with the gallery
+            Fancybox.show(fancyboxItems, fancyboxConfig);
           }
         } else if (attempt < 2) {
           // Retry after a short delay in case FancyBox hasn't finished initializing
