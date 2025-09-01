@@ -760,10 +760,8 @@ const FeatureDetection = {
     this.isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
                     (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream);
     
-    // Mobile detection
-    this.isMobile = window.innerWidth <= 768 || 
-                    /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-                    ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    // Mobile detection - using window width only for consistent behavior across browsers
+    this.isMobile = window.innerWidth <= 768;
     
     return this;
   },
