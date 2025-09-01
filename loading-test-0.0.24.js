@@ -692,14 +692,27 @@ function processFancyBoxGroups(item) {
   // Second pass: Mark opener links as ready (event delegation handles clicks)
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
+  console.log('🔎 Found opener links in item:', {
+    count: openerLinks.length,
+    groupAttribute: groupAttribute
+  });
+  
   openerLinks.forEach((openerLink) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      console.log('⚠️ Skipping hidden opener link');
       return;
     }
     
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    
+    console.log('🎬 Processing opener link:', {
+      lightboxImage: openerLink.getAttribute('lightbox-image'),
+      triggerGroup: triggerGroup,
+      hasFirstImageLink: !!firstImageLink,
+      alreadySetup: openerLink.hasAttribute('data-opener-setup')
+    });
     
     if (triggerGroup || firstImageLink) {
       // Check if we already set up this opener
@@ -707,12 +720,16 @@ function processFancyBoxGroups(item) {
         // Store fallback info for event delegation
         if (!triggerGroup && firstImageLink) {
           openerLink.setAttribute('data-fallback-click', 'true');
+          console.log('📎 Added fallback-click attribute');
         }
         
         openerLink.setAttribute('data-opener-setup', 'true');
         openerLink.style.cursor = 'pointer';
         hasProcessedGroups = true;
+        console.log('✅ Opener link setup complete');
       }
+    } else {
+      console.log('⚠️ Opener link has no trigger group or first image link');
     }
   });
   
@@ -1312,11 +1329,18 @@ function initFilteringDetection() {
 
 // Event delegation for opener links (performance optimization)
 function initOpenerEventDelegation() {
+  console.log('🎯 Setting up opener event delegation');
+  
   document.addEventListener('click', function(e) {
+    console.log('🖱️ Click detected on:', e.target);
+    
     const openerLink = e.target.closest('a[lightbox-image="open"], a[lightbox-image="opener"]');
+    console.log('🔍 Opener link found:', openerLink);
+    
     if (!openerLink) return;
     
     e.preventDefault();
+    console.log('🚀 Processing opener click');
     
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
     const hasFallback = openerLink.hasAttribute('data-fallback-click');
@@ -1482,11 +1506,14 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
+    console.log('🚀 Initializing all systems...');
     initLazyLoad();
     initItemProcessingObserver();
     initLoadMoreObserver();
     initFilteringDetection();
+    console.log('📍 About to initialize opener event delegation');
     initOpenerEventDelegation();
+    console.log('✅ All systems initialized');
     
     let pendingLightboxItems = new Set();
     let pendingLazyItems = new Set();
