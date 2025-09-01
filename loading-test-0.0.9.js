@@ -570,24 +570,28 @@ function processFancyBoxGroups(item) {
     if (lightboxImageValue === 'true' || lightboxImageValue === 'first') {
       const img = linkElement.querySelector('img');
       if (img) {
-        // Set FancyBox data attribute for grouping
-        linkElement.setAttribute('data-fancybox', groupAttribute);
-        
-        // Set href to the full-size image (from img src)
+        // Get the full-size image URL
         const fullSizeImageUrl = img.getAttribute('src');
-        if (fullSizeImageUrl) {
+        
+        // Only process if there's actually a valid image URL (skip empty images)
+        if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '') {
+          // Set FancyBox data attribute for grouping
+          linkElement.setAttribute('data-fancybox', groupAttribute);
+          
+          // Set href to the full-size image
           linkElement.setAttribute('href', fullSizeImageUrl);
+          
+          // Add any additional FancyBox attributes if needed
+          linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
+          
+          // Remember the first image link for the opener
+          if (lightboxImageValue === 'first') {
+            firstImageLink = linkElement;
+          }
+          
+          hasProcessedGroups = true;
         }
-        
-        // Add any additional FancyBox attributes if needed
-        linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
-        
-        // Remember the first image link for the opener
-        if (lightboxImageValue === 'first') {
-          firstImageLink = linkElement;
-        }
-        
-        hasProcessedGroups = true;
+        // If image URL is empty, skip this item completely - don't add to FancyBox
       }
     }
   });
