@@ -574,7 +574,7 @@ function processFancyBoxGroups(item) {
         const fullSizeImageUrl = img.getAttribute('src');
         
         // Only process if there's actually a valid image URL (skip empty images)
-        if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '') {
+        if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '' && fullSizeImageUrl !== 'about:blank') {
           // Set FancyBox data attribute for grouping
           linkElement.setAttribute('data-fancybox', groupAttribute);
           
