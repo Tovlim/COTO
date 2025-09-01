@@ -1257,7 +1257,7 @@ function setupDeferredAreaControls() {
         const mouseEnterHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#9a9a9a');
+              map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
@@ -1298,7 +1298,7 @@ function setupDeferredAreaControls() {
         const mouseLeaveHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
+              map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
