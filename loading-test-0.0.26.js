@@ -615,16 +615,10 @@ function processFancyBoxGroups(item) {
   allLightboxLinks.forEach((linkElement) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
     
-    console.log('🔍 Processing lightbox link:', {
-      lightboxImageValue,
-      groupAttribute,
-      linkElement
-    });
     
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log('⚠️ Skipping hidden link');
       return; // Skip this hidden link
     }
     
@@ -636,18 +630,9 @@ function processFancyBoxGroups(item) {
         const fullSizeImageUrl = img.getAttribute('src');
         const hrefValue = linkElement.getAttribute('href');
         
-        console.log('📸 Found image:', {
-          src: fullSizeImageUrl,
-          href: hrefValue,
-          srcEmpty: fullSizeImageUrl === '',
-          srcTrimEmpty: fullSizeImageUrl && fullSizeImageUrl.trim() === '',
-          srcNull: fullSizeImageUrl === null,
-          srcUndefined: fullSizeImageUrl === undefined
-        });
         
         // Only process if there's actually a valid image URL (skip empty images)
         if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '' && fullSizeImageUrl !== 'about:blank') {
-          console.log('✅ Adding valid image to FancyBox:', fullSizeImageUrl);
           
           // Set FancyBox data attribute for grouping
           linkElement.setAttribute('data-fancybox', groupAttribute);
@@ -661,12 +646,6 @@ function processFancyBoxGroups(item) {
           // Set thumbnail for FancyBox gallery view
           linkElement.setAttribute('data-thumb', fullSizeImageUrl);
           
-          console.log('🎨 Setting thumbnail for image:', {
-            group: groupAttribute,
-            src: fullSizeImageUrl,
-            thumb: fullSizeImageUrl,
-            caption: img.getAttribute('alt') || ''
-          });
           
           // Remember the first image link for the opener
           if (lightboxImageValue === 'first') {
@@ -674,17 +653,8 @@ function processFancyBoxGroups(item) {
           }
           
           hasProcessedGroups = true;
-        } else {
-          console.log('❌ Skipping empty/invalid image:', {
-            src: fullSizeImageUrl,
-            reason: !fullSizeImageUrl ? 'src is falsy' : 
-                   fullSizeImageUrl.trim() === '' ? 'src is empty string' :
-                   fullSizeImageUrl === 'about:blank' ? 'src is about:blank' : 'unknown'
-          });
         }
         // If image URL is empty, skip this item completely - don't add to FancyBox
-      } else {
-        console.log('⚠️ No img element found in lightbox link');
       }
     }
   });
@@ -692,27 +662,16 @@ function processFancyBoxGroups(item) {
   // Second pass: Mark opener links as ready (event delegation handles clicks)
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
-  console.log('🔎 Found opener links in item:', {
-    count: openerLinks.length,
-    groupAttribute: groupAttribute
-  });
   
   openerLinks.forEach((openerLink) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
-      console.log('⚠️ Skipping hidden opener link');
       return;
     }
     
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
     
-    console.log('🎬 Processing opener link:', {
-      lightboxImage: openerLink.getAttribute('lightbox-image'),
-      triggerGroup: triggerGroup,
-      hasFirstImageLink: !!firstImageLink,
-      alreadySetup: openerLink.hasAttribute('data-opener-setup')
-    });
     
     if (triggerGroup || firstImageLink) {
       // Check if we already set up this opener
@@ -720,16 +679,12 @@ function processFancyBoxGroups(item) {
         // Store fallback info for event delegation
         if (!triggerGroup && firstImageLink) {
           openerLink.setAttribute('data-fallback-click', 'true');
-          console.log('📎 Added fallback-click attribute');
         }
         
         openerLink.setAttribute('data-opener-setup', 'true');
         openerLink.style.cursor = 'pointer';
         hasProcessedGroups = true;
-        console.log('✅ Opener link setup complete');
       }
-    } else {
-      console.log('⚠️ Opener link has no trigger group or first image link');
     }
   });
   
@@ -779,18 +734,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
         }
       }
       
-      console.log('🔧 Initializing FancyBox with configuration');
       const hasThumbsPlugin = !!window.Fancybox?.Thumbs;
-      console.log('🔌 FancyBox Thumbs plugin check:', {
-        hasThumbsPlugin: hasThumbsPlugin,
-        ThumbsObject: window.Fancybox?.Thumbs
-      });
-      
-      if (!hasThumbsPlugin) {
-        console.warn('⚠️ FANCYBOX THUMBS PLUGIN NOT LOADED!');
-        console.warn('To enable thumbnails, add this script AFTER the main FancyBox script:');
-        console.warn('<script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.0/dist/fancybox/fancybox.thumbs.umd.js"></script>');
-      }
       
       // Build config based on available plugins
       const bindConfig = {
@@ -823,7 +767,6 @@ function performFancyBoxReInit(retryAttempt = 0) {
       // FancyBox 6 initialization
       Fancybox.bind('[data-fancybox]', bindConfig);
       
-      console.log('✅ FancyBox bound to elements with [data-fancybox]');
       
       // Mark elements as bound to prevent unnecessary re-binding
       existingFancyboxElements.forEach(el => {
@@ -1342,18 +1285,11 @@ function initFilteringDetection() {
 
 // Event delegation for opener links (performance optimization)
 function initOpenerEventDelegation() {
-  console.log('🎯 Setting up opener event delegation');
-  
   document.addEventListener('click', function(e) {
-    console.log('🖱️ Click detected on:', e.target);
-    
     const openerLink = e.target.closest('a[lightbox-image="open"], a[lightbox-image="opener"]');
-    console.log('🔍 Opener link found:', openerLink);
-    
     if (!openerLink) return;
     
     e.preventDefault();
-    console.log('🚀 Processing opener click');
     
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
     const hasFallback = openerLink.hasAttribute('data-fallback-click');
@@ -1363,20 +1299,16 @@ function initOpenerEventDelegation() {
         const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
         
         if (galleryItems.length > 0) {
-          console.log('📸 Found gallery items:', galleryItems.length);
-          
           // Method 1: Try to programmatically click the first gallery item
           // This lets FancyBox handle everything naturally with its bound configuration
           const firstGalleryItem = galleryItems[0];
           if (firstGalleryItem) {
-            console.log('🎯 Triggering click on first gallery item to open FancyBox with thumbnails');
             firstGalleryItem.click();
             return;
           }
           
           // Method 2: Fallback to Fancybox.show() if direct click doesn't work
           if (window.Fancybox && typeof Fancybox.show === 'function') {
-            console.log('⚠️ Falling back to Fancybox.show() - thumbnails may not work');
             
             // Build gallery items array from DOM elements
             const fancyboxItems = Array.from(galleryItems).map(item => {
@@ -1512,14 +1444,11 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
     
-    console.log('🚀 Initializing all systems...');
     initLazyLoad();
     initItemProcessingObserver();
     initLoadMoreObserver();
     initFilteringDetection();
-    console.log('📍 About to initialize opener event delegation');
     initOpenerEventDelegation();
-    console.log('✅ All systems initialized');
     
     let pendingLightboxItems = new Set();
     let pendingLazyItems = new Set();
