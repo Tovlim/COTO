@@ -1187,7 +1187,13 @@ function processNewlyAddedItems() {
     // Check if item actually has FancyBox attributes (real processing check)
     const hasDataFancybox = item.querySelector('[data-fancybox]');
     const hasConfigured = item.querySelector('[data-fancybox-configured="true"]');
-    const needsProcessing = !hasDataFancybox && !hasConfigured && !alreadyProcessed;
+    const hasOpenerSetup = item.querySelector('[data-opener-setup="true"]');
+    
+    // Item needs processing if:
+    // 1. No FancyBox data attributes AND not configured AND not already processed, OR
+    // 2. Has configuration but opener is not set up yet (for dynamically loaded items)
+    const needsProcessing = (!hasDataFancybox && !hasConfigured && !alreadyProcessed) || 
+                           (hasConfigured && !hasOpenerSetup);
     
     // Debug info for this item
     const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
@@ -1198,9 +1204,13 @@ function processNewlyAddedItems() {
       alreadyProcessed,
       hasDataFancybox: !!hasDataFancybox,
       hasConfigured: !!hasConfigured,
+      hasOpenerSetup: !!hasOpenerSetup,
       needsProcessing,
       openerLinksCount: openerLinks.length,
-      openerSetup: Array.from(openerLinks).map(link => link.hasAttribute('data-opener-setup'))
+      openerSetup: Array.from(openerLinks).map(link => link.hasAttribute('data-opener-setup')),
+      reason: needsProcessing ? 
+        (hasConfigured && !hasOpenerSetup ? 'opener needs setup' : 'needs full processing') : 
+        'already processed or no processing needed'
     });
     
     if (needsProcessing) {
