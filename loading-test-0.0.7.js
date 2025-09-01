@@ -88,6 +88,7 @@ const PROCESSING_CHUNK_SIZE = 1;
 const REINIT_DEBOUNCE_DELAY = 200; // Base delay before re-initializing FancyBox
 const MOBILE_REINIT_DELAYS = [300, 600, 1200]; // Mobile retry delays
 const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
+const AUTO_LOAD_MORE_ENABLED = true; // Set to false to disable auto-clicking
 
 // Device detection (reuse existing isMobile if available, otherwise create it)
 const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
@@ -764,13 +765,27 @@ function updateLazyLoad() {
 function clickLoadMore(element) {
   if (isLoadingMore) return;
   
+  // Check if button is actually clickable
+  if (element.disabled || element.style.display === 'none') {
+    return;
+  }
+  
   isLoadingMore = true;
   
   // Store current scroll position
   const currentScrollY = window.scrollY;
   
-  // Click the button
-  element.click();
+  // Try multiple click methods for better compatibility
+  if (element.click) {
+    element.click();
+  } else {
+    const event = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    element.dispatchEvent(event);
+  }
   
   // Restore scroll position after a brief moment
   setTimeout(() => {
@@ -789,25 +804,47 @@ function clickLoadMore(element) {
   // Reset loading flag after delay
   setTimeout(() => {
     isLoadingMore = false;
+    // Re-observe button in case there are more items
+    observeLoadMoreButton();
   }, LOAD_MORE_DELAY);
 }
 
 function initLoadMoreObserver() {
   loadMoreObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting && !isLoadingMore) {
-        clickLoadMore(entry.target);
+      // Check multiple conditions for better reliability
+      const button = entry.target;
+      const isVisible = entry.isIntersecting && entry.intersectionRatio > 0;
+      const isEnabled = !button.disabled && button.style.display !== 'none';
+      const hasText = button.textContent.trim().length > 0;
+      
+      if (isVisible && isEnabled && hasText && !isLoadingMore && AUTO_LOAD_MORE_ENABLED) {
+        // Longer delay to ensure Finsweet is ready
+        setTimeout(() => {
+          // Double-check button is still visible before clicking
+          const rect = button.getBoundingClientRect();
+          const stillVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+          
+          if (stillVisible && !isLoadingMore) {
+            clickLoadMore(button);
+          }
+        }, 500);  // Increased delay for better reliability
       }
     });
   }, {
-    threshold: 0.01,
-    rootMargin: '150px'
+    threshold: [0, 0.1, 0.5, 1.0],  // Multiple thresholds for better detection
+    rootMargin: '50px 0px'  // Trigger when button is 50px from viewport
   });
 }
 
 function observeLoadMoreButton() {
-  const loadMoreButton = document.querySelector('#load-more');
+  // Try multiple selectors for better compatibility
+  const loadMoreButton = document.querySelector('#load-more, [data-load-more="true"], .w-pagination-next, [fs-cmsload-element="button"]');
   if (loadMoreButton && loadMoreObserver) {
+    // Stop observing any previous button
+    loadMoreObserver.disconnect();
+    
+    // Re-observe the current button
     loadMoreObserver.observe(loadMoreButton);
     
     // Add click listener for manual clicks
@@ -1244,6 +1281,14 @@ document.addEventListener('click', async function(e) {
   }
 });
 
+// Manual load-more trigger (exposed globally for debugging)
+window.triggerLoadMore = function() {
+  const loadMoreButton = document.querySelector('#load-more, [data-load-more="true"], .w-pagination-next, [fs-cmsload-element="button"]');
+  if (loadMoreButton) {
+    clickLoadMore(loadMoreButton);
+  }
+};
+
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   // Hide loading indicator initially
@@ -1392,8 +1437,10 @@ document.addEventListener('DOMContentLoaded', function() {
               }
             }
             
-            // Check for new load-more button
-            if (node.id === 'load-more' || node.querySelector('#load-more')) {
+            // Check for new load-more button with multiple selectors
+            if (node.id === 'load-more' || 
+                node.getAttribute?.('data-load-more') === 'true' ||
+                node.querySelector?.('#load-more, [data-load-more="true"]')) {
               hasNewLoadMore = true;
             }
           }
@@ -1428,6 +1475,14 @@ document.addEventListener('DOMContentLoaded', function() {
       processReportersForNewItems(); // Process reporters on initial load
       observeLoadMoreButton();
       updateLazyLoad();
+      
+      // Re-check for load-more button periodically (in case it appears later)
+      setInterval(() => {
+        const button = document.querySelector('#load-more, [data-load-more="true"]');
+        if (button && !button.hasAttribute('data-manual-click-listener')) {
+          observeLoadMoreButton();
+        }
+      }, 2000);
     }, initialDelay);
     
     // Cleanup on page unload
