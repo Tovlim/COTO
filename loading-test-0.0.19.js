@@ -89,13 +89,64 @@ const REINIT_DEBOUNCE_DELAY = 200; // Base delay before re-initializing FancyBox
 const MOBILE_REINIT_DELAYS = [300, 600, 1200]; // Mobile retry delays
 const FILTERING_DEBOUNCE_DELAY = 100; // Delay for filtering detection
 
-// Device detection (reuse existing isMobile if available, otherwise create it)
-const isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+// Device detection (cached for performance)
+let isMobileDevice = null;
+function getIsMobileDevice() {
+  if (isMobileDevice === null) {
+    isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  }
+  return isMobileDevice;
+}
+
+// Cached DOM selectors for performance
+const DOMCache = {
+  loadingElement: null,
+  loadMoreButton: null,
+  tagParent: null,
+  hiddenTagParent: null,
+  
+  // Lazy getters
+  get loadingReports() {
+    if (!this.loadingElement) {
+      this.loadingElement = document.getElementById('loading-reports');
+    }
+    return this.loadingElement;
+  },
+  
+  get loadMore() {
+    if (!this.loadMoreButton) {
+      this.loadMoreButton = document.querySelector('#load-more');
+    }
+    return this.loadMoreButton;
+  },
+  
+  get tagParentElement() {
+    if (!this.tagParent) {
+      this.tagParent = document.getElementById('tagparent');
+    }
+    return this.tagParent;
+  },
+  
+  get hiddenTagParentElement() {
+    if (!this.hiddenTagParent) {
+      this.hiddenTagParent = document.getElementById('hiddentagparent');
+    }
+    return this.hiddenTagParent;
+  },
+  
+  // Clear cache when DOM changes significantly
+  clearCache() {
+    this.loadingElement = null;
+    this.loadMoreButton = null;
+    this.tagParent = null;
+    this.hiddenTagParent = null;
+  }
+};
 
 // Loading indicator management
 function showLoadingIndicator() {
   activeLoadingProcesses++;
-  const loadingElement = document.getElementById('loading-reports');
+  const loadingElement = DOMCache.loadingReports;
   if (loadingElement) {
     loadingElement.style.display = 'block';
   }
@@ -105,7 +156,7 @@ function hideLoadingIndicator() {
   activeLoadingProcesses--;
   if (activeLoadingProcesses <= 0) {
     activeLoadingProcesses = 0;
-    const loadingElement = document.getElementById('loading-reports');
+    const loadingElement = DOMCache.loadingReports;
     if (loadingElement) {
       loadingElement.style.display = 'none';
     }
@@ -116,8 +167,7 @@ function hideLoadingIndicator() {
 // Enhanced filtering detection using proven methods from mapbox script
 function detectFiltering() {
   // Primary method: Check for Finsweet's official filtering indicator
-  const hiddenTagParent = document.getElementById('hiddentagparent');
-  return !!hiddenTagParent;
+  return !!DOMCache.hiddenTagParentElement;
 }
 
 // Check if filtering state has changed
@@ -526,59 +576,12 @@ function processFancyBoxGroups(item) {
       }
     });
     
-    // Still need to set up opener click handlers even if pre-configured
+    // Mark opener links as ready (event delegation handles clicks)
     const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
     if (openerLinks.length > 0) {
       openerLinks.forEach((openerLink) => {
         const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
-        const alreadySetup = openerLink.hasAttribute('data-opener-setup');
-        
-        if (triggerGroup && !alreadySetup) {
-          openerLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            const tryTrigger = (attempt = 0) => {
-              const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
-              
-              if (galleryItems.length > 0) {
-                // Direct FancyBox API call - most reliable method
-                if (window.Fancybox && typeof Fancybox.show === 'function') {
-                  // Build gallery items array from DOM elements
-                  const fancyboxItems = Array.from(galleryItems).map(item => ({
-                    src: item.getAttribute('href'),
-                    caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
-                    thumb: item.querySelector('img')?.getAttribute('src') || ''
-                  }));
-                  
-                  // Open FancyBox directly with the gallery
-                  Fancybox.show(fancyboxItems, {
-                    startIndex: 0,
-                    Thumbs: {
-                      autoStart: true,
-                      axis: 'x'
-                    },
-                    touch: {
-                      vertical: true,
-                      momentum: true
-                    },
-                    Toolbar: {
-                      display: {
-                        left: ['infobar'],
-                        middle: [],
-                        right: ['slideshow', 'thumbs', 'close']
-                      }
-                    }
-                  });
-                }
-              } else if (attempt < 2) {
-                // Retry after a short delay in case FancyBox hasn't finished initializing
-                setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
-              }
-            };
-            
-            tryTrigger();
-          });
-          
+        if (triggerGroup && !openerLink.hasAttribute('data-opener-setup')) {
           openerLink.setAttribute('data-opener-setup', 'true');
           openerLink.style.cursor = 'pointer';
         }
@@ -676,7 +679,7 @@ function processFancyBoxGroups(item) {
     }
   });
   
-  // Second pass: Process opener links
+  // Second pass: Mark opener links as ready (event delegation handles clicks)
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
   openerLinks.forEach((openerLink) => {
@@ -686,82 +689,20 @@ function processFancyBoxGroups(item) {
       return;
     }
     
-    // Check if opener is already configured to trigger FancyBox directly
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
     
-    if (triggerGroup) {
+    if (triggerGroup || firstImageLink) {
       // Check if we already set up this opener
-      if (openerLink.hasAttribute('data-opener-setup')) {
-        return;
-      }
-      
-      openerLink.addEventListener('click', (e) => {
-        e.preventDefault();
+      if (!openerLink.hasAttribute('data-opener-setup')) {
+        // Store fallback info for event delegation
+        if (!triggerGroup && firstImageLink) {
+          openerLink.setAttribute('data-fallback-click', 'true');
+        }
         
-        const tryTrigger = (attempt = 0) => {
-          // Trigger FancyBox for the group directly
-          const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
-          
-          if (galleryItems.length > 0) {
-            // Direct FancyBox API call - most reliable method
-            if (window.Fancybox && typeof Fancybox.show === 'function') {
-              // Build gallery items array from DOM elements
-              const fancyboxItems = Array.from(galleryItems).map(item => ({
-                src: item.getAttribute('href'),
-                caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
-                thumb: item.querySelector('img')?.getAttribute('src') || ''
-              }));
-              
-              // Open FancyBox directly with the gallery
-              Fancybox.show(fancyboxItems, {
-                startIndex: 0,
-                Thumbs: {
-                  autoStart: true,
-                  axis: 'x'
-                },
-                touch: {
-                  vertical: true,
-                  momentum: true
-                },
-                Toolbar: {
-                  display: {
-                    left: ['infobar'],
-                    middle: [],
-                    right: ['slideshow', 'thumbs', 'close']
-                  }
-                }
-              });
-            }
-          } else if (firstImageLink && attempt === 0) {
-            // Fallback to clicking first image if no gallery items found
-            firstImageLink.click();
-          } else if (attempt < 2) {
-            // Retry after a short delay in case FancyBox hasn't finished initializing
-            setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
-          }
-        };
-        
-        tryTrigger();
-      });
-      
-      openerLink.setAttribute('data-opener-setup', 'true');
-      openerLink.style.cursor = 'pointer';
-      hasProcessedGroups = true;
-    } else if (firstImageLink) {
-      // Check if we already set up this opener
-      if (openerLink.hasAttribute('data-opener-setup')) {
-        return;
+        openerLink.setAttribute('data-opener-setup', 'true');
+        openerLink.style.cursor = 'pointer';
+        hasProcessedGroups = true;
       }
-      
-      // Original behavior: make the opener trigger the first image
-      openerLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        firstImageLink.click();
-      });
-      
-      openerLink.setAttribute('data-opener-setup', 'true');
-      openerLink.style.cursor = 'pointer';
-      hasProcessedGroups = true;
     }
   });
   
@@ -779,7 +720,7 @@ function scheduleFancyBoxReInit() {
     clearTimeout(reInitTimeout);
   }
   
-  const baseDelay = isMobileDevice ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
+  const baseDelay = getIsMobileDevice() ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
   
   reInitTimeout = setTimeout(() => {
     if (needsFancyBoxReInit) {
@@ -844,7 +785,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
       hideLoadingIndicator();
       
       // On mobile, only do ONE additional re-initialization attempt instead of multiple
-      if (isMobileDevice && retryAttempt === 0 && needsFancyBoxReInit) {
+      if (getIsMobileDevice() && retryAttempt === 0 && needsFancyBoxReInit) {
         setTimeout(() => {
           performFancyBoxReInit(1);
         }, MOBILE_REINIT_DELAYS[0]);
@@ -860,7 +801,7 @@ function performFancyBoxReInit(retryAttempt = 0) {
   }
   
   // Only retry once on mobile if the first attempt failed
-  if (isMobileDevice && retryAttempt === 0) {
+  if (getIsMobileDevice() && retryAttempt === 0) {
     setTimeout(() => {
       performFancyBoxReInit(1);
     }, MOBILE_REINIT_DELAYS[0]);
@@ -906,7 +847,7 @@ function clickLoadMore(element) {
   }, 100);
   
   // Process any new items that were just added (mobile-optimized timing)
-  const processDelay = isMobileDevice ? 500 : 300;
+  const processDelay = getIsMobileDevice() ? 500 : 300;
   
   setTimeout(() => {
     processNewlyAddedItems();
@@ -934,7 +875,7 @@ function initLoadMoreObserver() {
 }
 
 function observeLoadMoreButton() {
-  const loadMoreButton = document.querySelector('#load-more');
+  const loadMoreButton = DOMCache.loadMore;
   if (loadMoreButton && loadMoreObserver) {
     loadMoreObserver.observe(loadMoreButton);
     
@@ -944,7 +885,7 @@ function observeLoadMoreButton() {
       
       loadMoreButton.addEventListener('click', function() {
         // Process any new items after a delay (same as auto-click)
-        const processDelay = isMobileDevice ? 500 : 300;
+        const processDelay = getIsMobileDevice() ? 500 : 300;
         setTimeout(() => {
           processNewlyAddedItems();
           processTabsForNewItems();
@@ -1085,7 +1026,7 @@ function processNewlyAddedItems() {
     
     if (needsProcessing) {
       // On mobile, process all new items immediately to avoid viewport detection issues
-      if (isMobileDevice) {
+      if (getIsMobileDevice()) {
         newItems.push(item);
         processedItems.add(item);
       } else {
@@ -1106,7 +1047,7 @@ function processNewlyAddedItems() {
   
   if (newItems.length > 0) {
     // On mobile, add a small delay to ensure FancyBox re-init has finished
-    const processingDelay = isMobileDevice ? 200 : 0;
+    const processingDelay = getIsMobileDevice() ? 200 : 0;
     
     setTimeout(() => {
       // Process all items in one batch instead of chunked processing
@@ -1183,7 +1124,7 @@ function processFilteredItems() {
     
     if (isVisible) {
       // On mobile, process all visible filtered items immediately
-      if (isMobileDevice) {
+      if (getIsMobileDevice()) {
         // Remove from processed items so it gets re-processed
         processedItems.delete(item);
         visibleItems.push(item);
@@ -1217,7 +1158,7 @@ function processFilteredItems() {
   }
   
   // Queue non-visible items (desktop only)
-  if (!isMobileDevice) {
+  if (!getIsMobileDevice()) {
     itemsToQueue.forEach(item => {
       queueItemForLazyProcessing(item);
     });
@@ -1238,7 +1179,7 @@ function processInitialVisibleItems() {
   
   initialItems.forEach(item => {
     // On mobile, process all items immediately to avoid viewport detection issues
-    if (isMobileDevice) {
+    if (getIsMobileDevice()) {
       visibleItems.push(item);
       processedItems.add(item);
     } else {
@@ -1261,7 +1202,7 @@ function processInitialVisibleItems() {
   }
   
   // Queue non-visible items (desktop only)
-  if (!isMobileDevice) {
+  if (!getIsMobileDevice()) {
     itemsToQueue.forEach(item => {
       queueItemForLazyProcessing(item);
     });
@@ -1269,15 +1210,53 @@ function processInitialVisibleItems() {
 }
 
 
+// Defer non-critical processing for better page speed
+let nonCriticalProcessed = false;
+
+function deferNonCriticalProcessing() {
+  if (nonCriticalProcessed) return;
+  
+  const processNonCritical = () => {
+    if (nonCriticalProcessed) return;
+    nonCriticalProcessed = true;
+    
+    // Process tabs and reporters after critical loading
+    processTabsForNewItems();
+    processReportersForNewItems();
+  };
+  
+  // Method 1: Process on first user interaction
+  const interactionEvents = ['click', 'scroll', 'touchstart', 'keydown'];
+  const onFirstInteraction = () => {
+    processNonCritical();
+    // Remove listeners after first interaction
+    interactionEvents.forEach(event => {
+      document.removeEventListener(event, onFirstInteraction, { passive: true });
+    });
+  };
+  
+  interactionEvents.forEach(event => {
+    document.addEventListener(event, onFirstInteraction, { passive: true });
+  });
+  
+  // Method 2: Process during idle time (fallback)
+  if (window.requestIdleCallback) {
+    requestIdleCallback(processNonCritical, { timeout: 3000 });
+  } else {
+    // Fallback for browsers without requestIdleCallback
+    setTimeout(processNonCritical, 2000);
+  }
+}
+
 // Enhanced filtering detection with proven methods
 function initFilteringDetection() {
   // Method 1: Watch for hiddentagparent changes using MutationObserver
-  const tagParent = document.getElementById('tagparent');
+  const tagParent = DOMCache.tagParentElement;
   if (tagParent) {
     filteringObserver = new MutationObserver(() => {
       if (checkFilteringStateChange()) {
         // Debounce filtering response for mobile
-        const delay = isMobileDevice ? FILTERING_DEBOUNCE_DELAY * 2 : FILTERING_DEBOUNCE_DELAY;
+        const delay = getIsMobileDevice() ? FILTERING_DEBOUNCE_DELAY * 2 : FILTERING_DEBOUNCE_DELAY;
         setTimeout(() => {
           processFilteredItems();
         }, delay);
@@ -1302,7 +1281,7 @@ function initFilteringDetection() {
   finsweetEvents.forEach(eventType => {
     document.addEventListener(eventType, () => {
       // Mobile-optimized timing for Finsweet events
-      const delay = isMobileDevice ? 150 : 100;
+      const delay = getIsMobileDevice() ? 150 : 100;
       setTimeout(() => {
         if (checkFilteringStateChange()) {
           processFilteredItems();
@@ -1310,13 +1289,71 @@ function initFilteringDetection() {
       }, delay);
     });
   });
-  
-  // Method 3: Periodic filtering state check (fallback)
-  setInterval(() => {
-    if (checkFilteringStateChange()) {
-      processFilteredItems();
+}
+
+// Event delegation for opener links (performance optimization)
+function initOpenerEventDelegation() {
+  document.addEventListener('click', function(e) {
+    const openerLink = e.target.closest('a[lightbox-image="open"], a[lightbox-image="opener"]');
+    if (!openerLink) return;
+    
+    e.preventDefault();
+    
+    const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    const hasFallback = openerLink.hasAttribute('data-fallback-click');
+    
+    if (triggerGroup) {
+      const tryTrigger = (attempt = 0) => {
+        const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
+        
+        if (galleryItems.length > 0) {
+          // Direct FancyBox API call - most reliable method
+          if (window.Fancybox && typeof Fancybox.show === 'function') {
+            // Build gallery items array from DOM elements
+            const fancyboxItems = Array.from(galleryItems).map(item => ({
+              src: item.getAttribute('href'),
+              caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
+              thumb: item.querySelector('img')?.getAttribute('src') || ''
+            }));
+            
+            // Open FancyBox directly with the gallery
+            Fancybox.show(fancyboxItems, {
+              startIndex: 0,
+              Thumbs: {
+                autoStart: true,
+                axis: 'x'
+              },
+              touch: {
+                vertical: true,
+                momentum: true
+              },
+              Toolbar: {
+                display: {
+                  left: ['infobar'],
+                  middle: [],
+                  right: ['slideshow', 'thumbs', 'close']
+                }
+              }
+            });
+          }
+        } else if (attempt < 2) {
+          // Retry after a short delay in case FancyBox hasn't finished initializing
+          setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
+        }
+      };
+      
+      tryTrigger();
+    } else if (hasFallback) {
+      // Fallback: find first image link in the same container
+      const container = openerLink.closest('[wfu-lightbox-group]');
+      if (container) {
+        const firstImageLink = container.querySelector('a[lightbox-image="first"]');
+        if (firstImageLink) {
+          firstImageLink.click();
+        }
+      }
     }
-  }, 2000);
+  }, { passive: false });
 }
 
 // SHARE BUTTON FUNCTIONALITY
@@ -1386,7 +1423,7 @@ document.addEventListener('click', async function(e) {
 // UNIFIED INITIALIZATION
 document.addEventListener('DOMContentLoaded', function() {
   // Hide loading indicator initially
-  const loadingElement = document.getElementById('loading-reports');
+  const loadingElement = DOMCache.loadingReports;
   if (loadingElement) {
     loadingElement.style.display = 'none';
   }
@@ -1402,6 +1439,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initItemProcessingObserver();
     initLoadMoreObserver();
     initFilteringDetection();
+    initOpenerEventDelegation();
     
     let pendingLightboxItems = new Set();
     let pendingLazyItems = new Set();
@@ -1556,17 +1594,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Initial setup with mobile-optimized timing
-    const initialDelay = isMobileDevice ? 800 : 500;
+    const initialDelay = getIsMobileDevice() ? 800 : 500;
     
     setTimeout(() => {
       // Check initial filtering state
       lastFilteringState = detectFiltering();
       
+      // Process only critical lightbox functionality immediately
       processInitialVisibleItems();
-      processTabsForNewItems(); // Process tabs on initial load
-      processReportersForNewItems(); // Process reporters on initial load
       observeLoadMoreButton();
       updateLazyLoad();
+      
+      // Defer tab and reporter processing until first user interaction or idle time
+      deferNonCriticalProcessing();
     }, initialDelay);
     
     // Cleanup on page unload
