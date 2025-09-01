@@ -74,7 +74,6 @@ let needsFancyBoxReInit = false;
 let reInitTimeout = null;
 let isCurrentlyFiltering = false;
 let lastFilteringState = false;
-let mobileRetryCount = 0;
 let activeLoadingProcesses = 0;
 
 // Enhanced state tracking using data attributes
@@ -114,18 +113,6 @@ function hideLoadingIndicator() {
   }
 }
 
-// Debounce function
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
 
 // Enhanced filtering detection using proven methods from mapbox script
 function detectFiltering() {
@@ -331,6 +318,7 @@ function initializeReporters(reportItem) {
     multiReporterWrap.style.display = 'none';
     reporterListWrap.style.display = 'flex';
     processedReporterItems.add(reportItem);
+    updateProcessingState(reportItem, 'reporters', ProcessingState.COMPLETED);
     return;
   }
   
@@ -583,7 +571,7 @@ function processFancyBoxGroups(item) {
   });
   
   // Second pass: Process opener links
-  const openerLinks = item.querySelectorAll('a[lightbox-image="open"]');
+  const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
   openerLinks.forEach((openerLink, openerIndex) => {
     // Skip hidden opener links
@@ -592,17 +580,32 @@ function processFancyBoxGroups(item) {
       return;
     }
     
-    // If we found a first image, make the opener trigger it
-    if (firstImageLink) {
+    // Check if opener is already configured to trigger FancyBox directly
+    const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    if (triggerGroup) {
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
-        // Trigger click on the first image to open the gallery
+        // Trigger FancyBox for the group directly
+        const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
+        if (galleryItems.length > 0) {
+          // Open FancyBox gallery starting from the first item
+          galleryItems[0].click();
+        } else if (firstImageLink) {
+          // Fallback to clicking first image if no gallery items found
+          firstImageLink.click();
+        }
+      });
+      
+      openerLink.style.cursor = 'pointer';
+      hasProcessedGroups = true;
+    } else if (firstImageLink) {
+      // Original behavior: make the opener trigger the first image
+      openerLink.addEventListener('click', (e) => {
+        e.preventDefault();
         firstImageLink.click();
       });
       
-      // Optional: Add visual indication that this is clickable
       openerLink.style.cursor = 'pointer';
-      
       hasProcessedGroups = true;
     }
   });
@@ -693,7 +696,6 @@ function performFancyBoxReInit(retryAttempt = 0) {
       }
       
       needsFancyBoxReInit = false;
-      mobileRetryCount = 0;
       return true;
     } else {
       hideLoadingIndicator();
@@ -1099,33 +1101,6 @@ function processInitialVisibleItems() {
   }
 }
 
-// Process any items with lazy images that don't have lightbox groups
-function processLazyOnlyItems() {
-  const lazyItems = document.querySelectorAll('[itemslug]');
-  const itemsNeedingLazy = [];
-  
-  lazyItems.forEach(item => {
-    if (!processedItems.has(item)) {
-      const lazyElements = item.querySelectorAll('.lazy');
-      if (lazyElements.length > 0) {
-        const rect = item.getBoundingClientRect();
-        const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-        
-        if (isVisible) {
-          itemsNeedingLazy.push(item);
-          processedItems.add(item);
-        } else {
-          queueItemForLazyProcessing(item);
-        }
-      }
-    }
-  });
-  
-  // Just update LazyLoad for these items (no lightbox processing needed)
-  if (itemsNeedingLazy.length > 0) {
-    setTimeout(updateLazyLoad, 100);
-  }
-}
 
 // Enhanced filtering detection with proven methods
 function initFilteringDetection() {
@@ -1422,7 +1397,6 @@ document.addEventListener('DOMContentLoaded', function() {
       isCurrentlyFiltering = lastFilteringState;
       
       processInitialVisibleItems();
-      processLazyOnlyItems();
       processTabsForNewItems(); // Process tabs on initial load
       processReportersForNewItems(); // Process reporters on initial load
       observeLoadMoreButton();
