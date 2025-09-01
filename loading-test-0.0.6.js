@@ -72,7 +72,6 @@ let processedTabItems = new WeakSet();
 let processedReporterItems = new WeakSet();
 let needsFancyBoxReInit = false;
 let reInitTimeout = null;
-let isCurrentlyFiltering = false;
 let lastFilteringState = false;
 let activeLoadingProcesses = 0;
 
@@ -128,7 +127,6 @@ function checkFilteringStateChange() {
   
   if (hasChanged) {
     lastFilteringState = currentlyFiltering;
-    isCurrentlyFiltering = currentlyFiltering;
     return true;
   }
   
@@ -559,7 +557,7 @@ function processFancyBoxGroups(item) {
   // First pass: Find and process all lightbox images (including the first one)
   const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
   
-  allLightboxLinks.forEach((linkElement, linkIndex) => {
+  allLightboxLinks.forEach((linkElement) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
     
     // Skip links that are hidden
@@ -597,7 +595,7 @@ function processFancyBoxGroups(item) {
   // Second pass: Process opener links
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
-  openerLinks.forEach((openerLink, openerIndex) => {
+  openerLinks.forEach((openerLink) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
@@ -637,7 +635,6 @@ function processFancyBoxGroups(item) {
       openerLink.style.cursor = 'pointer';
       hasProcessedGroups = true;
     }
-  });
   });
   
   // Mark as completed
@@ -942,7 +939,7 @@ function processNewlyAddedItems() {
   const loadMoreItems = document.querySelectorAll('[wfu-lightbox-group]');
   const newItems = [];
   
-  loadMoreItems.forEach((item, index) => {
+  loadMoreItems.forEach((item) => {
     // Check processing state first
     const processingState = item.getAttribute('data-processing-state');
     const alreadyProcessed = processingState === ProcessingState.COMPLETED || processedItems.has(item);
@@ -985,7 +982,7 @@ function processItemsBatch(items) {
   
   showLoadingIndicator();
   
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     try {
       // Update processing state
       updateProcessingState(item, 'lazy', ProcessingState.PROCESSING);
@@ -1425,7 +1422,6 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
       // Check initial filtering state
       lastFilteringState = detectFiltering();
-      isCurrentlyFiltering = lastFilteringState;
       
       processInitialVisibleItems();
       processTabsForNewItems(); // Process tabs on initial load
