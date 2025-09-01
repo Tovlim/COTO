@@ -581,58 +581,43 @@ function processFancyBoxGroups(item) {
               });
               
               if (galleryItems.length > 0) {
-                console.log(`✅ Clicking first pre-configured gallery item (attempt ${attempt + 1})`);
+                console.log(`✅ Opening FancyBox gallery directly (attempt ${attempt + 1})`);
                 
-                // Enhanced click for iPhone compatibility
-                const firstItem = galleryItems[0];
-                
-                // Try multiple event dispatch methods for iPhone
+                // Direct FancyBox API call - most reliable method
                 if (window.Fancybox && typeof Fancybox.show === 'function') {
-                  console.log('🍎 Using Fancybox.show() for iPhone compatibility');
-                  // Direct FancyBox API call - more reliable on iPhone
-                  const fancyboxGroup = firstItem.getAttribute('data-fancybox');
-                  const allGroupItems = document.querySelectorAll(`[data-fancybox="${fancyboxGroup}"]`);
-                  const fancyboxItems = Array.from(allGroupItems).map(item => ({
+                  console.log('📱 Using direct Fancybox.show() API call');
+                  
+                  // Build gallery items array from DOM elements
+                  const fancyboxItems = Array.from(galleryItems).map(item => ({
                     src: item.getAttribute('href'),
-                    caption: item.getAttribute('data-caption') || '',
+                    caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
                     thumb: item.querySelector('img')?.getAttribute('src') || ''
                   }));
                   
-                  Fancybox.show(fancyboxItems, { startIndex: 0 });
+                  console.log('📸 FancyBox items to show:', fancyboxItems.length);
+                  
+                  // Open FancyBox directly with the gallery
+                  Fancybox.show(fancyboxItems, {
+                    startIndex: 0,
+                    Thumbs: {
+                      autoStart: true,
+                      axis: 'x'
+                    },
+                    touch: {
+                      vertical: true,
+                      momentum: true
+                    },
+                    Toolbar: {
+                      display: {
+                        left: ['infobar'],
+                        middle: [],
+                        right: ['slideshow', 'thumbs', 'close']
+                      }
+                    }
+                  });
+                  
                 } else {
-                  console.log('🖱️ Fallback: Using enhanced click events for iPhone');
-                  // Enhanced event dispatching for iPhone
-                  const clickEvent = new MouseEvent('click', {
-                    view: window,
-                    bubbles: true,
-                    cancelable: true,
-                    pointerId: 1,
-                    isPrimary: true
-                  });
-                  
-                  firstItem.dispatchEvent(clickEvent);
-                  
-                  // Also try touch events for iPhone
-                  const touchStart = new TouchEvent('touchstart', {
-                    bubbles: true,
-                    cancelable: true,
-                    touches: [{
-                      clientX: 0,
-                      clientY: 0,
-                      target: firstItem
-                    }]
-                  });
-                  
-                  const touchEnd = new TouchEvent('touchend', {
-                    bubbles: true,
-                    cancelable: true
-                  });
-                  
-                  firstItem.dispatchEvent(touchStart);
-                  firstItem.dispatchEvent(touchEnd);
-                  
-                  // Final fallback - direct click
-                  setTimeout(() => firstItem.click(), 10);
+                  console.log('❌ Fancybox.show() not available, API call failed');
                 }
               } else if (attempt < 2) {
                 // On mobile, retry after a short delay in case FancyBox hasn't finished initializing
@@ -805,58 +790,43 @@ function processFancyBoxGroups(item) {
           });
           
           if (galleryItems.length > 0) {
-            console.log(`✅ Clicking first gallery item (attempt ${attempt + 1})`);
+            console.log(`✅ Opening FancyBox gallery directly (attempt ${attempt + 1})`);
             
-            // Enhanced click for iPhone compatibility
-            const firstItem = galleryItems[0];
-            
-            // Try multiple event dispatch methods for iPhone
+            // Direct FancyBox API call - most reliable method
             if (window.Fancybox && typeof Fancybox.show === 'function') {
-              console.log('🍎 Using Fancybox.show() for iPhone compatibility');
-              // Direct FancyBox API call - more reliable on iPhone
-              const fancyboxGroup = firstItem.getAttribute('data-fancybox');
-              const allGroupItems = document.querySelectorAll(`[data-fancybox="${fancyboxGroup}"]`);
-              const fancyboxItems = Array.from(allGroupItems).map(item => ({
+              console.log('📱 Using direct Fancybox.show() API call');
+              
+              // Build gallery items array from DOM elements
+              const fancyboxItems = Array.from(galleryItems).map(item => ({
                 src: item.getAttribute('href'),
-                caption: item.getAttribute('data-caption') || '',
+                caption: item.getAttribute('data-caption') || item.querySelector('img')?.getAttribute('alt') || '',
                 thumb: item.querySelector('img')?.getAttribute('src') || ''
               }));
               
-              Fancybox.show(fancyboxItems, { startIndex: 0 });
+              console.log('📸 FancyBox items to show:', fancyboxItems.length);
+              
+              // Open FancyBox directly with the gallery
+              Fancybox.show(fancyboxItems, {
+                startIndex: 0,
+                Thumbs: {
+                  autoStart: true,
+                  axis: 'x'
+                },
+                touch: {
+                  vertical: true,
+                  momentum: true
+                },
+                Toolbar: {
+                  display: {
+                    left: ['infobar'],
+                    middle: [],
+                    right: ['slideshow', 'thumbs', 'close']
+                  }
+                }
+              });
+              
             } else {
-              console.log('🖱️ Fallback: Using enhanced click events for iPhone');
-              // Enhanced event dispatching for iPhone
-              const clickEvent = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                pointerId: 1,
-                isPrimary: true
-              });
-              
-              firstItem.dispatchEvent(clickEvent);
-              
-              // Also try touch events for iPhone
-              const touchStart = new TouchEvent('touchstart', {
-                bubbles: true,
-                cancelable: true,
-                touches: [{
-                  clientX: 0,
-                  clientY: 0,
-                  target: firstItem
-                }]
-              });
-              
-              const touchEnd = new TouchEvent('touchend', {
-                bubbles: true,
-                cancelable: true
-              });
-              
-              firstItem.dispatchEvent(touchStart);
-              firstItem.dispatchEvent(touchEnd);
-              
-              // Final fallback - direct click
-              setTimeout(() => firstItem.click(), 10);
+              console.log('❌ Fancybox.show() not available, API call failed');
             }
           } else if (firstImageLink && attempt === 0) {
             console.log('🔄 No gallery items found, falling back to firstImageLink');
