@@ -6169,11 +6169,19 @@ class OptimizedMapState {
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
+// Define the bounding box for the map view
+const mapBounds = [
+  [34.15033592116498, 31.16632630001915], // Southwest coordinates
+  [35.70311064830133, 32.60506354440827]  // Northeast coordinates
+];
+
 const map = new mapboxgl.Map({
   container: "map",
   style: "mapbox://styles/occupationcrimes/cmeo2b3yu000601sf4sr066j9",
-  center: isMobile ? [34.85, 31.7] : [35.22, 31.85], // Mobile: both West Bank & Gaza, Desktop: West Bank focused
-  zoom: isMobile ? 7.1 : 8.33,
+  bounds: mapBounds,
+  fitBoundsOptions: {
+    padding: isMobile ? 20 : 50 // Less padding on mobile, more on desktop
+  },
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
@@ -6254,9 +6262,8 @@ class MapResetControl {
     button.style.justifyContent = 'center';
     
     button.onclick = () => {
-      map.flyTo({
-        center: isMobile ? [34.85, 31.7] : [35.22, 31.85],
-        zoom: isMobile ? 7.1 : 8.33,
+      map.fitBounds(mapBounds, {
+        padding: isMobile ? 20 : 50,
         duration: 1000
       });
     };
