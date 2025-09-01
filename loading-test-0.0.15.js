@@ -582,7 +582,58 @@ function processFancyBoxGroups(item) {
               
               if (galleryItems.length > 0) {
                 console.log(`✅ Clicking first pre-configured gallery item (attempt ${attempt + 1})`);
-                galleryItems[0].click();
+                
+                // Enhanced click for iPhone compatibility
+                const firstItem = galleryItems[0];
+                
+                // Try multiple event dispatch methods for iPhone
+                if (window.Fancybox && typeof Fancybox.show === 'function') {
+                  console.log('🍎 Using Fancybox.show() for iPhone compatibility');
+                  // Direct FancyBox API call - more reliable on iPhone
+                  const fancyboxGroup = firstItem.getAttribute('data-fancybox');
+                  const allGroupItems = document.querySelectorAll(`[data-fancybox="${fancyboxGroup}"]`);
+                  const fancyboxItems = Array.from(allGroupItems).map(item => ({
+                    src: item.getAttribute('href'),
+                    caption: item.getAttribute('data-caption') || '',
+                    thumb: item.querySelector('img')?.getAttribute('src') || ''
+                  }));
+                  
+                  Fancybox.show(fancyboxItems, { startIndex: 0 });
+                } else {
+                  console.log('🖱️ Fallback: Using enhanced click events for iPhone');
+                  // Enhanced event dispatching for iPhone
+                  const clickEvent = new MouseEvent('click', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                    pointerId: 1,
+                    isPrimary: true
+                  });
+                  
+                  firstItem.dispatchEvent(clickEvent);
+                  
+                  // Also try touch events for iPhone
+                  const touchStart = new TouchEvent('touchstart', {
+                    bubbles: true,
+                    cancelable: true,
+                    touches: [{
+                      clientX: 0,
+                      clientY: 0,
+                      target: firstItem
+                    }]
+                  });
+                  
+                  const touchEnd = new TouchEvent('touchend', {
+                    bubbles: true,
+                    cancelable: true
+                  });
+                  
+                  firstItem.dispatchEvent(touchStart);
+                  firstItem.dispatchEvent(touchEnd);
+                  
+                  // Final fallback - direct click
+                  setTimeout(() => firstItem.click(), 10);
+                }
               } else if (attempt < 2) {
                 // On mobile, retry after a short delay in case FancyBox hasn't finished initializing
                 console.log(`🔄 No gallery items found, retrying in ${(attempt + 1) * 100}ms...`);
@@ -755,8 +806,58 @@ function processFancyBoxGroups(item) {
           
           if (galleryItems.length > 0) {
             console.log(`✅ Clicking first gallery item (attempt ${attempt + 1})`);
-            // Open FancyBox gallery starting from the first item
-            galleryItems[0].click();
+            
+            // Enhanced click for iPhone compatibility
+            const firstItem = galleryItems[0];
+            
+            // Try multiple event dispatch methods for iPhone
+            if (window.Fancybox && typeof Fancybox.show === 'function') {
+              console.log('🍎 Using Fancybox.show() for iPhone compatibility');
+              // Direct FancyBox API call - more reliable on iPhone
+              const fancyboxGroup = firstItem.getAttribute('data-fancybox');
+              const allGroupItems = document.querySelectorAll(`[data-fancybox="${fancyboxGroup}"]`);
+              const fancyboxItems = Array.from(allGroupItems).map(item => ({
+                src: item.getAttribute('href'),
+                caption: item.getAttribute('data-caption') || '',
+                thumb: item.querySelector('img')?.getAttribute('src') || ''
+              }));
+              
+              Fancybox.show(fancyboxItems, { startIndex: 0 });
+            } else {
+              console.log('🖱️ Fallback: Using enhanced click events for iPhone');
+              // Enhanced event dispatching for iPhone
+              const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                pointerId: 1,
+                isPrimary: true
+              });
+              
+              firstItem.dispatchEvent(clickEvent);
+              
+              // Also try touch events for iPhone
+              const touchStart = new TouchEvent('touchstart', {
+                bubbles: true,
+                cancelable: true,
+                touches: [{
+                  clientX: 0,
+                  clientY: 0,
+                  target: firstItem
+                }]
+              });
+              
+              const touchEnd = new TouchEvent('touchend', {
+                bubbles: true,
+                cancelable: true
+              });
+              
+              firstItem.dispatchEvent(touchStart);
+              firstItem.dispatchEvent(touchEnd);
+              
+              // Final fallback - direct click
+              setTimeout(() => firstItem.click(), 10);
+            }
           } else if (firstImageLink && attempt === 0) {
             console.log('🔄 No gallery items found, falling back to firstImageLink');
             // Fallback to clicking first image if no gallery items found
