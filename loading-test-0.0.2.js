@@ -535,8 +535,11 @@ function processFancyBoxGroups(item) {
   // First pass: Find and process all lightbox images (including the first one)
   const allLightboxLinks = item.querySelectorAll('a[lightbox-image]');
   
+  console.log('🖼️ Processing lightbox links for item:', groupAttribute, '- Found', allLightboxLinks.length, 'links');
+  
   allLightboxLinks.forEach((linkElement, linkIndex) => {
     const lightboxImageValue = linkElement.getAttribute('lightbox-image');
+    console.log('  🔗 Link', linkIndex, 'has lightbox-image="' + lightboxImageValue + '"');
     
     // Skip links that are hidden
     const computedStyle = getComputedStyle(linkElement);
@@ -563,6 +566,7 @@ function processFancyBoxGroups(item) {
         // Remember the first image link for the opener
         if (lightboxImageValue === 'first') {
           firstImageLink = linkElement;
+          console.log('  ⭐ Marked as firstImageLink for openers');
         }
         
         hasProcessedGroups = true;
@@ -573,40 +577,60 @@ function processFancyBoxGroups(item) {
   // Second pass: Process opener links
   const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
+  console.log('🔍 Processing opener links:', openerLinks.length, 'found');
+  
   openerLinks.forEach((openerLink, openerIndex) => {
     // Skip hidden opener links
     const computedStyle = getComputedStyle(openerLink);
     if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+      console.log('⏭️ Skipping hidden opener link');
       return;
     }
     
     // Check if opener is already configured to trigger FancyBox directly
     const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    console.log('🎯 Opener trigger group:', triggerGroup);
+    
     if (triggerGroup) {
+      console.log('✅ Setting up opener with trigger group:', triggerGroup);
+      
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
+        console.log('🖱️ Opener clicked! Looking for gallery items with data-fancybox="' + triggerGroup + '"');
+        
         // Trigger FancyBox for the group directly
         const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
+        console.log('📸 Found', galleryItems.length, 'gallery items');
+        
         if (galleryItems.length > 0) {
+          console.log('🚀 Opening FancyBox gallery by clicking first item');
           // Open FancyBox gallery starting from the first item
           galleryItems[0].click();
         } else if (firstImageLink) {
+          console.log('🔄 No gallery items found, falling back to firstImageLink');
           // Fallback to clicking first image if no gallery items found
           firstImageLink.click();
+        } else {
+          console.error('❌ No gallery items or firstImageLink found!');
         }
       });
       
       openerLink.style.cursor = 'pointer';
       hasProcessedGroups = true;
     } else if (firstImageLink) {
+      console.log('📎 Setting up opener to trigger firstImageLink');
+      
       // Original behavior: make the opener trigger the first image
       openerLink.addEventListener('click', (e) => {
         e.preventDefault();
+        console.log('🖱️ Opener clicked! Triggering firstImageLink');
         firstImageLink.click();
       });
       
       openerLink.style.cursor = 'pointer';
       hasProcessedGroups = true;
+    } else {
+      console.warn('⚠️ Opener found but no trigger group or firstImageLink available');
     }
   });
   
