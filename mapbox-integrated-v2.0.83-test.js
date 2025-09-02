@@ -187,6 +187,7 @@ console.log('⚡ Performance optimizations applied:');
 console.log('  • CDN: Using jsDelivr instead of GitHub raw URLs');
 console.log('  • Parallel loading: Combined & locality data load simultaneously');
 console.log('  • Deferred loading: Settlement data loads only when zoomed in');
+console.log('  • Immediate territories: Territory markers show without zoom requirement');
 
 // ========================
 // CONFIGURATION
@@ -2326,6 +2327,37 @@ function setupZoomBasedMarkerLoading() {
   }
 }
 
+// Initialize territory data immediately (no loading required)
+function initializeTerritoryData() {
+  // Territory data is static and should always be available
+  state.allTerritoryFeatures = [
+    {
+      type: "Feature",
+      properties: {
+        name: "Gaza",
+        type: "territory"
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [34.3950, 31.4458]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "West Bank",
+        type: "territory"
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [35.3050, 32.2873]
+      }
+    }
+  ];
+  
+  console.log('✅ Territory data initialized - 2 territories available');
+}
+
 // Settlement loading helper - can be called from zoom or autocomplete interaction
 async function loadSettlementsIfNeeded(trigger = 'unknown') {
   // Only load if not already loaded
@@ -2404,6 +2436,7 @@ wrapIfPossible('generateSingleCheckbox', 'checkbox-generation');
 // Wrap deferred functions
 wrapIfPossible('setupDeferredAreaControls', 'deferred-loading');
 wrapIfPossible('loadSettlementsIfNeeded', 'data-loading');
+wrapIfPossible('initializeTerritoryData', 'initialization');
 
 // Wrap event delegate functions
 if (typeof OptimizedEventDelegate !== 'undefined' && OptimizedEventDelegate.init) {
@@ -6491,6 +6524,12 @@ map.on("load", () => {
     ]).then(() => {
       PerformanceDebugger.milestone('Initial data loaded in parallel');
       
+      // Initialize territory data immediately (should always be visible)
+      initializeTerritoryData();
+      
+      // Add territory markers right after data loads (no zoom requirement)
+      addNativeTerritoryMarkers();
+      
       // Mark data as loaded for loading screen (markers are deferred)
       loadingTracker.markComplete('dataLoaded');
       
@@ -7172,34 +7211,8 @@ async function loadSettlementsFromCache() {
     // Add settlements to map (will be inserted before localities for proper layer order)
     addSettlementMarkers();
     
-    // Add territory features (keeping existing logic)
-    state.allTerritoryFeatures = [
-      {
-        type: "Feature",
-        properties: {
-          name: "Gaza",
-          type: "territory"
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [34.3950, 31.4458]
-        }
-      },
-      {
-        type: "Feature",
-        properties: {
-          name: "West Bank",
-          type: "territory"
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [35.3050, 32.2873]
-        }
-      }
-    ];
-    
-    // Add territory markers to map
-    addNativeTerritoryMarkers();
+    // Territory markers are now loaded independently during initial map load
+    // No need to initialize territory data here anymore
     
     // Generate settlement checkboxes
     state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
@@ -7226,34 +7239,8 @@ function loadSettlements() {
       // Add settlements to map (will be inserted before localities for proper layer order)
       addSettlementMarkers();
       
-      // Add territory features
-      state.allTerritoryFeatures = [
-        {
-          type: "Feature",
-          properties: {
-            name: "Gaza",
-            type: "territory"
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [34.3950, 31.4458]
-          }
-        },
-        {
-          type: "Feature",
-          properties: {
-            name: "West Bank",
-            type: "territory"
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [35.3050, 32.2873]
-          }
-        }
-      ];
-      
-      // Add territory markers to map
-      addNativeTerritoryMarkers();
+      // Territory markers are now loaded independently during initial map load
+      // No need to initialize territory data here anymore
       
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
