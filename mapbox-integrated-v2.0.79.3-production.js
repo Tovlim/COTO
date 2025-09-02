@@ -1,182 +1,12 @@
 /**
- * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance - DEBUG VERSION
+ * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance
  * 
  * High-performance map with lazy loading, virtual DOM autocomplete, 
  * 7-day caching, and enhanced user experience optimizations.
  * 
  * Key Features: Lazy checkbox/autocomplete loading, recent searches,
  * circular navigation, enhanced error handling, modular architecture.
- * 
- * DEBUG: Performance monitoring enabled - see console for timing data
  */
-
-// ========================
-// PERFORMANCE DEBUGGING
-// ========================
-const PerformanceDebugger = {
-  enabled: true,
-  startTime: performance.now(),
-  functionTimings: [],
-  milestones: [],
-  
-  // Track a milestone event
-  milestone(name) {
-    if (!this.enabled) return;
-    const elapsed = performance.now() - this.startTime;
-    this.milestones.push({ name, time: elapsed });
-    console.log(`📍 [${elapsed.toFixed(2)}ms] Milestone: ${name}`);
-  },
-  
-  // Wrap a function to measure its execution time
-  wrap(fn, name, category = 'general') {
-    if (!this.enabled) return fn;
-    const perfDebugger = this;
-    
-    return function(...args) {
-      const start = performance.now();
-      const callInfo = {
-        name,
-        category,
-        startTime: start - perfDebugger.startTime
-      };
-      
-      try {
-        const result = fn.apply(this, args);
-        
-        // Handle promises
-        if (result && typeof result.then === 'function') {
-          return result.then(
-            value => {
-              perfDebugger.recordTiming(callInfo, start);
-              return value;
-            },
-            error => {
-              perfDebugger.recordTiming(callInfo, start, true);
-              throw error;
-            }
-          );
-        }
-        
-        perfDebugger.recordTiming(callInfo, start);
-        return result;
-      } catch (error) {
-        perfDebugger.recordTiming(callInfo, start, true);
-        throw error;
-      }
-    };
-  },
-  
-  // Record function timing
-  recordTiming(callInfo, startTime, hasError = false) {
-    const duration = performance.now() - startTime;
-    const timing = {
-      ...callInfo,
-      duration,
-      hasError
-    };
-    
-    this.functionTimings.push(timing);
-    
-    // Log slow functions (>50ms) or errors
-    if (duration > 50 || hasError) {
-      const icon = hasError ? '❌' : duration > 100 ? '🐌' : '⚠️';
-      console.log(`${icon} [${callInfo.startTime.toFixed(2)}ms] ${callInfo.name}: ${duration.toFixed(2)}ms${hasError ? ' (ERROR)' : ''}`);
-    }
-  },
-  
-  // Generate performance report
-  generateReport() {
-    const totalTime = performance.now() - this.startTime;
-    
-    console.group('🚀 === PERFORMANCE REPORT ===');
-    console.log(`Total time: ${totalTime.toFixed(2)}ms`);
-    console.log(`Functions tracked: ${this.functionTimings.length}`);
-    
-    // Milestones
-    if (this.milestones.length > 0) {
-      console.group('📍 Milestones');
-      console.table(this.milestones.map(m => ({
-        Event: m.name,
-        'Time (ms)': m.time.toFixed(2)
-      })));
-      console.groupEnd();
-    }
-    
-    // Top 10 slowest functions
-    const slowest = [...this.functionTimings]
-      .sort((a, b) => b.duration - a.duration)
-      .slice(0, 10);
-    
-    if (slowest.length > 0) {
-      console.group('🐌 Top 10 Slowest Functions');
-      console.table(slowest.map(f => ({
-        Function: f.name,
-        Category: f.category,
-        'Duration (ms)': f.duration.toFixed(2),
-        'Started At (ms)': f.startTime.toFixed(2),
-        Error: f.hasError ? 'Yes' : 'No'
-      })));
-      console.groupEnd();
-    }
-    
-    // Category breakdown
-    const categories = {};
-    this.functionTimings.forEach(f => {
-      if (!categories[f.category]) {
-        categories[f.category] = { count: 0, totalTime: 0, functions: new Set() };
-      }
-      categories[f.category].count++;
-      categories[f.category].totalTime += f.duration;
-      categories[f.category].functions.add(f.name);
-    });
-    
-    console.group('📊 Time by Category');
-    Object.entries(categories).forEach(([cat, data]) => {
-      console.log(`${cat}: ${data.count} calls, ${data.totalTime.toFixed(2)}ms total, ${data.functions.size} unique functions`);
-    });
-    console.groupEnd();
-    
-    // Memory usage if available
-    if (performance.memory) {
-      console.group('💾 Memory Usage');
-      console.log(`JS Heap: ${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB / ${(performance.memory.totalJSHeapSize / 1048576).toFixed(2)} MB`);
-      console.log(`Limit: ${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(2)} MB`);
-      console.groupEnd();
-    }
-    
-    console.groupEnd();
-    
-    return {
-      totalTime,
-      functionTimings: this.functionTimings,
-      milestones: this.milestones,
-      categories
-    };
-  }
-};
-
-// Track initial milestone
-PerformanceDebugger.milestone('Script started');
-
-// Auto-generate report after 8 seconds
-setTimeout(() => {
-  console.log('Auto-generating performance report...');
-  PerformanceDebugger.generateReport();
-}, 8000);
-
-// Track DOM events
-document.addEventListener('DOMContentLoaded', () => {
-  PerformanceDebugger.milestone('DOM Content Loaded');
-});
-
-window.addEventListener('load', () => {
-  PerformanceDebugger.milestone('Window Load Complete');
-});
-
-// Expose globally for manual reporting
-window.performanceReport = () => PerformanceDebugger.generateReport();
-
-console.log('🔍 Performance debugging enabled. Call performanceReport() to see results.');
 
 // ========================
 // CONFIGURATION
@@ -196,8 +26,8 @@ const APP_CONFIG = {
     idle: 5000
   },
   urls: {
-    localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
-    settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
+    localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@master/localities-0.010.geojson',
+    settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@master/settlements-0.006.geojson'
   },
   features: {
     enableCache: true,
@@ -2324,93 +2154,6 @@ function setupZoomBasedMarkerLoading() {
   }
 }
 
-// ========================
-// WRAP CRITICAL FUNCTIONS FOR PERFORMANCE MONITORING
-// ========================
-// Store original functions and create wrapped versions
-const wrappedFunctions = {};
-
-// Helper to safely wrap functions (handles const declarations)
-function wrapIfPossible(name, category, obj = window) {
-  try {
-    if (typeof obj[name] === 'function') {
-      wrappedFunctions[name] = obj[name];
-      obj[name] = PerformanceDebugger.wrap(wrappedFunctions[name], name, category);
-      return true;
-    }
-  } catch (e) {
-    // If it's a const, we can't reassign it, so store the wrapped version separately
-    if (typeof obj[name] === 'function') {
-      wrappedFunctions[name] = PerformanceDebugger.wrap(obj[name], name, category);
-      return false;
-    }
-  }
-  return false;
-}
-
-// Wrap initialization functions
-wrapIfPossible('init', 'initialization');
-wrapIfPossible('setupEvents', 'initialization');
-wrapIfPossible('setupZoomBasedMarkerLoading', 'initialization');
-wrapIfPossible('setupDropdownListeners', 'initialization');
-wrapIfPossible('setupSidebars', 'initialization');
-wrapIfPossible('setupBackToTopButton', 'initialization');
-
-// For const functions like monitorTags, we'll intercept their calls differently
-const originalMonitorTags = monitorTags;
-wrappedFunctions.monitorTags = PerformanceDebugger.wrap(originalMonitorTags, 'monitorTags', 'initialization');
-
-// Wrap data loading functions
-wrapIfPossible('loadCombinedGeoData', 'data-loading');
-wrapIfPossible('loadLocalitiesFromGeoJSON', 'data-loading');
-wrapIfPossible('loadSettlementsFromGeoJSON', 'data-loading');
-wrapIfPossible('loadSettlementsFromCache', 'data-loading');
-
-// Wrap map layer functions
-wrapIfPossible('addRegionBoundaryToMap', 'map-layers');
-wrapIfPossible('addAreaOverlayToMap', 'map-layers');
-wrapIfPossible('addNativeRegionMarkers', 'map-markers');
-wrapIfPossible('addNativeTerritoryMarkers', 'map-markers');
-wrapIfPossible('addLocalityMarkers', 'map-markers');
-wrapIfPossible('addSettlementMarkers', 'map-markers');
-
-// Wrap checkbox generation functions
-wrapIfPossible('generateLocalityCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateSettlementCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateRegionCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateAllLocalityCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateAllSettlementCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateAllCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateSingleCheckbox', 'checkbox-generation');
-
-// Wrap deferred functions
-wrapIfPossible('setupDeferredAreaControls', 'deferred-loading');
-
-// Wrap event delegate functions
-if (typeof OptimizedEventDelegate !== 'undefined' && OptimizedEventDelegate.init) {
-  try {
-    OptimizedEventDelegate.init = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
-  } catch (e) {
-    // If it fails, store wrapped version separately
-    wrappedFunctions['OptimizedEventDelegate.init'] = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
-  }
-}
-
-// Wrap idle execution functions
-if (typeof IdleExecution !== 'undefined') {
-  try {
-    const originalSchedule = IdleExecution.schedule;
-    IdleExecution.schedule = function(callback, options) {
-      const wrappedCallback = PerformanceDebugger.wrap(callback, 'IdleExecution.callback', 'idle-execution');
-      return originalSchedule.call(this, wrappedCallback, options);
-    };
-  } catch (e) {
-    console.log('Could not wrap IdleExecution.schedule');
-  }
-}
-
-console.log('✅ Critical functions wrapped for performance monitoring');
-
 // DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebars();
@@ -2418,12 +2161,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
   state.setTimer('initMonitorTags', () => {
-    // Use wrapped version if available, otherwise use original
-    if (wrappedFunctions.monitorTags) {
-      wrappedFunctions.monitorTags();
-    } else {
-      monitorTags();
-    }
+    monitorTags();
     
     // Monitoring initialized
   }, 100);
@@ -6449,7 +6187,6 @@ const map = new mapboxgl.Map({
 
 // Map load event handler with parallel operations (moved here right after map creation)
 map.on("load", () => {
-  PerformanceDebugger.milestone('Map loaded - starting initialization');
   try {
     init();
     
@@ -6478,7 +6215,6 @@ map.on("load", () => {
 
 // Listen for map idle event to detect when rendering is complete
 map.on('idle', () => {
-  PerformanceDebugger.milestone('Map idle - rendering complete');
   loadingTracker.onMapIdle();
 });
 
