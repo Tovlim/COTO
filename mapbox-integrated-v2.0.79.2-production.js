@@ -2327,65 +2327,86 @@ function setupZoomBasedMarkerLoading() {
 // ========================
 // WRAP CRITICAL FUNCTIONS FOR PERFORMANCE MONITORING
 // ========================
+// Store original functions and create wrapped versions
+const wrappedFunctions = {};
+
+// Helper to safely wrap functions (handles const declarations)
+function wrapIfPossible(name, category, obj = window) {
+  try {
+    if (typeof obj[name] === 'function') {
+      wrappedFunctions[name] = obj[name];
+      obj[name] = PerformanceDebugger.wrap(wrappedFunctions[name], name, category);
+      return true;
+    }
+  } catch (e) {
+    // If it's a const, we can't reassign it, so store the wrapped version separately
+    if (typeof obj[name] === 'function') {
+      wrappedFunctions[name] = PerformanceDebugger.wrap(obj[name], name, category);
+      return false;
+    }
+  }
+  return false;
+}
+
 // Wrap initialization functions
-init = PerformanceDebugger.wrap(init, 'init', 'initialization');
-setupEvents = PerformanceDebugger.wrap(setupEvents, 'setupEvents', 'initialization');
-setupZoomBasedMarkerLoading = PerformanceDebugger.wrap(setupZoomBasedMarkerLoading, 'setupZoomBasedMarkerLoading', 'initialization');
-setupDropdownListeners = PerformanceDebugger.wrap(setupDropdownListeners, 'setupDropdownListeners', 'initialization');
-setupSidebars = PerformanceDebugger.wrap(setupSidebars, 'setupSidebars', 'initialization');
-setupBackToTopButton = PerformanceDebugger.wrap(setupBackToTopButton, 'setupBackToTopButton', 'initialization');
-monitorTags = PerformanceDebugger.wrap(monitorTags, 'monitorTags', 'initialization');
+wrapIfPossible('init', 'initialization');
+wrapIfPossible('setupEvents', 'initialization');
+wrapIfPossible('setupZoomBasedMarkerLoading', 'initialization');
+wrapIfPossible('setupDropdownListeners', 'initialization');
+wrapIfPossible('setupSidebars', 'initialization');
+wrapIfPossible('setupBackToTopButton', 'initialization');
+
+// For const functions like monitorTags, we'll intercept their calls differently
+const originalMonitorTags = monitorTags;
+wrappedFunctions.monitorTags = PerformanceDebugger.wrap(originalMonitorTags, 'monitorTags', 'initialization');
 
 // Wrap data loading functions
-loadCombinedGeoData = PerformanceDebugger.wrap(loadCombinedGeoData, 'loadCombinedGeoData', 'data-loading');
-loadLocalitiesFromGeoJSON = PerformanceDebugger.wrap(loadLocalitiesFromGeoJSON, 'loadLocalitiesFromGeoJSON', 'data-loading');
-if (typeof loadSettlementsFromGeoJSON !== 'undefined') {
-  loadSettlementsFromGeoJSON = PerformanceDebugger.wrap(loadSettlementsFromGeoJSON, 'loadSettlementsFromGeoJSON', 'data-loading');
-}
-if (typeof loadSettlementsFromCache !== 'undefined') {
-  loadSettlementsFromCache = PerformanceDebugger.wrap(loadSettlementsFromCache, 'loadSettlementsFromCache', 'data-loading');
-}
+wrapIfPossible('loadCombinedGeoData', 'data-loading');
+wrapIfPossible('loadLocalitiesFromGeoJSON', 'data-loading');
+wrapIfPossible('loadSettlementsFromGeoJSON', 'data-loading');
+wrapIfPossible('loadSettlementsFromCache', 'data-loading');
 
 // Wrap map layer functions
-addRegionBoundaryToMap = PerformanceDebugger.wrap(addRegionBoundaryToMap, 'addRegionBoundaryToMap', 'map-layers');
-addAreaOverlayToMap = PerformanceDebugger.wrap(addAreaOverlayToMap, 'addAreaOverlayToMap', 'map-layers');
-if (typeof addNativeRegionMarkers !== 'undefined') {
-  addNativeRegionMarkers = PerformanceDebugger.wrap(addNativeRegionMarkers, 'addNativeRegionMarkers', 'map-markers');
-}
-if (typeof addNativeTerritoryMarkers !== 'undefined') {
-  addNativeTerritoryMarkers = PerformanceDebugger.wrap(addNativeTerritoryMarkers, 'addNativeTerritoryMarkers', 'map-markers');
-}
-if (typeof addLocalityMarkers !== 'undefined') {
-  addLocalityMarkers = PerformanceDebugger.wrap(addLocalityMarkers, 'addLocalityMarkers', 'map-markers');
-}
-if (typeof addSettlementMarkers !== 'undefined') {
-  addSettlementMarkers = PerformanceDebugger.wrap(addSettlementMarkers, 'addSettlementMarkers', 'map-markers');
-}
+wrapIfPossible('addRegionBoundaryToMap', 'map-layers');
+wrapIfPossible('addAreaOverlayToMap', 'map-layers');
+wrapIfPossible('addNativeRegionMarkers', 'map-markers');
+wrapIfPossible('addNativeTerritoryMarkers', 'map-markers');
+wrapIfPossible('addLocalityMarkers', 'map-markers');
+wrapIfPossible('addSettlementMarkers', 'map-markers');
 
 // Wrap checkbox generation functions
-generateLocalityCheckboxes = PerformanceDebugger.wrap(generateLocalityCheckboxes, 'generateLocalityCheckboxes', 'checkbox-generation');
-generateSettlementCheckboxes = PerformanceDebugger.wrap(generateSettlementCheckboxes, 'generateSettlementCheckboxes', 'checkbox-generation');
-generateRegionCheckboxes = PerformanceDebugger.wrap(generateRegionCheckboxes, 'generateRegionCheckboxes', 'checkbox-generation');
-generateAllLocalityCheckboxes = PerformanceDebugger.wrap(generateAllLocalityCheckboxes, 'generateAllLocalityCheckboxes', 'checkbox-generation');
-generateAllSettlementCheckboxes = PerformanceDebugger.wrap(generateAllSettlementCheckboxes, 'generateAllSettlementCheckboxes', 'checkbox-generation');
-generateAllCheckboxes = PerformanceDebugger.wrap(generateAllCheckboxes, 'generateAllCheckboxes', 'checkbox-generation');
-generateSingleCheckbox = PerformanceDebugger.wrap(generateSingleCheckbox, 'generateSingleCheckbox', 'checkbox-generation');
+wrapIfPossible('generateLocalityCheckboxes', 'checkbox-generation');
+wrapIfPossible('generateSettlementCheckboxes', 'checkbox-generation');
+wrapIfPossible('generateRegionCheckboxes', 'checkbox-generation');
+wrapIfPossible('generateAllLocalityCheckboxes', 'checkbox-generation');
+wrapIfPossible('generateAllSettlementCheckboxes', 'checkbox-generation');
+wrapIfPossible('generateAllCheckboxes', 'checkbox-generation');
+wrapIfPossible('generateSingleCheckbox', 'checkbox-generation');
 
 // Wrap deferred functions
-setupDeferredAreaControls = PerformanceDebugger.wrap(setupDeferredAreaControls, 'setupDeferredAreaControls', 'deferred-loading');
+wrapIfPossible('setupDeferredAreaControls', 'deferred-loading');
 
 // Wrap event delegate functions
 if (typeof OptimizedEventDelegate !== 'undefined' && OptimizedEventDelegate.init) {
-  OptimizedEventDelegate.init = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
+  try {
+    OptimizedEventDelegate.init = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
+  } catch (e) {
+    // If it fails, store wrapped version separately
+    wrappedFunctions['OptimizedEventDelegate.init'] = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
+  }
 }
 
 // Wrap idle execution functions
 if (typeof IdleExecution !== 'undefined') {
-  const originalSchedule = IdleExecution.schedule;
-  IdleExecution.schedule = function(callback, options) {
-    const wrappedCallback = PerformanceDebugger.wrap(callback, 'IdleExecution.callback', 'idle-execution');
-    return originalSchedule.call(this, wrappedCallback, options);
-  };
+  try {
+    const originalSchedule = IdleExecution.schedule;
+    IdleExecution.schedule = function(callback, options) {
+      const wrappedCallback = PerformanceDebugger.wrap(callback, 'IdleExecution.callback', 'idle-execution');
+      return originalSchedule.call(this, wrappedCallback, options);
+    };
+  } catch (e) {
+    console.log('Could not wrap IdleExecution.schedule');
+  }
 }
 
 console.log('✅ Critical functions wrapped for performance monitoring');
@@ -2397,7 +2418,12 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
   state.setTimer('initMonitorTags', () => {
-    monitorTags();
+    // Use wrapped version if available, otherwise use original
+    if (wrappedFunctions.monitorTags) {
+      wrappedFunctions.monitorTags();
+    } else {
+      monitorTags();
+    }
     
     // Monitoring initialized
   }, 100);
