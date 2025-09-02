@@ -155,18 +155,8 @@ const PerformanceDebugger = {
   }
 };
 
-// Helper function to get the appropriate URL (simplified or full)
-function getOptimalUrl(type, forceSimplified = false) {
-  const useSimplified = forceSimplified || APP_CONFIG.features.useSimplifiedGeometries;
-  const simplifiedKey = `${type}Simplified`;
-  
-  // Use simplified if available and enabled, otherwise fall back to full
-  if (useSimplified && APP_CONFIG.urls[simplifiedKey]) {
-    console.log(`🚀 Using simplified geometry for ${type}: ${APP_CONFIG.urls[simplifiedKey]}`);
-    return APP_CONFIG.urls[simplifiedKey];
-  }
-  
-  console.log(`📍 Using full geometry for ${type}: ${APP_CONFIG.urls[type]}`);
+// Helper function to get URL from config
+function getOptimalUrl(type) {
   return APP_CONFIG.urls[type];
 }
 
@@ -196,7 +186,6 @@ console.log('⚡ Performance optimizations applied:');
 console.log('  • CDN: Using jsDelivr instead of GitHub raw URLs');
 console.log('  • Parallel loading: Combined & locality data load simultaneously');
 console.log('  • Deferred loading: Settlement data loads only when zoomed in');
-console.log('  • Smart geometries: Simplified versions used when available');
 
 // ========================
 // CONFIGURATION
@@ -217,16 +206,13 @@ const APP_CONFIG = {
   },
   urls: {
     localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.010.geojson',
-    settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.006.geojson',
-    localitiesSimplified: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-simplified.geojson', // If this exists
-    settlementsSimplified: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-simplified.geojson' // If this exists
+    settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.006.geojson'
   },
   features: {
     enableCache: true,
     enableRecentSearches: true,
     enableMemoization: true,
-    enableLazyCheckboxes: true,
-    useSimplifiedGeometries: true // Use simplified geometries for initial load when available
+    enableLazyCheckboxes: true
   },
   breakpoints: {
     mobile: 478,
