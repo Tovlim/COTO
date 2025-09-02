@@ -1,12 +1,182 @@
 /**
- * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance
+ * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance - DEBUG VERSION
  * 
  * High-performance map with lazy loading, virtual DOM autocomplete, 
  * 7-day caching, and enhanced user experience optimizations.
  * 
  * Key Features: Lazy checkbox/autocomplete loading, recent searches,
  * circular navigation, enhanced error handling, modular architecture.
+ * 
+ * DEBUG: Performance monitoring enabled - see console for timing data
  */
+
+// ========================
+// PERFORMANCE DEBUGGING
+// ========================
+const PerformanceDebugger = {
+  enabled: true,
+  startTime: performance.now(),
+  functionTimings: [],
+  milestones: [],
+  
+  // Track a milestone event
+  milestone(name) {
+    if (!this.enabled) return;
+    const elapsed = performance.now() - this.startTime;
+    this.milestones.push({ name, time: elapsed });
+    console.log(`📍 [${elapsed.toFixed(2)}ms] Milestone: ${name}`);
+  },
+  
+  // Wrap a function to measure its execution time
+  wrap(fn, name, category = 'general') {
+    if (!this.enabled) return fn;
+    const perfDebugger = this;
+    
+    return function(...args) {
+      const start = performance.now();
+      const callInfo = {
+        name,
+        category,
+        startTime: start - perfDebugger.startTime
+      };
+      
+      try {
+        const result = fn.apply(this, args);
+        
+        // Handle promises
+        if (result && typeof result.then === 'function') {
+          return result.then(
+            value => {
+              perfDebugger.recordTiming(callInfo, start);
+              return value;
+            },
+            error => {
+              perfDebugger.recordTiming(callInfo, start, true);
+              throw error;
+            }
+          );
+        }
+        
+        perfDebugger.recordTiming(callInfo, start);
+        return result;
+      } catch (error) {
+        perfDebugger.recordTiming(callInfo, start, true);
+        throw error;
+      }
+    };
+  },
+  
+  // Record function timing
+  recordTiming(callInfo, startTime, hasError = false) {
+    const duration = performance.now() - startTime;
+    const timing = {
+      ...callInfo,
+      duration,
+      hasError
+    };
+    
+    this.functionTimings.push(timing);
+    
+    // Log slow functions (>50ms) or errors
+    if (duration > 50 || hasError) {
+      const icon = hasError ? '❌' : duration > 100 ? '🐌' : '⚠️';
+      console.log(`${icon} [${callInfo.startTime.toFixed(2)}ms] ${callInfo.name}: ${duration.toFixed(2)}ms${hasError ? ' (ERROR)' : ''}`);
+    }
+  },
+  
+  // Generate performance report
+  generateReport() {
+    const totalTime = performance.now() - this.startTime;
+    
+    console.group('🚀 === PERFORMANCE REPORT ===');
+    console.log(`Total time: ${totalTime.toFixed(2)}ms`);
+    console.log(`Functions tracked: ${this.functionTimings.length}`);
+    
+    // Milestones
+    if (this.milestones.length > 0) {
+      console.group('📍 Milestones');
+      console.table(this.milestones.map(m => ({
+        Event: m.name,
+        'Time (ms)': m.time.toFixed(2)
+      })));
+      console.groupEnd();
+    }
+    
+    // Top 10 slowest functions
+    const slowest = [...this.functionTimings]
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 10);
+    
+    if (slowest.length > 0) {
+      console.group('🐌 Top 10 Slowest Functions');
+      console.table(slowest.map(f => ({
+        Function: f.name,
+        Category: f.category,
+        'Duration (ms)': f.duration.toFixed(2),
+        'Started At (ms)': f.startTime.toFixed(2),
+        Error: f.hasError ? 'Yes' : 'No'
+      })));
+      console.groupEnd();
+    }
+    
+    // Category breakdown
+    const categories = {};
+    this.functionTimings.forEach(f => {
+      if (!categories[f.category]) {
+        categories[f.category] = { count: 0, totalTime: 0, functions: new Set() };
+      }
+      categories[f.category].count++;
+      categories[f.category].totalTime += f.duration;
+      categories[f.category].functions.add(f.name);
+    });
+    
+    console.group('📊 Time by Category');
+    Object.entries(categories).forEach(([cat, data]) => {
+      console.log(`${cat}: ${data.count} calls, ${data.totalTime.toFixed(2)}ms total, ${data.functions.size} unique functions`);
+    });
+    console.groupEnd();
+    
+    // Memory usage if available
+    if (performance.memory) {
+      console.group('💾 Memory Usage');
+      console.log(`JS Heap: ${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB / ${(performance.memory.totalJSHeapSize / 1048576).toFixed(2)} MB`);
+      console.log(`Limit: ${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(2)} MB`);
+      console.groupEnd();
+    }
+    
+    console.groupEnd();
+    
+    return {
+      totalTime,
+      functionTimings: this.functionTimings,
+      milestones: this.milestones,
+      categories
+    };
+  }
+};
+
+// Track initial milestone
+PerformanceDebugger.milestone('Script started');
+
+// Auto-generate report after 8 seconds
+setTimeout(() => {
+  console.log('Auto-generating performance report...');
+  PerformanceDebugger.generateReport();
+}, 8000);
+
+// Track DOM events
+document.addEventListener('DOMContentLoaded', () => {
+  PerformanceDebugger.milestone('DOM Content Loaded');
+});
+
+window.addEventListener('load', () => {
+  PerformanceDebugger.milestone('Window Load Complete');
+});
+
+// Expose globally for manual reporting
+window.performanceReport = () => PerformanceDebugger.generateReport();
+
+console.log('🔍 Performance debugging enabled. Call performanceReport() to see results.');
 
 // ========================
 // CONFIGURATION
@@ -2153,6 +2323,72 @@ function setupZoomBasedMarkerLoading() {
     map.on('style.load', checkZoomAndLoadMarkers);
   }
 }
+
+// ========================
+// WRAP CRITICAL FUNCTIONS FOR PERFORMANCE MONITORING
+// ========================
+// Wrap initialization functions
+init = PerformanceDebugger.wrap(init, 'init', 'initialization');
+setupEvents = PerformanceDebugger.wrap(setupEvents, 'setupEvents', 'initialization');
+setupZoomBasedMarkerLoading = PerformanceDebugger.wrap(setupZoomBasedMarkerLoading, 'setupZoomBasedMarkerLoading', 'initialization');
+setupDropdownListeners = PerformanceDebugger.wrap(setupDropdownListeners, 'setupDropdownListeners', 'initialization');
+setupSidebars = PerformanceDebugger.wrap(setupSidebars, 'setupSidebars', 'initialization');
+setupBackToTopButton = PerformanceDebugger.wrap(setupBackToTopButton, 'setupBackToTopButton', 'initialization');
+monitorTags = PerformanceDebugger.wrap(monitorTags, 'monitorTags', 'initialization');
+
+// Wrap data loading functions
+loadCombinedGeoData = PerformanceDebugger.wrap(loadCombinedGeoData, 'loadCombinedGeoData', 'data-loading');
+loadLocalitiesFromGeoJSON = PerformanceDebugger.wrap(loadLocalitiesFromGeoJSON, 'loadLocalitiesFromGeoJSON', 'data-loading');
+if (typeof loadSettlementsFromGeoJSON !== 'undefined') {
+  loadSettlementsFromGeoJSON = PerformanceDebugger.wrap(loadSettlementsFromGeoJSON, 'loadSettlementsFromGeoJSON', 'data-loading');
+}
+if (typeof loadSettlementsFromCache !== 'undefined') {
+  loadSettlementsFromCache = PerformanceDebugger.wrap(loadSettlementsFromCache, 'loadSettlementsFromCache', 'data-loading');
+}
+
+// Wrap map layer functions
+addRegionBoundaryToMap = PerformanceDebugger.wrap(addRegionBoundaryToMap, 'addRegionBoundaryToMap', 'map-layers');
+addAreaOverlayToMap = PerformanceDebugger.wrap(addAreaOverlayToMap, 'addAreaOverlayToMap', 'map-layers');
+if (typeof addNativeRegionMarkers !== 'undefined') {
+  addNativeRegionMarkers = PerformanceDebugger.wrap(addNativeRegionMarkers, 'addNativeRegionMarkers', 'map-markers');
+}
+if (typeof addNativeTerritoryMarkers !== 'undefined') {
+  addNativeTerritoryMarkers = PerformanceDebugger.wrap(addNativeTerritoryMarkers, 'addNativeTerritoryMarkers', 'map-markers');
+}
+if (typeof addLocalityMarkers !== 'undefined') {
+  addLocalityMarkers = PerformanceDebugger.wrap(addLocalityMarkers, 'addLocalityMarkers', 'map-markers');
+}
+if (typeof addSettlementMarkers !== 'undefined') {
+  addSettlementMarkers = PerformanceDebugger.wrap(addSettlementMarkers, 'addSettlementMarkers', 'map-markers');
+}
+
+// Wrap checkbox generation functions
+generateLocalityCheckboxes = PerformanceDebugger.wrap(generateLocalityCheckboxes, 'generateLocalityCheckboxes', 'checkbox-generation');
+generateSettlementCheckboxes = PerformanceDebugger.wrap(generateSettlementCheckboxes, 'generateSettlementCheckboxes', 'checkbox-generation');
+generateRegionCheckboxes = PerformanceDebugger.wrap(generateRegionCheckboxes, 'generateRegionCheckboxes', 'checkbox-generation');
+generateAllLocalityCheckboxes = PerformanceDebugger.wrap(generateAllLocalityCheckboxes, 'generateAllLocalityCheckboxes', 'checkbox-generation');
+generateAllSettlementCheckboxes = PerformanceDebugger.wrap(generateAllSettlementCheckboxes, 'generateAllSettlementCheckboxes', 'checkbox-generation');
+generateAllCheckboxes = PerformanceDebugger.wrap(generateAllCheckboxes, 'generateAllCheckboxes', 'checkbox-generation');
+generateSingleCheckbox = PerformanceDebugger.wrap(generateSingleCheckbox, 'generateSingleCheckbox', 'checkbox-generation');
+
+// Wrap deferred functions
+setupDeferredAreaControls = PerformanceDebugger.wrap(setupDeferredAreaControls, 'setupDeferredAreaControls', 'deferred-loading');
+
+// Wrap event delegate functions
+if (typeof OptimizedEventDelegate !== 'undefined' && OptimizedEventDelegate.init) {
+  OptimizedEventDelegate.init = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
+}
+
+// Wrap idle execution functions
+if (typeof IdleExecution !== 'undefined') {
+  const originalSchedule = IdleExecution.schedule;
+  IdleExecution.schedule = function(callback, options) {
+    const wrappedCallback = PerformanceDebugger.wrap(callback, 'IdleExecution.callback', 'idle-execution');
+    return originalSchedule.call(this, wrappedCallback, options);
+  };
+}
+
+console.log('✅ Critical functions wrapped for performance monitoring');
 
 // DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
@@ -6187,6 +6423,7 @@ const map = new mapboxgl.Map({
 
 // Map load event handler with parallel operations (moved here right after map creation)
 map.on("load", () => {
+  PerformanceDebugger.milestone('Map loaded - starting initialization');
   try {
     init();
     
@@ -6215,6 +6452,7 @@ map.on("load", () => {
 
 // Listen for map idle event to detect when rendering is complete
 map.on('idle', () => {
+  PerformanceDebugger.milestone('Map idle - rendering complete');
   loadingTracker.onMapIdle();
 });
 
