@@ -169,58 +169,7 @@ map.addControl(new MapResetControl(), 'top-right');
 // MAP UTILITIES
 // ========================
 // High-performance utilities
-const utils = {
-  // Cached utility functions
-  _eventCache: new Map(),
-  _styleCache: new Map(),
-  
-  triggerEvent: (el, events) => {
-    events.forEach(eventType => {
-      if (!utils._eventCache.has(eventType)) {
-        utils._eventCache.set(eventType, new Event(eventType, {bubbles: true}));
-      }
-      el.dispatchEvent(utils._eventCache.get(eventType));
-    });
-  },
-  
-  setStyles: (el, styles) => {
-    requestAnimationFrame(() => {
-      Object.assign(el.style, styles);
-    });
-  },
-  
-  calculateCentroid: (() => {
-    const cache = new Map();
-    
-    return (coordinates) => {
-      const key = JSON.stringify(coordinates);
-      if (cache.has(key)) {
-        return cache.get(key);
-      }
-      
-      let totalLat = 0, totalLng = 0, pointCount = 0;
-      
-      const processCoords = coords => {
-        if (Array.isArray(coords) && coords.length > 0) {
-          if (typeof coords[0] === 'number') {
-            totalLng += coords[0];
-            totalLat += coords[1];
-            pointCount++;
-          } else coords.forEach(processCoords);
-        }
-      };
-      
-      processCoords(coordinates);
-      const result = pointCount > 0 ? [totalLng / pointCount, totalLat / pointCount] : [0, 0];
-      
-      if (cache.size < 100) {
-        cache.set(key, result);
-      }
-      
-      return result;
-    };
-  })()
-};
+// Note: utils object is defined in 2-utilities.js
 
 // ========================
 // GLOBAL AVAILABILITY
