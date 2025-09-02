@@ -605,7 +605,7 @@ window.addEventListener('load', () => {
   
   // Fallback initialization
   state.setTimer('loadFallbackInit', () => {
-    if (!state.allLocalityFeatures.length && map.loaded()) {
+    if (!state.allLocalityFeatures.length && map.loaded) {
       try { 
         init(); 
       } catch (error) { 
@@ -616,7 +616,7 @@ window.addEventListener('load', () => {
   
   // Auto-trigger reframing with smart logic
   const checkAndReframe = () => {
-    if (map.loaded() && !map.isMoving() && checkMapMarkersFiltering()) {
+    if (map.loaded && !map.isMoving() && checkMapMarkersFiltering()) {
       state.flags.forceFilteredReframe = true;
       state.flags.isRefreshButtonAction = true;
       applyFilterToMarkers();
