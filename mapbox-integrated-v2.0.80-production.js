@@ -8,6 +8,11 @@
  * circular navigation, enhanced error handling, modular architecture.
  */
 
+// Helper function to get URL from config
+function getOptimalUrl(type) {
+  return APP_CONFIG.urls[type];
+}
+
 // ========================
 // CONFIGURATION
 // ========================
@@ -26,8 +31,8 @@ const APP_CONFIG = {
     idle: 5000
   },
   urls: {
-    localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@master/localities-0.010.geojson',
-    settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@master/settlements-0.006.geojson'
+    localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.010.geojson',
+    settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.006.geojson'
   },
   features: {
     enableCache: true,
@@ -2123,16 +2128,8 @@ function setupZoomBasedMarkerLoading() {
       // Load markers only when zoomed in enough
       markersLoaded = true;
       
-      // Load settlement data if not already loaded (localities loaded on initial load)
-      if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
-        try {
-          await loadSettlementsFromCache();
-          EventBus.emit('data:settlement-loaded');
-        } catch (error) {
-          // console.error('Error loading settlement data:', error);
-          EventBus.emit('data:settlement-error', error);
-        }
-      }
+      // Load settlement data if not already loaded
+      await loadSettlementsIfNeeded('zoom-threshold');
       
       // Layers now use opacity interpolation for smooth fade in/out
       // No need to toggle visibility - opacity handles the transition
@@ -2153,6 +2150,50 @@ function setupZoomBasedMarkerLoading() {
     map.on('style.load', checkZoomAndLoadMarkers);
   }
 }
+
+// Initialize territory data immediately (no loading required)
+function initializeTerritoryData() {
+  // Territory data is static and should always be available
+  state.allTerritoryFeatures = [
+    {
+      type: "Feature",
+      properties: {
+        name: "Gaza",
+        type: "territory"
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [34.3950, 31.4458]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "West Bank",
+        type: "territory"
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [35.3050, 32.2873]
+      }
+    }
+  ];
+}
+
+// Settlement loading helper - can be called from zoom or autocomplete interaction
+async function loadSettlementsIfNeeded(trigger = 'unknown') {
+  // Only load if not already loaded
+  if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
+    try {
+      await loadSettlementsFromCache();
+      EventBus.emit('data:settlement-loaded', { trigger });
+    } catch (error) {
+      console.warn(`Error loading settlement data (${trigger}):`, error);
+      EventBus.emit('data:settlement-error', { error, trigger });
+    }
+  }
+}
+
 
 // DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
@@ -2450,6 +2491,8 @@ window.addEventListener('beforeunload', () => {
                     searchInput.removeEventListener('focus', handleFirstFocus);
                     searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
                     loadAutocomplete('user-interaction');
+                    // Also load settlement data for autocomplete functionality
+                    loadSettlementsIfNeeded('autocomplete-focus');
                 }
             };
             
@@ -2460,6 +2503,8 @@ window.addEventListener('beforeunload', () => {
                     searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
                     searchInput.removeEventListener('focus', handleFirstFocus);
                     loadAutocomplete('user-hover');
+                    // Also load settlement data for autocomplete functionality
+                    loadSettlementsIfNeeded('autocomplete-hover');
                 }
             };
             
@@ -3867,6 +3912,8 @@ loadDataFromState() {
             const loadOnInteraction = () => {
                 if (autocompleteLoadState === 'pending') {
                     loadAutocomplete('user-interaction');
+                    // Also load settlement data for autocomplete functionality
+                    loadSettlementsIfNeeded('autocomplete-interaction');
                 }
             };
             
@@ -3918,16 +3965,14 @@ const loadingTracker = {
   requirements: {
     mapReady: false,
     dataLoaded: false,
-    markersRendered: false,
-    sidebarsReady: false,
     initialRenderComplete: false
+    // Removed markersRendered and sidebarsReady for faster loading with deferred content
+    // These will be handled asynchronously and don't need to block the loading screen
   },
   
   promises: {
     mapReady: null,
     dataLoaded: null,
-    markersRendered: null,
-    sidebarsReady: null,
     initialRenderComplete: null
   },
   
@@ -3944,30 +3989,19 @@ const loadingTracker = {
       this.resolvers.dataLoaded = resolve;
     });
     
-    this.promises.markersRendered = new Promise(resolve => {
-      this.resolvers.markersRendered = resolve;
-    });
-    
-    this.promises.sidebarsReady = new Promise(resolve => {
-      this.resolvers.sidebarsReady = resolve;
-    });
-    
     this.promises.initialRenderComplete = new Promise(resolve => {
       this.resolvers.initialRenderComplete = resolve;
     });
-    
-    // Setup sidebar observer
-    this.setupSidebarObserver();
     
     // When all promises resolve, hide loading screen
     Promise.all(Object.values(this.promises)).then(() => {
       this.hideLoadingScreen();
     });
     
-    // Fallback timer - but much shorter since we're event-driven now
+    // Fallback timer - shortened for optimized loading
     setTimeout(() => {
       this.forceComplete();
-    }, 15000);  // 15 second max wait
+    }, 8000);  // 8 second max wait
   },
   
   setupSidebarObserver() {
@@ -4014,12 +4048,7 @@ const loadingTracker = {
   
   // Called when map fires 'idle' event
   onMapIdle() {
-    // Check if markers are actually rendered
-    if (this.checkMarkersRendered()) {
-      this.markComplete('markersRendered');
-    }
-    
-    // Mark initial render complete
+    // Mark initial render complete when map is idle
     if (!this.requirements.initialRenderComplete) {
       // Small timeout to ensure paint has happened
       requestAnimationFrame(() => {
@@ -4031,19 +4060,30 @@ const loadingTracker = {
   checkMarkersRendered() {
     if (!map || !map.loaded()) return false;
     
-    // For deferred loading: Consider markers "rendered" if layers exist (even if hidden)
-    // This prevents the loading screen from waiting for zoom-deferred content
-    const markerLayers = ['locality-clusters', 'locality-points', 'settlement-clusters', 'settlement-points'];
-    const layersExist = markerLayers.every(layerId => {
+    // With deferred loading optimization, only check for initially loaded layers
+    // Settlement layers are deferred until zoom/search, so don't require them for initial load
+    const initialMarkerLayers = ['locality-clusters', 'locality-points'];
+    const initialLayersExist = initialMarkerLayers.some(layerId => {
       return map.getLayer(layerId);
     });
     
-    // If layers exist, consider markers rendered (even if deferred/hidden)
-    if (layersExist) {
+    // If initial locality layers exist, consider markers rendered for initial load
+    // Settlement layers will be added later when needed
+    if (initialLayersExist) {
       return true;
     }
     
-    // Fallback: return false if layers don't exist yet
+    // Also check if region layers exist (these load immediately)
+    const regionLayers = ['region-points', 'subregion-points'];
+    const regionLayersExist = regionLayers.some(layerId => {
+      return map.getLayer(layerId);
+    });
+    
+    if (regionLayersExist) {
+      return true;
+    }
+    
+    // Fallback: return false if no layers exist yet
     return false;
   },
   
@@ -4374,13 +4414,13 @@ async function loadDataWithOptionalCache(url, storeName, processingType) {
 
 // Simple loading functions that conditionally use caching
 const loadLocalitiesWithCache = () => loadDataWithOptionalCache(
-  APP_CONFIG.urls.localities,
+  getOptimalUrl('localities'),
   'localities',
   'processLocalities'
 );
 
 const loadSettlementsWithCache = () => loadDataWithOptionalCache(
-  APP_CONFIG.urls.settlements, 
+  getOptimalUrl('settlements'), 
   'settlements',
   'processSettlements'
 );
@@ -4555,8 +4595,8 @@ class DataLoader {
   // Load all GeoJSON data in parallel
   async loadAllData() {
     const urls = {
-      localities: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/localities-0.010.geojson',
-      settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
+      localities: getOptimalUrl('localities'),
+      settlements: getOptimalUrl('settlements')
     };
     
     try {
@@ -6185,27 +6225,46 @@ const map = new mapboxgl.Map({
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
-// Map load event handler with parallel operations (moved here right after map creation)
+// Map load event handler with optimized parallel operations
 map.on("load", () => {
   try {
     init();
     
-    // Load regions and territories immediately (they should always be visible)
-    loadCombinedGeoData();
+    // Load data in parallel for better performance
+    Promise.all([
+      // Load regions and territories immediately (they should always be visible)
+      loadCombinedGeoData(),
+      
+      // Load locality data in parallel (but don't show locality markers yet)
+      loadLocalitiesFromGeoJSON()
+    ]).then(() => {
+      // Initialize territory data immediately (should always be visible)
+      initializeTerritoryData();
+      
+      // Add territory markers right after data loads (no zoom requirement)
+      addNativeTerritoryMarkers();
+      
+      // Mark data as loaded for loading screen (markers are deferred)
+      loadingTracker.markComplete('dataLoaded');
+      
+      // Final layer optimization after all initial data is loaded
+      state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 100);
+      
+      // Mark map as ready
+      loadingTracker.markComplete('mapReady');
+      
+    }).catch(error => {
+      console.warn('Error loading initial data:', error);
+      // Mark as complete anyway to prevent infinite loading
+      loadingTracker.markComplete('dataLoaded');
+      loadingTracker.markComplete('mapReady');
+    });
     
-    // Load locality data to extract region markers (but don't show locality markers yet)
-    loadLocalitiesFromGeoJSON();
-    
-    // Mark data as loaded for loading screen (markers are deferred)
-    loadingTracker.markComplete('dataLoaded');
-    
-    // Note: Settlement and locality markers are deferred until zoom level 8+ (mobile) or 9+ (desktop)
-    
-    // Final layer optimization
-    state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 3000);
-    
-    // Mark map as ready
+    // Ensure map initialization steps are marked as complete
+    // These were moved inside Promise.all but need to be marked regardless
     loadingTracker.markComplete('mapReady');
+    
+    // Note: Settlement data loading is now deferred until zoom threshold is reached
     
   } catch (error) {
     // Force complete on error to prevent infinite loading
@@ -6815,9 +6874,8 @@ async function loadLocalitiesFromGeoJSON() {
       state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
       
       
-      // Load settlements after locality/region layers are created for proper layer ordering
-      // Use timer to ensure batched layer operations complete first
-      state.setTimer('loadSettlements', loadSettlementsFromCache, 300);
+      // Settlement loading is now deferred until zoom threshold is reached
+      // This improves initial page load performance significantly
       
       // Refresh autocomplete if it exists
       if (window.refreshAutocomplete) {
@@ -6866,34 +6924,8 @@ async function loadSettlementsFromCache() {
     // Add settlements to map (will be inserted before localities for proper layer order)
     addSettlementMarkers();
     
-    // Add territory features (keeping existing logic)
-    state.allTerritoryFeatures = [
-      {
-        type: "Feature",
-        properties: {
-          name: "Gaza",
-          type: "territory"
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [34.3950, 31.4458]
-        }
-      },
-      {
-        type: "Feature",
-        properties: {
-          name: "West Bank",
-          type: "territory"
-        },
-        geometry: {
-          type: "Point",
-          coordinates: [35.3050, 32.2873]
-        }
-      }
-    ];
-    
-    // Add territory markers to map
-    addNativeTerritoryMarkers();
+    // Territory markers are now loaded independently during initial map load
+    // No need to initialize territory data here anymore
     
     // Generate settlement checkboxes
     state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
@@ -6905,7 +6937,7 @@ async function loadSettlementsFromCache() {
 
 // Load and add settlement markers with new color
 function loadSettlements() {
-  fetch('https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson')
+  fetch(getOptimalUrl('settlements'))
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -6920,34 +6952,8 @@ function loadSettlements() {
       // Add settlements to map (will be inserted before localities for proper layer order)
       addSettlementMarkers();
       
-      // Add territory features
-      state.allTerritoryFeatures = [
-        {
-          type: "Feature",
-          properties: {
-            name: "Gaza",
-            type: "territory"
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [34.3950, 31.4458]
-          }
-        },
-        {
-          type: "Feature",
-          properties: {
-            name: "West Bank",
-            type: "territory"
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [35.3050, 32.2873]
-          }
-        }
-      ];
-      
-      // Add territory markers to map
-      addNativeTerritoryMarkers();
+      // Territory markers are now loaded independently during initial map load
+      // No need to initialize territory data here anymore
       
       // Generate settlement checkboxes
       state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
