@@ -44,11 +44,11 @@ class OptimizedEventManager {
     if (target.matches('[checkbox-filter] input[type="checkbox"]') ||
         target.matches('[fs-cmsfilter-element="filters"] input') ||
         target.matches('[fs-cmsfilter-element="filters"] select')) {
-      this.debounce('filterUpdate', () => {
+      this.debounce(() => {
         if (window.handleFilterUpdate) {
           window.handleFilterUpdate();
         }
-      }, 50);
+      }, 50, 'filterUpdate')();
     }
     
     // Handle sidebar toggles
@@ -56,11 +56,11 @@ class OptimizedEventManager {
         target.matches('[data-auto-second-left-sidebar="true"]')) {
       if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
         const sidebarType = target.matches('[data-auto-second-left-sidebar="true"]') ? 'SecondLeft' : 'Left';
-        this.debounce('sidebarUpdate', () => {
+        this.debounce(() => {
           if (window.toggleSidebar) {
             window.toggleSidebar(sidebarType, true);
           }
-        }, 50);
+        }, 50, 'sidebarUpdate')();
       }
     }
   }
@@ -71,23 +71,23 @@ class OptimizedEventManager {
     
     // Handle search inputs
     if (target.matches('[searchbox-filter]')) {
-      this.debounce(`search-${target.id || 'default'}`, () => {
+      this.debounce(() => {
         // Trigger search functionality
         const searchEvent = new CustomEvent('optimizedSearch', {
           detail: { value: target.value, element: target }
         });
         target.dispatchEvent(searchEvent);
-      }, 150);
+      }, 150, `search-${target.id || 'default'}`)();
     }
     
     // Handle other input types that need sidebar updates
     if (target.matches('[data-auto-sidebar="true"]') && ['text', 'search'].includes(target.type)) {
       if (window.innerWidth > APP_CONFIG.breakpoints.tablet) {
-        this.debounce('sidebarUpdate', () => {
+        this.debounce(() => {
           if (window.toggleSidebar) {
             window.toggleSidebar('Left', true);
           }
-        }, 50);
+        }, 50, 'sidebarUpdate')();
       }
     }
   }
@@ -108,16 +108,16 @@ class OptimizedEventManager {
         state.flags.forceFilteredReframe = true;
         state.flags.isRefreshButtonAction = true;
         
-        this.debounce('applyFilter', () => {
+        this.debounce(() => {
           if (window.applyFilterToMarkers) {
             window.applyFilterToMarkers();
-            this.debounce('applyFilterCleanup', () => {
+            this.debounce(() => {
               if (window.checkAndToggleFilteredElements) {
                 window.checkAndToggleFilteredElements();
               }
-            }, APP_CONFIG.timeouts.debounce);
+            }, APP_CONFIG.timeouts.debounce, 'applyFilterCleanup')();
           }
-        }, 50);
+        }, 50, 'applyFilter')();
       }
     }
     
@@ -169,7 +169,7 @@ class OptimizedEventManager {
   setupOptimizedResize() {
     let resizeTimer;
     const handleResize = () => {
-      this.debounce('windowResize', () => {
+      this.debounce(() => {
         // Update mobile detection
         FeatureDetection.isMobile = window.innerWidth <= APP_CONFIG.breakpoints.mobile;
         
@@ -179,7 +179,7 @@ class OptimizedEventManager {
           height: window.innerHeight,
           isMobile: FeatureDetection.isMobile
         });
-      }, 250);
+      }, 250, 'windowResize')();
     };
     
     window.addEventListener('resize', handleResize, { passive: true });
@@ -230,15 +230,18 @@ class OptimizedEventManager {
   }
   
   // Debounce utility
-  debounce(id, callback, delay) {
-    if (this.debounceTimers.has(id)) {
-      clearTimeout(this.debounceTimers.get(id));
-    }
-    
-    this.debounceTimers.set(id, setTimeout(() => {
-      this.debounceTimers.delete(id);
-      callback();
-    }, delay));
+  debounce(fn, delay, id) {
+    return (...args) => {
+      const existingTimer = this.debounceTimers.get(id);
+      if (existingTimer) clearTimeout(existingTimer);
+      
+      const timer = setTimeout(() => {
+        this.debounceTimers.delete(id);
+        fn(...args);
+      }, delay);
+      
+      this.debounceTimers.set(id, timer);
+    };
   }
   
   // Clean up all listeners for an element
