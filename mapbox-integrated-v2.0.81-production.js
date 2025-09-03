@@ -8,6 +8,110 @@
  * circular navigation, enhanced error handling, modular architecture.
  */
 
+// ========================
+// IMMEDIATE SIDEBAR FUNCTIONALITY
+// ========================
+// This runs immediately to make sidebars responsive before anything else loads
+(function initializeImmediateSidebars() {
+  // Minimal sidebar toggle functionality - works instantly
+  function toggleSidebar(side, forceOpen) {
+    // Map sidebar names to IDs (compatible with enhanced version)
+    const sidebarMap = {
+      'Left': 'leftsidebar',
+      'SecondLeft': 'secondleftsidebar', 
+      'Right': 'right-sidebar'
+    };
+    
+    const sidebarId = sidebarMap[side] || (side === 'Right' ? 'right-sidebar' : 'leftsidebar');
+    const sidebar = document.getElementById(sidebarId);
+    
+    if (!sidebar) return false;
+    
+    // Use 'is-show' class to match enhanced version
+    const isOpen = sidebar.classList.contains('is-show');
+    const shouldOpen = forceOpen !== undefined ? forceOpen : !isOpen;
+    
+    if (shouldOpen) {
+      sidebar.classList.add('is-show');
+      // Basic margin adjustment for immediate visual feedback
+      if (window.innerWidth > 478) {
+        const marginProp = side === 'Right' ? 'marginRight' : 'marginLeft';
+        sidebar.style[marginProp] = '0';
+      }
+    } else {
+      sidebar.classList.remove('is-show');
+      // Hide sidebar
+      if (window.innerWidth > 478) {
+        const marginProp = side === 'Right' ? 'marginRight' : 'marginLeft';
+        sidebar.style[marginProp] = '-350px'; // Default width assumption
+      }
+    }
+    
+    return shouldOpen;
+  }
+  
+  // Attach to global scope immediately
+  window.toggleSidebar = toggleSidebar;
+  
+  // Setup click handlers as soon as possible
+  function setupImmediateHandlers() {
+    // Left sidebar (menu button)
+    const menuButton = document.getElementById('menu-button');
+    if (menuButton && !menuButton.dataset.immediateHandler) {
+      menuButton.addEventListener('click', () => toggleSidebar('Left'));
+      menuButton.dataset.immediateHandler = 'true';
+    }
+    
+    // Right sidebar button
+    const rightButton = document.getElementById('right-sidebar-button');
+    if (rightButton && !rightButton.dataset.immediateHandler) {
+      rightButton.addEventListener('click', () => toggleSidebar('Right'));
+      rightButton.dataset.immediateHandler = 'true';
+    }
+    
+    // Close buttons
+    const closeButtons = document.querySelectorAll('.close-sidebar-button');
+    closeButtons.forEach(btn => {
+      if (!btn.dataset.immediateHandler) {
+        const sidebar = btn.closest('[id$="-sidebar"]');
+        if (sidebar) {
+          const side = sidebar.id.includes('right') ? 'Right' : 'Left';
+          btn.addEventListener('click', () => toggleSidebar(side, false));
+          btn.dataset.immediateHandler = 'true';
+        }
+      }
+    });
+  }
+  
+  // Try to setup immediately if elements exist
+  setupImmediateHandlers();
+  
+  // Also try on DOMContentLoaded in case elements don't exist yet
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupImmediateHandlers, { once: true });
+  }
+  
+  // Add minimal loading indicator to sidebars
+  function addLoadingStates() {
+    const sidebars = document.querySelectorAll('#left-sidebar, #right-sidebar');
+    sidebars.forEach(sidebar => {
+      if (!sidebar.querySelector('.sidebar-loading-indicator')) {
+        const existingContent = sidebar.querySelector('.sidebar-content, .sidebar-wrapper');
+        if (existingContent && existingContent.children.length === 0) {
+          existingContent.innerHTML = '<div class="sidebar-loading-indicator" style="padding: 20px; text-align: center; opacity: 0.6;">Loading...</div>';
+        }
+      }
+    });
+  }
+  
+  // Add loading states if sidebars exist but are empty
+  if (document.readyState !== 'loading') {
+    addLoadingStates();
+  } else {
+    document.addEventListener('DOMContentLoaded', addLoadingStates, { once: true });
+  }
+})();
+
 // Helper function to get URL from config
 function getOptimalUrl(type) {
   return APP_CONFIG.urls[type];
@@ -6566,8 +6670,8 @@ const closeSidebar = (side) => {
   sidebar.style.pointerEvents = '';
 };
 
-// Toggle sidebar with improved caching and helper functions
-const toggleSidebar = (side, show = null) => {
+// Enhanced toggle sidebar (Phase 2) - Replaces immediate version when ready
+const enhancedToggleSidebar = (side, show = null) => {
   const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar) return;
   
@@ -6608,6 +6712,13 @@ const toggleSidebar = (side, show = null) => {
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
+
+// Upgrade the immediate sidebar to enhanced version when ready
+setTimeout(() => {
+  if (typeof enhancedToggleSidebar === 'function') {
+    window.toggleSidebar = enhancedToggleSidebar;
+  }
+}, 100);
 
 // Global function to frame region boundaries (used by both markers and autocomplete)
 function frameRegionBoundary(regionName) {
@@ -8142,6 +8253,10 @@ function setupControls() {
 
 // Sidebar setup with better performance and cleaner management
 function setupSidebars() {
+  // Phase 2: Enhanced sidebar functionality (after immediate toggle is already working)
+  // Remove any loading indicators since content is ready
+  document.querySelectorAll('.sidebar-loading-indicator').forEach(el => el.remove());
+  
   let zIndex = 1000;
   
   const setupSidebarElement = (side) => {
@@ -8150,7 +8265,9 @@ function setupSidebars() {
     const close = $id(`${side}SidebarClose`);
     
     if (!sidebar || !tab || !close) return false;
+    // Skip if already setup OR if immediate handlers are present
     if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
+    if (tab.dataset.immediateHandler === 'true') return true; // Skip if immediate handler exists
     
     // Batch style applications
     const cssTransitionProperty = side === 'SecondLeft' ? 'margin-left' : `margin-${side.toLowerCase()}`;
