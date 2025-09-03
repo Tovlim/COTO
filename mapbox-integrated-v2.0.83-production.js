@@ -2301,8 +2301,7 @@ async function loadSettlementsIfNeeded(trigger = 'unknown') {
 
 // DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
-  // COMMENTED OUT FOR TESTING IMMEDIATE FUNCTIONALITY ONLY
-  // setupSidebars();
+  setupSidebars();
   setupBackToTopButton();
   
   // Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
@@ -2319,8 +2318,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', () => {
-  // COMMENTED OUT FOR TESTING IMMEDIATE FUNCTIONALITY ONLY
-  // setupSidebars();
+  setupSidebars();
   setupBackToTopButton();
   
   state.setTimer('loadFallbackInit', () => {
@@ -6716,12 +6714,11 @@ const enhancedToggleSidebar = (side, show = null) => {
 };
 
 // Upgrade the immediate sidebar to enhanced version when ready
-// COMMENTED OUT FOR TESTING IMMEDIATE FUNCTIONALITY ONLY
-// setTimeout(() => {
-//   if (typeof enhancedToggleSidebar === 'function') {
-//     window.toggleSidebar = enhancedToggleSidebar;
-//   }
-// }, 100);
+setTimeout(() => {
+  if (typeof enhancedToggleSidebar === 'function') {
+    window.toggleSidebar = enhancedToggleSidebar;
+  }
+}, 100);
 
 // Global function to frame region boundaries (used by both markers and autocomplete)
 function frameRegionBoundary(regionName) {
