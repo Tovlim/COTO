@@ -8543,9 +8543,14 @@ if (document.readyState === 'loading') {
       elements.forEach(element => {
         if (element.dataset.mapboxCheckboxListenerAdded === 'true') return;
         
-        element.addEventListener('click', function(e) {
-          // Generate all checkboxes when Location tab is clicked
+        element.addEventListener('click', async function(e) {
+          // Load settlement data and generate all checkboxes when Location tab is clicked
           if (APP_CONFIG.features.enableLazyCheckboxes) {
+            
+            // Load settlement data if not already loaded
+            await loadSettlementsIfNeeded('tab-click');
+            
+            // Generate all checkboxes (including settlements now that data is loaded)
             generateAllCheckboxes();
           }
         });
@@ -8555,11 +8560,16 @@ if (document.readyState === 'loading') {
     });
     
     // Also use event delegation for dynamically added tabs
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', async function(e) {
       const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
                          e.target.closest('#w-tabs-0-data-w-tab-2');
       
       if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
+        
+        // Load settlement data if not already loaded
+        await loadSettlementsIfNeeded('tab-click');
+        
+        // Generate all checkboxes (including settlements now that data is loaded)
         generateAllCheckboxes();
       }
     });
