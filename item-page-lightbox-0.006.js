@@ -559,30 +559,38 @@ function processAllFancyBoxGroups() {
     if (lightboxImageValue === 'true' || lightboxImageValue === 'first') {
       const img = linkElement.querySelector('img');
       if (img) {
-        // Set FancyBox data attribute for grouping (use a default group name)
-        linkElement.setAttribute('data-fancybox', 'item-gallery');
-        
-        // Set href to the full-size image (from img src)
+        // Get the full-size image URL
         const fullSizeImageUrl = img.getAttribute('src');
-        if (fullSizeImageUrl) {
+        const hrefValue = linkElement.getAttribute('href');
+        
+        // Only process if there's actually a valid image URL (skip empty images)
+        if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '' && fullSizeImageUrl !== 'about:blank') {
+          // Set FancyBox data attribute for grouping (use a default group name)
+          linkElement.setAttribute('data-fancybox', 'item-gallery');
+          
+          // Set href to the full-size image
           linkElement.setAttribute('href', fullSizeImageUrl);
+          
+          // Add any additional FancyBox attributes if needed
+          linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
+          
+          // Set thumbnail for FancyBox gallery view
+          linkElement.setAttribute('data-thumb', fullSizeImageUrl);
+          
+          // Remember the first image link for the opener
+          if (lightboxImageValue === 'first') {
+            firstImageLink = linkElement;
+          }
+          
+          needsFancyBoxInit = true;
         }
-        
-        // Add any additional FancyBox attributes if needed
-        linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
-        
-        // Remember the first image link for the opener
-        if (lightboxImageValue === 'first') {
-          firstImageLink = linkElement;
-        }
-        
-        needsFancyBoxInit = true;
+        // If image URL is empty, skip this item completely - don't add to FancyBox
       }
     }
   });
   
   // Process opener links
-  const openerLinks = mainContainer.querySelectorAll('a[lightbox-image="open"]');
+  const openerLinks = mainContainer.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
   openerLinks.forEach((openerLink) => {
     // Skip hidden opener links
@@ -591,18 +599,20 @@ function processAllFancyBoxGroups() {
       return;
     }
     
-    // If we found a first image, make the opener trigger it
-    if (firstImageLink) {
-      openerLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        // Trigger click on the first image to open the gallery
-        firstImageLink.click();
-      });
-      
-      // Optional: Add visual indication that this is clickable
-      openerLink.style.cursor = 'pointer';
-      
-      needsFancyBoxInit = true;
+    const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    
+    if (triggerGroup || firstImageLink) {
+      // Check if we already set up this opener
+      if (!openerLink.hasAttribute('data-opener-setup')) {
+        // Store fallback info for event delegation
+        if (!triggerGroup && firstImageLink) {
+          openerLink.setAttribute('data-fallback-click', 'true');
+        }
+        
+        openerLink.setAttribute('data-opener-setup', 'true');
+        openerLink.style.cursor = 'pointer';
+        needsFancyBoxInit = true;
+      }
     }
   });
   
