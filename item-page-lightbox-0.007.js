@@ -532,7 +532,22 @@ function processFancyBoxGroups(item) {
 
 // Process all FancyBox groups on the page
 function processAllFancyBoxGroups() {
-  // For item pages, process the entire document as one group
+  // For item pages, look for items with wfu-lightbox-group first, then fallback to main container
+  const itemsWithGroups = document.querySelectorAll('[wfu-lightbox-group]');
+  
+  if (itemsWithGroups.length > 0) {
+    // Process each grouped item individually
+    let needsFancyBoxInit = false;
+    itemsWithGroups.forEach(item => {
+      const processed = processFancyBoxGroups(item);
+      if (processed) {
+        needsFancyBoxInit = true;
+      }
+    });
+    return needsFancyBoxInit;
+  }
+  
+  // Fallback: For item pages without wfu-lightbox-group, process the entire document as one group
   const mainContainer = document.querySelector('.cms-page-wrap') || document.body;
   
   // Check if we have lightbox images
@@ -565,8 +580,9 @@ function processAllFancyBoxGroups() {
         
         // Only process if there's actually a valid image URL (skip empty images)
         if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '' && fullSizeImageUrl !== 'about:blank') {
-          // Set FancyBox data attribute for grouping (use a default group name)
-          linkElement.setAttribute('data-fancybox', 'item-gallery');
+          // Set FancyBox data attribute for grouping - use the same group as wfu-lightbox-group or fallback
+          const groupName = DOMCache.container.getAttribute('wfu-lightbox-group') || 'item-gallery';
+          linkElement.setAttribute('data-fancybox', groupName);
           
           // Set href to the full-size image
           linkElement.setAttribute('href', fullSizeImageUrl);
