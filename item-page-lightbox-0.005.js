@@ -1,4 +1,4 @@
-// 🚀 ITEM PAGE - FancyBox 6 + Tabs + Multi-Reporter v1.0
+// 🚀 ITEM PAGE - Enhanced FancyBox 6 + Tabs + Multi-Reporter v2.0
 // 
 // ✅ FEATURES:
 // • FancyBox 6 grouping for ALL images on item page
@@ -7,11 +7,14 @@
 // • Parent-scoped tab system with data-tab and data-tab-content attributes
 // • Multi-reporter display with modal functionality
 // • Single page load - no auto-loading or filtering needed
+// • Enhanced share button functionality with native mobile share API
 //
 // ⚡ PERFORMANCE OPTIMIZATIONS:
-// • Single initialization on page load
+// • Cached DOM selectors for improved performance
+// • Enhanced state tracking using data attributes
 // • Efficient parent-scoped tab queries
-// • Mobile-optimized timing
+// • Mobile-optimized timing and retry logic
+// • Enhanced FancyBox initialization with mobile reliability
 //
 // 📑 TAB SYSTEM:
 // • Parent-scoped tabs using data-tab and data-tab-content attributes
@@ -19,6 +22,7 @@
 // • Click active tab to close it (toggle behavior)
 // • Automatic tab initialization for all CMS items
 // • Mobile-optimized tab switching
+// • Re-initializes tabs after filtering (same as FancyBox)
 //
 // 👥 MULTI-REPORTER SYSTEM:
 // • Automatically detects number of reporters per report
@@ -31,26 +35,96 @@
 //
 // 📱 MOBILE OPTIMIZATIONS:
 // • Enhanced timing for mobile browsers
+// • Multiple FancyBox re-initialization attempts
+// • Aggressive retry logic for stubborn lightboxes
 // • Single initialization pass for all features
 
 // Global state management
 let lazyLoadInstance = null;
 let processedTabItems = new WeakSet();
 let processedReporterItems = new WeakSet();
+let needsFancyBoxReInit = false;
+let reInitTimeout = null;
+
+// Enhanced state tracking using data attributes
+const ProcessingState = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed'
+};
 
 // Configuration
 const INIT_DELAY = 500; // Base initialization delay
 const MOBILE_INIT_DELAY = 800; // Mobile initialization delay
+const REINIT_DEBOUNCE_DELAY = 200; // Base delay before re-initializing FancyBox
+const MOBILE_REINIT_DELAYS = [300, 600, 1200]; // Mobile retry delays
 
-// Device detection
-const isMobileDevice = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+// Device detection (cached for performance)
+let isMobileDevice = null;
+function getIsMobileDevice() {
+  if (isMobileDevice === null) {
+    isMobileDevice = typeof isMobile !== 'undefined' ? isMobile : (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+  }
+  return isMobileDevice;
+}
+
+// Cached DOM selectors for performance
+const DOMCache = {
+  mainContainer: null,
+  
+  // Lazy getters
+  get container() {
+    if (!this.mainContainer) {
+      this.mainContainer = document.querySelector('.cms-page-wrap') || document.body;
+    }
+    return this.mainContainer;
+  },
+  
+  // Clear cache when DOM changes significantly
+  clearCache() {
+    this.mainContainer = null;
+  }
+};
+
+// Check if item needs processing based on state attributes
+function needsProcessing(item, type) {
+  const stateAttr = item.getAttribute(`data-${type}-state`);
+  return stateAttr !== ProcessingState.COMPLETED;
+}
+
+// Update processing state
+function updateProcessingState(item, type, state) {
+  item.setAttribute(`data-${type}-state`, state);
+  
+  // Update main processing state if all subsystems are complete
+  if (state === ProcessingState.COMPLETED) {
+    const lightboxDone = item.getAttribute('data-lightbox-state') === ProcessingState.COMPLETED;
+    const tabsDone = item.getAttribute('data-tabs-state') === ProcessingState.COMPLETED;
+    const reportersDone = item.getAttribute('data-reporters-state') === ProcessingState.COMPLETED;
+    const lazyDone = item.getAttribute('data-lazy-state') === ProcessingState.COMPLETED;
+    
+    if (lightboxDone && tabsDone && reportersDone && lazyDone) {
+      item.setAttribute('data-processing-state', ProcessingState.COMPLETED);
+    }
+  } else if (state === ProcessingState.PROCESSING) {
+    item.setAttribute('data-processing-state', ProcessingState.PROCESSING);
+  }
+}
 
 // TAB SYSTEM
 function initializeTabs(cmsItem) {
-  // Check if we've already processed tabs for this item
-  if (processedTabItems.has(cmsItem)) {
+  // Check state attribute first
+  if (!needsProcessing(cmsItem, 'tabs')) {
     return;
   }
+  
+  // Check if we've already processed tabs for this item
+  if (processedTabItems.has(cmsItem)) {
+    updateProcessingState(cmsItem, 'tabs', ProcessingState.COMPLETED);
+    return;
+  }
+  
+  updateProcessingState(cmsItem, 'tabs', ProcessingState.PROCESSING);
   
   // Find all tabs within this CMS item
   const tabs = cmsItem.querySelectorAll('[data-tab]');
@@ -132,6 +206,7 @@ function initializeTabs(cmsItem) {
   
   // Mark this item as processed for tabs
   processedTabItems.add(cmsItem);
+  updateProcessingState(cmsItem, 'tabs', ProcessingState.COMPLETED);
 }
 
 // Process all tabs on the page
@@ -165,10 +240,18 @@ function processAllTabs() {
 
 // MULTI-REPORTER SYSTEM
 function initializeReporters(reportItem) {
-  // Check if we've already processed reporters for this item
-  if (processedReporterItems.has(reportItem)) {
+  // Check state attribute first
+  if (!needsProcessing(reportItem, 'reporters')) {
     return;
   }
+  
+  // Check if we've already processed reporters for this item
+  if (processedReporterItems.has(reportItem)) {
+    updateProcessingState(reportItem, 'reporters', ProcessingState.COMPLETED);
+    return;
+  }
+  
+  updateProcessingState(reportItem, 'reporters', ProcessingState.PROCESSING);
   
   // Find reporter elements within this report
   const reportersWrap = reportItem.querySelector('[reporters-wrap="true"]');
@@ -187,6 +270,7 @@ function initializeReporters(reportItem) {
     multiReporterWrap.style.display = 'none';
     reporterListWrap.style.display = 'flex';
     processedReporterItems.add(reportItem);
+    updateProcessingState(reportItem, 'reporters', ProcessingState.COMPLETED);
     return;
   }
   
@@ -286,6 +370,7 @@ function initializeReporters(reportItem) {
   
   // Mark this item as processed for reporters
   processedReporterItems.add(reportItem);
+  updateProcessingState(reportItem, 'reporters', ProcessingState.COMPLETED);
   
   // Update LazyLoad for new images
   if (lazyLoadInstance) {
@@ -311,11 +396,55 @@ function processAllReporters() {
 
 // FancyBox 6 grouping system based on attributes
 function processFancyBoxGroups(item) {
+  // First check if already configured
+  const alreadyConfigured = item.querySelector('[data-fancybox-configured="true"]');
+  if (alreadyConfigured) {
+    // Clean up any empty FancyBox images from previous configurations
+    const existingFancyboxItems = item.querySelectorAll('[data-fancybox]');
+    
+    existingFancyboxItems.forEach(fancyboxLink => {
+      const img = fancyboxLink.querySelector('img');
+      if (img) {
+        const srcValue = img.getAttribute('src');
+        
+        // Remove FancyBox attributes from empty images
+        if (!srcValue || srcValue.trim() === '' || srcValue === 'about:blank') {
+          fancyboxLink.removeAttribute('data-fancybox');
+          fancyboxLink.removeAttribute('data-caption');
+          fancyboxLink.removeAttribute('data-thumb');
+        }
+      }
+    });
+    
+    // Mark opener links as ready (event delegation handles clicks)
+    const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
+    if (openerLinks.length > 0) {
+      openerLinks.forEach((openerLink) => {
+        const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+        if (triggerGroup && !openerLink.hasAttribute('data-opener-setup')) {
+          openerLink.setAttribute('data-opener-setup', 'true');
+          openerLink.style.cursor = 'pointer';
+        }
+      });
+    }
+    
+    updateProcessingState(item, 'lightbox', ProcessingState.COMPLETED);
+    return true; // Already configured, just need FancyBox re-init
+  }
+  
   // Check if this item has lightbox group attribute
   const groupAttribute = item.getAttribute('wfu-lightbox-group');
   if (!groupAttribute) {
+    updateProcessingState(item, 'lightbox', ProcessingState.COMPLETED);
     return false;
   }
+  
+  // Check if needs processing based on state
+  if (!needsProcessing(item, 'lightbox')) {
+    return false;
+  }
+  
+  updateProcessingState(item, 'lightbox', ProcessingState.PROCESSING);
   
   let hasProcessedGroups = false;
   let firstImageLink = null;
@@ -336,30 +465,38 @@ function processFancyBoxGroups(item) {
     if (lightboxImageValue === 'true' || lightboxImageValue === 'first') {
       const img = linkElement.querySelector('img');
       if (img) {
-        // Set FancyBox data attribute for grouping
-        linkElement.setAttribute('data-fancybox', groupAttribute);
-        
-        // Set href to the full-size image (from img src)
+        // Get the full-size image URL
         const fullSizeImageUrl = img.getAttribute('src');
-        if (fullSizeImageUrl) {
+        const hrefValue = linkElement.getAttribute('href');
+        
+        // Only process if there's actually a valid image URL (skip empty images)
+        if (fullSizeImageUrl && fullSizeImageUrl.trim() !== '' && fullSizeImageUrl !== 'about:blank') {
+          // Set FancyBox data attribute for grouping
+          linkElement.setAttribute('data-fancybox', groupAttribute);
+          
+          // Set href to the full-size image
           linkElement.setAttribute('href', fullSizeImageUrl);
+          
+          // Add any additional FancyBox attributes if needed
+          linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
+          
+          // Set thumbnail for FancyBox gallery view
+          linkElement.setAttribute('data-thumb', fullSizeImageUrl);
+          
+          // Remember the first image link for the opener
+          if (lightboxImageValue === 'first') {
+            firstImageLink = linkElement;
+          }
+          
+          hasProcessedGroups = true;
         }
-        
-        // Add any additional FancyBox attributes if needed
-        linkElement.setAttribute('data-caption', img.getAttribute('alt') || '');
-        
-        // Remember the first image link for the opener
-        if (lightboxImageValue === 'first') {
-          firstImageLink = linkElement;
-        }
-        
-        hasProcessedGroups = true;
+        // If image URL is empty, skip this item completely - don't add to FancyBox
       }
     }
   });
   
-  // Second pass: Process opener links
-  const openerLinks = item.querySelectorAll('a[lightbox-image="open"]');
+  // Second pass: Mark opener links as ready (event delegation handles clicks)
+  const openerLinks = item.querySelectorAll('a[lightbox-image="open"], a[lightbox-image="opener"]');
   
   openerLinks.forEach((openerLink) => {
     // Skip hidden opener links
@@ -368,20 +505,27 @@ function processFancyBoxGroups(item) {
       return;
     }
     
-    // If we found a first image, make the opener trigger it
-    if (firstImageLink) {
-      openerLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        // Trigger click on the first image to open the gallery
-        firstImageLink.click();
-      });
-      
-      // Optional: Add visual indication that this is clickable
-      openerLink.style.cursor = 'pointer';
-      
-      hasProcessedGroups = true;
+    const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    
+    if (triggerGroup || firstImageLink) {
+      // Check if we already set up this opener
+      if (!openerLink.hasAttribute('data-opener-setup')) {
+        // Store fallback info for event delegation
+        if (!triggerGroup && firstImageLink) {
+          openerLink.setAttribute('data-fallback-click', 'true');
+        }
+        
+        openerLink.setAttribute('data-opener-setup', 'true');
+        openerLink.style.cursor = 'pointer';
+        hasProcessedGroups = true;
+      }
     }
   });
+  
+  // Mark as completed
+  if (hasProcessedGroups) {
+    updateProcessingState(item, 'lightbox', ProcessingState.COMPLETED);
+  }
   
   return hasProcessedGroups;
 }
@@ -465,36 +609,107 @@ function processAllFancyBoxGroups() {
   return needsFancyBoxInit;
 }
 
-// Initialize FancyBox
-function initializeFancyBox() {
-  if (window.Fancybox) {
-    // FancyBox 6 initialization with thumbnails
-    Fancybox.bind('[data-fancybox]', {
-      // Enable thumbnails
-      Thumbs: {
-        autoStart: true,
-        axis: 'x'
-      },
-      // Mobile optimizations
-      touch: {
-        vertical: true,
-        momentum: true
-      },
-      // Performance settings
-      preload: 1,
-      // UI customizations
-      Toolbar: {
-        display: {
-          left: ['infobar'],
-          middle: [],
-          right: ['slideshow', 'thumbs', 'close']
+// Enhanced FancyBox re-initialization with mobile-aggressive retry logic
+function scheduleFancyBoxReInit() {
+  if (reInitTimeout) {
+    clearTimeout(reInitTimeout);
+  }
+  
+  const baseDelay = getIsMobileDevice() ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
+  
+  reInitTimeout = setTimeout(() => {
+    if (needsFancyBoxReInit) {
+      performFancyBoxReInit();
+    }
+    reInitTimeout = null;
+  }, baseDelay);
+}
+
+function performFancyBoxReInit(retryAttempt = 0) {
+  try {
+    if (window.Fancybox) {
+      // Check if FancyBox is already working before re-initializing
+      const existingFancyboxElements = document.querySelectorAll('[data-fancybox]');
+      
+      if (existingFancyboxElements.length > 0 && retryAttempt > 0) {
+        // On mobile retries, only re-init if there are actually new elements that need binding
+        const unboundElements = Array.from(existingFancyboxElements).filter(el => {
+          // Check if this element already has FancyBox events bound
+          return !el.hasAttribute('data-fancybox-bound');
+        });
+        
+        if (unboundElements.length === 0) {
+          needsFancyBoxReInit = false;
+          return true;
         }
       }
-    });
-    
-    return true;
+      
+      const hasThumbsPlugin = !!window.Fancybox?.Thumbs;
+      
+      // Build config based on available plugins
+      const bindConfig = {
+        // Mobile optimizations
+        touch: {
+          vertical: true,
+          momentum: true
+        },
+        // Performance settings
+        preload: 1,
+        // UI customizations
+        Toolbar: {
+          display: {
+            left: ['infobar'],
+            middle: [],
+            right: hasThumbsPlugin ? ['slideshow', 'thumbs', 'close'] : ['slideshow', 'close']
+          }
+        }
+      };
+      
+      // Only add Thumbs config if plugin is loaded
+      if (hasThumbsPlugin) {
+        bindConfig.Thumbs = {
+          autoStart: true,
+          axis: 'x',
+          showOnStart: true
+        };
+      }
+      
+      // FancyBox 6 initialization
+      Fancybox.bind('[data-fancybox]', bindConfig);
+      
+      // Mark elements as bound to prevent unnecessary re-binding
+      existingFancyboxElements.forEach(el => {
+        el.setAttribute('data-fancybox-bound', 'true');
+      });
+      
+      // On mobile, only do ONE additional re-initialization attempt instead of multiple
+      if (getIsMobileDevice() && retryAttempt === 0 && needsFancyBoxReInit) {
+        setTimeout(() => {
+          performFancyBoxReInit(1);
+        }, MOBILE_REINIT_DELAYS[0]);
+      }
+      
+      needsFancyBoxReInit = false;
+      return true;
+    }
+  } catch (e) {
+    // Handle error silently
   }
+  
+  // Only retry once on mobile if the first attempt failed
+  if (getIsMobileDevice() && retryAttempt === 0) {
+    setTimeout(() => {
+      performFancyBoxReInit(1);
+    }, MOBILE_REINIT_DELAYS[0]);
+  }
+  
   return false;
+}
+
+// Initialize FancyBox
+function initializeFancyBox() {
+  needsFancyBoxReInit = true;
+  return performFancyBoxReInit();
 }
 
 // LazyLoad integration
@@ -516,8 +731,90 @@ function updateLazyLoad() {
   }
 }
 
+// Event delegation for opener links (performance optimization)
+function initOpenerEventDelegation() {
+  document.addEventListener('click', function(e) {
+    const openerLink = e.target.closest('a[lightbox-image="open"], a[lightbox-image="opener"]');
+    if (!openerLink) return;
+    
+    e.preventDefault();
+    
+    const triggerGroup = openerLink.getAttribute('data-fancybox-trigger');
+    const hasFallback = openerLink.hasAttribute('data-fallback-click');
+    
+    if (triggerGroup) {
+      const tryTrigger = (attempt = 0) => {
+        const galleryItems = document.querySelectorAll(`[data-fancybox="${triggerGroup}"]`);
+        
+        if (galleryItems.length > 0) {
+          // Method 1: Try to programmatically click the first gallery item
+          const firstGalleryItem = galleryItems[0];
+          if (firstGalleryItem) {
+            firstGalleryItem.click();
+            return;
+          }
+          
+          // Method 2: Fallback to Fancybox.show() if direct click doesn't work
+          if (window.Fancybox && typeof Fancybox.show === 'function') {
+            // Build gallery items array from DOM elements
+            const fancyboxItems = Array.from(galleryItems).map(item => {
+              const img = item.querySelector('img');
+              const thumbUrl = item.getAttribute('data-thumb') || (img ? img.getAttribute('src') : '') || item.getAttribute('href');
+              
+              return {
+                src: item.getAttribute('href'),
+                caption: item.getAttribute('data-caption') || (img ? img.getAttribute('alt') : '') || '',
+                thumb: thumbUrl,
+                type: 'image'
+              };
+            });
+            
+            // Use the same configuration as the bound version
+            Fancybox.show(fancyboxItems, {
+              startIndex: 0,
+              Thumbs: {
+                autoStart: true,
+                axis: 'x',
+                showOnStart: true
+              },
+              touch: {
+                vertical: true,
+                momentum: true
+              },
+              preload: 1,
+              Toolbar: {
+                display: {
+                  left: ['infobar'],
+                  middle: [],
+                  right: ['slideshow', 'thumbs', 'close']
+                }
+              }
+            });
+          }
+        } else if (attempt < 2) {
+          // Retry after a short delay in case FancyBox hasn't finished initializing
+          setTimeout(() => tryTrigger(attempt + 1), (attempt + 1) * 100);
+        }
+      };
+      
+      tryTrigger();
+    } else if (hasFallback) {
+      // Fallback: find first image link in the same container
+      const container = openerLink.closest('[wfu-lightbox-group]');
+      if (container) {
+        const firstImageLink = container.querySelector('a[lightbox-image="first"]');
+        if (firstImageLink) {
+          firstImageLink.click();
+        }
+      }
+    }
+  }, { passive: false });
+}
+
 // SHARE BUTTON FUNCTIONALITY
-document.addEventListener('click', function(e) {
+let shareButtonTimeouts = new Map(); // Track timeouts for each button
+
+document.addEventListener('click', async function(e) {
   const shareButton = e.target.closest('[share-button]');
   if (shareButton) {
     e.preventDefault();
@@ -532,6 +829,19 @@ document.addEventListener('click', function(e) {
     }
     
     if (url) {
+      // Try native share first (for mobile devices)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            url: url
+          });
+          return; // Successfully shared, exit
+        } catch (err) {
+          // User cancelled or share failed, fall through to clipboard
+        }
+      }
+      
+      // Fallback to clipboard copy (for desktop or if share fails)
       navigator.clipboard.writeText(url).catch(() => {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
@@ -541,6 +851,26 @@ document.addEventListener('click', function(e) {
         document.execCommand('copy');
         document.body.removeChild(textArea);
       });
+      
+      // Update button text to show "Copied Link"
+      const shareText = shareButton.querySelector('.share-text');
+      if (shareText) {
+        const originalText = shareText.textContent;
+        shareText.textContent = 'Copied Link';
+        
+        // Clear any existing timeout for this button
+        if (shareButtonTimeouts.has(shareButton)) {
+          clearTimeout(shareButtonTimeouts.get(shareButton));
+        }
+        
+        // Set new timeout to restore original text
+        const timeoutId = setTimeout(() => {
+          shareText.textContent = originalText;
+          shareButtonTimeouts.delete(shareButton);
+        }, 2000);
+        
+        shareButtonTimeouts.set(shareButton, timeoutId);
+      }
     }
   }
 });
@@ -549,6 +879,9 @@ document.addEventListener('click', function(e) {
 function initializeItemPage() {
   // Initialize LazyLoad
   initLazyLoad();
+  
+  // Initialize event delegation
+  initOpenerEventDelegation();
   
   // Process all FancyBox groups
   const needsFancyBox = processAllFancyBoxGroups();
@@ -578,12 +911,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Use appropriate delay based on device
-    const initDelay = isMobileDevice ? MOBILE_INIT_DELAY : INIT_DELAY;
+    const initDelay = getIsMobileDevice() ? MOBILE_INIT_DELAY : INIT_DELAY;
     
     // Initialize everything after delay
     setTimeout(() => {
       initializeItemPage();
     }, initDelay);
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (reInitTimeout) clearTimeout(reInitTimeout);
+      // Clear timeouts for share buttons
+      shareButtonTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+      shareButtonTimeouts.clear();
+    });
   };
   
   initWhenReady();
