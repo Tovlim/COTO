@@ -1106,7 +1106,7 @@ function addRegionBoundaryToMap(name, regionFeature) {
     layout: { 'visibility': 'visible' },
     paint: {
       'fill-color': '#1a1b1e',
-      'fill-opacity': 0.35
+      'fill-opacity': 0.15
     }
   };
   
@@ -1378,7 +1378,7 @@ function setupDeferredAreaControls() {
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
                 map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.45);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#6e3500');
@@ -1419,7 +1419,7 @@ function setupDeferredAreaControls() {
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
                 map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.35);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#888888');
@@ -6750,7 +6750,7 @@ function highlightBoundary(regionName) {
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
       map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.45);
+      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
       map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
       map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
     });
@@ -6770,7 +6770,7 @@ function removeBoundaryHighlight() {
       // Batch boundary reset operations
       mapLayers.addToBatch(() => {
         map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
-        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.35);
+        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
         map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
         map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
       });
