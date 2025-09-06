@@ -1044,6 +1044,12 @@ function loadCombinedGeoData() {
             state.districtTerritoryMap.set(name, territory);
           }
           
+          // Manually add Jerusalem to West Bank if it's not already mapped
+          if (name === 'Jerusalem' && !state.districtTerritoryMap.has('Jerusalem')) {
+            console.log('📍 Manually mapping Jerusalem to West Bank');
+            state.districtTerritoryMap.set('Jerusalem', 'West Bank');
+          }
+          
           addRegionBoundaryToMap(name, districtFeature);
         });
       });
@@ -6991,39 +6997,52 @@ function removeBoundaryHighlight() {
   if (state.highlightedTerritoryDistricts && state.highlightedTerritoryDistricts.length > 0) {
     console.log(`🧹 Removing territory highlights for ${state.highlightedTerritoryDistricts.length} districts`);
     
-    mapLayers.addToBatch(() => {
-      state.highlightedTerritoryDistricts.forEach((district, index) => {
-        console.log(`🧹 ${index + 1}. Restoring ${district.districtName}: ${district.fillId}`);
+    // Execute immediately without batching to ensure cleanup happens
+    state.highlightedTerritoryDistricts.forEach((district, index) => {
+      console.log(`🧹 ${index + 1}. Restoring ${district.districtName}: ${district.fillId}`);
+      
+      if (mapLayers.hasLayer(district.fillId)) {
+        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+        console.log(`🔄 Restoring ${district.districtName} fill: ${currentColor} (opacity: 0.15)`);
         
-        if (mapLayers.hasLayer(district.fillId)) {
-          const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
-          console.log(`🔄 Restoring ${district.districtName} fill: ${currentColor} (opacity: 0.15)`);
+        try {
           map.setPaintProperty(district.fillId, 'fill-color', currentColor);
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.15);
-          
-          // Verify the colors were actually restored
-          setTimeout(() => {
-            const restoredFillColor = map.getPaintProperty(district.fillId, 'fill-color');
-            const restoredFillOpacity = map.getPaintProperty(district.fillId, 'fill-opacity');
-            console.log(`🔍 ${district.districtName} restored colors - Fill: ${restoredFillColor} (${restoredFillOpacity})`);
-            
-            if (restoredFillColor === '#2d1810') {
-              console.warn(`⚠️ ${district.districtName} fill color was NOT restored! Still shows territory color #2d1810`);
-            }
-          }, 50);
-          
-          console.log(`✅ Restored fill for ${district.districtName}`);
+          console.log(`✅ Applied restoration to ${district.districtName} fill`);
+        } catch (error) {
+          console.error(`❌ Failed to restore ${district.districtName} fill:`, error);
         }
-        if (mapLayers.hasLayer(district.borderId)) {
-          console.log(`🔄 Restoring ${district.districtName} border: #888888 (opacity: 0.8)`);
+        
+        // Verify the colors were actually restored
+        setTimeout(() => {
+          const restoredFillColor = map.getPaintProperty(district.fillId, 'fill-color');
+          const restoredFillOpacity = map.getPaintProperty(district.fillId, 'fill-opacity');
+          console.log(`🔍 ${district.districtName} restored colors - Fill: ${restoredFillColor} (${restoredFillOpacity})`);
+          
+          if (restoredFillColor === '#2d1810') {
+            console.warn(`⚠️ ${district.districtName} fill color was NOT restored! Still shows territory color #2d1810`);
+          }
+        }, 50);
+      } else {
+        console.warn(`⚠️ Fill layer ${district.fillId} not found for ${district.districtName}`);
+      }
+      
+      if (mapLayers.hasLayer(district.borderId)) {
+        console.log(`🔄 Restoring ${district.districtName} border: #888888 (opacity: 0.8)`);
+        
+        try {
           map.setPaintProperty(district.borderId, 'line-color', '#888888');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.8);
-          console.log(`✅ Restored border for ${district.districtName}`);
+          console.log(`✅ Applied restoration to ${district.districtName} border`);
+        } catch (error) {
+          console.error(`❌ Failed to restore ${district.districtName} border:`, error);
         }
-      });
+      } else {
+        console.warn(`⚠️ Border layer ${district.borderId} not found for ${district.districtName}`);
+      }
     });
     
-    console.log(`🧹 Clearing territory highlight state`);
+    console.log(`🧹 Territory restoration completed, clearing state`);
     state.highlightedTerritoryDistricts = null;
     state.territoryHighlightActive = false;
   }
