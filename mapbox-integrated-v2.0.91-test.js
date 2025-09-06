@@ -1379,7 +1379,7 @@ function setupDeferredAreaControls() {
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
                 map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#6e3500');
@@ -6752,7 +6752,7 @@ function highlightBoundary(regionName) {
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
       map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
+      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.4);
       map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
       map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
     });
