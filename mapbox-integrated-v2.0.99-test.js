@@ -6851,6 +6851,12 @@ function highlightTerritoryBoundaries(territoryName) {
   });
   console.log(`🏛️ Territory-related fill layers found: ${territoryFillLayers.length}`, territoryFillLayers.map(l => l.id));
   
+  // Check for Jerusalem-related layers specifically
+  const jerusalemLayers = allLayers.filter(layer => 
+    layer.id.toLowerCase().includes('jerusalem') && (layer.id.includes('-fill') || layer.id.includes('-border'))
+  );
+  console.log(`🏛️ Jerusalem layers found:`, jerusalemLayers.map(l => l.id));
+  
   if (state.districtTerritoryMap) {
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
@@ -6991,11 +6997,25 @@ function removeBoundaryHighlight() {
         
         if (mapLayers.hasLayer(district.fillId)) {
           const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+          console.log(`🔄 Restoring ${district.districtName} fill: ${currentColor} (opacity: 0.15)`);
           map.setPaintProperty(district.fillId, 'fill-color', currentColor);
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.15);
+          
+          // Verify the colors were actually restored
+          setTimeout(() => {
+            const restoredFillColor = map.getPaintProperty(district.fillId, 'fill-color');
+            const restoredFillOpacity = map.getPaintProperty(district.fillId, 'fill-opacity');
+            console.log(`🔍 ${district.districtName} restored colors - Fill: ${restoredFillColor} (${restoredFillOpacity})`);
+            
+            if (restoredFillColor === '#2d1810') {
+              console.warn(`⚠️ ${district.districtName} fill color was NOT restored! Still shows territory color #2d1810`);
+            }
+          }, 50);
+          
           console.log(`✅ Restored fill for ${district.districtName}`);
         }
         if (mapLayers.hasLayer(district.borderId)) {
+          console.log(`🔄 Restoring ${district.districtName} border: #888888 (opacity: 0.8)`);
           map.setPaintProperty(district.borderId, 'line-color', '#888888');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.8);
           console.log(`✅ Restored border for ${district.districtName}`);
