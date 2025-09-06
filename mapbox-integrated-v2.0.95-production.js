@@ -1194,7 +1194,7 @@ function addAreaOverlayToMap(name, areaFeature) {
     layout: { 'visibility': 'visible' },
     paint: {
       'fill-color': config.color,
-      'fill-opacity': 0.7,
+      'fill-opacity': 0.5,
       'fill-outline-color': config.color
     }
   };
@@ -1283,12 +1283,12 @@ function setupDeferredAreaControls() {
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         wrapperDiv.addEventListener('mouseenter', () => {
           if (!mapLayers.hasLayer(control.layerId)) return;
-          map.setPaintProperty(control.layerId, 'fill-opacity', 0.9);
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
         });
         
         wrapperDiv.addEventListener('mouseleave', () => {
           if (!mapLayers.hasLayer(control.layerId)) return;
-          map.setPaintProperty(control.layerId, 'fill-opacity', 0.7);
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
         });
         
         wrapperDiv.dataset.mapboxHoverAdded = 'true';
