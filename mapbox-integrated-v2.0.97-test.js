@@ -6327,6 +6327,9 @@ class OptimizedMapState {
     this.lastClickTime = 0;
     this.markerInteractionLock = false;
     this.highlightedBoundary = null;
+    this.highlightedTerritoryDistricts = null;
+    this.territoryHighlightActive = false;
+    this.districtTerritoryMap = null;
     this.clickPriority = 999; // Higher number = lower priority, 999 = no click yet
     
     this.flags = new Proxy({
@@ -6875,6 +6878,21 @@ function highlightTerritoryBoundaries(territoryName) {
           map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
           console.log(`✅ Successfully highlighted ${district.districtName}`);
+          
+          // Verify the colors were actually set
+          setTimeout(() => {
+            const currentFillColor = map.getPaintProperty(district.fillId, 'fill-color');
+            const currentBorderColor = map.getPaintProperty(district.borderId, 'line-color');
+            console.log(`🔍 ${district.districtName} colors after 100ms - Fill: ${currentFillColor}, Border: ${currentBorderColor}`);
+            
+            if (currentFillColor !== '#6e3500') {
+              console.warn(`⚠️ ${district.districtName} fill color was overridden! Expected #6e3500, got ${currentFillColor}`);
+            }
+            if (currentBorderColor !== '#6e3500') {
+              console.warn(`⚠️ ${district.districtName} border color was overridden! Expected #6e3500, got ${currentBorderColor}`);
+            }
+          }, 100);
+          
         } catch (error) {
           console.error(`❌ Failed to highlight ${district.districtName}:`, error);
         }
