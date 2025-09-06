@@ -1399,17 +1399,20 @@ function setupDeferredAreaControls() {
               map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
             }
             
-            const allLayers = map.getStyle().layers;
-            allLayers.forEach(layer => {
-              if (layer.id.includes('-fill')) {
-                map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
-              }
-              if (layer.id.includes('-border')) {
-                map.setPaintProperty(layer.id, 'line-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.9);
-              }
-            });
+            // Only highlight regions if territory highlighting is not active
+            if (!state.territoryHighlightActive) {
+              const allLayers = map.getStyle().layers;
+              allLayers.forEach(layer => {
+                if (layer.id.includes('-fill')) {
+                  map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
+                  map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
+                }
+                if (layer.id.includes('-border')) {
+                  map.setPaintProperty(layer.id, 'line-color', '#6e3500');
+                  map.setPaintProperty(layer.id, 'line-opacity', 0.9);
+                }
+              });
+            }
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
               map.setPaintProperty('locality-clusters', 'text-halo-color', '#8a8a00');
@@ -1455,18 +1458,21 @@ function setupDeferredAreaControls() {
               map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
             }
             
-            const allLayers = map.getStyle().layers;
-            allLayers.forEach(layer => {
-              if (layer.id.includes('-fill')) {
-                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
-                map.setPaintProperty(layer.id, 'fill-color', currentColor);
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
-              }
-              if (layer.id.includes('-border')) {
-                map.setPaintProperty(layer.id, 'line-color', '#888888');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.8);
-              }
-            });
+            // Only unhighlight regions if territory highlighting is not active
+            if (!state.territoryHighlightActive) {
+              const allLayers = map.getStyle().layers;
+              allLayers.forEach(layer => {
+                if (layer.id.includes('-fill')) {
+                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                  map.setPaintProperty(layer.id, 'fill-color', currentColor);
+                  map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
+                }
+                if (layer.id.includes('-border')) {
+                  map.setPaintProperty(layer.id, 'line-color', '#888888');
+                  map.setPaintProperty(layer.id, 'line-opacity', 0.8);
+                }
+              });
+            }
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
               map.setPaintProperty('locality-clusters', 'text-halo-color', '#616100');
@@ -6847,8 +6853,14 @@ function highlightTerritoryBoundaries(territoryName) {
       });
     });
     
+    // Clear any single boundary highlights when activating territory highlighting
+    if (state.highlightedBoundary && !state.territoryHighlightActive) {
+      state.highlightedBoundary = null;
+    }
+    
     state.highlightedBoundary = territoryName;
     state.highlightedTerritoryDistricts = districtsToHighlight;
+    state.territoryHighlightActive = true;
   }
   
   return districtsToHighlight;
@@ -6914,10 +6926,11 @@ function removeBoundaryHighlight() {
       });
     });
     state.highlightedTerritoryDistricts = null;
+    state.territoryHighlightActive = false;
   }
   
-  // Handle single boundary highlights
-  if (state.highlightedBoundary) {
+  // Handle single boundary highlights (only if territory highlighting is not active)
+  if (state.highlightedBoundary && !state.territoryHighlightActive) {
     const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
     
