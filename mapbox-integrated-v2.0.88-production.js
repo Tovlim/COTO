@@ -6321,7 +6321,7 @@ const mapBounds = [
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/occupationcrimes/cmeo2b3yu000601sf4sr066j9",
+  style: "mapbox://styles/occupationcrimes/cmf7klynt000r01qw2sp4cn7i",
   bounds: mapBounds,
   fitBoundsOptions: {
     padding: isMobile ? 20 : 50 // Less padding on mobile, more on desktop
