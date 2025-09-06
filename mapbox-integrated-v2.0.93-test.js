@@ -1030,10 +1030,20 @@ function loadCombinedGeoData() {
         }
       });
       
+      // Store district-territory mapping for highlighting
+      state.districtTerritoryMap = new Map();
+      
       // Batch process districts as regions
       mapLayers.addToBatch(() => {
         districts.forEach(districtFeature => {
           const name = districtFeature.properties.name;
+          const territory = districtFeature.properties.territory;
+          
+          // Store the district-territory mapping
+          if (territory) {
+            state.districtTerritoryMap.set(name, territory);
+          }
+          
           addRegionBoundaryToMap(name, districtFeature);
         });
       });
@@ -1368,25 +1378,19 @@ function setupDeferredAreaControls() {
               map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
             }
             // Highlight all districts for both territories (since hover doesn't specify which)
-            const allLayers = map.getStyle().layers;
-            allLayers.forEach(layer => {
-              if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
-                const sourceId = layer.source;
-                const source = map.getSource(sourceId);
-                if (source && source._data && source._data.features) {
-                  const feature = source._data.features[0];
-                  if (feature && feature.properties && feature.properties.territory) {
-                    map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-                    map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
-                    const borderId = layer.id.replace('-fill', '-border');
-                    if (mapLayers.hasLayer(borderId)) {
-                      map.setPaintProperty(borderId, 'line-color', '#6e3500');
-                      map.setPaintProperty(borderId, 'line-opacity', 0.9);
-                    }
-                  }
+            if (state.districtTerritoryMap) {
+              state.districtTerritoryMap.forEach((territory, districtName) => {
+                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+                
+                if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
+                  map.setPaintProperty(fillId, 'fill-color', '#6e3500');
+                  map.setPaintProperty(fillId, 'fill-opacity', 0.4);
+                  map.setPaintProperty(borderId, 'line-color', '#6e3500');
+                  map.setPaintProperty(borderId, 'line-opacity', 0.9);
                 }
-              }
-            });
+              });
+            }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
@@ -1429,26 +1433,20 @@ function setupDeferredAreaControls() {
               map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
             }
             // Unhighlight all districts
-            const allLayers = map.getStyle().layers;
-            allLayers.forEach(layer => {
-              if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
-                const sourceId = layer.source;
-                const source = map.getSource(sourceId);
-                if (source && source._data && source._data.features) {
-                  const feature = source._data.features[0];
-                  if (feature && feature.properties && feature.properties.territory) {
-                    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
-                    map.setPaintProperty(layer.id, 'fill-color', currentColor);
-                    map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
-                    const borderId = layer.id.replace('-fill', '-border');
-                    if (mapLayers.hasLayer(borderId)) {
-                      map.setPaintProperty(borderId, 'line-color', '#888888');
-                      map.setPaintProperty(borderId, 'line-opacity', 0.8);
-                    }
-                  }
+            if (state.districtTerritoryMap) {
+              state.districtTerritoryMap.forEach((territory, districtName) => {
+                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+                
+                if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
+                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                  map.setPaintProperty(fillId, 'fill-color', currentColor);
+                  map.setPaintProperty(fillId, 'fill-opacity', 0.15);
+                  map.setPaintProperty(borderId, 'line-color', '#888888');
+                  map.setPaintProperty(borderId, 'line-opacity', 0.8);
                 }
-              }
-            });
+              });
+            }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
@@ -6816,40 +6814,36 @@ function highlightTerritoryBoundaries(territoryName) {
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
-  // Get all district boundaries for this territory
+  // Get all district boundaries for this territory using our mapping
   const districtsToHighlight = [];
-  const allLayers = map.getStyle().layers;
   
-  // Find all district fill layers and check if they belong to this territory
-  allLayers.forEach(layer => {
-    if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
-      const sourceId = layer.source;
-      const source = map.getSource(sourceId);
-      if (source && source._data && source._data.features) {
-        const feature = source._data.features[0];
-        if (feature && feature.properties && feature.properties.territory === territoryName) {
+  if (state.districtTerritoryMap) {
+    // Find all districts that belong to this territory
+    state.districtTerritoryMap.forEach((territory, districtName) => {
+      if (territory === territoryName) {
+        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+        
+        // Check if layers exist
+        if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
           districtsToHighlight.push({
-            fillId: layer.id,
-            borderId: layer.id.replace('-fill', '-border'),
-            feature: feature
+            fillId: fillId,
+            borderId: borderId,
+            districtName: districtName
           });
         }
       }
-    }
-  });
+    });
+  }
   
   // Highlight all matching districts
   if (districtsToHighlight.length > 0) {
     mapLayers.addToBatch(() => {
       districtsToHighlight.forEach(district => {
-        if (mapLayers.hasLayer(district.fillId)) {
-          map.setPaintProperty(district.fillId, 'fill-color', '#6e3500');
-          map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
-        }
-        if (mapLayers.hasLayer(district.borderId)) {
-          map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
-          map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
-        }
+        map.setPaintProperty(district.fillId, 'fill-color', '#6e3500');
+        map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
+        map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
+        map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
       });
     });
     
@@ -6871,14 +6865,21 @@ function frameTerritoryBoundaries(territoryName) {
   // Collect all coordinates from all districts
   const allCoordinates = [];
   districtsToFrame.forEach(district => {
-    if (district.feature && district.feature.geometry && district.feature.geometry.coordinates) {
-      const coords = district.feature.geometry.coordinates;
-      if (Array.isArray(coords[0])) {
-        coords[0].forEach(coord => {
-          if (Array.isArray(coord) && coord.length >= 2) {
-            allCoordinates.push(coord);
-          }
-        });
+    // Get the source data for this district
+    const sourceId = `${district.districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+    const source = map.getSource(sourceId);
+    
+    if (source && source._data && source._data.features) {
+      const feature = source._data.features[0];
+      if (feature && feature.geometry && feature.geometry.coordinates) {
+        const coords = feature.geometry.coordinates;
+        if (Array.isArray(coords[0])) {
+          coords[0].forEach(coord => {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              allCoordinates.push(coord);
+            }
+          });
+        }
       }
     }
   });
