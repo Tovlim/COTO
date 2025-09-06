@@ -1401,6 +1401,7 @@ function setupDeferredAreaControls() {
             
             // Only highlight regions if territory highlighting is not active
             if (!state.territoryHighlightActive) {
+              console.log(`🏛️ Region hover: Territory highlighting NOT active, applying region highlights`);
               const allLayers = map.getStyle().layers;
               allLayers.forEach(layer => {
                 if (layer.id.includes('-fill')) {
@@ -1412,6 +1413,8 @@ function setupDeferredAreaControls() {
                   map.setPaintProperty(layer.id, 'line-opacity', 0.9);
                 }
               });
+            } else {
+              console.log(`🏛️ Region hover: Territory highlighting IS active, skipping region highlights`);
             }
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
@@ -1460,6 +1463,7 @@ function setupDeferredAreaControls() {
             
             // Only unhighlight regions if territory highlighting is not active
             if (!state.territoryHighlightActive) {
+              console.log(`🏛️ Region unhover: Territory highlighting NOT active, removing region highlights`);
               const allLayers = map.getStyle().layers;
               allLayers.forEach(layer => {
                 if (layer.id.includes('-fill')) {
@@ -1472,6 +1476,8 @@ function setupDeferredAreaControls() {
                   map.setPaintProperty(layer.id, 'line-opacity', 0.8);
                 }
               });
+            } else {
+              console.log(`🏛️ Region unhover: Territory highlighting IS active, skipping region unhighlight`);
             }
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
@@ -6817,11 +6823,15 @@ function highlightBoundary(regionName) {
 
 // Highlight all boundaries for a territory
 function highlightTerritoryBoundaries(territoryName) {
+  console.log(`🎯 Territory Highlighting: Starting for "${territoryName}"`);
+  
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
   // Get all district boundaries for this territory using our mapping
   const districtsToHighlight = [];
+  
+  console.log(`🗺️ District-Territory Map:`, state.districtTerritoryMap);
   
   if (state.districtTerritoryMap) {
     // Find all districts that belong to this territory
@@ -6830,8 +6840,15 @@ function highlightTerritoryBoundaries(territoryName) {
         const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
         const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
         
+        console.log(`🔍 Found district "${districtName}" for territory "${territoryName}"`);
+        console.log(`📍 Layer IDs: ${fillId}, ${borderId}`);
+        
         // Check if layers exist
-        if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
+        const hasFill = mapLayers.hasLayer(fillId);
+        const hasBorder = mapLayers.hasLayer(borderId);
+        console.log(`✅ Layers exist - Fill: ${hasFill}, Border: ${hasBorder}`);
+        
+        if (hasFill && hasBorder) {
           districtsToHighlight.push({
             fillId: fillId,
             borderId: borderId,
@@ -6842,25 +6859,41 @@ function highlightTerritoryBoundaries(territoryName) {
     });
   }
   
+  console.log(`🎨 Districts to highlight:`, districtsToHighlight);
+  
   // Highlight all matching districts
   if (districtsToHighlight.length > 0) {
+    console.log(`🎨 Applying territory highlight color #6e3500 to ${districtsToHighlight.length} districts`);
+    
     mapLayers.addToBatch(() => {
-      districtsToHighlight.forEach(district => {
-        map.setPaintProperty(district.fillId, 'fill-color', '#6e3500');
-        map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
-        map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
-        map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
+      districtsToHighlight.forEach((district, index) => {
+        console.log(`🎨 ${index + 1}. Highlighting ${district.districtName}: ${district.fillId}`);
+        
+        try {
+          map.setPaintProperty(district.fillId, 'fill-color', '#6e3500');
+          map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
+          map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
+          map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
+          console.log(`✅ Successfully highlighted ${district.districtName}`);
+        } catch (error) {
+          console.error(`❌ Failed to highlight ${district.districtName}:`, error);
+        }
       });
     });
     
     // Clear any single boundary highlights when activating territory highlighting
     if (state.highlightedBoundary && !state.territoryHighlightActive) {
+      console.log(`🧹 Clearing previous single boundary highlight: ${state.highlightedBoundary}`);
       state.highlightedBoundary = null;
     }
     
     state.highlightedBoundary = territoryName;
     state.highlightedTerritoryDistricts = districtsToHighlight;
     state.territoryHighlightActive = true;
+    
+    console.log(`🎯 Territory highlighting activated for "${territoryName}" with ${districtsToHighlight.length} districts`);
+  } else {
+    console.log(`❌ No districts found to highlight for territory "${territoryName}"`);
   }
   
   return districtsToHighlight;
@@ -6910,21 +6943,34 @@ function frameTerritoryBoundaries(territoryName) {
 
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
+  console.log(`🧹 RemoveBoundaryHighlight called`);
+  console.log(`🧹 Territory active: ${state.territoryHighlightActive}`);
+  console.log(`🧹 Territory districts:`, state.highlightedTerritoryDistricts);
+  console.log(`🧹 Single boundary:`, state.highlightedBoundary);
+  
   // Handle territory highlights
   if (state.highlightedTerritoryDistricts && state.highlightedTerritoryDistricts.length > 0) {
+    console.log(`🧹 Removing territory highlights for ${state.highlightedTerritoryDistricts.length} districts`);
+    
     mapLayers.addToBatch(() => {
-      state.highlightedTerritoryDistricts.forEach(district => {
+      state.highlightedTerritoryDistricts.forEach((district, index) => {
+        console.log(`🧹 ${index + 1}. Restoring ${district.districtName}: ${district.fillId}`);
+        
         if (mapLayers.hasLayer(district.fillId)) {
           const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
           map.setPaintProperty(district.fillId, 'fill-color', currentColor);
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.15);
+          console.log(`✅ Restored fill for ${district.districtName}`);
         }
         if (mapLayers.hasLayer(district.borderId)) {
           map.setPaintProperty(district.borderId, 'line-color', '#888888');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.8);
+          console.log(`✅ Restored border for ${district.districtName}`);
         }
       });
     });
+    
+    console.log(`🧹 Clearing territory highlight state`);
     state.highlightedTerritoryDistricts = null;
     state.territoryHighlightActive = false;
   }
