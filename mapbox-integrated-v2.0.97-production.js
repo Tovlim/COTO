@@ -8,6 +8,7 @@
  * circular navigation, enhanced error handling, modular architecture.
  */
 
+
 // ========================
 // IMMEDIATE SIDEBAR FUNCTIONALITY
 // ========================
@@ -1132,7 +1133,7 @@ function addRegionBoundaryToMap(name, regionFeature) {
     paint: {
       'line-color': '#888888',
       'line-width': 1,
-      'line-opacity': 0.4
+      'line-opacity': 0.8
     }
   };
   
@@ -1194,7 +1195,7 @@ function addAreaOverlayToMap(name, areaFeature) {
     layout: { 'visibility': 'visible' },
     paint: {
       'fill-color': config.color,
-      'fill-opacity': 0.5,
+      'fill-opacity': 0.25,
       'fill-outline-color': config.color
     }
   };
@@ -1283,12 +1284,12 @@ function setupDeferredAreaControls() {
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         wrapperDiv.addEventListener('mouseenter', () => {
           if (!mapLayers.hasLayer(control.layerId)) return;
-          map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
         });
         
         wrapperDiv.addEventListener('mouseleave', () => {
           if (!mapLayers.hasLayer(control.layerId)) return;
-          map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+          map.setPaintProperty(control.layerId, 'fill-opacity', 0.25);
         });
         
         wrapperDiv.dataset.mapboxHoverAdded = 'true';
@@ -1378,26 +1379,26 @@ function setupDeferredAreaControls() {
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
                 map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.6);
+                map.setPaintProperty(layer.id, 'line-opacity', 0.9);
               }
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#a49c00');
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#8a8a00');
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
+              map.setPaintProperty('locality-points', 'text-halo-color', '#8a8a00');
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#ff4d4d');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#b30000');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#ff4d4d');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#b30000');
             }
           }
         };
@@ -1418,27 +1419,28 @@ function setupDeferredAreaControls() {
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
-                map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
+                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                map.setPaintProperty(layer.id, 'fill-color', currentColor);
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#888888');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.4);
+                map.setPaintProperty(layer.id, 'line-opacity', 0.8);
               }
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#7e7800');
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#616100');
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
+              map.setPaintProperty('locality-points', 'text-halo-color', '#616100');
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#cc2929');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#800000');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#cc2929');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#800000');
             }
           }
         };
@@ -6750,9 +6752,9 @@ function highlightBoundary(regionName) {
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
       map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
+      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.4);
       map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
+      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
     });
     
     // Track the highlighted boundary
@@ -6769,10 +6771,11 @@ function removeBoundaryHighlight() {
     if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
       // Batch boundary reset operations
       mapLayers.addToBatch(() => {
-        map.setPaintProperty(boundaryFillId, 'fill-color', '#1a1b1e');
+        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+        map.setPaintProperty(boundaryFillId, 'fill-color', currentColor);
         map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
         map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
-        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
+        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.8);
       });
     }
     
@@ -7146,7 +7149,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#cc2929',
+          'text-halo-color': '#800000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7194,7 +7197,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#cc2929',
+          'text-halo-color': '#800000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7475,7 +7478,7 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#7e7800',
+          'text-halo-color': '#616100',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7517,7 +7520,7 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#7e7800', // Always use normal color (no highlighting)
+          'text-halo-color': '#616100', // Always use normal color (no highlighting)
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
