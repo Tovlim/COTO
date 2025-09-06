@@ -1133,7 +1133,7 @@ function addRegionBoundaryToMap(name, regionFeature) {
     paint: {
       'line-color': '#888888',
       'line-width': 1,
-      'line-opacity': 0.4
+      'line-opacity': 0.8
     }
   };
   
@@ -1383,7 +1383,7 @@ function setupDeferredAreaControls() {
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.6);
+                map.setPaintProperty(layer.id, 'line-opacity', 0.9);
               }
             });
           } else if (control.type === 'locality') {
@@ -1425,7 +1425,7 @@ function setupDeferredAreaControls() {
               }
               if (layer.id.includes('-border')) {
                 map.setPaintProperty(layer.id, 'line-color', '#888888');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.4);
+                map.setPaintProperty(layer.id, 'line-opacity', 0.8);
               }
             });
           } else if (control.type === 'locality') {
@@ -6754,7 +6754,7 @@ function highlightBoundary(regionName) {
       map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
       map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.25);
       map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.6);
+      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
     });
     
     // Track the highlighted boundary
@@ -6775,7 +6775,7 @@ function removeBoundaryHighlight() {
         map.setPaintProperty(boundaryFillId, 'fill-color', currentColor);
         map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
         map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
-        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.4);
+        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.8);
       });
     }
     
