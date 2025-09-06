@@ -1,193 +1,440 @@
 /**
- * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance - DEBUG VERSION
+ * MAPBOX INTEGRATED SCRIPT v2.1.0 - Ultra Performance
  * 
  * High-performance map with lazy loading, virtual DOM autocomplete, 
  * 7-day caching, and enhanced user experience optimizations.
  * 
  * Key Features: Lazy checkbox/autocomplete loading, recent searches,
  * circular navigation, enhanced error handling, modular architecture.
- * 
- * DEBUG: Performance monitoring enabled - see console for timing data
  */
 
 // ========================
-// PERFORMANCE DEBUGGING
+// REAL-TIME STYLE EDITOR
 // ========================
-const PerformanceDebugger = window.PerformanceDebugger || {
-  enabled: true,
-  startTime: performance.now(),
-  functionTimings: [],
-  milestones: [],
-  
-  // Track a milestone event
-  milestone(name) {
-    if (!this.enabled) return;
-    const elapsed = performance.now() - this.startTime;
-    this.milestones.push({ name, time: elapsed });
-    console.log(`📍 [${elapsed.toFixed(2)}ms] Milestone: ${name}`);
-  },
-  
-  // Wrap a function to measure its execution time
-  wrap(fn, name, category = 'general') {
-    if (!this.enabled) return fn;
-    const perfDebugger = this;
+(function() {
+  // Create style editor panel
+  const styleEditor = document.createElement('div');
+  styleEditor.id = 'style-editor';
+  styleEditor.innerHTML = `
+    <style>
+      #style-editor {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        z-index: 9999;
+        max-height: 80vh;
+        overflow-y: auto;
+        width: 320px;
+        font-family: 'Open Sans', sans-serif;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      }
+      #style-editor.active { display: block; }
+      #style-editor h3 {
+        margin: 0 0 15px 0;
+        font-size: 16px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 8px;
+      }
+      #style-editor-toggle {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+        z-index: 9998;
+        font-size: 14px;
+        border: 1px solid #444;
+      }
+      #style-editor-toggle:hover { background: rgba(0, 0, 0, 0.9); }
+      .style-control {
+        margin-bottom: 15px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+      }
+      .style-control label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #aaa;
+      }
+      .style-control input[type="range"] {
+        width: 100%;
+        margin: 5px 0;
+      }
+      .style-control input[type="color"] {
+        width: 60px;
+        height: 30px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .style-value {
+        float: right;
+        color: #4a9eff;
+        font-weight: bold;
+      }
+      .control-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .style-control h4 {
+        margin: 0 0 8px 0;
+        color: #4a9eff;
+        font-size: 13px;
+      }
+    </style>
+    <h3>🎨 Map Style Editor</h3>
     
-    return function(...args) {
-      const start = performance.now();
-      const callInfo = {
-        name,
-        category,
-        startTime: start - perfDebugger.startTime
-      };
+    <div class="style-control">
+      <h4>Governorate/Region Boundaries</h4>
+      <label>
+        Fill Opacity: <span class="style-value" id="region-opacity-value">0.15</span>
+      </label>
+      <input type="range" id="region-opacity" min="0" max="1" step="0.05" value="0.15">
+      <div class="control-group">
+        <label>Fill Color:</label>
+        <input type="color" id="region-color" value="#1a1b1e">
+      </div>
+    </div>
+
+    <div class="style-control">
+      <h4>Area Overlays (A/B/C)</h4>
+      <label>
+        Opacity: <span class="style-value" id="area-opacity-value">0.50</span>
+      </label>
+      <input type="range" id="area-opacity" min="0" max="1" step="0.05" value="0.50">
+    </div>
+
+    <div class="style-control">
+      <h4>Settlement Markers</h4>
+      <label>
+        Text Halo Opacity: <span class="style-value" id="settlement-opacity-value">1.0</span>
+      </label>
+      <input type="range" id="settlement-opacity" min="0" max="1" step="0.05" value="1.0">
+      <div class="control-group">
+        <label>Halo Color:</label>
+        <input type="color" id="settlement-color" value="#cc2929">
+      </div>
+    </div>
+
+    <div class="style-control">
+      <h4>Locality Markers</h4>
+      <label>
+        Text Halo Opacity: <span class="style-value" id="locality-opacity-value">1.0</span>
+      </label>
+      <input type="range" id="locality-opacity" min="0" max="1" step="0.05" value="1.0">
+      <div class="control-group">
+        <label>Halo Color:</label>
+        <input type="color" id="locality-color" value="#444B5C">
+      </div>
+    </div>
+
+    <div class="style-control">
+      <h4>Territory Markers</h4>
+      <label>
+        Text Halo Opacity: <span class="style-value" id="territory-opacity-value">1.0</span>
+      </label>
+      <input type="range" id="territory-opacity" min="0" max="1" step="0.05" value="1.0">
+      <div class="control-group">
+        <label>Halo Color:</label>
+        <input type="color" id="territory-color" value="#444B5C">
+      </div>
+    </div>
+
+    <div class="style-control">
+      <h4>Region Markers</h4>
+      <label>
+        Icon Opacity: <span class="style-value" id="region-marker-opacity-value">0.8</span>
+      </label>
+      <input type="range" id="region-marker-opacity" min="0" max="1" step="0.05" value="0.8">
+    </div>
+  `;
+
+  // Create toggle button
+  const toggleBtn = document.createElement('div');
+  toggleBtn.id = 'style-editor-toggle';
+  toggleBtn.textContent = '🎨 Style Editor';
+  toggleBtn.onclick = function() {
+    styleEditor.classList.toggle('active');
+    this.style.display = styleEditor.classList.contains('active') ? 'none' : 'block';
+  };
+
+  // Add to page when DOM is ready
+  function addStyleEditor() {
+    document.body.appendChild(styleEditor);
+    document.body.appendChild(toggleBtn);
+
+    // Wait for map to be available
+    const checkMap = setInterval(() => {
+      if (window.map && window.map.loaded()) {
+        clearInterval(checkMap);
+        initializeStyleControls();
+      }
+    }, 100);
+  }
+
+  // Initialize controls
+  function initializeStyleControls() {
+    // Region boundaries opacity and color
+    const regionOpacity = document.getElementById('region-opacity');
+    const regionOpacityValue = document.getElementById('region-opacity-value');
+    const regionColor = document.getElementById('region-color');
+    
+    regionOpacity.oninput = function() {
+      const value = parseFloat(this.value);
+      regionOpacityValue.textContent = value.toFixed(2);
       
-      try {
-        const result = fn.apply(this, args);
-        
-        // Handle promises
-        if (result && typeof result.then === 'function') {
-          return result.then(
-            value => {
-              perfDebugger.recordTiming(callInfo, start);
-              return value;
-            },
-            error => {
-              perfDebugger.recordTiming(callInfo, start, true);
-              throw error;
-            }
-          );
+      // Update all region fill layers
+      const layers = map.getStyle().layers;
+      layers.forEach(layer => {
+        if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
+          try {
+            map.setPaintProperty(layer.id, 'fill-opacity', value);
+          } catch(e) {}
         }
-        
-        perfDebugger.recordTiming(callInfo, start);
-        return result;
-      } catch (error) {
-        perfDebugger.recordTiming(callInfo, start, true);
-        throw error;
+      });
+    };
+
+    regionColor.oninput = function() {
+      const color = this.value;
+      const layers = map.getStyle().layers;
+      layers.forEach(layer => {
+        if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
+          try {
+            map.setPaintProperty(layer.id, 'fill-color', color);
+          } catch(e) {}
+        }
+      });
+    };
+
+    // Area overlays opacity
+    const areaOpacity = document.getElementById('area-opacity');
+    const areaOpacityValue = document.getElementById('area-opacity-value');
+    
+    areaOpacity.oninput = function() {
+      const value = parseFloat(this.value);
+      areaOpacityValue.textContent = value.toFixed(2);
+      
+      ['area-a-layer', 'area-b-layer', 'area-c-layer', 'firing-zones-layer'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, 'fill-opacity', value);
+        }
+      });
+    };
+
+    // Settlement markers
+    const settlementOpacity = document.getElementById('settlement-opacity');
+    const settlementOpacityValue = document.getElementById('settlement-opacity-value');
+    const settlementColor = document.getElementById('settlement-color');
+    
+    settlementOpacity.oninput = function() {
+      const value = parseFloat(this.value);
+      settlementOpacityValue.textContent = value.toFixed(2);
+      
+      ['settlement-clusters', 'settlement-points'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, 'text-opacity', value);
+        }
+      });
+    };
+
+    settlementColor.oninput = function() {
+      const color = this.value;
+      ['settlement-clusters', 'settlement-points'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, 'text-halo-color', color);
+        }
+      });
+    };
+
+    // Locality markers
+    const localityOpacity = document.getElementById('locality-opacity');
+    const localityOpacityValue = document.getElementById('locality-opacity-value');
+    const localityColor = document.getElementById('locality-color');
+    
+    localityOpacity.oninput = function() {
+      const value = parseFloat(this.value);
+      localityOpacityValue.textContent = value.toFixed(2);
+      
+      ['locality-clusters', 'locality-points'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, 'text-opacity', value);
+        }
+      });
+    };
+
+    localityColor.oninput = function() {
+      const color = this.value;
+      ['locality-clusters', 'locality-points'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, 'text-halo-color', color);
+        }
+      });
+    };
+
+    // Territory markers
+    const territoryOpacity = document.getElementById('territory-opacity');
+    const territoryOpacityValue = document.getElementById('territory-opacity-value');
+    const territoryColor = document.getElementById('territory-color');
+    
+    territoryOpacity.oninput = function() {
+      const value = parseFloat(this.value);
+      territoryOpacityValue.textContent = value.toFixed(2);
+      
+      if (map.getLayer('territory-points')) {
+        map.setPaintProperty('territory-points', 'text-opacity', value);
       }
     };
-  },
-  
-  // Record function timing
-  recordTiming(callInfo, startTime, hasError = false) {
-    const duration = performance.now() - startTime;
-    const timing = {
-      ...callInfo,
-      duration,
-      hasError
-    };
-    
-    this.functionTimings.push(timing);
-    
-    // Log slow functions (>50ms) or errors
-    if (duration > 50 || hasError) {
-      const icon = hasError ? '❌' : duration > 100 ? '🐌' : '⚠️';
-      console.log(`${icon} [${callInfo.startTime.toFixed(2)}ms] ${callInfo.name}: ${duration.toFixed(2)}ms${hasError ? ' (ERROR)' : ''}`);
-    }
-  },
-  
-  // Generate performance report
-  generateReport() {
-    const totalTime = performance.now() - this.startTime;
-    
-    console.group('🚀 === PERFORMANCE REPORT ===');
-    console.log(`Total time: ${totalTime.toFixed(2)}ms`);
-    console.log(`Functions tracked: ${this.functionTimings.length}`);
-    
-    // Milestones
-    if (this.milestones.length > 0) {
-      console.group('📍 Milestones');
-      console.table(this.milestones.map(m => ({
-        Event: m.name,
-        'Time (ms)': m.time.toFixed(2)
-      })));
-      console.groupEnd();
-    }
-    
-    // Top 10 slowest functions
-    const slowest = [...this.functionTimings]
-      .sort((a, b) => b.duration - a.duration)
-      .slice(0, 10);
-    
-    if (slowest.length > 0) {
-      console.group('🐌 Top 10 Slowest Functions');
-      console.table(slowest.map(f => ({
-        Function: f.name,
-        Category: f.category,
-        'Duration (ms)': f.duration.toFixed(2),
-        'Started At (ms)': f.startTime.toFixed(2),
-        Error: f.hasError ? 'Yes' : 'No'
-      })));
-      console.groupEnd();
-    }
-    
-    // Category breakdown
-    const categories = {};
-    this.functionTimings.forEach(f => {
-      if (!categories[f.category]) {
-        categories[f.category] = { count: 0, totalTime: 0, functions: new Set() };
+
+    territoryColor.oninput = function() {
+      const color = this.value;
+      if (map.getLayer('territory-points')) {
+        map.setPaintProperty('territory-points', 'text-halo-color', color);
       }
-      categories[f.category].count++;
-      categories[f.category].totalTime += f.duration;
-      categories[f.category].functions.add(f.name);
-    });
+    };
+
+    // Region point markers
+    const regionMarkerOpacity = document.getElementById('region-marker-opacity');
+    const regionMarkerOpacityValue = document.getElementById('region-marker-opacity-value');
     
-    console.group('📊 Time by Category');
-    Object.entries(categories).forEach(([cat, data]) => {
-      console.log(`${cat}: ${data.count} calls, ${data.totalTime.toFixed(2)}ms total, ${data.functions.size} unique functions`);
-    });
-    console.groupEnd();
-    
-    // Memory usage if available
-    if (performance.memory) {
-      console.group('💾 Memory Usage');
-      console.log(`JS Heap: ${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB / ${(performance.memory.totalJSHeapSize / 1048576).toFixed(2)} MB`);
-      console.log(`Limit: ${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(2)} MB`);
-      console.groupEnd();
-    }
-    
-    console.groupEnd();
-    
-    return {
-      totalTime,
-      functionTimings: this.functionTimings,
-      milestones: this.milestones,
-      categories
+    regionMarkerOpacity.oninput = function() {
+      const value = parseFloat(this.value);
+      regionMarkerOpacityValue.textContent = value.toFixed(2);
+      
+      ['region-points', 'subregion-points'].forEach(layerId => {
+        if (map.getLayer(layerId)) {
+          map.setPaintProperty(layerId, 'icon-opacity', value);
+        }
+      });
     };
   }
-};
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addStyleEditor);
+  } else {
+    addStyleEditor();
+  }
+})();
+
+// ========================
+// IMMEDIATE SIDEBAR FUNCTIONALITY
+// ========================
+// This runs immediately to make sidebars responsive before anything else loads
+(function initializeImmediateSidebars() {
+  // Minimal sidebar toggle functionality - works instantly
+  function toggleSidebar(side, forceOpen) {
+    // Map sidebar names to IDs (compatible with enhanced version)
+    const sidebarMap = {
+      'Left': 'leftsidebar',
+      'SecondLeft': 'secondleftsidebar', 
+      'Right': 'right-sidebar'
+    };
+    
+    const sidebarId = sidebarMap[side] || (side === 'Right' ? 'right-sidebar' : 'leftsidebar');
+    const sidebar = document.getElementById(sidebarId);
+    
+    if (!sidebar) return false;
+    
+    // Use 'is-show' class to match enhanced version
+    const isOpen = sidebar.classList.contains('is-show');
+    const shouldOpen = forceOpen !== undefined ? forceOpen : !isOpen;
+    
+    if (shouldOpen) {
+      sidebar.classList.add('is-show');
+      // Basic margin adjustment for immediate visual feedback
+      if (window.innerWidth > 478) {
+        const marginProp = side === 'Right' ? 'marginRight' : 'marginLeft';
+        sidebar.style[marginProp] = '0';
+      }
+    } else {
+      sidebar.classList.remove('is-show');
+      // Hide sidebar
+      if (window.innerWidth > 478) {
+        const marginProp = side === 'Right' ? 'marginRight' : 'marginLeft';
+        sidebar.style[marginProp] = '-350px'; // Default width assumption
+      }
+    }
+    
+    return shouldOpen;
+  }
+  
+  // Attach to global scope immediately
+  window.toggleSidebar = toggleSidebar;
+  
+  // Setup click handlers as soon as possible
+  function setupImmediateHandlers() {
+    // Left sidebar (menu button)
+    const menuButton = document.getElementById('menu-button');
+    if (menuButton && !menuButton.dataset.immediateHandler) {
+      menuButton.addEventListener('click', () => toggleSidebar('Left'));
+      menuButton.dataset.immediateHandler = 'true';
+    }
+    
+    // Right sidebar button
+    const rightButton = document.getElementById('right-sidebar-button');
+    if (rightButton && !rightButton.dataset.immediateHandler) {
+      rightButton.addEventListener('click', () => toggleSidebar('Right'));
+      rightButton.dataset.immediateHandler = 'true';
+    }
+    
+    // Close buttons
+    const closeButtons = document.querySelectorAll('.close-sidebar-button');
+    closeButtons.forEach(btn => {
+      if (!btn.dataset.immediateHandler) {
+        const sidebar = btn.closest('[id$="-sidebar"]');
+        if (sidebar) {
+          const side = sidebar.id.includes('right') ? 'Right' : 'Left';
+          btn.addEventListener('click', () => toggleSidebar(side, false));
+          btn.dataset.immediateHandler = 'true';
+        }
+      }
+    });
+  }
+  
+  // Try to setup immediately if elements exist
+  setupImmediateHandlers();
+  
+  // Also try on DOMContentLoaded in case elements don't exist yet
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupImmediateHandlers, { once: true });
+  }
+  
+  // Add minimal loading indicator to sidebars
+  function addLoadingStates() {
+    const sidebars = document.querySelectorAll('#left-sidebar, #right-sidebar');
+    sidebars.forEach(sidebar => {
+      if (!sidebar.querySelector('.sidebar-loading-indicator')) {
+        const existingContent = sidebar.querySelector('.sidebar-content, .sidebar-wrapper');
+        if (existingContent && existingContent.children.length === 0) {
+          existingContent.innerHTML = '<div class="sidebar-loading-indicator" style="padding: 20px; text-align: center; opacity: 0.6;">Loading...</div>';
+        }
+      }
+    });
+  }
+  
+  // Add loading states if sidebars exist but are empty
+  if (document.readyState !== 'loading') {
+    addLoadingStates();
+  } else {
+    document.addEventListener('DOMContentLoaded', addLoadingStates, { once: true });
+  }
+})();
 
 // Helper function to get URL from config
 function getOptimalUrl(type) {
   return APP_CONFIG.urls[type];
 }
-
-// Track initial milestone
-PerformanceDebugger.milestone('Script started');
-
-// Auto-generate report after 8 seconds
-setTimeout(() => {
-  console.log('Auto-generating performance report...');
-  PerformanceDebugger.generateReport();
-}, 8000);
-
-// Track DOM events
-document.addEventListener('DOMContentLoaded', () => {
-  PerformanceDebugger.milestone('DOM Content Loaded');
-});
-
-window.addEventListener('load', () => {
-  PerformanceDebugger.milestone('Window Load Complete');
-});
-
-// Expose globally for manual reporting
-window.PerformanceDebugger = PerformanceDebugger;
-window.performanceReport = () => PerformanceDebugger.generateReport();
-
-console.log('🔍 Performance debugging enabled. Call performanceReport() to see results.');
-console.log('⚡ Performance optimizations applied:');
-console.log('  • CDN: Using jsDelivr instead of GitHub raw URLs');
-console.log('  • Parallel loading: Combined & locality data load simultaneously');
-console.log('  • Deferred loading: Settlement data loads only when zoomed in');
-console.log('  • Immediate territories: Territory markers show without zoom requirement');
 
 // ========================
 // CONFIGURATION
@@ -1466,10 +1713,10 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#6a7a9c');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#ff4d4d');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#6a7a9c');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#ff4d4d');
             }
           }
         };
@@ -1507,10 +1754,10 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#444B5C');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#cc2929');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#444B5C');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#cc2929');
             }
           }
         };
@@ -2354,8 +2601,6 @@ function initializeTerritoryData() {
       }
     }
   ];
-  
-  console.log('✅ Territory data initialized - 2 territories available');
 }
 
 // Settlement loading helper - can be called from zoom or autocomplete interaction
@@ -2363,10 +2608,8 @@ async function loadSettlementsIfNeeded(trigger = 'unknown') {
   // Only load if not already loaded
   if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
     try {
-      PerformanceDebugger.milestone(`Settlement loading triggered by ${trigger}`);
       await loadSettlementsFromCache();
       EventBus.emit('data:settlement-loaded', { trigger });
-      console.log(`✅ Settlement data loaded due to ${trigger}`);
     } catch (error) {
       console.warn(`Error loading settlement data (${trigger}):`, error);
       EventBus.emit('data:settlement-error', { error, trigger });
@@ -2374,94 +2617,6 @@ async function loadSettlementsIfNeeded(trigger = 'unknown') {
   }
 }
 
-// ========================
-// WRAP CRITICAL FUNCTIONS FOR PERFORMANCE MONITORING
-// ========================
-// Store original functions and create wrapped versions
-const wrappedFunctions = {};
-
-// Helper to safely wrap functions (handles const declarations)
-function wrapIfPossible(name, category, obj = window) {
-  try {
-    if (typeof obj[name] === 'function') {
-      wrappedFunctions[name] = obj[name];
-      obj[name] = PerformanceDebugger.wrap(wrappedFunctions[name], name, category);
-      return true;
-    }
-  } catch (e) {
-    // If it's a const, we can't reassign it, so store the wrapped version separately
-    if (typeof obj[name] === 'function') {
-      wrappedFunctions[name] = PerformanceDebugger.wrap(obj[name], name, category);
-      return false;
-    }
-  }
-  return false;
-}
-
-// Wrap initialization functions
-wrapIfPossible('init', 'initialization');
-wrapIfPossible('setupEvents', 'initialization');
-wrapIfPossible('setupZoomBasedMarkerLoading', 'initialization');
-wrapIfPossible('setupDropdownListeners', 'initialization');
-wrapIfPossible('setupSidebars', 'initialization');
-wrapIfPossible('setupBackToTopButton', 'initialization');
-
-// For const functions like monitorTags, we'll intercept their calls differently
-const originalMonitorTags = monitorTags;
-wrappedFunctions.monitorTags = PerformanceDebugger.wrap(originalMonitorTags, 'monitorTags', 'initialization');
-
-// Wrap data loading functions
-wrapIfPossible('loadCombinedGeoData', 'data-loading');
-wrapIfPossible('loadLocalitiesFromGeoJSON', 'data-loading');
-wrapIfPossible('loadSettlementsFromGeoJSON', 'data-loading');
-wrapIfPossible('loadSettlementsFromCache', 'data-loading');
-
-// Wrap map layer functions
-wrapIfPossible('addRegionBoundaryToMap', 'map-layers');
-wrapIfPossible('addAreaOverlayToMap', 'map-layers');
-wrapIfPossible('addNativeRegionMarkers', 'map-markers');
-wrapIfPossible('addNativeTerritoryMarkers', 'map-markers');
-wrapIfPossible('addLocalityMarkers', 'map-markers');
-wrapIfPossible('addSettlementMarkers', 'map-markers');
-
-// Wrap checkbox generation functions
-wrapIfPossible('generateLocalityCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateSettlementCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateRegionCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateAllLocalityCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateAllSettlementCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateAllCheckboxes', 'checkbox-generation');
-wrapIfPossible('generateSingleCheckbox', 'checkbox-generation');
-
-// Wrap deferred functions
-wrapIfPossible('setupDeferredAreaControls', 'deferred-loading');
-wrapIfPossible('loadSettlementsIfNeeded', 'data-loading');
-wrapIfPossible('initializeTerritoryData', 'initialization');
-
-// Wrap event delegate functions
-if (typeof OptimizedEventDelegate !== 'undefined' && OptimizedEventDelegate.init) {
-  try {
-    OptimizedEventDelegate.init = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
-  } catch (e) {
-    // If it fails, store wrapped version separately
-    wrappedFunctions['OptimizedEventDelegate.init'] = PerformanceDebugger.wrap(OptimizedEventDelegate.init, 'OptimizedEventDelegate.init', 'event-setup');
-  }
-}
-
-// Wrap idle execution functions
-if (typeof IdleExecution !== 'undefined') {
-  try {
-    const originalSchedule = IdleExecution.schedule;
-    IdleExecution.schedule = function(callback, options) {
-      const wrappedCallback = PerformanceDebugger.wrap(callback, 'IdleExecution.callback', 'idle-execution');
-      return originalSchedule.call(this, wrappedCallback, options);
-    };
-  } catch (e) {
-    console.log('Could not wrap IdleExecution.schedule');
-  }
-}
-
-console.log('✅ Critical functions wrapped for performance monitoring');
 
 // DOM ready handlers
 document.addEventListener('DOMContentLoaded', () => {
@@ -2470,12 +2625,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Enhanced tag monitoring initialization (moved inside DOMContentLoaded)
   state.setTimer('initMonitorTags', () => {
-    // Use wrapped version if available, otherwise use original
-    if (wrappedFunctions.monitorTags) {
-      wrappedFunctions.monitorTags();
-    } else {
-      monitorTags();
-    }
+    monitorTags();
     
     // Monitoring initialized
   }, 100);
@@ -4273,9 +4423,8 @@ const loadingTracker = {
     
     // Fallback timer - shortened for optimized loading
     setTimeout(() => {
-      console.warn('Loading screen timeout reached - forcing completion');
       this.forceComplete();
-    }, 8000);  // 8 second max wait (reduced from 15s)
+    }, 8000);  // 8 second max wait
   },
   
   setupSidebarObserver() {
@@ -4312,17 +4461,10 @@ const loadingTracker = {
   markComplete(requirement) {
     if (this.requirements.hasOwnProperty(requirement) && !this.requirements[requirement]) {
       this.requirements[requirement] = true;
-      console.log(`✅ Loading requirement met: ${requirement}`);
       
       // Resolve the corresponding promise
       if (this.resolvers[requirement]) {
         this.resolvers[requirement]();
-      }
-      
-      // Check if all requirements are now met
-      const allMet = Object.values(this.requirements).every(req => req);
-      if (allMet) {
-        console.log('🎉 All loading requirements met - hiding loading screen!');
       }
     }
   },
@@ -4380,8 +4522,6 @@ const loadingTracker = {
   hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-map-screen');
     if (loadingScreen && loadingScreen.style.display !== 'none') {
-      console.log('🎯 Hiding loading screen');
-      PerformanceDebugger.milestone('Loading screen hidden');
       loadingScreen.style.display = 'none';
     }
     
@@ -6500,7 +6640,7 @@ const mapBounds = [
 
 const map = new mapboxgl.Map({
   container: "map",
-  style: "mapbox://styles/occupationcrimes/cmeo2b3yu000601sf4sr066j9",
+  style: "mapbox://styles/occupationcrimes/cmf7lxqtf000m01sj6gwl6t0v",
   bounds: mapBounds,
   fitBoundsOptions: {
     padding: isMobile ? 20 : 50 // Less padding on mobile, more on desktop
@@ -6510,7 +6650,6 @@ const map = new mapboxgl.Map({
 
 // Map load event handler with optimized parallel operations
 map.on("load", () => {
-  PerformanceDebugger.milestone('Map loaded - starting initialization');
   try {
     init();
     
@@ -6522,8 +6661,6 @@ map.on("load", () => {
       // Load locality data in parallel (but don't show locality markers yet)
       loadLocalitiesFromGeoJSON()
     ]).then(() => {
-      PerformanceDebugger.milestone('Initial data loaded in parallel');
-      
       // Initialize territory data immediately (should always be visible)
       initializeTerritoryData();
       
@@ -6560,7 +6697,6 @@ map.on("load", () => {
 
 // Listen for map idle event to detect when rendering is complete
 map.on('idle', () => {
-  PerformanceDebugger.milestone('Map idle - rendering complete');
   loadingTracker.onMapIdle();
 });
 
@@ -6853,8 +6989,8 @@ const closeSidebar = (side) => {
   sidebar.style.pointerEvents = '';
 };
 
-// Toggle sidebar with improved caching and helper functions
-const toggleSidebar = (side, show = null) => {
+// Enhanced toggle sidebar (Phase 2) - Replaces immediate version when ready
+const enhancedToggleSidebar = (side, show = null) => {
   const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar) return;
   
@@ -6895,6 +7031,13 @@ const toggleSidebar = (side, show = null) => {
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
 };
+
+// Upgrade the immediate sidebar to enhanced version when ready
+setTimeout(() => {
+  if (typeof enhancedToggleSidebar === 'function') {
+    window.toggleSidebar = enhancedToggleSidebar;
+  }
+}, 100);
 
 // Global function to frame region boundaries (used by both markers and autocomplete)
 function frameRegionBoundary(regionName) {
@@ -7322,7 +7465,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#444B5C',
+          'text-halo-color': '#cc2929',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7370,7 +7513,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#444B5C',
+          'text-halo-color': '#cc2929',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -8429,6 +8572,10 @@ function setupControls() {
 
 // Sidebar setup with better performance and cleaner management
 function setupSidebars() {
+  // Phase 2: Enhanced sidebar functionality (after immediate toggle is already working)
+  // Remove any loading indicators since content is ready
+  document.querySelectorAll('.sidebar-loading-indicator').forEach(el => el.remove());
+  
   let zIndex = 1000;
   
   const setupSidebarElement = (side) => {
@@ -8437,7 +8584,9 @@ function setupSidebars() {
     const close = $id(`${side}SidebarClose`);
     
     if (!sidebar || !tab || !close) return false;
+    // Skip if already setup OR if immediate handlers are present
     if (tab.dataset.setupComplete === 'true' && close.dataset.setupComplete === 'true') return true;
+    if (tab.dataset.immediateHandler === 'true') return true; // Skip if immediate handler exists
     
     // Batch style applications
     const cssTransitionProperty = side === 'SecondLeft' ? 'margin-left' : `margin-${side.toLowerCase()}`;
@@ -8713,9 +8862,14 @@ if (document.readyState === 'loading') {
       elements.forEach(element => {
         if (element.dataset.mapboxCheckboxListenerAdded === 'true') return;
         
-        element.addEventListener('click', function(e) {
-          // Generate all checkboxes when Location tab is clicked
+        element.addEventListener('click', async function(e) {
+          // Load settlement data and generate all checkboxes when Location tab is clicked
           if (APP_CONFIG.features.enableLazyCheckboxes) {
+            
+            // Load settlement data if not already loaded
+            await loadSettlementsIfNeeded('tab-click');
+            
+            // Generate all checkboxes (including settlements now that data is loaded)
             generateAllCheckboxes();
           }
         });
@@ -8725,11 +8879,16 @@ if (document.readyState === 'loading') {
     });
     
     // Also use event delegation for dynamically added tabs
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', async function(e) {
       const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
                          e.target.closest('#w-tabs-0-data-w-tab-2');
       
       if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
+        
+        // Load settlement data if not already loaded
+        await loadSettlementsIfNeeded('tab-click');
+        
+        // Generate all checkboxes (including settlements now that data is loaded)
         generateAllCheckboxes();
       }
     });
