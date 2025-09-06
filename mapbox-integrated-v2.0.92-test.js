@@ -1367,6 +1367,26 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('territory-points')) {
               map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
             }
+            // Highlight all districts for both territories (since hover doesn't specify which)
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
+                const sourceId = layer.source;
+                const source = map.getSource(sourceId);
+                if (source && source._data && source._data.features) {
+                  const feature = source._data.features[0];
+                  if (feature && feature.properties && feature.properties.territory) {
+                    map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
+                    map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
+                    const borderId = layer.id.replace('-fill', '-border');
+                    if (mapLayers.hasLayer(borderId)) {
+                      map.setPaintProperty(borderId, 'line-color', '#6e3500');
+                      map.setPaintProperty(borderId, 'line-opacity', 0.9);
+                    }
+                  }
+                }
+              }
+            });
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
@@ -1408,6 +1428,27 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('territory-points')) {
               map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
             }
+            // Unhighlight all districts
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
+                const sourceId = layer.source;
+                const source = map.getSource(sourceId);
+                if (source && source._data && source._data.features) {
+                  const feature = source._data.features[0];
+                  if (feature && feature.properties && feature.properties.territory) {
+                    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                    map.setPaintProperty(layer.id, 'fill-color', currentColor);
+                    map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
+                    const borderId = layer.id.replace('-fill', '-border');
+                    if (mapLayers.hasLayer(borderId)) {
+                      map.setPaintProperty(borderId, 'line-color', '#888888');
+                      map.setPaintProperty(borderId, 'line-opacity', 0.8);
+                    }
+                  }
+                }
+              }
+            });
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
               map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
@@ -2461,6 +2502,8 @@ function setupGlobalExports() {
   window.selectTerritoryCheckbox = selectTerritoryCheckbox;
   window.applyFilterToMarkers = applyFilterToMarkers;
   window.highlightBoundary = highlightBoundary;
+  window.highlightTerritoryBoundaries = highlightTerritoryBoundaries;
+  window.frameTerritoryBoundaries = frameTerritoryBoundaries;
   window.frameRegionBoundary = frameRegionBoundary;
   window.map = map;
   window.mapboxgl = mapboxgl;
@@ -3652,7 +3695,13 @@ loadDataFromState() {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // No flying for territory selection from autocomplete
+                // Highlight and frame territory boundaries
+                if (window.highlightTerritoryBoundaries) {
+                    window.highlightTerritoryBoundaries(territoryName);
+                }
+                if (window.frameTerritoryBoundaries) {
+                    window.frameTerritoryBoundaries(territoryName);
+                }
                 
                 // Clean up flag
                 setTimeout(() => {
@@ -6762,8 +6811,111 @@ function highlightBoundary(regionName) {
   }
 }
 
+// Highlight all boundaries for a territory
+function highlightTerritoryBoundaries(territoryName) {
+  // Remove any existing highlight first
+  removeBoundaryHighlight();
+  
+  // Get all district boundaries for this territory
+  const districtsToHighlight = [];
+  const allLayers = map.getStyle().layers;
+  
+  // Find all district fill layers and check if they belong to this territory
+  allLayers.forEach(layer => {
+    if (layer.id.includes('-fill') && !layer.id.includes('area-')) {
+      const sourceId = layer.source;
+      const source = map.getSource(sourceId);
+      if (source && source._data && source._data.features) {
+        const feature = source._data.features[0];
+        if (feature && feature.properties && feature.properties.territory === territoryName) {
+          districtsToHighlight.push({
+            fillId: layer.id,
+            borderId: layer.id.replace('-fill', '-border'),
+            feature: feature
+          });
+        }
+      }
+    }
+  });
+  
+  // Highlight all matching districts
+  if (districtsToHighlight.length > 0) {
+    mapLayers.addToBatch(() => {
+      districtsToHighlight.forEach(district => {
+        if (mapLayers.hasLayer(district.fillId)) {
+          map.setPaintProperty(district.fillId, 'fill-color', '#6e3500');
+          map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
+        }
+        if (mapLayers.hasLayer(district.borderId)) {
+          map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
+          map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
+        }
+      });
+    });
+    
+    state.highlightedBoundary = territoryName;
+    state.highlightedTerritoryDistricts = districtsToHighlight;
+  }
+  
+  return districtsToHighlight;
+}
+
+// Frame all boundaries for a territory
+function frameTerritoryBoundaries(territoryName) {
+  const districtsToFrame = state.highlightedTerritoryDistricts || [];
+  
+  if (districtsToFrame.length === 0) {
+    return false;
+  }
+  
+  // Collect all coordinates from all districts
+  const allCoordinates = [];
+  districtsToFrame.forEach(district => {
+    if (district.feature && district.feature.geometry && district.feature.geometry.coordinates) {
+      const coords = district.feature.geometry.coordinates;
+      if (Array.isArray(coords[0])) {
+        coords[0].forEach(coord => {
+          if (Array.isArray(coord) && coord.length >= 2) {
+            allCoordinates.push(coord);
+          }
+        });
+      }
+    }
+  });
+  
+  if (allCoordinates.length === 0) {
+    return false;
+  }
+  
+  // Calculate bounds
+  const cacheKey = `territory-${territoryName}`;
+  const bounds = boundsCalculator.fromGeoJSON(allCoordinates, cacheKey);
+  
+  map.fitBounds(bounds, {padding: 50, duration: 1000, essential: true});
+  return true;
+}
+
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
+  // Handle territory highlights
+  if (state.highlightedTerritoryDistricts && state.highlightedTerritoryDistricts.length > 0) {
+    mapLayers.addToBatch(() => {
+      state.highlightedTerritoryDistricts.forEach(district => {
+        if (mapLayers.hasLayer(district.fillId)) {
+          const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+          map.setPaintProperty(district.fillId, 'fill-color', currentColor);
+          map.setPaintProperty(district.fillId, 'fill-opacity', 0.15);
+        }
+        if (mapLayers.hasLayer(district.borderId)) {
+          map.setPaintProperty(district.borderId, 'line-color', '#888888');
+          map.setPaintProperty(district.borderId, 'line-opacity', 0.8);
+        }
+      });
+    });
+    state.highlightedTerritoryDistricts = null;
+  }
+  
+  // Handle single boundary highlights
   if (state.highlightedBoundary) {
     const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
@@ -7422,7 +7574,9 @@ function setupTerritoryMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // No flying for territory markers
+    // Highlight and frame territory boundaries
+    highlightTerritoryBoundaries(territoryName);
+    frameTerritoryBoundaries(territoryName);
     
     state.setTimer('territoryMarkerCleanup', () => {
       window.isMarkerClick = false;
