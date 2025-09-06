@@ -103,7 +103,7 @@
       <input type="range" id="region-opacity" min="0" max="1" step="0.05" value="0.15">
       <div class="control-group">
         <label>Fill Color:</label>
-        <input type="color" id="region-color" value="#1a1b1e" data-original="#1a1b1e">
+        <input type="color" id="region-color" value="#703200" data-original="#703200">
       </div>
     </div>
 
@@ -1424,7 +1424,7 @@ function addRegionBoundaryToMap(name, regionFeature) {
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'fill-color': '#1a1b1e',
+      'fill-color': '#703200',
       'fill-opacity': 0.15
     }
   };
@@ -1737,7 +1737,7 @@ function setupDeferredAreaControls() {
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
-                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#703200';
                 map.setPaintProperty(layer.id, 'fill-color', currentColor);
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
               }
@@ -7089,7 +7089,7 @@ function removeBoundaryHighlight() {
     if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
       // Batch boundary reset operations
       mapLayers.addToBatch(() => {
-        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#703200';
         map.setPaintProperty(boundaryFillId, 'fill-color', currentColor);
         map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
         map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
