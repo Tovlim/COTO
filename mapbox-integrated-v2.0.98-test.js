@@ -1384,9 +1384,9 @@ function setupDeferredAreaControls() {
                 const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
-                  map.setPaintProperty(fillId, 'fill-color', '#6e3500');
+                  map.setPaintProperty(fillId, 'fill-color', '#2d1810');
                   map.setPaintProperty(fillId, 'fill-opacity', 0.4);
-                  map.setPaintProperty(borderId, 'line-color', '#6e3500');
+                  map.setPaintProperty(borderId, 'line-color', '#2d1810');
                   map.setPaintProperty(borderId, 'line-opacity', 0.9);
                 }
               });
@@ -6836,6 +6836,21 @@ function highlightTerritoryBoundaries(territoryName) {
   
   console.log(`🗺️ District-Territory Map:`, state.districtTerritoryMap);
   
+  // Check for duplicate layers
+  const allLayers = map.getStyle().layers;
+  const fillLayers = allLayers.filter(layer => layer.id.includes('-fill'));
+  const borderLayers = allLayers.filter(layer => layer.id.includes('-border'));
+  console.log(`🔍 Total fill layers: ${fillLayers.length}, border layers: ${borderLayers.length}`);
+  
+  // Check for specific territory layers
+  const territoryFillLayers = fillLayers.filter(layer => {
+    const layerName = layer.id.replace('-fill', '');
+    return state.districtTerritoryMap && Array.from(state.districtTerritoryMap.keys()).some(district => 
+      district.toLowerCase().replace(/\s+/g, '-') === layerName
+    );
+  });
+  console.log(`🏛️ Territory-related fill layers found: ${territoryFillLayers.length}`, territoryFillLayers.map(l => l.id));
+  
   if (state.districtTerritoryMap) {
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
@@ -6866,16 +6881,16 @@ function highlightTerritoryBoundaries(territoryName) {
   
   // Highlight all matching districts
   if (districtsToHighlight.length > 0) {
-    console.log(`🎨 Applying territory highlight color #6e3500 to ${districtsToHighlight.length} districts`);
+    console.log(`🎨 Applying territory highlight color #2d1810 to ${districtsToHighlight.length} districts`);
     
     mapLayers.addToBatch(() => {
       districtsToHighlight.forEach((district, index) => {
         console.log(`🎨 ${index + 1}. Highlighting ${district.districtName}: ${district.fillId}`);
         
         try {
-          map.setPaintProperty(district.fillId, 'fill-color', '#6e3500');
+          map.setPaintProperty(district.fillId, 'fill-color', '#2d1810');
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
-          map.setPaintProperty(district.borderId, 'line-color', '#6e3500');
+          map.setPaintProperty(district.borderId, 'line-color', '#2d1810');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
           console.log(`✅ Successfully highlighted ${district.districtName}`);
           
@@ -6885,11 +6900,11 @@ function highlightTerritoryBoundaries(territoryName) {
             const currentBorderColor = map.getPaintProperty(district.borderId, 'line-color');
             console.log(`🔍 ${district.districtName} colors after 100ms - Fill: ${currentFillColor}, Border: ${currentBorderColor}`);
             
-            if (currentFillColor !== '#6e3500') {
-              console.warn(`⚠️ ${district.districtName} fill color was overridden! Expected #6e3500, got ${currentFillColor}`);
+            if (currentFillColor !== '#2d1810') {
+              console.warn(`⚠️ ${district.districtName} fill color was overridden! Expected #2d1810, got ${currentFillColor}`);
             }
-            if (currentBorderColor !== '#6e3500') {
-              console.warn(`⚠️ ${district.districtName} border color was overridden! Expected #6e3500, got ${currentBorderColor}`);
+            if (currentBorderColor !== '#2d1810') {
+              console.warn(`⚠️ ${district.districtName} border color was overridden! Expected #2d1810, got ${currentBorderColor}`);
             }
           }, 100);
           
