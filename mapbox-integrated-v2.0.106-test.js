@@ -2165,7 +2165,16 @@ const monitorTags = (() => {
       if (!checkbox.dataset.filteredElementListener) {
         eventManager.add(checkbox, 'change', () => {
           // Check if this is a Governorate checkbox being unchecked
-          const checkboxFilter = checkbox.parentElement?.getAttribute('checkbox-filter');
+          // Search up the DOM tree for the checkbox-filter attribute
+          let checkboxFilter = null;
+          let currentElement = checkbox.parentElement;
+          while (currentElement && !checkboxFilter) {
+            checkboxFilter = currentElement.getAttribute('checkbox-filter');
+            if (!checkboxFilter) {
+              currentElement = currentElement.parentElement;
+            }
+          }
+          
           const governorateName = checkbox.getAttribute('fs-list-value');
           
           console.log('🔲 Checkbox changed:', {
