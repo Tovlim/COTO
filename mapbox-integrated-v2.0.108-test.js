@@ -2177,8 +2177,8 @@ const monitorTags = (() => {
           
           const governorateName = checkbox.getAttribute('fs-list-value');
           
-          if (checkboxFilter === 'Governorate' && !checkbox.checked) {
-            // If this governorate is currently highlighted, remove the highlight
+          if ((checkboxFilter === 'Governorate' || checkboxFilter === 'territory') && !checkbox.checked) {
+            // If this governorate/territory is currently highlighted, remove the highlight
             if (state.highlightedBoundary === governorateName) {
               removeBoundaryHighlight();
             }
