@@ -2164,6 +2164,15 @@ const monitorTags = (() => {
     allCheckboxes.forEach(checkbox => {
       if (!checkbox.dataset.filteredElementListener) {
         eventManager.add(checkbox, 'change', () => {
+          // Check if this is a Governorate checkbox being unchecked
+          const checkboxFilter = checkbox.parentElement?.getAttribute('checkbox-filter');
+          if (checkboxFilter === 'Governorate' && !checkbox.checked) {
+            const governorateName = checkbox.getAttribute('fs-list-value');
+            // If this governorate is currently highlighted, remove the highlight
+            if (state.highlightedBoundary === governorateName) {
+              removeBoundaryHighlight();
+            }
+          }
           IdleExecution.scheduleUI(checkAndToggleFilteredElements);
         });
         checkbox.dataset.filteredElementListener = 'true';
