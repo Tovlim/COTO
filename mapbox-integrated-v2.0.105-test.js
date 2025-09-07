@@ -2166,11 +2166,26 @@ const monitorTags = (() => {
         eventManager.add(checkbox, 'change', () => {
           // Check if this is a Governorate checkbox being unchecked
           const checkboxFilter = checkbox.parentElement?.getAttribute('checkbox-filter');
+          const governorateName = checkbox.getAttribute('fs-list-value');
+          
+          console.log('🔲 Checkbox changed:', {
+            name: governorateName,
+            filter: checkboxFilter,
+            checked: checkbox.checked,
+            currentHighlight: state.highlightedBoundary,
+            territoryActive: state.territoryHighlightActive
+          });
+          
           if (checkboxFilter === 'Governorate' && !checkbox.checked) {
-            const governorateName = checkbox.getAttribute('fs-list-value');
+            console.log(`📦 Governorate unchecked: ${governorateName}`);
+            console.log(`📦 Current highlighted boundary: ${state.highlightedBoundary}`);
+            
             // If this governorate is currently highlighted, remove the highlight
             if (state.highlightedBoundary === governorateName) {
+              console.log('🎯 Match found! Removing boundary highlight');
               removeBoundaryHighlight();
+            } else {
+              console.log('❌ No match - not removing highlight');
             }
           }
           IdleExecution.scheduleUI(checkAndToggleFilteredElements);
