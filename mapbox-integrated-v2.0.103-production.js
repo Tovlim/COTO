@@ -158,42 +158,6 @@ const APP_CONFIG = {
 };
 
 // ========================
-// COLOR CONSTANTS
-// ========================
-const MAP_COLORS = {
-  territory: {
-    fill: '#2d1810',
-    border: '#2d1810',
-    fillOpacity: 0.4,
-    borderOpacity: 0.9,
-    hoverHalo: '#6a6a6a',
-    defaultHalo: '#2d1810'
-  },
-  governorate: {
-    fill: '#6e3500',
-    border: '#6e3500',
-    fillOpacity: 0.4,
-    borderOpacity: 0.9,
-    hoverHalo: '#8f4500',
-    defaultHalo: '#6e3500'
-  },
-  region: {
-    defaultFill: '#1a1b1e',
-    defaultBorder: '#888888',
-    defaultFillOpacity: 0.15,
-    defaultBorderOpacity: 0.8
-  },
-  locality: {
-    hoverHalo: '#8a8a00',
-    defaultHalo: '#616100'
-  },
-  settlement: {
-    hoverHalo: '#b30000',
-    defaultHalo: '#800000'
-  }
-};
-
-// ========================
 // LAZY CHECKBOX STATE
 // ========================
 const LazyCheckboxState = {
@@ -1416,7 +1380,7 @@ function setupDeferredAreaControls() {
         const mouseEnterHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', MAP_COLORS.territory.hoverHalo);
+              map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
             }
             // Highlight all districts for both territories (since hover doesn't specify which)
             if (state.districtTerritoryMap) {
@@ -1425,23 +1389,23 @@ function setupDeferredAreaControls() {
                 const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
-                  map.setPaintProperty(fillId, 'fill-color', MAP_COLORS.territory.fill);
-                  map.setPaintProperty(fillId, 'fill-opacity', MAP_COLORS.territory.fillOpacity);
-                  map.setPaintProperty(borderId, 'line-color', MAP_COLORS.territory.border);
-                  map.setPaintProperty(borderId, 'line-opacity', MAP_COLORS.territory.borderOpacity);
+                  map.setPaintProperty(fillId, 'fill-color', '#2d1810');
+                  map.setPaintProperty(fillId, 'fill-opacity', 0.4);
+                  map.setPaintProperty(borderId, 'line-color', '#2d1810');
+                  map.setPaintProperty(borderId, 'line-opacity', 0.9);
                 }
               });
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', MAP_COLORS.governorate.hoverHalo);
+              map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
             }
             if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', MAP_COLORS.governorate.hoverHalo);
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
             }
             
             // Clear territory highlighting and highlight regions
-            if (state.territoryHighlight.active || state.territoryHighlightActive) {
+            if (state.territoryHighlightActive) {
               removeBoundaryHighlight();
             }
             
@@ -1449,27 +1413,27 @@ function setupDeferredAreaControls() {
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
-                map.setPaintProperty(layer.id, 'fill-color', MAP_COLORS.governorate.fill);
-                map.setPaintProperty(layer.id, 'fill-opacity', MAP_COLORS.governorate.fillOpacity);
+                map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
               }
               if (layer.id.includes('-border')) {
-                map.setPaintProperty(layer.id, 'line-color', MAP_COLORS.governorate.border);
-                map.setPaintProperty(layer.id, 'line-opacity', MAP_COLORS.governorate.borderOpacity);
+                map.setPaintProperty(layer.id, 'line-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.9);
               }
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', MAP_COLORS.locality.hoverHalo);
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#8a8a00');
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', MAP_COLORS.locality.hoverHalo);
+              map.setPaintProperty('locality-points', 'text-halo-color', '#8a8a00');
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', MAP_COLORS.settlement.hoverHalo);
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#b30000');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', MAP_COLORS.settlement.hoverHalo);
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#b30000');
             }
           }
         };
@@ -1477,7 +1441,7 @@ function setupDeferredAreaControls() {
         const mouseLeaveHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', MAP_COLORS.territory.defaultHalo);
+              map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
             }
             // Unhighlight all districts
             if (state.districtTerritoryMap) {
@@ -1486,48 +1450,48 @@ function setupDeferredAreaControls() {
                 const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
-                  const currentColor = document.getElementById('region-color')?.value || MAP_COLORS.region.defaultFill;
+                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
                   map.setPaintProperty(fillId, 'fill-color', currentColor);
-                  map.setPaintProperty(fillId, 'fill-opacity', MAP_COLORS.region.defaultFillOpacity);
-                  map.setPaintProperty(borderId, 'line-color', MAP_COLORS.region.defaultBorder);
-                  map.setPaintProperty(borderId, 'line-opacity', MAP_COLORS.region.defaultBorderOpacity);
+                  map.setPaintProperty(fillId, 'fill-opacity', 0.15);
+                  map.setPaintProperty(borderId, 'line-color', '#888888');
+                  map.setPaintProperty(borderId, 'line-opacity', 0.8);
                 }
               });
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', MAP_COLORS.governorate.defaultHalo);
+              map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
             }
             if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', MAP_COLORS.governorate.defaultHalo);
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
             }
             
             // Remove region highlights
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
-                const currentColor = document.getElementById('region-color')?.value || MAP_COLORS.region.defaultFill;
+                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
                 map.setPaintProperty(layer.id, 'fill-color', currentColor);
-                map.setPaintProperty(layer.id, 'fill-opacity', MAP_COLORS.region.defaultFillOpacity);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
               }
               if (layer.id.includes('-border')) {
-                map.setPaintProperty(layer.id, 'line-color', MAP_COLORS.region.defaultBorder);
-                map.setPaintProperty(layer.id, 'line-opacity', MAP_COLORS.region.defaultBorderOpacity);
+                map.setPaintProperty(layer.id, 'line-color', '#888888');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.8);
               }
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', MAP_COLORS.locality.defaultHalo);
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#616100');
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', MAP_COLORS.locality.defaultHalo);
+              map.setPaintProperty('locality-points', 'text-halo-color', '#616100');
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', MAP_COLORS.settlement.defaultHalo);
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#800000');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', MAP_COLORS.settlement.defaultHalo);
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#800000');
             }
           }
         };
@@ -6381,15 +6345,10 @@ class OptimizedMapState {
     this.lastClickedMarker = null;
     this.lastClickTime = 0;
     this.markerInteractionLock = false;
-    this.highlightedBoundary = null; // Keep for backward compatibility
+    this.highlightedBoundary = null;
+    this.highlightedTerritoryDistricts = null;
+    this.territoryHighlightActive = false;
     this.districtTerritoryMap = null;
-    
-    // Enhanced territory highlight state management
-    this.territoryHighlight = {
-      active: false,
-      territoryName: null,
-      districts: []
-    };
     this.clickPriority = 999; // Higher number = lower priority, 999 = no click yet
     
     this.flags = new Proxy({
@@ -6864,59 +6823,28 @@ function frameRegionBoundary(regionName) {
 
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(regionName) {
-  console.log(`🎯 highlightBoundary called for: ${regionName}`);
-  console.log(`📊 State before highlight:`, {
-    highlightedBoundary: state.highlightedBoundary,
-    territoryActive: state.territoryHighlightActive,
-    territoryHighlight: state.territoryHighlight,
-    territoryDistricts: state.highlightedTerritoryDistricts
-  });
-  
-  // Always remove any existing highlight first - simple and clean
-  removeBoundaryHighlight(true);
-  
-  // Clear any territory highlighting to prevent conflicts
-  console.log(`🧹 Clearing territory state for governorate highlight`);
-  state.territoryHighlight = { active: false, territoryName: null, districts: [] };
-  state.highlightedTerritoryDistricts = null;
-  state.territoryHighlightActive = false;
+  // Remove any existing highlight first
+  removeBoundaryHighlight();
   
   const boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   const boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
-  console.log(`🔍 Looking for layers: ${boundaryFillId}, ${boundaryBorderId}`);
-  
   if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
-    console.log(`✅ Layers found, applying governorate highlight`);
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(boundaryFillId, 'fill-color', MAP_COLORS.governorate.fill);
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', MAP_COLORS.governorate.fillOpacity);
-      map.setPaintProperty(boundaryBorderId, 'line-color', MAP_COLORS.governorate.border);
-      map.setPaintProperty(boundaryBorderId, 'line-opacity', MAP_COLORS.governorate.borderOpacity);
+      map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
+      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.4);
+      map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
+      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
     });
     
     // Track the highlighted boundary
     state.highlightedBoundary = regionName;
-    console.log(`📊 State after highlight:`, {
-      highlightedBoundary: state.highlightedBoundary,
-      territoryActive: state.territoryHighlightActive,
-      territoryHighlight: state.territoryHighlight
-    });
-  } else {
-    console.log(`❌ Layers not found`);
   }
 }
 
 // Highlight all boundaries for a territory
-function highlightTerritoryBoundaries(territoryName, forceFlush = false) {
-  console.log(`🌍 highlightTerritoryBoundaries called for: ${territoryName}`);
-  console.log(`📊 State before territory highlight:`, {
-    highlightedBoundary: state.highlightedBoundary,
-    territoryActive: state.territoryHighlightActive,
-    territoryHighlight: state.territoryHighlight
-  });
-  
+function highlightTerritoryBoundaries(territoryName) {
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
@@ -6927,16 +6855,19 @@ function highlightTerritoryBoundaries(territoryName, forceFlush = false) {
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
       if (territory === territoryName) {
-        // Optimize: Generate layer IDs once and store
-        const layers = {
-          fillId: `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`,
-          borderId: `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`,
-          districtName: districtName
-        };
+        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
         
-        // Check if both layers exist before adding
-        if (mapLayers.hasLayer(layers.fillId) && mapLayers.hasLayer(layers.borderId)) {
-          districtsToHighlight.push(layers);
+        // Check if layers exist
+        const hasFill = mapLayers.hasLayer(fillId);
+        const hasBorder = mapLayers.hasLayer(borderId);
+        
+        if (hasFill && hasBorder) {
+          districtsToHighlight.push({
+            fillId: fillId,
+            borderId: borderId,
+            districtName: districtName
+          });
         }
       }
     });
@@ -6944,34 +6875,25 @@ function highlightTerritoryBoundaries(territoryName, forceFlush = false) {
   
   // Highlight all matching districts
   if (districtsToHighlight.length > 0) {
-    const updateFunction = () => {
+    mapLayers.addToBatch(() => {
       districtsToHighlight.forEach((district) => {
         try {
-          map.setPaintProperty(district.fillId, 'fill-color', MAP_COLORS.territory.fill);
-          map.setPaintProperty(district.fillId, 'fill-opacity', MAP_COLORS.territory.fillOpacity);
-          map.setPaintProperty(district.borderId, 'line-color', MAP_COLORS.territory.border);
-          map.setPaintProperty(district.borderId, 'line-opacity', MAP_COLORS.territory.borderOpacity);
+          map.setPaintProperty(district.fillId, 'fill-color', '#2d1810');
+          map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
+          map.setPaintProperty(district.borderId, 'line-color', '#2d1810');
+          map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
+          
         } catch (error) {
           // Silent fail - layer might not exist
         }
       });
-    };
+    });
     
-    // Use batching by default, immediate execution if forceFlush is true
-    if (forceFlush) {
-      updateFunction();
-    } else {
-      mapLayers.addToBatch(updateFunction);
+    // Clear any single boundary highlights when activating territory highlighting
+    if (state.highlightedBoundary && !state.territoryHighlightActive) {
+      state.highlightedBoundary = null;
     }
     
-    // Update enhanced state management
-    state.territoryHighlight = {
-      active: true,
-      territoryName: territoryName,
-      districts: districtsToHighlight
-    };
-    
-    // Keep backward compatibility
     state.highlightedBoundary = territoryName;
     state.highlightedTerritoryDistricts = districtsToHighlight;
     state.territoryHighlightActive = true;
@@ -6982,9 +6904,7 @@ function highlightTerritoryBoundaries(territoryName, forceFlush = false) {
 
 // Frame all boundaries for a territory
 function frameTerritoryBoundaries(territoryName) {
-  const districtsToFrame = state.territoryHighlight.districts.length > 0 
-    ? state.territoryHighlight.districts 
-    : (state.highlightedTerritoryDistricts || []);
+  const districtsToFrame = state.highlightedTerritoryDistricts || [];
   
   if (districtsToFrame.length === 0) {
     return false;
@@ -6992,50 +6912,22 @@ function frameTerritoryBoundaries(territoryName) {
   
   // Collect all coordinates from all districts
   const allCoordinates = [];
-  
   districtsToFrame.forEach(district => {
-    // Try multiple source patterns for robustness
-    const sourcePatterns = [
-      `${district.districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`,
-      district.fillId?.replace('-fill', '-boundary'),
-      district.fillId?.replace('-fill', '')
-    ];
+    // Get the source data for this district
+    const sourceId = `${district.districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+    const source = map.getSource(sourceId);
     
-    for (const sourceId of sourcePatterns) {
-      if (!sourceId) continue;
-      
-      const source = map.getSource(sourceId);
-      if (source && source._data) {
-        const data = source._data;
-        
-        // Handle both Feature and FeatureCollection
-        const features = data.features || [data];
-        
-        features.forEach(feature => {
-          if (feature && feature.geometry) {
-            const geometry = feature.geometry;
-            
-            // Handle different geometry types
-            if (geometry.type === 'Polygon') {
-              geometry.coordinates[0].forEach(coord => {
-                if (Array.isArray(coord) && coord.length >= 2) {
-                  allCoordinates.push(coord);
-                }
-              });
-            } else if (geometry.type === 'MultiPolygon') {
-              geometry.coordinates.forEach(polygon => {
-                polygon[0].forEach(coord => {
-                  if (Array.isArray(coord) && coord.length >= 2) {
-                    allCoordinates.push(coord);
-                  }
-                });
-              });
+    if (source && source._data && source._data.features) {
+      const feature = source._data.features[0];
+      if (feature && feature.geometry && feature.geometry.coordinates) {
+        const coords = feature.geometry.coordinates;
+        if (Array.isArray(coords[0])) {
+          coords[0].forEach(coord => {
+            if (Array.isArray(coord) && coord.length >= 2) {
+              allCoordinates.push(coord);
             }
-          }
-        });
-        
-        // If we found coordinates, stop searching
-        if (allCoordinates.length > 0) break;
+          });
+        }
       }
     }
   });
@@ -7053,98 +6945,55 @@ function frameTerritoryBoundaries(territoryName) {
 }
 
 // Remove boundary highlight and move back below area overlays
-function removeBoundaryHighlight(forceFlush = true) {
-  console.log(`🧹 removeBoundaryHighlight called`);
-  console.log(`📊 Current state:`, {
-    highlightedBoundary: state.highlightedBoundary,
-    territoryActive: state.territoryHighlightActive,
-    territoryHighlight: state.territoryHighlight,
-    territoryDistricts: state.highlightedTerritoryDistricts
-  });
+function removeBoundaryHighlight() {
   
-  // Handle territory highlights using enhanced state
-  const districtsToRestore = state.territoryHighlight.districts.length > 0 
-    ? state.territoryHighlight.districts 
-    : (state.highlightedTerritoryDistricts || []);
-  
-  console.log(`🏛️ Districts to restore: ${districtsToRestore.length}`, districtsToRestore.map(d => d.districtName));
-    
-  if (districtsToRestore.length > 0) {
-    console.log(`🔄 Restoring ${districtsToRestore.length} territory districts`);
-    const restoreFunction = () => {
-      districtsToRestore.forEach((district) => {
-        if (mapLayers.hasLayer(district.fillId)) {
-          const currentColor = document.getElementById('region-color')?.value || MAP_COLORS.region.defaultFill;
-          
-          try {
-            map.setPaintProperty(district.fillId, 'fill-color', currentColor);
-            map.setPaintProperty(district.fillId, 'fill-opacity', MAP_COLORS.region.defaultFillOpacity);
-          } catch (error) {
-            // Silent fail - layer might not exist
-          }
-        }
+  // Handle territory highlights
+  if (state.highlightedTerritoryDistricts && state.highlightedTerritoryDistricts.length > 0) {
+    // Execute immediately without batching to ensure cleanup happens
+    state.highlightedTerritoryDistricts.forEach((district) => {
+      if (mapLayers.hasLayer(district.fillId)) {
+        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
         
-        if (mapLayers.hasLayer(district.borderId)) {
-          try {
-            map.setPaintProperty(district.borderId, 'line-color', MAP_COLORS.region.defaultBorder);
-            map.setPaintProperty(district.borderId, 'line-opacity', MAP_COLORS.region.defaultBorderOpacity);
-          } catch (error) {
-            // Silent fail - layer might not exist
-          }
+        try {
+          map.setPaintProperty(district.fillId, 'fill-color', currentColor);
+          map.setPaintProperty(district.fillId, 'fill-opacity', 0.15);
+        } catch (error) {
+          // Silent fail - layer might not exist
         }
-      });
-    };
+      }
+      
+      if (mapLayers.hasLayer(district.borderId)) {
+        try {
+          map.setPaintProperty(district.borderId, 'line-color', '#888888');
+          map.setPaintProperty(district.borderId, 'line-opacity', 0.8);
+        } catch (error) {
+          // Silent fail - layer might not exist
+        }
+      }
+    });
     
-    // Execute immediately by default for cleanup, but allow batching if needed
-    if (forceFlush) {
-      restoreFunction();
-    } else {
-      mapLayers.addToBatch(restoreFunction);
-    }
-    
-    // Clear enhanced state
-    state.territoryHighlight = {
-      active: false,
-      territoryName: null,
-      districts: []
-    };
-    
-    // Clear legacy state for backward compatibility
     state.highlightedTerritoryDistricts = null;
     state.territoryHighlightActive = false;
   }
   
-  // Handle single boundary highlights - always restore them
-  if (state.highlightedBoundary) {
-    console.log(`🎯 Removing single boundary highlight for: ${state.highlightedBoundary}`);
+  // Handle single boundary highlights (only if territory highlighting is not active)
+  if (state.highlightedBoundary && !state.territoryHighlightActive) {
     const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
     
     if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
-      const restoreFunction = () => {
-        const currentColor = document.getElementById('region-color')?.value || MAP_COLORS.region.defaultFill;
+      // Batch boundary reset operations
+      mapLayers.addToBatch(() => {
+        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
         map.setPaintProperty(boundaryFillId, 'fill-color', currentColor);
-        map.setPaintProperty(boundaryFillId, 'fill-opacity', MAP_COLORS.region.defaultFillOpacity);
-        map.setPaintProperty(boundaryBorderId, 'line-color', MAP_COLORS.region.defaultBorder);
-        map.setPaintProperty(boundaryBorderId, 'line-opacity', MAP_COLORS.region.defaultBorderOpacity);
-      };
-      
-      // Use same flush logic for consistency
-      if (forceFlush) {
-        restoreFunction();
-      } else {
-        mapLayers.addToBatch(restoreFunction);
-      }
+        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
+        map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
+        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.8);
+      });
     }
     
     state.highlightedBoundary = null;
   }
-  
-  console.log(`📊 State after removal:`, {
-    highlightedBoundary: state.highlightedBoundary,
-    territoryActive: state.territoryHighlightActive,
-    territoryHighlight: state.territoryHighlight
-  });
 }
 
 // Toggle filtered elements with immediate DOM updates (no batching for critical UI)
@@ -7180,10 +7029,8 @@ function selectCheckbox(type, value) {
     // console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
     
     // Clear all checkboxes first
-    let hadAnyChecked = false;
     allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
-        hadAnyChecked = true;
         // console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -7195,11 +7042,6 @@ function selectCheckbox(type, value) {
         }
       }
     });
-    
-    // Always remove highlights when switching selections
-    if (hadAnyChecked) {
-      removeBoundaryHighlight(true);
-    }
     
     // Find and check the target checkbox
     const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
