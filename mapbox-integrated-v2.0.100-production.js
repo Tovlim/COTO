@@ -6864,10 +6864,19 @@ function frameRegionBoundary(regionName) {
 
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(regionName) {
+  console.log(`🎯 highlightBoundary called for: ${regionName}`);
+  console.log(`📊 State before highlight:`, {
+    highlightedBoundary: state.highlightedBoundary,
+    territoryActive: state.territoryHighlightActive,
+    territoryHighlight: state.territoryHighlight,
+    territoryDistricts: state.highlightedTerritoryDistricts
+  });
+  
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
   // Clear any territory highlighting to prevent conflicts
+  console.log(`🧹 Clearing territory state for governorate highlight`);
   state.territoryHighlight = { active: false, territoryName: null, districts: [] };
   state.highlightedTerritoryDistricts = null;
   state.territoryHighlightActive = false;
@@ -6875,7 +6884,10 @@ function highlightBoundary(regionName) {
   const boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   const boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
+  console.log(`🔍 Looking for layers: ${boundaryFillId}, ${boundaryBorderId}`);
+  
   if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
+    console.log(`✅ Layers found, applying governorate highlight`);
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
       map.setPaintProperty(boundaryFillId, 'fill-color', MAP_COLORS.governorate.fill);
@@ -6886,11 +6898,25 @@ function highlightBoundary(regionName) {
     
     // Track the highlighted boundary
     state.highlightedBoundary = regionName;
+    console.log(`📊 State after highlight:`, {
+      highlightedBoundary: state.highlightedBoundary,
+      territoryActive: state.territoryHighlightActive,
+      territoryHighlight: state.territoryHighlight
+    });
+  } else {
+    console.log(`❌ Layers not found`);
   }
 }
 
 // Highlight all boundaries for a territory
 function highlightTerritoryBoundaries(territoryName, forceFlush = false) {
+  console.log(`🌍 highlightTerritoryBoundaries called for: ${territoryName}`);
+  console.log(`📊 State before territory highlight:`, {
+    highlightedBoundary: state.highlightedBoundary,
+    territoryActive: state.territoryHighlightActive,
+    territoryHighlight: state.territoryHighlight
+  });
+  
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
@@ -7028,13 +7054,23 @@ function frameTerritoryBoundaries(territoryName) {
 
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight(forceFlush = true) {
+  console.log(`🧹 removeBoundaryHighlight called`);
+  console.log(`📊 Current state:`, {
+    highlightedBoundary: state.highlightedBoundary,
+    territoryActive: state.territoryHighlightActive,
+    territoryHighlight: state.territoryHighlight,
+    territoryDistricts: state.highlightedTerritoryDistricts
+  });
   
   // Handle territory highlights using enhanced state
   const districtsToRestore = state.territoryHighlight.districts.length > 0 
     ? state.territoryHighlight.districts 
     : (state.highlightedTerritoryDistricts || []);
+  
+  console.log(`🏛️ Districts to restore: ${districtsToRestore.length}`, districtsToRestore.map(d => d.districtName));
     
   if (districtsToRestore.length > 0) {
+    console.log(`🔄 Restoring ${districtsToRestore.length} territory districts`);
     const restoreFunction = () => {
       districtsToRestore.forEach((district) => {
         if (mapLayers.hasLayer(district.fillId)) {
@@ -7080,6 +7116,7 @@ function removeBoundaryHighlight(forceFlush = true) {
   
   // Handle single boundary highlights (only if territory highlighting is not active)
   if (state.highlightedBoundary && !state.territoryHighlight.active) {
+    console.log(`🎯 Removing single boundary highlight for: ${state.highlightedBoundary}`);
     const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
     
@@ -7101,7 +7138,15 @@ function removeBoundaryHighlight(forceFlush = true) {
     }
     
     state.highlightedBoundary = null;
+  } else if (state.highlightedBoundary) {
+    console.log(`⚠️ Boundary ${state.highlightedBoundary} not removed because territory is active: ${state.territoryHighlight.active}`);
   }
+  
+  console.log(`📊 State after removal:`, {
+    highlightedBoundary: state.highlightedBoundary,
+    territoryActive: state.territoryHighlightActive,
+    territoryHighlight: state.territoryHighlight
+  });
 }
 
 // Toggle filtered elements with immediate DOM updates (no batching for critical UI)
