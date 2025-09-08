@@ -1232,11 +1232,13 @@ function addAreaOverlayToMap(name, areaFeature) {
 }
 
 // DEFERRED: Area key controls - loads after main functionality
-function setupDeferredAreaControls() {
-  // Defer loading area controls to improve initial load time
-  const loadAreaControls = () => {
+function setupLazyToggleKeyControls() {
+  let toggleKeyControlsLoaded = false;
+  
+  // Function that initializes all toggle-key functionality
+  const initializeToggleKeyControls = () => {
     // Check if controls already setup
-    if (state.flags.areaControlsSetup) return;
+    if (toggleKeyControlsLoaded || state.flags.areaControlsSetup) return;
     
     const areaControls = [
       {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
@@ -1507,12 +1509,24 @@ function setupDeferredAreaControls() {
     // Mark as complete
     if (setupCount > 0) {
       state.flags.areaControlsSetup = true;
+      toggleKeyControlsLoaded = true;
     }
   };
   
-  // Use requestIdleCallback if available, otherwise setTimeout
-  // Load area controls during idle time for better performance
-  IdleExecution.scheduleHeavy(loadAreaControls, { timeout: 3000, fallbackDelay: 2000 });
+  // Add one-time click handler to #SecondLeftSideTab
+  const secondLeftSideTab = $id('SecondLeftSideTab');
+  if (secondLeftSideTab && !secondLeftSideTab.dataset.toggleKeyHandlerAdded) {
+    const handleFirstClick = () => {
+      // Initialize toggle-key controls
+      initializeToggleKeyControls();
+      
+      // Remove this handler since it only needs to run once
+      secondLeftSideTab.removeEventListener('click', handleFirstClick);
+      secondLeftSideTab.dataset.toggleKeyHandlerAdded = 'true';
+    };
+    
+    secondLeftSideTab.addEventListener('click', handleFirstClick);
+  }
 }
 
 // Generate settlement checkboxes from loaded settlement data (modified for lazy loading) 
@@ -8464,8 +8478,8 @@ function setupControls() {
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
   setupSidebarControls('.OpenSecondLeftSidebar, [OpenSecondLeftSidebar], [opensecondleftsidebar]', 'SecondLeft', 'change');
   
-  // Defer area controls loading
-  setupDeferredAreaControls();
+  // Setup lazy toggle-key controls
+  setupLazyToggleKeyControls();
   setupBackToTopButton();
 }
 
