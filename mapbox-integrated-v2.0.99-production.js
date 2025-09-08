@@ -6867,6 +6867,11 @@ function highlightBoundary(regionName) {
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
+  // Clear any territory highlighting to prevent conflicts
+  state.territoryHighlight = { active: false, territoryName: null, districts: [] };
+  state.highlightedTerritoryDistricts = null;
+  state.territoryHighlightActive = false;
+  
   const boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   const boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
