@@ -6383,6 +6383,7 @@ class OptimizedMapState {
     this.markerInteractionLock = false;
     this.highlightedBoundary = null; // Keep for backward compatibility
     this.districtTerritoryMap = null;
+    this.territoryDistrictFocus = null; // Track which specific district has focus within a territory
     
     // Enhanced territory highlight state management
     this.territoryHighlight = {
@@ -6872,6 +6873,20 @@ function highlightBoundary(regionName) {
     territoryDistricts: state.highlightedTerritoryDistricts
   });
   
+  // Check if this district is part of the currently highlighted territory
+  const isPartOfActiveTerritory = state.territoryHighlightActive && 
+    state.highlightedTerritoryDistricts && 
+    state.highlightedTerritoryDistricts.some(d => d.districtName === regionName);
+  
+  if (isPartOfActiveTerritory) {
+    console.log(`⚠️ District ${regionName} is part of active territory ${state.territoryHighlight.territoryName}, skipping individual highlight`);
+    // Don't apply individual highlight if part of active territory
+    // Just update the state to track this specific district within the territory
+    state.highlightedBoundary = regionName;
+    state.territoryDistrictFocus = regionName; // Track which district within territory has focus
+    return;
+  }
+  
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
@@ -6880,6 +6895,7 @@ function highlightBoundary(regionName) {
   state.territoryHighlight = { active: false, territoryName: null, districts: [] };
   state.highlightedTerritoryDistricts = null;
   state.territoryHighlightActive = false;
+  state.territoryDistrictFocus = null;
   
   const boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   const boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
@@ -7059,8 +7075,12 @@ function removeBoundaryHighlight(forceFlush = true) {
     highlightedBoundary: state.highlightedBoundary,
     territoryActive: state.territoryHighlightActive,
     territoryHighlight: state.territoryHighlight,
-    territoryDistricts: state.highlightedTerritoryDistricts
+    territoryDistricts: state.highlightedTerritoryDistricts,
+    territoryDistrictFocus: state.territoryDistrictFocus
   });
+  
+  // Clear any district focus within territory
+  state.territoryDistrictFocus = null;
   
   // Handle territory highlights using enhanced state
   const districtsToRestore = state.territoryHighlight.districts.length > 0 
@@ -7115,7 +7135,11 @@ function removeBoundaryHighlight(forceFlush = true) {
   }
   
   // Handle single boundary highlights (only if territory highlighting is not active)
-  if (state.highlightedBoundary && !state.territoryHighlight.active) {
+  // Skip if the boundary is part of the active territory to prevent conflicts
+  const boundaryIsPartOfTerritory = state.territoryHighlightActive && 
+    districtsToRestore.some(d => d.districtName === state.highlightedBoundary);
+  
+  if (state.highlightedBoundary && !state.territoryHighlight.active && !boundaryIsPartOfTerritory) {
     console.log(`🎯 Removing single boundary highlight for: ${state.highlightedBoundary}`);
     const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
     const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
@@ -7138,6 +7162,9 @@ function removeBoundaryHighlight(forceFlush = true) {
     }
     
     state.highlightedBoundary = null;
+  } else if (state.highlightedBoundary && boundaryIsPartOfTerritory) {
+    console.log(`⚠️ Boundary ${state.highlightedBoundary} is part of active territory, keeping territory highlight`);
+    // Don't null out the boundary, but it remains highlighted as part of territory
   } else if (state.highlightedBoundary) {
     console.log(`⚠️ Boundary ${state.highlightedBoundary} not removed because territory is active: ${state.territoryHighlight.active}`);
   }
@@ -7181,9 +7208,15 @@ function selectCheckbox(type, value) {
     
     // console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
     
-    // Clear all checkboxes first
+    // Clear all checkboxes first and remove any highlights
+    let hadTerritoryChecked = false;
     allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
+        // Check if this was a territory checkbox
+        const checkboxFilter = checkbox.closest('[checkbox-filter]')?.getAttribute('checkbox-filter');
+        if (checkboxFilter === 'territory') {
+          hadTerritoryChecked = true;
+        }
         // console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
@@ -7195,6 +7228,11 @@ function selectCheckbox(type, value) {
         }
       }
     });
+    
+    // Remove boundary highlights when unchecking
+    if (hadTerritoryChecked || allCheckboxes.some(cb => cb.checked)) {
+      removeBoundaryHighlight();
+    }
     
     // Find and check the target checkbox
     const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
