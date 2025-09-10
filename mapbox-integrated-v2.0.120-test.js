@@ -6351,6 +6351,7 @@ class OptimizedMapState {
     this.highlightedBoundaryType = null;
     this.highlightedTerritoryDistricts = null;
     this.territoryHighlightActive = false;
+    this.layerOwnership = new Map(); // Track which highlighting system owns each layer
     this.districtTerritoryMap = null;
     this.clickPriority = 999; // Higher number = lower priority, 999 = no click yet
     
@@ -6824,10 +6825,56 @@ function frameRegionBoundary(regionName) {
   return false; // No boundary found
 }
 
+// Reset a layer to neutral state and clear ownership
+function resetLayerToNeutral(fillId, borderId) {
+  if (mapLayers.hasLayer(fillId)) {
+    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+    try {
+      map.setPaintProperty(fillId, 'fill-color', currentColor);
+      map.setPaintProperty(fillId, 'fill-opacity', 0.15);
+    } catch (error) {
+      // Silent fail - layer might not exist
+    }
+  }
+  
+  if (mapLayers.hasLayer(borderId)) {
+    try {
+      map.setPaintProperty(borderId, 'line-color', '#888888');
+      map.setPaintProperty(borderId, 'line-opacity', 0.8);
+    } catch (error) {
+      // Silent fail - layer might not exist
+    }
+  }
+  
+  // Clear ownership tracking for both layers
+  state.layerOwnership.delete(fillId);
+  state.layerOwnership.delete(borderId);
+}
+
+// Force reset all highlighted layers to neutral state
+function forceResetAllHighlights() {
+  // Reset all layers tracked in ownership map
+  state.layerOwnership.forEach((owner, layerId) => {
+    const isAFillLayer = layerId.endsWith('-fill');
+    if (isAFillLayer) {
+      const fillId = layerId;
+      const borderId = layerId.replace('-fill', '-border');
+      resetLayerToNeutral(fillId, borderId);
+    }
+  });
+  
+  // Clear all state
+  state.highlightedBoundary = null;
+  state.highlightedBoundaryType = null;
+  state.highlightedTerritoryDistricts = null;
+  state.territoryHighlightActive = false;
+  state.layerOwnership.clear();
+}
+
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(regionName) {
-  // Remove any existing highlight first
-  removeBoundaryHighlight();
+  // Force reset ALL highlights to prevent ownership conflicts
+  forceResetAllHighlights();
   
   // Use hierarchical naming: prioritize district-level boundaries over territory-level
   const districtFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
@@ -6845,7 +6892,9 @@ function highlightBoundary(regionName) {
       map.setPaintProperty(districtBorderId, 'line-opacity', 0.9);
     });
     
-    // Track the highlighted boundary with type information
+    // Track layer ownership and state
+    state.layerOwnership.set(districtFillId, 'single-boundary');
+    state.layerOwnership.set(districtBorderId, 'single-boundary');
     state.highlightedBoundary = regionName;
     state.highlightedBoundaryType = 'district';
   }
@@ -6859,7 +6908,9 @@ function highlightBoundary(regionName) {
       map.setPaintProperty(territoryBorderId, 'line-opacity', 0.9);
     });
     
-    // Track the highlighted boundary with type information
+    // Track layer ownership and state
+    state.layerOwnership.set(territoryFillId, 'single-boundary');
+    state.layerOwnership.set(territoryBorderId, 'single-boundary');
     state.highlightedBoundary = regionName;
     state.highlightedBoundaryType = 'territory';
   }
@@ -6867,8 +6918,8 @@ function highlightBoundary(regionName) {
 
 // Highlight all boundaries for a territory
 function highlightTerritoryBoundaries(territoryName) {
-  // Remove any existing highlight first
-  removeBoundaryHighlight();
+  // Force reset ALL highlights to prevent ownership conflicts
+  forceResetAllHighlights();
   
   // Get all district boundaries for this territory using our mapping
   const districtsToHighlight = [];
@@ -6905,6 +6956,10 @@ function highlightTerritoryBoundaries(territoryName) {
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
           map.setPaintProperty(district.borderId, 'line-color', '#2d1810');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
+          
+          // Track layer ownership for territory highlighting
+          state.layerOwnership.set(district.fillId, 'territory');
+          state.layerOwnership.set(district.borderId, 'territory');
           
         } catch (error) {
           // Silent fail - layer might not exist
@@ -6969,57 +7024,8 @@ function frameTerritoryBoundaries(territoryName) {
 
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
-  
-  // Handle territory highlights
-  if (state.highlightedTerritoryDistricts && state.highlightedTerritoryDistricts.length > 0) {
-    // Execute immediately without batching to ensure cleanup happens
-    state.highlightedTerritoryDistricts.forEach((district) => {
-      if (mapLayers.hasLayer(district.fillId)) {
-        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
-        
-        try {
-          map.setPaintProperty(district.fillId, 'fill-color', currentColor);
-          map.setPaintProperty(district.fillId, 'fill-opacity', 0.15);
-        } catch (error) {
-          // Silent fail - layer might not exist
-        }
-      }
-      
-      if (mapLayers.hasLayer(district.borderId)) {
-        try {
-          map.setPaintProperty(district.borderId, 'line-color', '#888888');
-          map.setPaintProperty(district.borderId, 'line-opacity', 0.8);
-        } catch (error) {
-          // Silent fail - layer might not exist
-        }
-      }
-    });
-    
-    state.highlightedTerritoryDistricts = null;
-    state.territoryHighlightActive = false;
-  }
-  
-  // Handle single boundary highlights (only if territory highlighting is not active)
-  if (state.highlightedBoundary && !state.territoryHighlightActive) {
-    // Use hierarchical naming based on the type that was highlighted
-    const boundaryType = state.highlightedBoundaryType || 'district'; // Default to district
-    const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-${boundaryType}-fill`;
-    const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-${boundaryType}-border`;
-    
-    if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
-      // Batch boundary reset operations
-      mapLayers.addToBatch(() => {
-        const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
-        map.setPaintProperty(boundaryFillId, 'fill-color', currentColor);
-        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.15);
-        map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
-        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.8);
-      });
-    }
-    
-    state.highlightedBoundary = null;
-    state.highlightedBoundaryType = null;
-  }
+  // Simply use the force reset function for clean, conflict-free cleanup
+  forceResetAllHighlights();
 }
 
 // Toggle filtered elements with immediate DOM updates (no batching for critical UI)
