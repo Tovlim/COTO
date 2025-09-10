@@ -1049,7 +1049,7 @@ function loadCombinedGeoData() {
             state.districtTerritoryMap.set('Jerusalem', 'West Bank');
           }
           
-          addRegionBoundaryToMap(name, districtFeature);
+          addRegionBoundaryToMap(name, districtFeature, 'district');
         });
       });
       
@@ -1080,12 +1080,14 @@ function loadCombinedGeoData() {
 }
 
 // Region boundary addition with batching
-function addRegionBoundaryToMap(name, regionFeature) {
+function addRegionBoundaryToMap(name, regionFeature, adminType = 'district') {
+  // Use hierarchical naming: district-level features get "-district-" suffix for disambiguation
+  const adminSuffix = adminType === 'district' ? '-district' : `-${adminType}`;
   const boundary = {
     name,
     sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
-    fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
-    borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
+    fillId: `${name.toLowerCase().replace(/\s+/g, '-')}${adminSuffix}-fill`,
+    borderId: `${name.toLowerCase().replace(/\s+/g, '-')}${adminSuffix}-border`
   };
   
   // Remove existing layers/sources if they exist (batch operation)
@@ -6346,6 +6348,7 @@ class OptimizedMapState {
     this.lastClickTime = 0;
     this.markerInteractionLock = false;
     this.highlightedBoundary = null;
+    this.highlightedBoundaryType = null;
     this.highlightedTerritoryDistricts = null;
     this.territoryHighlightActive = false;
     this.districtTerritoryMap = null;
@@ -6826,20 +6829,39 @@ function highlightBoundary(regionName) {
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
-  const boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-  const boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
+  // Use hierarchical naming: prioritize district-level boundaries over territory-level
+  const districtFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
+  const districtBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
+  const territoryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+  const territoryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
   
-  if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
+  // Try district-level layers first (governorate/district boundaries)
+  if (mapLayers.hasLayer(districtFillId) && mapLayers.hasLayer(districtBorderId)) {
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.4);
-      map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
+      map.setPaintProperty(districtFillId, 'fill-color', '#6e3500');
+      map.setPaintProperty(districtFillId, 'fill-opacity', 0.4);
+      map.setPaintProperty(districtBorderId, 'line-color', '#6e3500');
+      map.setPaintProperty(districtBorderId, 'line-opacity', 0.9);
     });
     
-    // Track the highlighted boundary
+    // Track the highlighted boundary with type information
     state.highlightedBoundary = regionName;
+    state.highlightedBoundaryType = 'district';
+  }
+  // Fallback to territory-level layers if district layers don't exist
+  else if (mapLayers.hasLayer(territoryFillId) && mapLayers.hasLayer(territoryBorderId)) {
+    // Batch boundary highlighting operations
+    mapLayers.addToBatch(() => {
+      map.setPaintProperty(territoryFillId, 'fill-color', '#6e3500');
+      map.setPaintProperty(territoryFillId, 'fill-opacity', 0.4);
+      map.setPaintProperty(territoryBorderId, 'line-color', '#6e3500');
+      map.setPaintProperty(territoryBorderId, 'line-opacity', 0.9);
+    });
+    
+    // Track the highlighted boundary with type information
+    state.highlightedBoundary = regionName;
+    state.highlightedBoundaryType = 'territory';
   }
 }
 
@@ -6855,8 +6877,9 @@ function highlightTerritoryBoundaries(territoryName) {
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
       if (territory === territoryName) {
-        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+        // Use hierarchical naming for district boundaries within territories
+        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
+        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
         
         // Check if layers exist
         const hasFill = mapLayers.hasLayer(fillId);
@@ -6978,8 +7001,10 @@ function removeBoundaryHighlight() {
   
   // Handle single boundary highlights (only if territory highlighting is not active)
   if (state.highlightedBoundary && !state.territoryHighlightActive) {
-    const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
-    const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
+    // Use hierarchical naming based on the type that was highlighted
+    const boundaryType = state.highlightedBoundaryType || 'district'; // Default to district
+    const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-${boundaryType}-fill`;
+    const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-${boundaryType}-border`;
     
     if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
       // Batch boundary reset operations
@@ -6993,6 +7018,7 @@ function removeBoundaryHighlight() {
     }
     
     state.highlightedBoundary = null;
+    state.highlightedBoundaryType = null;
   }
 }
 
