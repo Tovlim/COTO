@@ -6894,16 +6894,12 @@ function resetLayerToNeutral(fillId, borderId) {
 
 // Force reset all highlighted layers to neutral state
 function forceResetAllHighlights() {
-  console.log('🔍 RESET DEBUG: forceResetAllHighlights() called from:', new Error().stack);
-  console.log('🔍 RESET DEBUG: Ownership map before reset:', [...state.layerOwnership.entries()]);
-  
   // Reset all layers tracked in ownership map
   state.layerOwnership.forEach((owner, layerId) => {
     const isAFillLayer = layerId.endsWith('-fill');
     if (isAFillLayer) {
       const fillId = layerId;
       const borderId = layerId.replace('-fill', '-border');
-      console.log(`🔍 RESET DEBUG: Resetting ${fillId} / ${borderId} (owner: ${owner})`);
       resetLayerToNeutral(fillId, borderId);
     }
   });
@@ -6914,14 +6910,10 @@ function forceResetAllHighlights() {
   state.highlightedTerritoryDistricts = null;
   state.territoryHighlightActive = false;
   state.layerOwnership.clear();
-  
-  console.log('🔍 RESET DEBUG: Ownership map after reset:', [...state.layerOwnership.entries()]);
 }
 
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(regionName) {
-  console.log(`🔍 BOUNDARY DEBUG: highlightBoundary('${regionName}') called`);
-  
   // Set flag to prevent interference during highlighting
   state.highlightingInProgress = true;
   
@@ -6936,15 +6928,11 @@ function highlightBoundary(regionName) {
   
   // Try district-level layers first (governorate/district boundaries)
   if (mapLayers.hasLayer(districtFillId) && mapLayers.hasLayer(districtBorderId)) {
-    console.log(`🔍 BOUNDARY DEBUG: Adding ownership for ${districtFillId} / ${districtBorderId}`);
-    
     // Track layer ownership and state FIRST (synchronous) - FIX for race condition
     state.layerOwnership.set(districtFillId, 'single-boundary');
     state.layerOwnership.set(districtBorderId, 'single-boundary');
     state.highlightedBoundary = regionName;
     state.highlightedBoundaryType = 'district';
-    
-    console.log(`🔍 BOUNDARY DEBUG: Ownership map after adding:`, [...state.layerOwnership.entries()]);
     
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
@@ -6956,15 +6944,11 @@ function highlightBoundary(regionName) {
   }
   // Fallback to territory-level layers if district layers don't exist
   else if (mapLayers.hasLayer(territoryFillId) && mapLayers.hasLayer(territoryBorderId)) {
-    console.log(`🔍 BOUNDARY DEBUG: Adding ownership for ${territoryFillId} / ${territoryBorderId}`);
-    
     // Track layer ownership and state FIRST (synchronous) - FIX for race condition
     state.layerOwnership.set(territoryFillId, 'single-boundary');
     state.layerOwnership.set(territoryBorderId, 'single-boundary');
     state.highlightedBoundary = regionName;
     state.highlightedBoundaryType = 'territory';
-    
-    console.log(`🔍 BOUNDARY DEBUG: Ownership map after adding:`, [...state.layerOwnership.entries()]);
     
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
@@ -7097,7 +7081,6 @@ function frameTerritoryBoundaries(territoryName) {
 function removeBoundaryHighlight() {
   // Prevent interference during active highlighting operations
   if (state.highlightingInProgress) {
-    console.log('🔍 BOUNDARY DEBUG: Skipping removeBoundaryHighlight - highlighting in progress');
     return;
   }
   
