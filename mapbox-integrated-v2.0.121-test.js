@@ -1033,33 +1033,32 @@ function loadCombinedGeoData() {
       // Store district-territory mapping for highlighting
       state.districtTerritoryMap = new Map();
       
-      // Batch process districts as regions
-      mapLayers.addToBatch(() => {
-        districts.forEach(districtFeature => {
-          const name = districtFeature.properties.name;
-          const territory = districtFeature.properties.territory;
-          
-          // Store the district-territory mapping
-          if (territory) {
-            state.districtTerritoryMap.set(name, territory);
-          }
-          
-          // Manually add Jerusalem to West Bank if it's not already mapped
-          if (name === 'Jerusalem' && !state.districtTerritoryMap.has('Jerusalem')) {
-            state.districtTerritoryMap.set('Jerusalem', 'West Bank');
-          }
-          
-          addRegionBoundaryToMap(name, districtFeature, 'district');
-        });
+      // Process districts as regions - batch for performance
+      const districtPromises = districts.map(districtFeature => {
+        const name = districtFeature.properties.name;
+        const territory = districtFeature.properties.territory;
+        
+        // Store the district-territory mapping
+        if (territory) {
+          state.districtTerritoryMap.set(name, territory);
+        }
+        
+        // Manually add Jerusalem to West Bank if it's not already mapped
+        if (name === 'Jerusalem' && !state.districtTerritoryMap.has('Jerusalem')) {
+          state.districtTerritoryMap.set('Jerusalem', 'West Bank');
+        }
+        
+        return addRegionBoundaryToMap(name, districtFeature, 'district');
       });
       
-      // Batch process areas
-      mapLayers.addToBatch(() => {
-        areas.forEach(areaFeature => {
-          const name = areaFeature.properties.name;
-          addAreaOverlayToMap(name, areaFeature);
-        });
+      // Process areas - batch for performance  
+      const areaPromises = areas.map(areaFeature => {
+        const name = areaFeature.properties.name;
+        return addAreaOverlayToMap(name, areaFeature);
       });
+      
+      // Store promises for later awaiting (using spread is faster than concat)
+      state.visualContentPromises = [...districtPromises, ...areaPromises];
       
       // Update region markers after processing
       state.setTimer('updateRegionMarkers', () => {
@@ -1080,7 +1079,7 @@ function loadCombinedGeoData() {
 }
 
 // Region boundary addition with batching
-function addRegionBoundaryToMap(name, regionFeature, adminType = 'district') {
+async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district') {
   // Use hierarchical naming: district-level features get "-district-" suffix for disambiguation
   const adminSuffix = adminType === 'district' ? '-district' : `-${adminType}`;
   const boundary = {
@@ -1171,10 +1170,13 @@ function addRegionBoundaryToMap(name, regionFeature, adminType = 'district') {
   mapLayers.sourceCache.set(boundary.sourceId, true);
   mapLayers.layerCache.set(boundary.fillId, true);
   mapLayers.layerCache.set(boundary.borderId, true);
+  
+  // Return immediately resolved promise for faster initial load
+  return Promise.resolve();
 }
 
 // Area overlay addition with batching
-function addAreaOverlayToMap(name, areaFeature) {
+async function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
     'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
     'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
@@ -1231,6 +1233,9 @@ function addAreaOverlayToMap(name, areaFeature) {
   // Update cache
   mapLayers.sourceCache.set(config.sourceId, true);
   mapLayers.layerCache.set(config.layerId, true);
+  
+  // Return immediately resolved promise for faster initial load
+  return Promise.resolve();
 }
 
 // DEFERRED: Area key controls - loads after main functionality
@@ -4151,6 +4156,7 @@ const loadingTracker = {
   requirements: {
     mapReady: false,
     dataLoaded: false,
+    visualContentReady: false,
     initialRenderComplete: false
     // Removed markersRendered and sidebarsReady for faster loading with deferred content
     // These will be handled asynchronously and don't need to block the loading screen
@@ -4159,6 +4165,7 @@ const loadingTracker = {
   promises: {
     mapReady: null,
     dataLoaded: null,
+    visualContentReady: null,
     initialRenderComplete: null
   },
   
@@ -4173,6 +4180,10 @@ const loadingTracker = {
     
     this.promises.dataLoaded = new Promise(resolve => {
       this.resolvers.dataLoaded = resolve;
+    });
+    
+    this.promises.visualContentReady = new Promise(resolve => {
+      this.resolvers.visualContentReady = resolve;
     });
     
     this.promises.initialRenderComplete = new Promise(resolve => {
@@ -6352,6 +6363,8 @@ class OptimizedMapState {
     this.highlightedTerritoryDistricts = null;
     this.territoryHighlightActive = false;
     this.layerOwnership = new Map(); // Track which highlighting system owns each layer
+    this.visualContentPromises = []; // Track promises for visual content loading
+    this.highlightingInProgress = false; // Flag to prevent interference during highlighting
     this.districtTerritoryMap = null;
     this.clickPriority = 999; // Higher number = lower priority, 999 = no click yet
     
@@ -6428,15 +6441,31 @@ map.on("load", () => {
       
       // Load locality data in parallel (but don't show locality markers yet)
       loadLocalitiesFromGeoJSON()
-    ]).then(() => {
+    ]).then(async () => {
       // Initialize territory data immediately (should always be visible)
       initializeTerritoryData();
       
-      // Add territory markers right after data loads (no zoom requirement)
-      addNativeTerritoryMarkers();
-      
-      // Mark data as loaded for loading screen (markers are deferred)
+      // Mark data as loaded for loading screen
       loadingTracker.markComplete('dataLoaded');
+      
+      // Now wait for all visual content to be added before marking visual content ready
+      try {
+        // Wait for all boundary and area overlays to complete
+        if (state.visualContentPromises && state.visualContentPromises.length > 0) {
+          await Promise.all(state.visualContentPromises);
+        }
+        
+        // Add territory markers and wait for completion
+        await addNativeTerritoryMarkers();
+        
+        // Mark visual content as ready immediately for faster loading
+        loadingTracker.markComplete('visualContentReady');
+        
+      } catch (visualError) {
+        console.warn('Error loading visual content:', visualError);
+        // Mark as complete anyway to prevent infinite loading
+        loadingTracker.markComplete('visualContentReady');
+      }
       
       // Final layer optimization after all initial data is loaded
       state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 100);
@@ -6448,6 +6477,7 @@ map.on("load", () => {
       console.warn('Error loading initial data:', error);
       // Mark as complete anyway to prevent infinite loading
       loadingTracker.markComplete('dataLoaded');
+      loadingTracker.markComplete('visualContentReady');
       loadingTracker.markComplete('mapReady');
     });
     
@@ -6873,6 +6903,9 @@ function forceResetAllHighlights() {
 
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(regionName) {
+  // Set flag to prevent interference during highlighting
+  state.highlightingInProgress = true;
+  
   // Force reset ALL highlights to prevent ownership conflicts
   forceResetAllHighlights();
   
@@ -6884,40 +6917,48 @@ function highlightBoundary(regionName) {
   
   // Try district-level layers first (governorate/district boundaries)
   if (mapLayers.hasLayer(districtFillId) && mapLayers.hasLayer(districtBorderId)) {
-    // Batch boundary highlighting operations
+    // Track layer ownership and state FIRST (synchronous) - FIX for race condition
+    state.layerOwnership.set(districtFillId, 'single-boundary');
+    state.layerOwnership.set(districtBorderId, 'single-boundary');
+    state.highlightedBoundary = regionName;
+    state.highlightedBoundaryType = 'district';
+    
+    // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
       map.setPaintProperty(districtFillId, 'fill-color', '#6e3500');
       map.setPaintProperty(districtFillId, 'fill-opacity', 0.4);
       map.setPaintProperty(districtBorderId, 'line-color', '#6e3500');
       map.setPaintProperty(districtBorderId, 'line-opacity', 0.9);
     });
-    
-    // Track layer ownership and state
-    state.layerOwnership.set(districtFillId, 'single-boundary');
-    state.layerOwnership.set(districtBorderId, 'single-boundary');
-    state.highlightedBoundary = regionName;
-    state.highlightedBoundaryType = 'district';
   }
   // Fallback to territory-level layers if district layers don't exist
   else if (mapLayers.hasLayer(territoryFillId) && mapLayers.hasLayer(territoryBorderId)) {
-    // Batch boundary highlighting operations
+    // Track layer ownership and state FIRST (synchronous) - FIX for race condition
+    state.layerOwnership.set(territoryFillId, 'single-boundary');
+    state.layerOwnership.set(territoryBorderId, 'single-boundary');
+    state.highlightedBoundary = regionName;
+    state.highlightedBoundaryType = 'territory';
+    
+    // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
       map.setPaintProperty(territoryFillId, 'fill-color', '#6e3500');
       map.setPaintProperty(territoryFillId, 'fill-opacity', 0.4);
       map.setPaintProperty(territoryBorderId, 'line-color', '#6e3500');
       map.setPaintProperty(territoryBorderId, 'line-opacity', 0.9);
     });
-    
-    // Track layer ownership and state
-    state.layerOwnership.set(territoryFillId, 'single-boundary');
-    state.layerOwnership.set(territoryBorderId, 'single-boundary');
-    state.highlightedBoundary = regionName;
-    state.highlightedBoundaryType = 'territory';
   }
+  
+  // Clear highlighting in progress flag quickly to avoid blocking interactions
+  setTimeout(() => {
+    state.highlightingInProgress = false;
+  }, 50);
 }
 
 // Highlight all boundaries for a territory
 function highlightTerritoryBoundaries(territoryName) {
+  // Set flag to prevent interference during highlighting
+  state.highlightingInProgress = true;
+  
   // Force reset ALL highlights to prevent ownership conflicts
   forceResetAllHighlights();
   
@@ -6949,6 +6990,18 @@ function highlightTerritoryBoundaries(territoryName) {
   
   // Highlight all matching districts
   if (districtsToHighlight.length > 0) {
+    // Track layer ownership FIRST (synchronous) - FIX for race condition
+    districtsToHighlight.forEach((district) => {
+      state.layerOwnership.set(district.fillId, 'territory');
+      state.layerOwnership.set(district.borderId, 'territory');
+    });
+    
+    // Set state immediately
+    state.highlightedBoundary = territoryName;
+    state.highlightedTerritoryDistricts = districtsToHighlight;
+    state.territoryHighlightActive = true;
+    
+    // Then do the visual highlighting (asynchronous)
     mapLayers.addToBatch(() => {
       districtsToHighlight.forEach((district) => {
         try {
@@ -6956,26 +7009,17 @@ function highlightTerritoryBoundaries(territoryName) {
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
           map.setPaintProperty(district.borderId, 'line-color', '#2d1810');
           map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
-          
-          // Track layer ownership for territory highlighting
-          state.layerOwnership.set(district.fillId, 'territory');
-          state.layerOwnership.set(district.borderId, 'territory');
-          
         } catch (error) {
           // Silent fail - layer might not exist
         }
       });
     });
-    
-    // Clear any single boundary highlights when activating territory highlighting
-    if (state.highlightedBoundary && !state.territoryHighlightActive) {
-      state.highlightedBoundary = null;
-    }
-    
-    state.highlightedBoundary = territoryName;
-    state.highlightedTerritoryDistricts = districtsToHighlight;
-    state.territoryHighlightActive = true;
   }
+  
+  // Clear highlighting in progress flag quickly to avoid blocking interactions
+  setTimeout(() => {
+    state.highlightingInProgress = false;
+  }, 50);
   
   return districtsToHighlight;
 }
@@ -7024,6 +7068,11 @@ function frameTerritoryBoundaries(territoryName) {
 
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
+  // Prevent interference during active highlighting operations
+  if (state.highlightingInProgress) {
+    return;
+  }
+  
   // Simply use the force reset function for clean, conflict-free cleanup
   forceResetAllHighlights();
 }
@@ -7577,9 +7626,9 @@ function setupSettlementMarkerClicks() {
 }
 
 // Add territory markers to map
-function addNativeTerritoryMarkers() {
+async function addNativeTerritoryMarkers() {
   if (!state.allTerritoryFeatures || !state.allTerritoryFeatures.length) {
-    return;
+    return Promise.resolve();
   }
   
   const territoryGeoJSON = {
@@ -7632,6 +7681,9 @@ function addNativeTerritoryMarkers() {
   });
   
   setupTerritoryMarkerClicks();
+  
+  // Return immediately resolved promise for faster initial load
+  return Promise.resolve();
 }
 
 // Setup territory marker click handlers
