@@ -6866,7 +6866,11 @@ function highlightBoundary(regionName) {
   
   if (isPartOfTerritoryHighlight) {
     console.log(`ℹ️ ${regionName} is part of active territory highlight - keeping territory highlights`);
-    // Don't remove territory highlights, just update this specific boundary
+    // Don't remove territory highlights, but restore any previously emphasized district
+    if (state.highlightedBoundary && state.highlightedBoundary !== regionName) {
+      console.log(`🔄 Restoring normal highlight for previously emphasized district: ${state.highlightedBoundary}`);
+      restoreTerritoryDistrictHighlight(state.highlightedBoundary);
+    }
   } else {
     // Remove any existing highlight first
     removeBoundaryHighlight();
@@ -6894,6 +6898,9 @@ function highlightBoundary(regionName) {
     // Use different highlighting for districts within an active territory highlight
     if (isPartOfTerritoryHighlight) {
       // Emphasize this specific district within the territory
+      console.log(`🎨 About to emphasize district ${regionName} within territory`);
+      console.log(`   Current fill color before change:`, map.getPaintProperty(boundaryFillId, 'fill-color'));
+      
       mapLayers.addToBatch(() => {
         map.setPaintProperty(boundaryFillId, 'fill-color', '#8f4500'); // Darker orange for emphasis
         map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.6); // Higher opacity
@@ -6901,7 +6908,11 @@ function highlightBoundary(regionName) {
         map.setPaintProperty(boundaryBorderId, 'line-opacity', 1.0); // Full opacity for border
         map.setPaintProperty(boundaryBorderId, 'line-width', 3); // Thicker border
       });
+      
+      mapLayers.executeBatch(); // Execute immediately to see the effect
+      
       console.log(`🎨 Applied emphasized highlighting for district within territory`);
+      console.log(`   New fill color after change:`, map.getPaintProperty(boundaryFillId, 'fill-color'));
     } else {
       // Normal highlighting for standalone regions
       mapLayers.addToBatch(() => {
@@ -7138,12 +7149,22 @@ const toggleShowWhenFilteredElements = show => {
 // Checkbox selection functions with proper settlement unchecking
 // Unified checkbox selection function
 function selectCheckbox(type, value) {
-  // console.log(`🔍 selectCheckbox called with type: "${type}", value: "${value}"`);
+  console.log(`🔍 selectCheckbox called with type: "${type}", value: "${value}"`);
   
   const checkboxTypes = ['Governorate', 'Region', 'locality', 'settlement', 'territory'];
   
   requestAnimationFrame(() => {
     // console.log(`🔍 Looking for checkboxes with selector: [checkbox-filter="${type}"] input[fs-list-value]`);
+    
+    // Check if we're selecting a governorate that's part of an active territory highlight
+    const isSelectingDistrictInTerritory = type === 'Governorate' && 
+      state.territoryHighlightActive && 
+      state.districtTerritoryMap && 
+      state.districtTerritoryMap.has(value);
+    
+    if (isSelectingDistrictInTerritory) {
+      console.log(`ℹ️ Selecting governorate ${value} within active territory - keeping territory checkbox checked`);
+    }
     
     // Get all checkbox groups - using native queries to avoid caching
     const allCheckboxes = checkboxTypes.flatMap(checkboxType => 
@@ -7152,10 +7173,22 @@ function selectCheckbox(type, value) {
     
     // console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
     
-    // Clear all checkboxes first
+    // Clear checkboxes - but preserve territory checkbox if needed
     allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
-        // console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
+        const checkboxFilter = checkbox.closest('[checkbox-filter]')?.getAttribute('checkbox-filter');
+        const checkboxValue = checkbox.getAttribute('fs-list-value');
+        
+        // Skip unchecking territory checkbox if we're selecting a district within it
+        if (isSelectingDistrictInTerritory && checkboxFilter === 'territory') {
+          const territory = state.districtTerritoryMap.get(value);
+          if (checkboxValue === territory) {
+            console.log(`✅ Keeping territory checkbox checked: ${checkboxValue}`);
+            return; // Skip unchecking this territory checkbox
+          }
+        }
+        
+        // console.log(`🔍 Unchecking: ${checkboxValue} (${checkboxFilter})`);
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
         
@@ -7188,6 +7221,23 @@ function selectCheckbox(type, value) {
       if (form) {
         form.dispatchEvent(new Event('change', {bubbles: true}));
         form.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+      
+      // Also ensure territory checkbox is checked if this is a district within a territory
+      if (isSelectingDistrictInTerritory) {
+        const territory = state.districtTerritoryMap.get(value);
+        const territoryCheckbox = document.querySelector(`[checkbox-filter="territory"] input[fs-list-value="${territory}"]`);
+        if (territoryCheckbox && !territoryCheckbox.checked) {
+          console.log(`✅ Also checking territory checkbox: ${territory}`);
+          territoryCheckbox.checked = true;
+          utils.triggerEvent(territoryCheckbox, ['change', 'input']);
+          
+          const territoryForm = territoryCheckbox.closest('form');
+          if (territoryForm) {
+            territoryForm.dispatchEvent(new Event('change', {bubbles: true}));
+            territoryForm.dispatchEvent(new Event('input', {bubbles: true}));
+          }
+        }
       }
     } else {
       // console.log(`❌ Could not find checkbox for type "${type}" with value "${value}"`);
