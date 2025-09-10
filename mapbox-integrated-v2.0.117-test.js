@@ -2334,7 +2334,7 @@ function initializeTerritoryData() {
     {
       type: "Feature",
       properties: {
-        name: "Gaza Strip",
+        name: "Gaza",
         type: "territory"
       },
       geometry: {
