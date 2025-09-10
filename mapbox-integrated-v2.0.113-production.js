@@ -6893,6 +6893,7 @@ function resetLayerToNeutral(fillId, borderId) {
 
 // Force reset all highlighted layers to neutral state
 function forceResetAllHighlights() {
+  console.log('🔍 RESET DEBUG: forceResetAllHighlights() called from:', new Error().stack);
   console.log('🔍 RESET DEBUG: Ownership map before reset:', [...state.layerOwnership.entries()]);
   
   // Reset all layers tracked in ownership map
