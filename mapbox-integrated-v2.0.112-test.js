@@ -6890,6 +6890,8 @@ function highlightBoundary(regionName) {
     
     // Track the highlighted boundary
     state.highlightedBoundary = regionName;
+  } else {
+    console.log(`❌ No layers found for region: ${regionName}`);
   }
 }
 
@@ -8037,9 +8039,19 @@ function setupRegionMarkerClicks() {
     toggleShowWhenFilteredElements(true);
     toggleSidebar('Left', true);
     
-    // Check if region has boundary
-    const boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-    if (map.getSource(boundarySourceId)) {
+    // Check if region has boundary - try both with and without -territory suffix
+    let boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+    let hasSource = map.getSource(boundarySourceId);
+    
+    // If standard boundary doesn't exist, try with -territory suffix
+    if (!hasSource) {
+      boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-boundary`;
+      hasSource = map.getSource(boundarySourceId);
+      console.log(`🔍 Checking for territory boundary: ${boundarySourceId}, exists: ${!!hasSource}`);
+    }
+    
+    if (hasSource) {
+      console.log(`✅ Found boundary source: ${boundarySourceId}, calling highlightBoundary`);
       highlightBoundary(regionName);
       
       // Re-check priority before any map movement operations
@@ -8070,6 +8082,7 @@ function setupRegionMarkerClicks() {
       }, 10); // Small delay to let all handlers run first
     } else {
       // Region without boundary - use point location
+      console.log(`⚠️ No boundary found for region: ${regionName}`);
       removeBoundaryHighlight();
       
       // Defer map movement operations to allow all handlers to run first
