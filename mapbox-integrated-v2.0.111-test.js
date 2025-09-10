@@ -1039,6 +1039,8 @@ function loadCombinedGeoData() {
           const name = districtFeature.properties.name;
           const territory = districtFeature.properties.territory;
           
+          console.log(`📍 Processing district: ${name}, territory: ${territory || 'none'}`);
+          
           // Store the district-territory mapping
           if (territory) {
             state.districtTerritoryMap.set(name, territory);
@@ -1052,6 +1054,7 @@ function loadCombinedGeoData() {
           // Add a suffix for districts that are part of territories to avoid conflicts
           // This is hidden from the user but prevents layer ID conflicts
           const layerNameSuffix = territory ? '-territory' : '';
+          console.log(`🏷️ Layer suffix for ${name}: "${layerNameSuffix}"`);
           addRegionBoundaryToMap(name, districtFeature, layerNameSuffix);
         });
       });
@@ -1090,6 +1093,11 @@ function addRegionBoundaryToMap(name, regionFeature, suffix = '') {
     fillId: `${name.toLowerCase().replace(/\s+/g, '-')}${suffix}-fill`,
     borderId: `${name.toLowerCase().replace(/\s+/g, '-')}${suffix}-border`
   };
+  
+  console.log(`🗺️ Adding region boundary: ${name}${suffix}`);
+  console.log(`   sourceId: ${boundary.sourceId}`);
+  console.log(`   fillId: ${boundary.fillId}`);
+  console.log(`   borderId: ${boundary.borderId}`);
   
   // Remove existing layers/sources if they exist (batch operation)
   [boundary.borderId, boundary.fillId].forEach(layerId => {
@@ -6849,6 +6857,8 @@ function frameRegionBoundary(regionName) {
 
 // Highlight boundary with subtle red color and move above area overlays
 function highlightBoundary(regionName) {
+  console.log(`🎯 highlightBoundary called for: ${regionName}`);
+  
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
@@ -6856,13 +6866,20 @@ function highlightBoundary(regionName) {
   let boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
   let boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
   
+  console.log(`🔍 Trying standard layer IDs: fill=${boundaryFillId}, border=${boundaryBorderId}`);
+  console.log(`✅ Standard layers exist: fill=${mapLayers.hasLayer(boundaryFillId)}, border=${mapLayers.hasLayer(boundaryBorderId)}`);
+  
   // If the standard layers don't exist, try with -territory suffix
   if (!mapLayers.hasLayer(boundaryFillId) || !mapLayers.hasLayer(boundaryBorderId)) {
     boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
     boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
+    
+    console.log(`🔄 Trying territory layer IDs: fill=${boundaryFillId}, border=${boundaryBorderId}`);
+    console.log(`✅ Territory layers exist: fill=${mapLayers.hasLayer(boundaryFillId)}, border=${mapLayers.hasLayer(boundaryBorderId)}`);
   }
   
   if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
+    console.log(`✨ Highlighting layers: ${boundaryFillId}, ${boundaryBorderId}`);
     // Batch boundary highlighting operations
     mapLayers.addToBatch(() => {
       map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
@@ -6878,6 +6895,8 @@ function highlightBoundary(regionName) {
 
 // Highlight all boundaries for a territory
 function highlightTerritoryBoundaries(territoryName) {
+  console.log(`🎯 highlightTerritoryBoundaries called for: ${territoryName}`);
+  
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
@@ -6885,6 +6904,8 @@ function highlightTerritoryBoundaries(territoryName) {
   const districtsToHighlight = [];
   
   if (state.districtTerritoryMap) {
+    console.log(`📍 District-Territory Map:`, state.districtTerritoryMap);
+    
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
       if (territory === territoryName) {
@@ -6892,9 +6913,13 @@ function highlightTerritoryBoundaries(territoryName) {
         const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
         const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
         
+        console.log(`🔍 Checking for district ${districtName}: fillId=${fillId}, borderId=${borderId}`);
+        
         // Check if layers exist
         const hasFill = mapLayers.hasLayer(fillId);
         const hasBorder = mapLayers.hasLayer(borderId);
+        
+        console.log(`✅ Layer exists: fill=${hasFill}, border=${hasBorder}`);
         
         if (hasFill && hasBorder) {
           districtsToHighlight.push({
@@ -7649,15 +7674,20 @@ function setupTerritoryMarkerClicks() {
     // Territory has priority 1 (highest)
     const myPriority = 1;
     
+    const feature = e.features[0];
+    const territoryName = feature.properties.name;
+    
+    console.log(`🗺️ TERRITORY CLICK: ${territoryName}`);
+    
     // Only handle if no one has claimed priority yet, or if we have higher priority
     if (state.clickPriority === 999 || state.clickPriority > myPriority) {
       state.clickPriority = myPriority;
     } else {
+      console.log(`⚠️ Territory click blocked by priority ${state.clickPriority}`);
       return; // Someone with equal or higher priority already claimed it
     }
     
-    const feature = e.features[0];
-    const territoryName = feature.properties.name;
+    console.log(`🎯 Processing territory: ${territoryName}`);
     
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -7976,15 +8006,20 @@ function setupRegionMarkerClicks() {
     // Region has priority 2
     const myPriority = 2;
     
+    const feature = e.features[0];
+    const regionName = feature.properties.name;
+    
+    console.log(`🏛️ REGION/GOVERNORATE CLICK: ${regionName}`);
+    
     // Only handle if no one has claimed priority yet, or if we have higher priority
     if (state.clickPriority === 999 || state.clickPriority > myPriority) {
       state.clickPriority = myPriority;
     } else {
+      console.log(`⚠️ Region click blocked by priority ${state.clickPriority}`);
       return; // Someone with equal or higher priority already claimed it
     }
     
-    const feature = e.features[0];
-    const regionName = feature.properties.name;
+    console.log(`🎯 Processing region/governorate: ${regionName}`);
     
     // Prevent rapid clicks
     const currentTime = Date.now();
