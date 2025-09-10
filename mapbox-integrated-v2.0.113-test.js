@@ -6859,8 +6859,18 @@ function frameRegionBoundary(regionName) {
 function highlightBoundary(regionName) {
   console.log(`🎯 highlightBoundary called for: ${regionName}`);
   
-  // Remove any existing highlight first
-  removeBoundaryHighlight();
+  // Check if this region is part of an active territory highlight
+  const isPartOfTerritoryHighlight = state.territoryHighlightActive && 
+    state.districtTerritoryMap && 
+    state.districtTerritoryMap.has(regionName);
+  
+  if (isPartOfTerritoryHighlight) {
+    console.log(`ℹ️ ${regionName} is part of active territory highlight - keeping territory highlights`);
+    // Don't remove territory highlights, just update this specific boundary
+  } else {
+    // Remove any existing highlight first
+    removeBoundaryHighlight();
+  }
   
   // Try both with and without -territory suffix to handle both governorates and territory districts
   let boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
@@ -6880,13 +6890,27 @@ function highlightBoundary(regionName) {
   
   if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
     console.log(`✨ Highlighting layers: ${boundaryFillId}, ${boundaryBorderId}`);
-    // Batch boundary highlighting operations
-    mapLayers.addToBatch(() => {
-      map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.4);
-      map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
-    });
+    
+    // Use different highlighting for districts within an active territory highlight
+    if (isPartOfTerritoryHighlight) {
+      // Emphasize this specific district within the territory
+      mapLayers.addToBatch(() => {
+        map.setPaintProperty(boundaryFillId, 'fill-color', '#8f4500'); // Darker orange for emphasis
+        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.6); // Higher opacity
+        map.setPaintProperty(boundaryBorderId, 'line-color', '#8f4500');
+        map.setPaintProperty(boundaryBorderId, 'line-opacity', 1.0); // Full opacity for border
+        map.setPaintProperty(boundaryBorderId, 'line-width', 3); // Thicker border
+      });
+      console.log(`🎨 Applied emphasized highlighting for district within territory`);
+    } else {
+      // Normal highlighting for standalone regions
+      mapLayers.addToBatch(() => {
+        map.setPaintProperty(boundaryFillId, 'fill-color', '#6e3500');
+        map.setPaintProperty(boundaryFillId, 'fill-opacity', 0.4);
+        map.setPaintProperty(boundaryBorderId, 'line-color', '#6e3500');
+        map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.9);
+      });
+    }
     
     // Track the highlighted boundary
     state.highlightedBoundary = regionName;
@@ -7005,6 +7029,24 @@ function frameTerritoryBoundaries(territoryName) {
   return true;
 }
 
+// Restore territory highlighting for a specific district
+function restoreTerritoryDistrictHighlight(districtName) {
+  const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+  const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
+  
+  if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
+    mapLayers.addToBatch(() => {
+      // Restore to normal territory highlight colors
+      map.setPaintProperty(fillId, 'fill-color', '#6e3500');
+      map.setPaintProperty(fillId, 'fill-opacity', 0.4);
+      map.setPaintProperty(borderId, 'line-color', '#6e3500');
+      map.setPaintProperty(borderId, 'line-opacity', 0.9);
+      map.setPaintProperty(borderId, 'line-width', 2); // Reset to normal width
+    });
+    console.log(`🔄 Restored territory highlighting for district: ${districtName}`);
+  }
+}
+
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
   
@@ -7037,11 +7079,22 @@ function removeBoundaryHighlight() {
     state.territoryHighlightActive = false;
   }
   
-  // Handle single boundary highlights (only if territory highlighting is not active)
-  if (state.highlightedBoundary && !state.territoryHighlightActive) {
-    // Try both with and without -territory suffix
-    let boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
-    let boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
+  // Handle single boundary highlights
+  if (state.highlightedBoundary) {
+    // If territory highlighting is active and this boundary is part of it, restore territory colors
+    if (state.territoryHighlightActive && state.districtTerritoryMap && 
+        state.districtTerritoryMap.has(state.highlightedBoundary)) {
+      console.log(`🔄 Restoring territory colors for emphasized district: ${state.highlightedBoundary}`);
+      restoreTerritoryDistrictHighlight(state.highlightedBoundary);
+      state.highlightedBoundary = null;
+      return; // Don't remove the highlight, just restore colors
+    }
+    
+    // Only remove if not part of active territory highlighting
+    if (!state.territoryHighlightActive) {
+      // Try both with and without -territory suffix
+      let boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
+      let boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
     
     // If the standard layers don't exist, try with -territory suffix
     if (!mapLayers.hasLayer(boundaryFillId) || !mapLayers.hasLayer(boundaryBorderId)) {
@@ -7058,9 +7111,12 @@ function removeBoundaryHighlight() {
         map.setPaintProperty(boundaryBorderId, 'line-color', '#888888');
         map.setPaintProperty(boundaryBorderId, 'line-opacity', 0.8);
       });
+      
+      mapLayers.executeBatch();
     }
     
     state.highlightedBoundary = null;
+    }
   }
 }
 
