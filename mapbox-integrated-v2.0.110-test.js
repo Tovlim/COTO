@@ -1049,7 +1049,10 @@ function loadCombinedGeoData() {
             state.districtTerritoryMap.set('Jerusalem', 'West Bank');
           }
           
-          addRegionBoundaryToMap(name, districtFeature);
+          // Add a suffix for districts that are part of territories to avoid conflicts
+          // This is hidden from the user but prevents layer ID conflicts
+          const layerNameSuffix = territory ? '-territory' : '';
+          addRegionBoundaryToMap(name, districtFeature, layerNameSuffix);
         });
       });
       
@@ -1080,12 +1083,12 @@ function loadCombinedGeoData() {
 }
 
 // Region boundary addition with batching
-function addRegionBoundaryToMap(name, regionFeature) {
+function addRegionBoundaryToMap(name, regionFeature, suffix = '') {
   const boundary = {
     name,
-    sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}-boundary`,
-    fillId: `${name.toLowerCase().replace(/\s+/g, '-')}-fill`,
-    borderId: `${name.toLowerCase().replace(/\s+/g, '-')}-border`
+    sourceId: `${name.toLowerCase().replace(/\s+/g, '-')}${suffix}-boundary`,
+    fillId: `${name.toLowerCase().replace(/\s+/g, '-')}${suffix}-fill`,
+    borderId: `${name.toLowerCase().replace(/\s+/g, '-')}${suffix}-border`
   };
   
   // Remove existing layers/sources if they exist (batch operation)
@@ -1232,11 +1235,13 @@ function addAreaOverlayToMap(name, areaFeature) {
 }
 
 // DEFERRED: Area key controls - loads after main functionality
-function setupDeferredAreaControls() {
-  // Defer loading area controls to improve initial load time
-  const loadAreaControls = () => {
+function setupLazyToggleKeyControls() {
+  let toggleKeyControlsLoaded = false;
+  
+  // Function that initializes all toggle-key functionality
+  const initializeToggleKeyControls = () => {
     // Check if controls already setup
-    if (state.flags.areaControlsSetup) return;
+    if (toggleKeyControlsLoaded || state.flags.areaControlsSetup) return;
     
     const areaControls = [
       {keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap'},
@@ -1385,8 +1390,9 @@ function setupDeferredAreaControls() {
             // Highlight all districts for both territories (since hover doesn't specify which)
             if (state.districtTerritoryMap) {
               state.districtTerritoryMap.forEach((territory, districtName) => {
-                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+                // Use -territory suffix for territory districts
+                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
                   map.setPaintProperty(fillId, 'fill-color', '#2d1810');
@@ -1446,8 +1452,9 @@ function setupDeferredAreaControls() {
             // Unhighlight all districts
             if (state.districtTerritoryMap) {
               state.districtTerritoryMap.forEach((territory, districtName) => {
-                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+                // Use -territory suffix for territory districts
+                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
                   const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
@@ -1507,12 +1514,24 @@ function setupDeferredAreaControls() {
     // Mark as complete
     if (setupCount > 0) {
       state.flags.areaControlsSetup = true;
+      toggleKeyControlsLoaded = true;
     }
   };
   
-  // Use requestIdleCallback if available, otherwise setTimeout
-  // Load area controls during idle time for better performance
-  IdleExecution.scheduleHeavy(loadAreaControls, { timeout: 3000, fallbackDelay: 2000 });
+  // Add one-time click handler to #SecondLeftSideTab
+  const secondLeftSideTab = $id('SecondLeftSideTab');
+  if (secondLeftSideTab && !secondLeftSideTab.dataset.toggleKeyHandlerAdded) {
+    const handleFirstClick = () => {
+      // Initialize toggle-key controls
+      initializeToggleKeyControls();
+      
+      // Remove this handler since it only needs to run once
+      secondLeftSideTab.removeEventListener('click', handleFirstClick);
+      secondLeftSideTab.dataset.toggleKeyHandlerAdded = 'true';
+    };
+    
+    secondLeftSideTab.addEventListener('click', handleFirstClick);
+  }
 }
 
 // Generate settlement checkboxes from loaded settlement data (modified for lazy loading) 
@@ -6805,8 +6824,15 @@ setTimeout(() => {
 
 // Global function to frame region boundaries (used by both markers and autocomplete)
 function frameRegionBoundary(regionName) {
-  const boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
-  const source = map.getSource(boundarySourceId);
+  // Try both with and without -territory suffix
+  let boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+  let source = map.getSource(boundarySourceId);
+  
+  // If the standard source doesn't exist, try with -territory suffix
+  if (!source) {
+    boundarySourceId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-boundary`;
+    source = map.getSource(boundarySourceId);
+  }
   
   if (source && source._data) {
     // Region has boundaries - frame them with cached bounds
@@ -6826,8 +6852,15 @@ function highlightBoundary(regionName) {
   // Remove any existing highlight first
   removeBoundaryHighlight();
   
-  const boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-  const boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
+  // Try both with and without -territory suffix to handle both governorates and territory districts
+  let boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-fill`;
+  let boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-border`;
+  
+  // If the standard layers don't exist, try with -territory suffix
+  if (!mapLayers.hasLayer(boundaryFillId) || !mapLayers.hasLayer(boundaryBorderId)) {
+    boundaryFillId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+    boundaryBorderId = `${regionName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
+  }
   
   if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
     // Batch boundary highlighting operations
@@ -6855,8 +6888,9 @@ function highlightTerritoryBoundaries(territoryName) {
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
       if (territory === territoryName) {
-        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+        // Use -territory suffix for territory districts to avoid conflicts
+        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
         
         // Check if layers exist
         const hasFill = mapLayers.hasLayer(fillId);
@@ -6978,8 +7012,15 @@ function removeBoundaryHighlight() {
   
   // Handle single boundary highlights (only if territory highlighting is not active)
   if (state.highlightedBoundary && !state.territoryHighlightActive) {
-    const boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
-    const boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
+    // Try both with and without -territory suffix
+    let boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-fill`;
+    let boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-border`;
+    
+    // If the standard layers don't exist, try with -territory suffix
+    if (!mapLayers.hasLayer(boundaryFillId) || !mapLayers.hasLayer(boundaryBorderId)) {
+      boundaryFillId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-territory-fill`;
+      boundaryBorderId = `${state.highlightedBoundary.toLowerCase().replace(/\s+/g, '-')}-territory-border`;
+    }
     
     if (mapLayers.hasLayer(boundaryFillId) && mapLayers.hasLayer(boundaryBorderId)) {
       // Batch boundary reset operations
@@ -8464,8 +8505,8 @@ function setupControls() {
   setupSidebarControls('.OpenLeftSidebar, [OpenLeftSidebar], [openleftsidebar]', 'Left', 'change');
   setupSidebarControls('.OpenSecondLeftSidebar, [OpenSecondLeftSidebar], [opensecondleftsidebar]', 'SecondLeft', 'change');
   
-  // Defer area controls loading
-  setupDeferredAreaControls();
+  // Setup lazy toggle-key controls
+  setupLazyToggleKeyControls();
   setupBackToTopButton();
 }
 
