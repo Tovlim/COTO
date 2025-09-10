@@ -6372,6 +6372,7 @@ class OptimizedMapState {
     this.territoryHighlightActive = false;
     this.layerOwnership = new Map(); // Track which highlighting system owns each layer
     this.visualContentPromises = []; // Track promises for visual content loading
+    this.highlightingInProgress = false; // Flag to prevent interference during highlighting
     this.districtTerritoryMap = null;
     this.clickPriority = 999; // Higher number = lower priority, 999 = no click yet
     
@@ -6921,6 +6922,9 @@ function forceResetAllHighlights() {
 function highlightBoundary(regionName) {
   console.log(`🔍 BOUNDARY DEBUG: highlightBoundary('${regionName}') called`);
   
+  // Set flag to prevent interference during highlighting
+  state.highlightingInProgress = true;
+  
   // Force reset ALL highlights to prevent ownership conflicts
   forceResetAllHighlights();
   
@@ -6970,10 +6974,18 @@ function highlightBoundary(regionName) {
       map.setPaintProperty(territoryBorderId, 'line-opacity', 0.9);
     });
   }
+  
+  // Clear highlighting in progress flag
+  setTimeout(() => {
+    state.highlightingInProgress = false;
+  }, 100);
 }
 
 // Highlight all boundaries for a territory
 function highlightTerritoryBoundaries(territoryName) {
+  // Set flag to prevent interference during highlighting
+  state.highlightingInProgress = true;
+  
   // Force reset ALL highlights to prevent ownership conflicts
   forceResetAllHighlights();
   
@@ -7031,6 +7043,11 @@ function highlightTerritoryBoundaries(territoryName) {
     });
   }
   
+  // Clear highlighting in progress flag
+  setTimeout(() => {
+    state.highlightingInProgress = false;
+  }, 100);
+  
   return districtsToHighlight;
 }
 
@@ -7078,6 +7095,12 @@ function frameTerritoryBoundaries(territoryName) {
 
 // Remove boundary highlight and move back below area overlays
 function removeBoundaryHighlight() {
+  // Prevent interference during active highlighting operations
+  if (state.highlightingInProgress) {
+    console.log('🔍 BOUNDARY DEBUG: Skipping removeBoundaryHighlight - highlighting in progress');
+    return;
+  }
+  
   // Simply use the force reset function for clean, conflict-free cleanup
   forceResetAllHighlights();
 }
