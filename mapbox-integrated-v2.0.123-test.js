@@ -8578,9 +8578,8 @@ function setupSidebars() {
       zIndex: zIndex,
       position: 'relative'
     });
-    utils.setStyles(tab, {
-      transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
-    });
+    // Removed transition from tab for instant response
+    utils.setStyles(tab, {});
     
     const bringToFront = () => {
       const newZ = ++zIndex;
