@@ -832,10 +832,16 @@
             }
 
             // Check if checkbox is checked (checked items always show)
-            // For paginated items, check if this item is marked as checked in our cache
-            const cachedItem = findCachedItemByLabel(labelText, groupName);
-            const isChecked = cachedItem ? isCheckboxChecked(cachedItem.element) : false;
-            console.log(`Checking if "${labelText}" is checked... Cached item found: ${!!cachedItem}, Checked: ${isChecked}`);
+            // First, try to find if this item exists in the live DOM and is checked
+            let isChecked = false;
+            const liveElements = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
+            for (let liveEl of liveElements) {
+              if (extractLabelText(liveEl) === labelText) {
+                isChecked = isCheckboxChecked(liveEl);
+                break;
+              }
+            }
+            console.log(`Checking if "${labelText}" is checked... Live DOM check: ${isChecked}`);
             let shouldShow = false;
 
             if (isChecked) {
@@ -1093,18 +1099,13 @@
   }
 
   function isCheckboxChecked(checkboxElement) {
-    console.log('isCheckboxChecked - element:', checkboxElement);
     const label = checkboxElement.querySelector('label');
-    console.log('isCheckboxChecked - label found:', !!label, 'has is-list-active:', label?.classList.contains('is-list-active'));
     if (label?.classList.contains('is-list-active')) {
-      console.log('Found checked via is-list-active class');
       return true;
     }
 
     const input = checkboxElement.querySelector('input[type="checkbox"]');
-    console.log('isCheckboxChecked - input found:', !!input, 'checked:', input?.checked);
     if (input?.checked) {
-      console.log('Found checked via input.checked');
       return true;
     }
 
