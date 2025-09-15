@@ -669,15 +669,21 @@
       console.log(`Using fallback container for group "${groupName}":`, itemsContainer);
     }
 
-    // Check if we're in "load more" mode (seamless-load-more.html is being used)
-    const isLoadMoreMode = window.containerData && typeof window.containerData === 'object';
-    console.log('Load more mode detection:', {
-      'window.containerData exists': !!window.containerData,
-      'typeof window.containerData': typeof window.containerData,
-      'isLoadMoreMode': isLoadMoreMode,
-      'targetContainer found': !!targetContainer,
-      'itemsContainer found': !!itemsContainer
-    });
+    // Check if we're in "load more" mode AND this group has items in a seamless container
+    const hasContainerData = window.containerData && typeof window.containerData === 'object';
+    let isLoadMoreMode = false;
+
+    // Only use load more mode if we can find a seamless container for this group
+    if (hasContainerData && (targetContainer || firstGroupCheckbox)) {
+      // Try to find which container index this group belongs to
+      let testContainer = targetContainer || firstGroupCheckbox?.closest('[seamless-replace="true"]');
+      if (testContainer) {
+        const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(testContainer);
+        isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
+      }
+    }
+
+    console.log('Mode detection:', isLoadMoreMode ? 'Load More mode' : 'Regular mode');
 
     if (isLoadMoreMode) {
       console.log('Load More mode detected - using container data for search');
