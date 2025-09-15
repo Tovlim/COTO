@@ -598,6 +598,15 @@
 
       if (showAll) {
         // Show only current page items when search is empty
+        console.log('Clearing search - showing only current page items');
+
+        // Remove all paginated items from DOM
+        if (itemsContainer) {
+          const paginatedItems = itemsContainer.querySelectorAll('[data-paginated-item="true"]');
+          console.log(`Removing ${paginatedItems.length} paginated items from DOM`);
+          paginatedItems.forEach(item => item.remove());
+        }
+
         checkboxData.forEach(item => {
           if (!item.isPaginated) {
             if (!item.isVisible) {
@@ -605,10 +614,6 @@
               item.isVisible = true;
             }
           } else {
-            // Remove paginated items from DOM when not searching
-            if (item.element.parentNode && item.element.parentNode === itemsContainer) {
-              item.element.remove();
-            }
             item.isVisible = false;
           }
         });
@@ -663,7 +668,9 @@
 
         // Add paginated items to the DOM if searching
         if (paginatedToShow.length > 0 && itemsContainer) {
-          paginatedToShow.forEach(item => {
+          console.log(`Attempting to add ${paginatedToShow.length} paginated items to DOM`);
+
+          paginatedToShow.forEach((item, index) => {
             // Check if item is already in DOM by comparing label text
             const existingItem = Array.from(itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX))
               .find(el => extractLabelText(el) === item.labelText);
@@ -673,9 +680,21 @@
               // Make sure the cloned element is visible
               clonedElement.style.display = '';
               clonedElement.removeAttribute('data-filtered');
+
+              // Add a data attribute to identify it as a paginated item
+              clonedElement.setAttribute('data-paginated-item', 'true');
+
               itemsContainer.appendChild(clonedElement);
+              console.log(`Added paginated item ${index + 1}: "${item.labelText}"`);
+            } else {
+              console.log(`Item "${item.labelText}" already exists in DOM`);
             }
           });
+
+          console.log(`DOM now contains ${itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX).length} total checkbox items`);
+        } else if (paginatedToShow.length > 0) {
+          console.log(`Found ${paginatedToShow.length} items to show but no itemsContainer found`);
+          console.log('itemsContainer:', itemsContainer);
         }
       }
 
