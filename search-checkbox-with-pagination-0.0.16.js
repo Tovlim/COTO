@@ -785,10 +785,14 @@
               containerDataMap.allItems.forEach((element, index) => {
                 console.log(`Processing item ${index}:`, element);
 
-                // Check if this element contains a checkbox for the current group
+                // Check if this element has the checkbox-filter attribute OR contains a child with it
+                const hasGroupAttribute = element.getAttribute('checkbox-filter') === groupName;
                 const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
-                console.log(`Item ${index} - looking for checkbox-filter="${groupName}":`, groupCheckbox);
-                if (!groupCheckbox) {
+
+                console.log(`Item ${index} - element has checkbox-filter="${groupName}":`, hasGroupAttribute);
+                console.log(`Item ${index} - contains child with checkbox-filter="${groupName}":`, !!groupCheckbox);
+
+                if (!hasGroupAttribute && !groupCheckbox) {
                   console.log(`Item ${index} - no checkbox found for group "${groupName}", skipping`);
                   return;
                 }
