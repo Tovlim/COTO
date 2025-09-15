@@ -701,7 +701,17 @@
       isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
     }
 
-    console.log('Mode detection:', isLoadMoreMode ? 'Load More mode' : 'Regular mode');
+    console.log(`Mode detection for group "${groupName}":`, isLoadMoreMode ? 'Load More mode' : 'Regular mode');
+    if (seamlessContainer) {
+      const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
+      console.log(`  - seamlessContainer index: ${containerIndex}`);
+      console.log(`  - containerData has this index: ${window.containerData?.has?.(containerIndex)}`);
+    }
+
+    // Debug containerData contents
+    if (window.containerData && window.containerData.keys) {
+      console.log(`  - containerData available indexes:`, Array.from(window.containerData.keys()));
+    }
 
     if (isLoadMoreMode) {
       console.log('Load More mode detected - using container data for search');
