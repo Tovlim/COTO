@@ -646,19 +646,27 @@
 
     console.log(`Filtering group ${groupName} with term: "${searchTerm}", Total items: ${checkboxData.length}`);
 
-    // Find the appropriate container (either seamless or the checkbox parent)
-    let targetContainer = document.querySelector(`[seamless-replace="true"]`);
-    let itemsContainer = targetContainer ? targetContainer.querySelector('.w-dyn-items') : null;
+    // Find the specific container for this checkbox group
+    let targetContainer = null;
+    let itemsContainer = null;
 
-    // If no seamless container, find where the checkboxes are
-    if (!itemsContainer) {
-      const firstCheckbox = document.querySelector(CONFIG.SELECTORS.CHECKBOX);
-      if (firstCheckbox) {
-        // Try to find a common parent that contains the items
-        itemsContainer = firstCheckbox.closest('.w-dyn-items') ||
-                        firstCheckbox.closest('.collection-list') ||
-                        firstCheckbox.parentElement;
+    // First, try to find a checkbox from this specific group to determine the correct container
+    const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
+    if (firstGroupCheckbox) {
+      // Find the closest seamless container that contains this checkbox
+      targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
+      if (targetContainer) {
+        itemsContainer = targetContainer.querySelector('.w-dyn-items');
+        console.log(`Found specific container for group "${groupName}":`, targetContainer);
       }
+    }
+
+    // Fallback: if no seamless container found, find where the checkboxes are
+    if (!itemsContainer && firstGroupCheckbox) {
+      itemsContainer = firstGroupCheckbox.closest('.w-dyn-items') ||
+                      firstGroupCheckbox.closest('.collection-list') ||
+                      firstGroupCheckbox.parentElement;
+      console.log(`Using fallback container for group "${groupName}":`, itemsContainer);
     }
 
     requestAnimationFrame(() => {
