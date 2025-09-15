@@ -13,7 +13,7 @@
       FORM_LABEL: '.w-form-label',
       LABEL: 'label',
       CHECKBOX_INPUT: 'input[type="checkbox"]',
-      SEAMLESS_CONTAINER: '[seamless-replace]',
+      SEAMLESS_CONTAINER: '[seamless-replace="true"]',
       PAGINATION_WRAPPER: '.w-pagination-wrapper',
       PAGINATION_NEXT: '.w-pagination-next',
       DYN_ITEM: '.w-dyn-item'
@@ -654,7 +654,7 @@
     const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
     if (firstGroupCheckbox) {
       // Find the closest seamless container that contains this checkbox
-      targetContainer = firstGroupCheckbox.closest('[seamless-replace]');
+      targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
       if (targetContainer) {
         itemsContainer = targetContainer.querySelector('.w-dyn-items');
         console.log(`Found specific container for group "${groupName}":`, targetContainer);
@@ -676,9 +676,9 @@
     // Only use load more mode if we can find a seamless container for this group
     if (hasContainerData && (targetContainer || firstGroupCheckbox)) {
       // Try to find which container index this group belongs to
-      let testContainer = targetContainer || firstGroupCheckbox?.closest('[seamless-replace]');
+      let testContainer = targetContainer || firstGroupCheckbox?.closest('[seamless-replace="true"]');
       if (testContainer) {
-        const containerIndex = Array.from(document.querySelectorAll('[seamless-replace]')).indexOf(testContainer);
+        const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(testContainer);
         isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
       }
     }
@@ -696,14 +696,14 @@
       const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
       console.log('firstGroupCheckbox found:', !!firstGroupCheckbox);
       if (firstGroupCheckbox) {
-        targetContainer = firstGroupCheckbox.closest('[seamless-replace]');
+        targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
         console.log('targetContainer found via checkbox:', !!targetContainer);
       }
 
       // If no checkbox found (e.g. after search cleared everything), try to find itemsContainer another way
       if (!targetContainer) {
         // Try to find any seamless container that might contain our group's items
-        const allSeamlessContainers = document.querySelectorAll('[seamless-replace]');
+        const allSeamlessContainers = document.querySelectorAll('[seamless-replace="true"]');
         for (let container of allSeamlessContainers) {
           const containerItemsContainer = container.querySelector('.w-dyn-items');
           if (containerItemsContainer) {
@@ -725,7 +725,7 @@
       }
 
       if (targetContainer) {
-        targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace]')).indexOf(targetContainer);
+        targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
         console.log('targetContainerIndex:', targetContainerIndex);
       }
 
