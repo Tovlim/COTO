@@ -789,11 +789,24 @@
                       // Clear and rebuild with items that should be visible according to load more state
                       targetItemsContainer.innerHTML = '';
 
-                      // Calculate how many items should be shown based on current page
-                      const itemsToShow = containerDataMap.currentPage * containerDataMap.itemsPerPage;
+                      // Calculate how many items should be shown
+                      // If load more button is hidden, show all items; otherwise use current page
+                      const $container = $(container);
+                      const $nextButton = $container.find('.w-pagination-next');
+                      const allItemsLoaded = $nextButton.is(':hidden') || containerDataMap.currentPage * containerDataMap.itemsPerPage >= containerDataMap.allItems.length;
+
+                      let itemsToShow;
+                      if (allItemsLoaded) {
+                        // Show all items if user has loaded everything
+                        itemsToShow = containerDataMap.allItems.length;
+                      } else {
+                        // Show items based on current page
+                        itemsToShow = containerDataMap.currentPage * containerDataMap.itemsPerPage;
+                      }
+
                       const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
 
-                      console.log(`Restoring ${itemsToDisplay.length} items (page ${containerDataMap.currentPage}, ${containerDataMap.itemsPerPage} per page)`);
+                      console.log(`Restoring ${itemsToDisplay.length} items (all loaded: ${allItemsLoaded}, page ${containerDataMap.currentPage}, ${containerDataMap.itemsPerPage} per page)`);
 
                       // Add ALL items that should be visible (not just the current group)
                       itemsToDisplay.forEach(element => {
@@ -807,8 +820,6 @@
                       });
 
                       // Update the load more button visibility
-                      const $container = $(container);
-                      const $nextButton = $container.find('.w-pagination-next');
                       if (itemsToShow >= containerDataMap.allItems.length) {
                         $nextButton.hide();
                       } else {
