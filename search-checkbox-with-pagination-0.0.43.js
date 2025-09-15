@@ -29,7 +29,9 @@
     eventListeners: new Map(),
     // New: Store all paginated items per container
     paginatedData: new Map(),
-    loadingPromises: new Map()
+    loadingPromises: new Map(),
+    // Store checked states persistently across searches
+    persistentCheckedStates: new Map()
   };
 
   // Pre-compiled utilities
@@ -744,17 +746,26 @@
           console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
           console.log('showAll value:', showAll, 'normalizedSearchTerm:', normalizedSearchTerm);
 
-          // IMPORTANT: Store checked states BEFORE clearing the DOM
-          const checkedStates = new Map();
+          // IMPORTANT: Update persistent checked states BEFORE clearing the DOM
+          if (!cache.persistentCheckedStates.has(groupName)) {
+            cache.persistentCheckedStates.set(groupName, new Map());
+          }
+          const groupCheckedStates = cache.persistentCheckedStates.get(groupName);
+
           const currentCheckboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
           currentCheckboxes.forEach(checkbox => {
             const labelText = extractLabelText(checkbox);
             if (labelText) {
               const isChecked = isCheckboxChecked(checkbox);
-              checkedStates.set(labelText, isChecked);
-              console.log(`Stored checked state for "${labelText}": ${isChecked}`);
+              // Only update if the checkbox state has changed or is new
+              if (!groupCheckedStates.has(labelText) || groupCheckedStates.get(labelText) !== isChecked) {
+                groupCheckedStates.set(labelText, isChecked);
+                console.log(`Updated persistent checked state for "${labelText}": ${isChecked}`);
+              }
             }
           });
+
+          console.log(`Current persistent checked states for group "${groupName}":`, Array.from(groupCheckedStates.entries()));
 
           if (showAll) {
             // When clearing search, restore the load more state instead of adding items manually
@@ -844,9 +855,10 @@
             }
 
             // Check if checkbox is checked (checked items always show)
-            // Use the stored checked states from before DOM was cleared
-            const isChecked = checkedStates.has(labelText) ? checkedStates.get(labelText) : false;
-            console.log(`Checking "${labelText}" - stored checked state: ${isChecked}`);
+            // Use the persistent checked states
+            const groupCheckedStates = cache.persistentCheckedStates.get(groupName) || new Map();
+            const isChecked = groupCheckedStates.has(labelText) ? groupCheckedStates.get(labelText) : false;
+            console.log(`Checking "${labelText}" - persistent checked state: ${isChecked}`);
             let shouldShow = false;
 
             if (isChecked) {
@@ -877,6 +889,10 @@
               clonedElement.setAttribute('data-search-result', 'true');
 
               itemsContainer.appendChild(clonedElement);
+
+              // Restore checked state after adding to DOM
+              restoreCheckedState(clonedElement, groupName);
+
               addedCount++;
             }
           });
@@ -1115,6 +1131,40 @@
     }
 
     return false;
+  }
+
+  // Function to restore checked state to a cloned element
+  function restoreCheckedState(clonedElement, groupName) {
+    const labelText = extractLabelText(clonedElement);
+    if (!labelText) return;
+
+    const groupCheckedStates = cache.persistentCheckedStates.get(groupName);
+    if (!groupCheckedStates || !groupCheckedStates.has(labelText)) return;
+
+    const shouldBeChecked = groupCheckedStates.get(labelText);
+    if (!shouldBeChecked) return;
+
+    console.log(`Restoring checked state for "${labelText}"`);
+
+    // Method 1: Add is-list-active class to label
+    const label = clonedElement.querySelector('label');
+    if (label) {
+      label.classList.add('is-list-active');
+    }
+
+    // Method 2: Add w--redirected-checked class to checkbox input
+    const checkboxInput = clonedElement.querySelector('.w-checkbox-input');
+    if (checkboxInput) {
+      checkboxInput.classList.add('w--redirected-checked');
+    }
+
+    // Method 3: Set actual input checked state
+    const input = clonedElement.querySelector('input[type="checkbox"]');
+    if (input) {
+      input.checked = true;
+    }
+
+    console.log(`Successfully restored checked state for "${labelText}"`);
   }
 
   function hideElement(element) {
