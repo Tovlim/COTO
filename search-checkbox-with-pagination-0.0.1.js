@@ -90,6 +90,99 @@
       // Start loading pagination
       loadContainerPagination(container, containerKey);
     });
+
+    // Also check for checkboxes outside seamless containers
+    if (containers.length === 0) {
+      // If no seamless containers, still try to load paginated content
+      console.log('No seamless containers found, checking for pagination globally');
+      loadGlobalPagination();
+    }
+  }
+
+  // Load pagination when checkboxes aren't in seamless containers
+  function loadGlobalPagination() {
+    const containerKey = 'global';
+
+    if (!cache.paginatedData.has(containerKey)) {
+      cache.paginatedData.set(containerKey, {
+        allCheckboxes: [],
+        currentCheckboxes: [],
+        pagesLoaded: new Set(),
+        isLoading: false,
+        container: document.body
+      });
+    }
+
+    const data = cache.paginatedData.get(containerKey);
+    data.isLoading = true;
+
+    // Store current page checkboxes
+    const currentCheckboxes = document.querySelectorAll(CONFIG.SELECTORS.CHECKBOX);
+    currentCheckboxes.forEach(checkbox => {
+      const clonedCheckbox = checkbox.cloneNode(true);
+      data.allCheckboxes.push(clonedCheckbox);
+      data.currentCheckboxes.push(clonedCheckbox);
+    });
+
+    // Mark current page as loaded
+    data.pagesLoaded.add(window.location.href);
+
+    // Find any pagination wrapper
+    const paginationWrapper = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
+    if (!paginationWrapper) {
+      data.isLoading = false;
+      return;
+    }
+
+    const nextLink = paginationWrapper.querySelector(CONFIG.SELECTORS.PAGINATION_NEXT);
+    if (nextLink && nextLink.href) {
+      loadNextPagesGlobal(containerKey, nextLink.href);
+    } else {
+      data.isLoading = false;
+      console.log(`All items loaded (${data.allCheckboxes.length} checkboxes)`);
+    }
+  }
+
+  function loadNextPagesGlobal(containerKey, nextUrl) {
+    const data = cache.paginatedData.get(containerKey);
+
+    if (data.pagesLoaded.has(nextUrl)) {
+      data.isLoading = false;
+      return;
+    }
+
+    fetch(nextUrl)
+      .then(response => response.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Extract all checkboxes from the loaded page
+        const newCheckboxes = doc.querySelectorAll(CONFIG.SELECTORS.CHECKBOX);
+        newCheckboxes.forEach(checkbox => {
+          const clonedCheckbox = checkbox.cloneNode(true);
+          data.allCheckboxes.push(clonedCheckbox);
+        });
+
+        // Mark this page as loaded
+        data.pagesLoaded.add(nextUrl);
+
+        // Find next page link
+        const nextLink = doc.querySelector(CONFIG.SELECTORS.PAGINATION_NEXT);
+        if (nextLink && nextLink.href) {
+          return loadNextPagesGlobal(containerKey, nextLink.href);
+        }
+
+        data.isLoading = false;
+        console.log(`All pages loaded (${data.allCheckboxes.length} total checkboxes)`);
+
+        // Rebuild checkbox cache with all loaded items
+        rebuildCheckboxCache();
+      })
+      .catch(error => {
+        console.error(`Failed to load page ${nextUrl}:`, error);
+        data.isLoading = false;
+      });
   }
 
   function loadContainerPagination(container, containerKey) {
@@ -443,14 +536,30 @@
   function filterCheckboxGroup(groupName, searchTerm) {
     const checkboxData = cache.checkboxGroups.get(groupName);
 
-    if (!checkboxData) return;
+    if (!checkboxData) {
+      console.log(`No checkbox data found for group: ${groupName}`);
+      return;
+    }
 
     const normalizedSearchTerm = utils.normalizeText(searchTerm);
     const showAll = normalizedSearchTerm === '';
 
-    // Handle paginated items display
-    const container = document.querySelector(`[seamless-replace="true"]`);
-    const shouldShowPaginated = normalizedSearchTerm !== '';
+    console.log(`Filtering group ${groupName} with term: "${searchTerm}", Total items: ${checkboxData.length}`);
+
+    // Find the appropriate container (either seamless or the checkbox parent)
+    let targetContainer = document.querySelector(`[seamless-replace="true"]`);
+    let itemsContainer = targetContainer ? targetContainer.querySelector('.w-dyn-items') : null;
+
+    // If no seamless container, find where the checkboxes are
+    if (!itemsContainer) {
+      const firstCheckbox = document.querySelector(CONFIG.SELECTORS.CHECKBOX);
+      if (firstCheckbox) {
+        // Try to find a common parent that contains the items
+        itemsContainer = firstCheckbox.closest('.w-dyn-items') ||
+                        firstCheckbox.closest('.collection-list') ||
+                        firstCheckbox.parentElement;
+      }
+    }
 
     requestAnimationFrame(() => {
       const elementsToShow = [];
@@ -466,22 +575,23 @@
               item.isVisible = true;
             }
           } else {
-            // Hide paginated items
-            if (item.isVisible) {
-              elementsToHide.push(item);
-              item.isVisible = false;
+            // Remove paginated items from DOM when not searching
+            if (item.element.parentNode && item.element.parentNode === itemsContainer) {
+              item.element.remove();
             }
+            item.isVisible = false;
           }
         });
 
         // Show pagination controls
-        if (container) {
-          const pagination = container.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
-          if (pagination) pagination.style.display = '';
-        }
+        const pagination = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
+        if (pagination) pagination.style.display = '';
       } else {
         // Search mode - show matching items from all pages
         const searchTokens = normalizedSearchTerm.split(/\s+/);
+
+        console.log(`Searching with tokens:`, searchTokens);
+        let matchCount = 0;
 
         checkboxData.forEach(item => {
           let shouldShow = false;
@@ -495,6 +605,7 @@
             // Calculate match score
             const score = calculateMatchScore(normalizedSearchTerm, searchTokens, item);
             shouldShow = score > CONFIG.SCORE_THRESHOLD;
+            if (shouldShow) matchCount++;
           }
 
           if (shouldShow) {
@@ -506,36 +617,39 @@
               }
               item.isVisible = true;
             }
-          } else if (item.isVisible) {
-            elementsToHide.push(item);
-            item.isVisible = false;
+          } else {
+            if (item.isVisible) {
+              elementsToHide.push(item);
+              item.isVisible = false;
+            }
           }
         });
 
+        console.log(`Found ${matchCount} matches, ${paginatedToShow.length} from other pages`);
+
         // Hide pagination controls during search
-        if (container) {
-          const pagination = container.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
-          if (pagination) pagination.style.display = 'none';
-        }
+        const pagination = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
+        if (pagination) pagination.style.display = 'none';
 
         // Add paginated items to the DOM if searching
-        if (paginatedToShow.length > 0 && container) {
-          const itemsContainer = container.querySelector('.w-dyn-items');
-          if (itemsContainer) {
-            paginatedToShow.forEach(item => {
-              // Check if item is already in DOM
-              const existingItem = Array.from(itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX))
-                .find(el => extractLabelText(el) === item.labelText);
+        if (paginatedToShow.length > 0 && itemsContainer) {
+          paginatedToShow.forEach(item => {
+            // Check if item is already in DOM by comparing label text
+            const existingItem = Array.from(itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX))
+              .find(el => extractLabelText(el) === item.labelText);
 
-              if (!existingItem) {
-                itemsContainer.appendChild(item.element.cloneNode(true));
-              }
-            });
-          }
+            if (!existingItem) {
+              const clonedElement = item.element.cloneNode(true);
+              // Make sure the cloned element is visible
+              clonedElement.style.display = '';
+              clonedElement.removeAttribute('data-filtered');
+              itemsContainer.appendChild(clonedElement);
+            }
+          });
         }
       }
 
-      // Batch DOM updates
+      // Batch DOM updates for visibility
       elementsToShow.forEach(item => showElement(item.element));
       elementsToHide.forEach(item => hideElement(item.element));
     });
