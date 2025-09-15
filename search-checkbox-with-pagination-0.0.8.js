@@ -698,6 +698,12 @@
         console.log(`Searching with tokens:`, searchTokens);
         let matchCount = 0;
 
+        // Temporarily disable other filtering scripts that might interfere
+        if (window.fsAttributes) {
+          console.log('Temporarily disabling fsAttributes');
+          window.fsAttributes.destroy?.();
+        }
+
         checkboxData.forEach(item => {
           let shouldShow = false;
 
@@ -799,6 +805,51 @@
           const allLabels = Array.from(itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX))
             .map(el => extractLabelText(el));
           console.log('All checkbox labels in DOM:', allLabels);
+
+          // Set up a periodic check to ensure items stay visible
+          if (normalizedSearchTerm !== '') {
+            const keepAliveInterval = setInterval(() => {
+              const currentPaginatedItems = itemsContainer.querySelectorAll('[data-paginated-item="true"]');
+              console.log(`Keep-alive check: ${currentPaginatedItems.length} paginated items in DOM`);
+
+              if (currentPaginatedItems.length < paginatedToShow.length) {
+                console.log('Some paginated items were removed - re-adding them');
+
+                // Re-add missing items
+                paginatedToShow.forEach(item => {
+                  const exists = Array.from(itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX))
+                    .some(el => extractLabelText(el) === item.labelText);
+
+                  if (!exists) {
+                    const clonedElement = item.element.cloneNode(true);
+                    clonedElement.style.display = 'block';
+                    clonedElement.style.visibility = 'visible';
+                    clonedElement.style.opacity = '1';
+                    clonedElement.removeAttribute('data-filtered');
+                    clonedElement.setAttribute('data-paginated-item', 'true');
+
+                    itemsContainer.appendChild(clonedElement);
+                    console.log(`Re-added missing item: "${item.labelText}"`);
+                  }
+                });
+              }
+
+              // Make sure all paginated items are visible
+              currentPaginatedItems.forEach(item => {
+                item.style.display = 'block';
+                item.style.visibility = 'visible';
+                item.style.opacity = '1';
+                item.removeAttribute('data-filtered');
+              });
+
+              // Clear interval if search is cleared
+              const searchBox = cache.searchBoxes.get(groupName);
+              if (!searchBox || !searchBox.value || !searchBox.value.trim()) {
+                clearInterval(keepAliveInterval);
+                console.log('Search cleared - stopping keep-alive check');
+              }
+            }, 100); // Check every 100ms
+          }
         } else if (paginatedToShow.length > 0) {
           console.log(`Found ${paginatedToShow.length} items to show but no itemsContainer found`);
           console.log('itemsContainer:', itemsContainer);
