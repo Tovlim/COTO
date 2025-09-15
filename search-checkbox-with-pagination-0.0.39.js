@@ -832,10 +832,10 @@
             }
 
             // Check if checkbox is checked (checked items always show)
-            // For paginated items, we need to check the live DOM element, not the cloned one
-            const liveElement = findLiveElementByLabel(labelText, groupName);
-            const isChecked = liveElement ? isCheckboxChecked(liveElement) : false;
-            console.log(`Checking if "${labelText}" is checked... Live element found: ${!!liveElement}, Checked: ${isChecked}`);
+            // For paginated items, check if this item is marked as checked in our cache
+            const cachedItem = findCachedItemByLabel(labelText, groupName);
+            const isChecked = cachedItem ? isCheckboxChecked(cachedItem.element) : false;
+            console.log(`Checking if "${labelText}" is checked... Cached item found: ${!!cachedItem}, Checked: ${isChecked}`);
             let shouldShow = false;
 
             if (isChecked) {
@@ -1084,16 +1084,12 @@
     });
   }
 
-  function findLiveElementByLabel(labelText, groupName) {
-    // Find the live DOM element with matching label text in the same group
-    const allGroupElements = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
-    for (let element of allGroupElements) {
-      const elementLabelText = extractLabelText(element);
-      if (elementLabelText === labelText) {
-        return element;
-      }
-    }
-    return null;
+  function findCachedItemByLabel(labelText, groupName) {
+    // Find the cached checkbox item with matching label text in the same group
+    const checkboxData = cache.checkboxGroups.get(groupName);
+    if (!checkboxData) return null;
+
+    return checkboxData.find(item => item.labelText === labelText) || null;
   }
 
   function isCheckboxChecked(checkboxElement) {
