@@ -669,18 +669,36 @@
       console.log(`Using fallback container for group "${groupName}":`, itemsContainer);
     }
 
-    // Check if we're in "load more" mode AND this group has items in a seamless container
-    const hasContainerData = window.containerData && typeof window.containerData === 'object';
+    // Check if THIS specific group is in a seamless container with load more data
     let isLoadMoreMode = false;
+    let seamlessContainer = null;
 
-    // Only use load more mode if we can find a seamless container for this group
-    if (hasContainerData && (targetContainer || firstGroupCheckbox)) {
-      // Try to find which container index this group belongs to
-      let testContainer = targetContainer || firstGroupCheckbox?.closest('[seamless-replace="true"]');
-      if (testContainer) {
-        const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(testContainer);
-        isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
+    if (firstGroupCheckbox) {
+      seamlessContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
+    } else if (window.containerData && typeof window.containerData === 'object') {
+      // Fallback: if no checkbox found (after search cleared everything),
+      // try to find which seamless container has items for this group
+      const allSeamlessContainers = document.querySelectorAll('[seamless-replace="true"]');
+      for (let container of allSeamlessContainers) {
+        const containerIndex = Array.from(allSeamlessContainers).indexOf(container);
+        if (window.containerData.has && window.containerData.has(containerIndex)) {
+          const containerDataMap = window.containerData.get(containerIndex);
+          if (containerDataMap.allItems && containerDataMap.allItems.some(item =>
+            item.getAttribute && item.getAttribute('checkbox-filter') === groupName)) {
+            seamlessContainer = container;
+            break;
+          }
+        }
       }
+    }
+
+    // Only use load more mode if:
+    // 1. This group is inside a seamless container
+    // 2. containerData exists
+    // 3. This specific container has data in containerData
+    if (seamlessContainer && window.containerData && typeof window.containerData === 'object') {
+      const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
+      isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
     }
 
     console.log('Mode detection:', isLoadMoreMode ? 'Load More mode' : 'Regular mode');
@@ -688,44 +706,13 @@
     if (isLoadMoreMode) {
       console.log('Load More mode detected - using container data for search');
 
-      // Find the container index for this group
-      let targetContainerIndex = null;
-      let targetContainer = null;
+      // Use the seamlessContainer we already found
+      let targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
+      let targetContainer = seamlessContainer;
 
-      // First try to find a checkbox (works when items are visible)
-      const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
-      console.log('firstGroupCheckbox found:', !!firstGroupCheckbox);
-      if (firstGroupCheckbox) {
-        targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
-        console.log('targetContainer found via checkbox:', !!targetContainer);
-      }
-
-      // If no checkbox found (e.g. after search cleared everything), try to find itemsContainer another way
-      if (!targetContainer) {
-        // Try to find any seamless container that might contain our group's items
-        const allSeamlessContainers = document.querySelectorAll('[seamless-replace="true"]');
-        for (let container of allSeamlessContainers) {
-          const containerItemsContainer = container.querySelector('.w-dyn-items');
-          if (containerItemsContainer) {
-            // Check if this container had items for our group by looking in containerData
-            const containerIndex = Array.from(allSeamlessContainers).indexOf(container);
-            if (window.containerData && window.containerData.has && window.containerData.has(containerIndex)) {
-              const containerDataMap = window.containerData.get(containerIndex);
-              // Check if any items in this container have our checkbox-filter attribute
-              if (containerDataMap.allItems && containerDataMap.allItems.some(item =>
-                item.getAttribute && item.getAttribute('checkbox-filter') === groupName)) {
-                targetContainer = container;
-                itemsContainer = containerItemsContainer;
-                console.log('targetContainer found via containerData search:', !!targetContainer);
-                break;
-              }
-            }
-          }
-        }
-      }
-
+      // Set itemsContainer from the targetContainer
       if (targetContainer) {
-        targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
+        itemsContainer = targetContainer.querySelector('.w-dyn-items');
         console.log('targetContainerIndex:', targetContainerIndex);
       }
 
