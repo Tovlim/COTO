@@ -689,6 +689,9 @@
         const containerDataMap = window.containerData.get(targetContainerIndex);
         console.log('Container data map:', containerDataMap);
         console.log('All items sample:', containerDataMap.allItems?.slice(0, 2));
+        console.log('itemsContainer:', itemsContainer);
+        console.log('containerDataMap.allItems exists:', !!containerDataMap.allItems);
+        console.log('containerDataMap.allItems length:', containerDataMap.allItems?.length);
 
         // Clear current items and search through ALL items in containerData
         if (itemsContainer && containerDataMap.allItems) {
