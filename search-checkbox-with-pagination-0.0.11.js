@@ -924,6 +924,7 @@
           console.log('Alternative container:', altContainer);
         }
       }
+      }
 
       // Batch DOM updates for visibility
       elementsToShow.forEach(item => showElement(item.element));
