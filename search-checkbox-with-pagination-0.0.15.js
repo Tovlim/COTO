@@ -768,6 +768,8 @@
 
           if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
             const containerDataMap = window.containerData.get(targetContainerIndex);
+            console.log('Container data map:', containerDataMap);
+            console.log('All items sample:', containerDataMap.allItems?.slice(0, 2));
 
             // Clear current items and search through ALL items in containerData
             if (itemsContainer && containerDataMap.allItems) {
@@ -780,13 +782,23 @@
               let addedCount = 0;
               let matchCount = 0;
 
-              containerDataMap.allItems.forEach(element => {
+              containerDataMap.allItems.forEach((element, index) => {
+                console.log(`Processing item ${index}:`, element);
+
                 // Check if this element contains a checkbox for the current group
                 const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
-                if (!groupCheckbox) return;
+                console.log(`Item ${index} - looking for checkbox-filter="${groupName}":`, groupCheckbox);
+                if (!groupCheckbox) {
+                  console.log(`Item ${index} - no checkbox found for group "${groupName}", skipping`);
+                  return;
+                }
 
                 const labelText = extractLabelText(element);
-                if (!labelText) return;
+                console.log(`Item ${index} - labelText:`, labelText);
+                if (!labelText) {
+                  console.log(`Item ${index} - no label text found, skipping`);
+                  return;
+                }
 
                 let shouldShow = false;
 
