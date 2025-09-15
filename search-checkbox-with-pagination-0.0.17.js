@@ -775,7 +775,48 @@
             if (itemsContainer && containerDataMap.allItems) {
               console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
 
-              // Clear container
+              if (showAll) {
+                // When clearing search, restore the load more state instead of adding items manually
+                console.log('Clearing search in load more mode - restoring normal pagination display');
+
+                // Call the load more script's updateDisplay function to restore normal state
+                if (window.containerData && window.containerData.get && window.containerData.get(targetContainerIndex)) {
+                  const container = firstGroupCheckbox.closest('[seamless-replace="true"]');
+                  if (container) {
+                    // Find items container within this seamless container
+                    const targetItemsContainer = container.querySelector('.w-dyn-items');
+                    if (targetItemsContainer) {
+                      // Clear and rebuild with items that should be visible according to load more state
+                      targetItemsContainer.innerHTML = '';
+
+                      // Calculate how many items should be shown based on current page
+                      const itemsToShow = containerDataMap.currentPage * containerDataMap.itemsPerPage;
+                      const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
+
+                      console.log(`Restoring ${itemsToDisplay.length} items (page ${containerDataMap.currentPage}, ${containerDataMap.itemsPerPage} per page)`);
+
+                      // Filter to only items that belong to this group and add them
+                      itemsToDisplay.forEach(element => {
+                        const hasGroupAttribute = element.getAttribute('checkbox-filter') === groupName;
+                        const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
+
+                        if (hasGroupAttribute || groupCheckbox) {
+                          const clonedElement = element.cloneNode(true);
+                          clonedElement.style.display = 'block';
+                          clonedElement.style.visibility = 'visible';
+                          clonedElement.style.opacity = '1';
+                          clonedElement.removeAttribute('data-filtered');
+                          targetItemsContainer.appendChild(clonedElement);
+                        }
+                      });
+                    }
+                  }
+                }
+
+                return; // Exit early for showAll case
+              }
+
+              // Clear container for search
               itemsContainer.innerHTML = '';
 
               // Search through ALL items in containerData, not just cached ones
@@ -804,30 +845,26 @@
                   return;
                 }
 
+                // Check if checkbox is checked (checked items always show)
+                const isChecked = isCheckboxChecked(element);
                 let shouldShow = false;
 
-                if (showAll) {
+                if (isChecked) {
                   shouldShow = true;
                 } else {
-                  // Check if checkbox is checked (checked items always show)
-                  const isChecked = isCheckboxChecked(element);
-                  if (isChecked) {
-                    shouldShow = true;
-                  } else {
-                    // Calculate match score for search
-                    const normalizedLabel = utils.normalizeText(labelText);
-                    const searchTokens = createSearchTokens(normalizedSearchTerm);
-                    const itemData = {
-                      normalizedText: normalizedLabel,
-                      searchTokens: createSearchTokens(normalizedLabel)
-                    };
+                  // Calculate match score for search
+                  const normalizedLabel = utils.normalizeText(labelText);
+                  const searchTokens = createSearchTokens(normalizedSearchTerm);
+                  const itemData = {
+                    normalizedText: normalizedLabel,
+                    searchTokens: createSearchTokens(normalizedLabel)
+                  };
 
-                    const score = calculateMatchScore(normalizedSearchTerm, searchTokens, itemData);
-                    shouldShow = score > CONFIG.SCORE_THRESHOLD;
-                    if (shouldShow) matchCount++;
+                  const score = calculateMatchScore(normalizedSearchTerm, searchTokens, itemData);
+                  shouldShow = score > CONFIG.SCORE_THRESHOLD;
+                  if (shouldShow) matchCount++;
 
-                    console.log(`Item "${labelText}": score=${score}, threshold=${CONFIG.SCORE_THRESHOLD}, shouldShow=${shouldShow}`);
-                  }
+                  console.log(`Item "${labelText}": score=${score}, threshold=${CONFIG.SCORE_THRESHOLD}, shouldShow=${shouldShow}`);
                 }
 
                 if (shouldShow) {
