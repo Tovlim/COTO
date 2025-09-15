@@ -832,8 +832,10 @@
             }
 
             // Check if checkbox is checked (checked items always show)
-            console.log(`Checking if "${labelText}" is checked...`);
-            const isChecked = isCheckboxChecked(element);
+            // For paginated items, we need to check the live DOM element, not the cloned one
+            const liveElement = findLiveElementByLabel(labelText, groupName);
+            const isChecked = liveElement ? isCheckboxChecked(liveElement) : false;
+            console.log(`Checking if "${labelText}" is checked... Live element found: ${!!liveElement}, Checked: ${isChecked}`);
             let shouldShow = false;
 
             if (isChecked) {
@@ -1080,6 +1082,18 @@
       elementsToShow.forEach(item => showElement(item.element));
       elementsToHide.forEach(item => hideElement(item.element));
     });
+  }
+
+  function findLiveElementByLabel(labelText, groupName) {
+    // Find the live DOM element with matching label text in the same group
+    const allGroupElements = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
+    for (let element of allGroupElements) {
+      const elementLabelText = extractLabelText(element);
+      if (elementLabelText === labelText) {
+        return element;
+      }
+    }
+    return null;
   }
 
   function isCheckboxChecked(checkboxElement) {
