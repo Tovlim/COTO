@@ -687,10 +687,28 @@
         console.log('targetContainer found via checkbox:', !!targetContainer);
       }
 
-      // If no checkbox found (e.g. after search cleared everything), use itemsContainer
-      if (!targetContainer && itemsContainer) {
-        targetContainer = itemsContainer.closest('[seamless-replace="true"]');
-        console.log('targetContainer found via itemsContainer:', !!targetContainer);
+      // If no checkbox found (e.g. after search cleared everything), try to find itemsContainer another way
+      if (!targetContainer) {
+        // Try to find any seamless container that might contain our group's items
+        const allSeamlessContainers = document.querySelectorAll('[seamless-replace="true"]');
+        for (let container of allSeamlessContainers) {
+          const containerItemsContainer = container.querySelector('.w-dyn-items');
+          if (containerItemsContainer) {
+            // Check if this container had items for our group by looking in containerData
+            const containerIndex = Array.from(allSeamlessContainers).indexOf(container);
+            if (window.containerData && window.containerData.has && window.containerData.has(containerIndex)) {
+              const containerDataMap = window.containerData.get(containerIndex);
+              // Check if any items in this container have our checkbox-filter attribute
+              if (containerDataMap.allItems && containerDataMap.allItems.some(item =>
+                item.getAttribute && item.getAttribute('checkbox-filter') === groupName)) {
+                targetContainer = container;
+                itemsContainer = containerItemsContainer;
+                console.log('targetContainer found via containerData search:', !!targetContainer);
+                break;
+              }
+            }
+          }
+        }
       }
 
       if (targetContainer) {
