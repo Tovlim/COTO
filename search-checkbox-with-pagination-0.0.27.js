@@ -671,6 +671,13 @@
 
     // Check if we're in "load more" mode (seamless-load-more.html is being used)
     const isLoadMoreMode = window.containerData && typeof window.containerData === 'object';
+    console.log('Load more mode detection:', {
+      'window.containerData exists': !!window.containerData,
+      'typeof window.containerData': typeof window.containerData,
+      'isLoadMoreMode': isLoadMoreMode,
+      'targetContainer found': !!targetContainer,
+      'itemsContainer found': !!itemsContainer
+    });
 
     if (isLoadMoreMode) {
       console.log('Load More mode detected - using container data for search');
@@ -862,6 +869,8 @@
 
       return; // Exit early for load more mode
     }
+
+    console.log('Regular (non-load-more) mode detected - using standard search logic');
 
     requestAnimationFrame(() => {
       const elementsToShow = [];
