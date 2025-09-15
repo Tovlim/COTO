@@ -744,6 +744,18 @@
           console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
           console.log('showAll value:', showAll, 'normalizedSearchTerm:', normalizedSearchTerm);
 
+          // IMPORTANT: Store checked states BEFORE clearing the DOM
+          const checkedStates = new Map();
+          const currentCheckboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
+          currentCheckboxes.forEach(checkbox => {
+            const labelText = extractLabelText(checkbox);
+            if (labelText) {
+              const isChecked = isCheckboxChecked(checkbox);
+              checkedStates.set(labelText, isChecked);
+              console.log(`Stored checked state for "${labelText}": ${isChecked}`);
+            }
+          });
+
           if (showAll) {
             // When clearing search, restore the load more state instead of adding items manually
             console.log('Clearing search in load more mode - restoring normal pagination display');
@@ -832,34 +844,9 @@
             }
 
             // Check if checkbox is checked (checked items always show)
-            // First, try to find if this item exists in the live DOM and is checked
-            let isChecked = false;
-            const liveElements = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
-            console.log(`Checking "${labelText}" against ${liveElements.length} live elements`);
-
-            for (let i = 0; i < liveElements.length; i++) {
-              const liveEl = liveElements[i];
-              const liveLabelText = extractLabelText(liveEl);
-              console.log(`  Live element ${i}: "${liveLabelText}" vs "${labelText}"`);
-              console.log(`  Match: ${liveLabelText === labelText}`);
-
-              if (liveLabelText === labelText) {
-                isChecked = isCheckboxChecked(liveEl);
-                console.log(`  Found match! isChecked: ${isChecked}`);
-
-                // Debug the checkbox state detection
-                const label = liveEl.querySelector('label');
-                const hasActiveClass = label?.classList.contains('is-list-active');
-                const input = liveEl.querySelector('input[type="checkbox"]');
-                const inputChecked = input?.checked;
-                console.log(`  Checkbox state debugging:`);
-                console.log(`    - has is-list-active class: ${hasActiveClass}`);
-                console.log(`    - input checked: ${inputChecked}`);
-                console.log(`    - final isChecked result: ${isChecked}`);
-                break;
-              }
-            }
-            console.log(`Final result for "${labelText}": isChecked = ${isChecked}`);
+            // Use the stored checked states from before DOM was cleared
+            const isChecked = checkedStates.has(labelText) ? checkedStates.get(labelText) : false;
+            console.log(`Checking "${labelText}" - stored checked state: ${isChecked}`);
             let shouldShow = false;
 
             if (isChecked) {
