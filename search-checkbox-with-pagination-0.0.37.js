@@ -832,6 +832,7 @@
             }
 
             // Check if checkbox is checked (checked items always show)
+            console.log(`Checking if "${labelText}" is checked...`);
             const isChecked = isCheckboxChecked(element);
             let shouldShow = false;
 
@@ -1082,13 +1083,16 @@
   }
 
   function isCheckboxChecked(checkboxElement) {
+    console.log('isCheckboxChecked - element:', checkboxElement);
     const label = checkboxElement.querySelector('label');
+    console.log('isCheckboxChecked - label found:', !!label, 'has is-list-active:', label?.classList.contains('is-list-active'));
     if (label?.classList.contains('is-list-active')) {
       console.log('Found checked via is-list-active class');
       return true;
     }
 
     const input = checkboxElement.querySelector('input[type="checkbox"]');
+    console.log('isCheckboxChecked - input found:', !!input, 'checked:', input?.checked);
     if (input?.checked) {
       console.log('Found checked via input.checked');
       return true;
