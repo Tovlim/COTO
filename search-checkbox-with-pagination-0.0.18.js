@@ -795,20 +795,25 @@
 
                       console.log(`Restoring ${itemsToDisplay.length} items (page ${containerDataMap.currentPage}, ${containerDataMap.itemsPerPage} per page)`);
 
-                      // Filter to only items that belong to this group and add them
+                      // Add ALL items that should be visible (not just the current group)
                       itemsToDisplay.forEach(element => {
-                        const hasGroupAttribute = element.getAttribute('checkbox-filter') === groupName;
-                        const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
-
-                        if (hasGroupAttribute || groupCheckbox) {
-                          const clonedElement = element.cloneNode(true);
-                          clonedElement.style.display = 'block';
-                          clonedElement.style.visibility = 'visible';
-                          clonedElement.style.opacity = '1';
-                          clonedElement.removeAttribute('data-filtered');
-                          targetItemsContainer.appendChild(clonedElement);
-                        }
+                        const clonedElement = element.cloneNode(true);
+                        clonedElement.style.display = 'block';
+                        clonedElement.style.visibility = 'visible';
+                        clonedElement.style.opacity = '1';
+                        clonedElement.removeAttribute('data-filtered');
+                        clonedElement.removeAttribute('data-search-result');
+                        targetItemsContainer.appendChild(clonedElement);
                       });
+
+                      // Update the load more button visibility
+                      const $container = $(container);
+                      const $nextButton = $container.find('.w-pagination-next');
+                      if (itemsToShow >= containerDataMap.allItems.length) {
+                        $nextButton.hide();
+                      } else {
+                        $nextButton.show();
+                      }
                     }
                   }
                 }
