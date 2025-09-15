@@ -247,6 +247,34 @@
               newCheckboxes.forEach(checkbox => {
                 const clonedCheckbox = checkbox.cloneNode(true);
                 data.allCheckboxes.push(clonedCheckbox);
+
+                // Immediately add to the main cache
+                const groupName = checkbox.getAttribute('checkbox-filter');
+                if (groupName) {
+                  const labelText = extractLabelText(clonedCheckbox);
+                  const processedCheckbox = {
+                    element: clonedCheckbox,
+                    labelText: labelText,
+                    normalizedText: utils.normalizeText(labelText),
+                    searchTokens: createSearchTokens(labelText),
+                    isVisible: false, // Start hidden since it's from another page
+                    isPaginated: true
+                  };
+
+                  if (!cache.checkboxGroups.has(groupName)) {
+                    cache.checkboxGroups.set(groupName, []);
+                  }
+
+                  // Check if this checkbox already exists (avoid duplicates)
+                  const existing = cache.checkboxGroups.get(groupName).find(
+                    item => item.labelText === labelText
+                  );
+
+                  if (!existing) {
+                    cache.checkboxGroups.get(groupName).push(processedCheckbox);
+                    console.log(`Added checkbox "${labelText}" to group "${groupName}" from pagination`);
+                  }
+                }
               });
 
               // Mark this page as loaded
@@ -265,8 +293,10 @@
             cache.loadingPromises.delete(containerKey);
             console.log(`Container ${containerKey}: All pages loaded (${data.allCheckboxes.length} total checkboxes)`);
 
-            // Rebuild checkbox cache with all loaded items
-            rebuildCheckboxCache();
+            // Log the final state of checkbox groups
+            cache.checkboxGroups.forEach((items, groupName) => {
+              console.log(`Group "${groupName}" now has ${items.length} total items (${items.filter(i => i.isPaginated).length} from pagination)`);
+            });
           })
           .catch(error => {
             console.error(`Failed to load page ${nextUrl}:`, error);
