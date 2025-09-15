@@ -835,13 +835,31 @@
             // First, try to find if this item exists in the live DOM and is checked
             let isChecked = false;
             const liveElements = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
-            for (let liveEl of liveElements) {
-              if (extractLabelText(liveEl) === labelText) {
+            console.log(`Checking "${labelText}" against ${liveElements.length} live elements`);
+
+            for (let i = 0; i < liveElements.length; i++) {
+              const liveEl = liveElements[i];
+              const liveLabelText = extractLabelText(liveEl);
+              console.log(`  Live element ${i}: "${liveLabelText}" vs "${labelText}"`);
+              console.log(`  Match: ${liveLabelText === labelText}`);
+
+              if (liveLabelText === labelText) {
                 isChecked = isCheckboxChecked(liveEl);
+                console.log(`  Found match! isChecked: ${isChecked}`);
+
+                // Debug the checkbox state detection
+                const label = liveEl.querySelector('label');
+                const hasActiveClass = label?.classList.contains('is-list-active');
+                const input = liveEl.querySelector('input[type="checkbox"]');
+                const inputChecked = input?.checked;
+                console.log(`  Checkbox state debugging:`);
+                console.log(`    - has is-list-active class: ${hasActiveClass}`);
+                console.log(`    - input checked: ${inputChecked}`);
+                console.log(`    - final isChecked result: ${isChecked}`);
                 break;
               }
             }
-            console.log(`Checking if "${labelText}" is checked... Live DOM check: ${isChecked}`);
+            console.log(`Final result for "${labelText}": isChecked = ${isChecked}`);
             let shouldShow = false;
 
             if (isChecked) {
