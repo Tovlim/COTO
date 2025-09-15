@@ -677,17 +677,29 @@
 
             if (!existingItem) {
               const clonedElement = item.element.cloneNode(true);
-              // Make sure the cloned element is visible
+
+              // Make sure the cloned element is visible (override any hiding)
               clonedElement.style.display = '';
               clonedElement.removeAttribute('data-filtered');
 
               // Add a data attribute to identify it as a paginated item
               clonedElement.setAttribute('data-paginated-item', 'true');
 
+              // Force the element to be visible by removing any hiding classes/attributes
+              clonedElement.style.visibility = 'visible';
+              clonedElement.style.opacity = '1';
+
               itemsContainer.appendChild(clonedElement);
               console.log(`Added paginated item ${index + 1}: "${item.labelText}"`);
+
+              // After adding to DOM, ensure it's visible by calling showElement
+              setTimeout(() => {
+                showElement(clonedElement);
+              }, 0);
             } else {
               console.log(`Item "${item.labelText}" already exists in DOM`);
+              // Make sure existing item is visible if it matches
+              showElement(existingItem);
             }
           });
 
@@ -725,7 +737,12 @@
 
   function showElement(element) {
     element.style.display = '';
+    element.style.visibility = 'visible';
+    element.style.opacity = '1';
     element.removeAttribute('data-filtered');
+
+    // Also remove any hiding classes that might be applied
+    element.classList.remove('hidden', 'hide', 'invisible');
   }
 
   // Public API
