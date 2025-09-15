@@ -56,6 +56,8 @@
   ];
 
   let isInitialized = false;
+  let mutationObserver = null;
+  let pendingPaginatedItems = new Map(); // Store items that need to be re-added
 
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', initializeFilters);
@@ -64,9 +66,61 @@
     setupElements();
     setupEventListeners();
     initializeGroups();
+    setupMutationObserver();
     // Load all paginated items for containers
     loadAllPaginatedItems();
     isInitialized = true;
+  }
+
+  // Set up MutationObserver to detect when our paginated items are removed
+  function setupMutationObserver() {
+    if (mutationObserver) {
+      mutationObserver.disconnect();
+    }
+
+    mutationObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+          // Check if any of our paginated items were removed
+          mutation.removedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE &&
+                node.hasAttribute &&
+                node.hasAttribute('data-paginated-item')) {
+
+              const labelText = extractLabelText(node);
+              console.log(`Detected removal of paginated item: "${labelText}" - re-adding it`);
+
+              // Store the item to be re-added
+              setTimeout(() => {
+                const container = mutation.target;
+                if (container && container.classList && container.classList.contains('w-dyn-items')) {
+                  // Clone and re-add the item
+                  const clonedElement = node.cloneNode(true);
+                  clonedElement.style.display = 'block';
+                  clonedElement.style.visibility = 'visible';
+                  clonedElement.style.opacity = '1';
+                  clonedElement.removeAttribute('data-filtered');
+
+                  container.appendChild(clonedElement);
+                  console.log(`Re-added paginated item: "${labelText}"`);
+                }
+              }, 10);
+            }
+          });
+        }
+      });
+    });
+
+    // Observe all containers
+    const containers = document.querySelectorAll('.w-dyn-items');
+    containers.forEach(container => {
+      mutationObserver.observe(container, {
+        childList: true,
+        subtree: false
+      });
+    });
+
+    console.log(`MutationObserver set up for ${containers.length} containers`);
   }
 
   // New function to load all paginated items
