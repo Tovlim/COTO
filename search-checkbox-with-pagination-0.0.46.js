@@ -58,6 +58,7 @@
   ];
 
   let isInitialized = false;
+  let isInitializing = false; // Flag to prevent redundant initialization calls
   let mutationObserver = null;
   let pendingPaginatedItems = new Map(); // Store items that need to be re-added
 
@@ -65,6 +66,12 @@
   document.addEventListener('DOMContentLoaded', initializeFilters);
 
   function initializeFilters() {
+    if (isInitializing) {
+      console.log('Already initializing, skipping duplicate call');
+      return;
+    }
+
+    isInitializing = true;
     setupElements();
     setupEventListeners();
     initializeGroups();
@@ -72,6 +79,7 @@
     // Load all paginated items for containers
     loadAllPaginatedItems();
     isInitialized = true;
+    isInitializing = false;
   }
 
   // Set up MutationObserver to detect when our paginated items are removed
@@ -611,6 +619,12 @@
   }
 
   function initializeGroups() {
+    // Prevent redundant initialization during startup
+    if (isInitializing) {
+      console.log('Skipping initializeGroups - already initializing');
+      return;
+    }
+
     // Initialize all groups to show all checkboxes
     cache.checkboxGroups.forEach((_, groupName) => {
       filterCheckboxGroup(groupName, '');
@@ -783,18 +797,23 @@
                   targetItemsContainer.innerHTML = '';
 
                   // Calculate how many items should be shown
-                  // If load more button is hidden, show all items; otherwise use current page
+                  // Only show all items if the user has explicitly loaded more pages
                   const $container = $(container);
                   const $nextButton = $container.find('.w-pagination-next');
-                  const allItemsLoaded = $nextButton.is(':hidden') || containerDataMap.currentPage * containerDataMap.itemsPerPage >= containerDataMap.allItems.length;
+
+                  // Only consider all items loaded if user has actually loaded more than the first page
+                  // OR if the load more button is explicitly hidden by the load more script
+                  const userLoadedMorePages = containerDataMap.currentPage > 1;
+                  const buttonExplicitlyHidden = $nextButton.is(':hidden');
+                  const allItemsLoaded = userLoadedMorePages && (buttonExplicitlyHidden || containerDataMap.currentPage * containerDataMap.itemsPerPage >= containerDataMap.allItems.length);
 
                   let itemsToShow;
                   if (allItemsLoaded) {
-                    // Show all items if user has loaded everything
+                    // Show all items if user has explicitly loaded everything
                     itemsToShow = containerDataMap.allItems.length;
                   } else {
-                    // Show items based on current page
-                    itemsToShow = containerDataMap.currentPage * containerDataMap.itemsPerPage;
+                    // Show items based on current page (default to first page)
+                    itemsToShow = Math.max(containerDataMap.currentPage, 1) * containerDataMap.itemsPerPage;
                   }
 
                   const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
