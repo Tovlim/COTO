@@ -810,6 +810,12 @@
                     clonedElement.removeAttribute('data-filtered');
                     clonedElement.removeAttribute('data-search-result');
                     targetItemsContainer.appendChild(clonedElement);
+
+                    // Restore checked state after adding to DOM
+                    if (clonedElement.hasAttribute('checkbox-filter')) {
+                      const elementGroupName = clonedElement.getAttribute('checkbox-filter');
+                      restoreCheckedState(clonedElement, elementGroupName);
+                    }
                   });
 
                   // Update the load more button visibility
