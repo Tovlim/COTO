@@ -781,6 +781,10 @@
               let matchCount = 0;
 
               containerDataMap.allItems.forEach(element => {
+                // Check if this element contains a checkbox for the current group
+                const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
+                if (!groupCheckbox) return;
+
                 const labelText = extractLabelText(element);
                 if (!labelText) return;
 
@@ -789,10 +793,6 @@
                 if (showAll) {
                   shouldShow = true;
                 } else {
-                  // Check if it's a checkbox element for this group
-                  const isGroupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
-                  if (!isGroupCheckbox) return;
-
                   // Check if checkbox is checked (checked items always show)
                   const isChecked = isCheckboxChecked(element);
                   if (isChecked) {
@@ -809,6 +809,8 @@
                     const score = calculateMatchScore(normalizedSearchTerm, searchTokens, itemData);
                     shouldShow = score > CONFIG.SCORE_THRESHOLD;
                     if (shouldShow) matchCount++;
+
+                    console.log(`Item "${labelText}": score=${score}, threshold=${CONFIG.SCORE_THRESHOLD}, shouldShow=${shouldShow}`);
                   }
                 }
 
