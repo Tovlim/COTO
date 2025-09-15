@@ -678,12 +678,20 @@
       // Find the container index for this group
       let targetContainerIndex = null;
       const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
+      console.log('firstGroupCheckbox found:', !!firstGroupCheckbox);
       if (firstGroupCheckbox) {
         const targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
+        console.log('targetContainer found:', !!targetContainer);
         if (targetContainer) {
           targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
+          console.log('targetContainerIndex:', targetContainerIndex);
         }
       }
+
+      console.log('Final checks:');
+      console.log('  targetContainerIndex !== null:', targetContainerIndex !== null);
+      console.log('  window.containerData.has exists:', !!window.containerData.has);
+      console.log('  window.containerData.has(targetContainerIndex):', window.containerData.has && window.containerData.has(targetContainerIndex));
 
       if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
         const containerDataMap = window.containerData.get(targetContainerIndex);
