@@ -677,15 +677,25 @@
 
       // Find the container index for this group
       let targetContainerIndex = null;
+      let targetContainer = null;
+
+      // First try to find a checkbox (works when items are visible)
       const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
       console.log('firstGroupCheckbox found:', !!firstGroupCheckbox);
       if (firstGroupCheckbox) {
-        const targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
-        console.log('targetContainer found:', !!targetContainer);
-        if (targetContainer) {
-          targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
-          console.log('targetContainerIndex:', targetContainerIndex);
-        }
+        targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
+        console.log('targetContainer found via checkbox:', !!targetContainer);
+      }
+
+      // If no checkbox found (e.g. after search cleared everything), use itemsContainer
+      if (!targetContainer && itemsContainer) {
+        targetContainer = itemsContainer.closest('[seamless-replace="true"]');
+        console.log('targetContainer found via itemsContainer:', !!targetContainer);
+      }
+
+      if (targetContainer) {
+        targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
+        console.log('targetContainerIndex:', targetContainerIndex);
       }
 
       console.log('Final checks:');
@@ -713,7 +723,7 @@
 
             // Call the load more script's updateDisplay function to restore normal state
             if (window.containerData && window.containerData.get && window.containerData.get(targetContainerIndex)) {
-              const container = firstGroupCheckbox.closest('[seamless-replace="true"]');
+              const container = targetContainer;
               if (container) {
                 // Find items container within this seamless container
                 const targetItemsContainer = container.querySelector('.w-dyn-items');
