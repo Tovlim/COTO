@@ -1197,6 +1197,10 @@
         initializeGroups();
         // Reload paginated items
         loadAllPaginatedItems();
+
+        // IMPORTANT: Restore checked states after recaching
+        this.restoreAllCheckedStates();
+
         console.log('Checkbox filter recached:', this.getCacheStats());
       } else {
         initializeFilters();
@@ -1248,6 +1252,17 @@
       });
 
       return stats;
+    },
+
+    restoreAllCheckedStates() {
+      // Restore checked states for all groups
+      cache.persistentCheckedStates.forEach((groupStates, groupName) => {
+        const checkboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
+        checkboxes.forEach(checkbox => {
+          restoreCheckedState(checkbox, groupName);
+        });
+      });
+      console.log('Restored checked states for all groups after load more');
     }
   };
 
