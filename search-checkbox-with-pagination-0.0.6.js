@@ -178,6 +178,14 @@
 
         // Rebuild checkbox cache with all loaded items
         rebuildCheckboxCache();
+
+        // Reapply any active search filters now that we have all items
+        cache.searchBoxes.forEach((searchBox, groupName) => {
+          if (searchBox.value && searchBox.value.trim()) {
+            console.log(`Reapplying search for group "${groupName}" with term: "${searchBox.value}"`);
+            filterCheckboxGroup(groupName, searchBox.value);
+          }
+        });
       })
       .catch(error => {
         console.error(`Failed to load page ${nextUrl}:`, error);
@@ -296,6 +304,14 @@
             // Log the final state of checkbox groups
             cache.checkboxGroups.forEach((items, groupName) => {
               console.log(`Group "${groupName}" now has ${items.length} total items (${items.filter(i => i.isPaginated).length} from pagination)`);
+            });
+
+            // Reapply any active search filters now that we have all items
+            cache.searchBoxes.forEach((searchBox, groupName) => {
+              if (searchBox.value && searchBox.value.trim()) {
+                console.log(`Reapplying search for group "${groupName}" with term: "${searchBox.value}"`);
+                filterCheckboxGroup(groupName, searchBox.value);
+              }
             });
           })
           .catch(error => {
@@ -669,6 +685,8 @@
         // Add paginated items to the DOM if searching
         if (paginatedToShow.length > 0 && itemsContainer) {
           console.log(`Attempting to add ${paginatedToShow.length} paginated items to DOM`);
+          console.log('Items container:', itemsContainer);
+          console.log('Items to show:', paginatedToShow.map(item => item.labelText));
 
           paginatedToShow.forEach((item, index) => {
             // Check if item is already in DOM by comparing label text
@@ -678,35 +696,62 @@
             if (!existingItem) {
               const clonedElement = item.element.cloneNode(true);
 
+              console.log(`Cloning element for "${item.labelText}":`, clonedElement);
+
               // Make sure the cloned element is visible (override any hiding)
-              clonedElement.style.display = '';
+              clonedElement.style.display = 'block';
+              clonedElement.style.visibility = 'visible';
+              clonedElement.style.opacity = '1';
               clonedElement.removeAttribute('data-filtered');
 
               // Add a data attribute to identify it as a paginated item
               clonedElement.setAttribute('data-paginated-item', 'true');
 
-              // Force the element to be visible by removing any hiding classes/attributes
-              clonedElement.style.visibility = 'visible';
-              clonedElement.style.opacity = '1';
-
+              // Try appending to container
+              console.log(`Attempting to append element to container...`);
               itemsContainer.appendChild(clonedElement);
-              console.log(`Added paginated item ${index + 1}: "${item.labelText}"`);
 
-              // After adding to DOM, ensure it's visible by calling showElement
-              setTimeout(() => {
-                showElement(clonedElement);
-              }, 0);
+              // Verify it was added
+              const wasAdded = itemsContainer.contains(clonedElement);
+              console.log(`Element added successfully: ${wasAdded}`);
+
+              if (wasAdded) {
+                console.log(`Successfully added paginated item ${index + 1}: "${item.labelText}"`);
+
+                // Force visibility after DOM insertion
+                requestAnimationFrame(() => {
+                  clonedElement.style.display = 'block';
+                  clonedElement.style.visibility = 'visible';
+                  clonedElement.style.opacity = '1';
+                  clonedElement.removeAttribute('data-filtered');
+                  showElement(clonedElement);
+                });
+              } else {
+                console.error(`Failed to add element to DOM for: "${item.labelText}"`);
+              }
             } else {
-              console.log(`Item "${item.labelText}" already exists in DOM`);
+              console.log(`Item "${item.labelText}" already exists in DOM - showing it`);
               // Make sure existing item is visible if it matches
               showElement(existingItem);
             }
           });
 
-          console.log(`DOM now contains ${itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX).length} total checkbox items`);
+          // Double-check the DOM state
+          const totalCheckboxes = itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX).length;
+          const paginatedCheckboxes = itemsContainer.querySelectorAll('[data-paginated-item="true"]').length;
+          console.log(`DOM now contains ${totalCheckboxes} total checkbox items (${paginatedCheckboxes} paginated)`);
+
+          // List all checkbox labels in the DOM
+          const allLabels = Array.from(itemsContainer.querySelectorAll(CONFIG.SELECTORS.CHECKBOX))
+            .map(el => extractLabelText(el));
+          console.log('All checkbox labels in DOM:', allLabels);
         } else if (paginatedToShow.length > 0) {
           console.log(`Found ${paginatedToShow.length} items to show but no itemsContainer found`);
           console.log('itemsContainer:', itemsContainer);
+
+          // Try to find alternative container
+          const altContainer = document.querySelector('.w-dyn-items');
+          console.log('Alternative container:', altContainer);
         }
       }
 
