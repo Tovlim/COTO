@@ -693,6 +693,7 @@
         // Clear current items and search through ALL items in containerData
         if (itemsContainer && containerDataMap.allItems) {
           console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
+          console.log('showAll value:', showAll, 'normalizedSearchTerm:', normalizedSearchTerm);
 
           if (showAll) {
             // When clearing search, restore the load more state instead of adding items manually
