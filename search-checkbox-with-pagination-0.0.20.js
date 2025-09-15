@@ -746,12 +746,14 @@
 
         console.log(`Found ${matchCount} matches, ${paginatedToShow.length} from other pages`);
 
-        // Hide pagination controls during search
-        const pagination = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
-        if (pagination) pagination.style.display = 'none';
-
+        // Hide pagination controls during search (but only if not in load more mode)
         // Check if we're in "load more" mode (seamless-load-more.html is being used)
         const isLoadMoreMode = window.containerData && typeof window.containerData === 'object';
+
+        if (!isLoadMoreMode) {
+          const pagination = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
+          if (pagination) pagination.style.display = 'none';
+        }
 
         if (isLoadMoreMode) {
           console.log('Load More mode detected - using container data for search');
@@ -778,6 +780,7 @@
               if (showAll) {
                 // When clearing search, restore the load more state instead of adding items manually
                 console.log('Clearing search in load more mode - restoring normal pagination display');
+                console.log('Container data:', containerDataMap);
 
                 // Call the load more script's updateDisplay function to restore normal state
                 if (window.containerData && window.containerData.get && window.containerData.get(targetContainerIndex)) {
