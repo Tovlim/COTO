@@ -769,41 +769,63 @@
           if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
             const containerDataMap = window.containerData.get(targetContainerIndex);
 
-            // Clear current items and add all matching items from loaded data
+            // Clear current items and search through ALL items in containerData
             if (itemsContainer && containerDataMap.allItems) {
-              console.log(`Found ${containerDataMap.allItems.length} total items in load more data`);
+              console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
 
               // Clear container
               itemsContainer.innerHTML = '';
 
-              // Add all matching items (both current page and paginated)
+              // Search through ALL items in containerData, not just cached ones
               let addedCount = 0;
-              [...checkboxData].forEach(item => {
-                if (item.isVisible) {
-                  // Find the corresponding element in containerData
-                  const matchingElement = containerDataMap.allItems.find(el => {
-                    const elementLabel = extractLabelText(el);
-                    return elementLabel === item.labelText;
-                  });
+              let matchCount = 0;
 
-                  if (matchingElement) {
-                    const clonedElement = matchingElement.cloneNode(true);
-                    clonedElement.style.display = 'block';
-                    clonedElement.style.visibility = 'visible';
-                    clonedElement.style.opacity = '1';
-                    clonedElement.removeAttribute('data-filtered');
+              containerDataMap.allItems.forEach(element => {
+                const labelText = extractLabelText(element);
+                if (!labelText) return;
 
-                    if (item.isPaginated) {
-                      clonedElement.setAttribute('data-paginated-item', 'true');
-                    }
+                let shouldShow = false;
 
-                    itemsContainer.appendChild(clonedElement);
-                    addedCount++;
+                if (showAll) {
+                  shouldShow = true;
+                } else {
+                  // Check if it's a checkbox element for this group
+                  const isGroupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
+                  if (!isGroupCheckbox) return;
+
+                  // Check if checkbox is checked (checked items always show)
+                  const isChecked = isCheckboxChecked(element);
+                  if (isChecked) {
+                    shouldShow = true;
+                  } else {
+                    // Calculate match score for search
+                    const normalizedLabel = utils.normalizeText(labelText);
+                    const searchTokens = createSearchTokens(normalizedSearchTerm);
+                    const itemData = {
+                      normalizedText: normalizedLabel,
+                      searchTokens: createSearchTokens(normalizedLabel)
+                    };
+
+                    const score = calculateMatchScore(normalizedSearchTerm, searchTokens, itemData);
+                    shouldShow = score > CONFIG.SCORE_THRESHOLD;
+                    if (shouldShow) matchCount++;
                   }
+                }
+
+                if (shouldShow) {
+                  const clonedElement = element.cloneNode(true);
+                  clonedElement.style.display = 'block';
+                  clonedElement.style.visibility = 'visible';
+                  clonedElement.style.opacity = '1';
+                  clonedElement.removeAttribute('data-filtered');
+                  clonedElement.setAttribute('data-search-result', 'true');
+
+                  itemsContainer.appendChild(clonedElement);
+                  addedCount++;
                 }
               });
 
-              console.log(`Added ${addedCount} matching items from load more data`);
+              console.log(`Search complete: Found ${matchCount} matches, added ${addedCount} items to DOM`);
             }
           }
         } else {
