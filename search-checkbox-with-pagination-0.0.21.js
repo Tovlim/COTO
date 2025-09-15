@@ -669,6 +669,160 @@
       console.log(`Using fallback container for group "${groupName}":`, itemsContainer);
     }
 
+    // Check if we're in "load more" mode (seamless-load-more.html is being used)
+    const isLoadMoreMode = window.containerData && typeof window.containerData === 'object';
+
+    if (isLoadMoreMode) {
+      console.log('Load More mode detected - using container data for search');
+
+      // Find the container index for this group
+      let targetContainerIndex = null;
+      const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
+      if (firstGroupCheckbox) {
+        const targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
+        if (targetContainer) {
+          targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
+        }
+      }
+
+      if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
+        const containerDataMap = window.containerData.get(targetContainerIndex);
+        console.log('Container data map:', containerDataMap);
+        console.log('All items sample:', containerDataMap.allItems?.slice(0, 2));
+
+        // Clear current items and search through ALL items in containerData
+        if (itemsContainer && containerDataMap.allItems) {
+          console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
+
+          if (showAll) {
+            // When clearing search, restore the load more state instead of adding items manually
+            console.log('Clearing search in load more mode - restoring normal pagination display');
+            console.log('Container data:', containerDataMap);
+
+            // Call the load more script's updateDisplay function to restore normal state
+            if (window.containerData && window.containerData.get && window.containerData.get(targetContainerIndex)) {
+              const container = firstGroupCheckbox.closest('[seamless-replace="true"]');
+              if (container) {
+                // Find items container within this seamless container
+                const targetItemsContainer = container.querySelector('.w-dyn-items');
+                if (targetItemsContainer) {
+                  // Clear and rebuild with items that should be visible according to load more state
+                  targetItemsContainer.innerHTML = '';
+
+                  // Calculate how many items should be shown
+                  // If load more button is hidden, show all items; otherwise use current page
+                  const $container = $(container);
+                  const $nextButton = $container.find('.w-pagination-next');
+                  const allItemsLoaded = $nextButton.is(':hidden') || containerDataMap.currentPage * containerDataMap.itemsPerPage >= containerDataMap.allItems.length;
+
+                  let itemsToShow;
+                  if (allItemsLoaded) {
+                    // Show all items if user has loaded everything
+                    itemsToShow = containerDataMap.allItems.length;
+                  } else {
+                    // Show items based on current page
+                    itemsToShow = containerDataMap.currentPage * containerDataMap.itemsPerPage;
+                  }
+
+                  const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
+
+                  console.log(`Restoring ${itemsToDisplay.length} items (all loaded: ${allItemsLoaded}, page ${containerDataMap.currentPage}, ${containerDataMap.itemsPerPage} per page)`);
+
+                  // Add ALL items that should be visible (not just the current group)
+                  itemsToDisplay.forEach(element => {
+                    const clonedElement = element.cloneNode(true);
+                    clonedElement.style.display = 'block';
+                    clonedElement.style.visibility = 'visible';
+                    clonedElement.style.opacity = '1';
+                    clonedElement.removeAttribute('data-filtered');
+                    clonedElement.removeAttribute('data-search-result');
+                    targetItemsContainer.appendChild(clonedElement);
+                  });
+
+                  // Update the load more button visibility
+                  if (itemsToShow >= containerDataMap.allItems.length) {
+                    $nextButton.hide();
+                  } else {
+                    $nextButton.show();
+                  }
+                }
+              }
+            }
+
+            return; // Exit early for showAll case
+          }
+
+          // Clear container for search
+          itemsContainer.innerHTML = '';
+
+          // Search through ALL items in containerData, not just cached ones
+          let addedCount = 0;
+          let matchCount = 0;
+
+          containerDataMap.allItems.forEach((element, index) => {
+            console.log(`Processing item ${index}:`, element);
+
+            // Check if this element has the checkbox-filter attribute OR contains a child with it
+            const hasGroupAttribute = element.getAttribute('checkbox-filter') === groupName;
+            const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
+
+            console.log(`Item ${index} - element has checkbox-filter="${groupName}":`, hasGroupAttribute);
+            console.log(`Item ${index} - contains child with checkbox-filter="${groupName}":`, !!groupCheckbox);
+
+            if (!hasGroupAttribute && !groupCheckbox) {
+              console.log(`Item ${index} - no checkbox found for group "${groupName}", skipping`);
+              return;
+            }
+
+            const labelText = extractLabelText(element);
+            console.log(`Item ${index} - labelText:`, labelText);
+            if (!labelText) {
+              console.log(`Item ${index} - no label text found, skipping`);
+              return;
+            }
+
+            // Check if checkbox is checked (checked items always show)
+            const isChecked = isCheckboxChecked(element);
+            let shouldShow = false;
+
+            if (isChecked) {
+              shouldShow = true;
+            } else {
+              // Calculate match score for search
+              const normalizedLabel = utils.normalizeText(labelText);
+              const searchTokens = createSearchTokens(normalizedSearchTerm);
+              const itemData = {
+                normalizedText: normalizedLabel,
+                searchTokens: createSearchTokens(normalizedLabel)
+              };
+
+              const score = calculateMatchScore(normalizedSearchTerm, searchTokens, itemData);
+              shouldShow = score > CONFIG.SCORE_THRESHOLD;
+              if (shouldShow) matchCount++;
+
+              console.log(`Item "${labelText}": score=${score}, threshold=${CONFIG.SCORE_THRESHOLD}, shouldShow=${shouldShow}`);
+            }
+
+            if (shouldShow) {
+              const clonedElement = element.cloneNode(true);
+              clonedElement.style.display = 'block';
+              clonedElement.style.visibility = 'visible';
+              clonedElement.style.opacity = '1';
+              clonedElement.removeAttribute('data-filtered');
+              clonedElement.setAttribute('data-search-result', 'true');
+
+              itemsContainer.appendChild(clonedElement);
+              addedCount++;
+            }
+          });
+
+          console.log(`Search complete: Found ${matchCount} matches, added ${addedCount} items to DOM`);
+        }
+      }
+
+      return; // Exit early for load more mode
+    }
+
     requestAnimationFrame(() => {
       const elementsToShow = [];
       const elementsToHide = [];
@@ -746,164 +900,11 @@
 
         console.log(`Found ${matchCount} matches, ${paginatedToShow.length} from other pages`);
 
-        // Hide pagination controls during search (but only if not in load more mode)
-        // Check if we're in "load more" mode (seamless-load-more.html is being used)
-        const isLoadMoreMode = window.containerData && typeof window.containerData === 'object';
+        // Hide pagination controls during search
+        const pagination = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
+        if (pagination) pagination.style.display = 'none';
 
-        if (!isLoadMoreMode) {
-          const pagination = document.querySelector(CONFIG.SELECTORS.PAGINATION_WRAPPER);
-          if (pagination) pagination.style.display = 'none';
-        }
-
-        if (isLoadMoreMode) {
-          console.log('Load More mode detected - using container data for search');
-
-          // Find the container index for this group
-          let targetContainerIndex = null;
-          const firstGroupCheckbox = document.querySelector(`[checkbox-filter="${groupName}"]`);
-          if (firstGroupCheckbox) {
-            const targetContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
-            if (targetContainer) {
-              targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer);
-            }
-          }
-
-          if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
-            const containerDataMap = window.containerData.get(targetContainerIndex);
-            console.log('Container data map:', containerDataMap);
-            console.log('All items sample:', containerDataMap.allItems?.slice(0, 2));
-
-            // Clear current items and search through ALL items in containerData
-            if (itemsContainer && containerDataMap.allItems) {
-              console.log(`Searching through ${containerDataMap.allItems.length} total items in load more data`);
-
-              if (showAll) {
-                // When clearing search, restore the load more state instead of adding items manually
-                console.log('Clearing search in load more mode - restoring normal pagination display');
-                console.log('Container data:', containerDataMap);
-
-                // Call the load more script's updateDisplay function to restore normal state
-                if (window.containerData && window.containerData.get && window.containerData.get(targetContainerIndex)) {
-                  const container = firstGroupCheckbox.closest('[seamless-replace="true"]');
-                  if (container) {
-                    // Find items container within this seamless container
-                    const targetItemsContainer = container.querySelector('.w-dyn-items');
-                    if (targetItemsContainer) {
-                      // Clear and rebuild with items that should be visible according to load more state
-                      targetItemsContainer.innerHTML = '';
-
-                      // Calculate how many items should be shown
-                      // If load more button is hidden, show all items; otherwise use current page
-                      const $container = $(container);
-                      const $nextButton = $container.find('.w-pagination-next');
-                      const allItemsLoaded = $nextButton.is(':hidden') || containerDataMap.currentPage * containerDataMap.itemsPerPage >= containerDataMap.allItems.length;
-
-                      let itemsToShow;
-                      if (allItemsLoaded) {
-                        // Show all items if user has loaded everything
-                        itemsToShow = containerDataMap.allItems.length;
-                      } else {
-                        // Show items based on current page
-                        itemsToShow = containerDataMap.currentPage * containerDataMap.itemsPerPage;
-                      }
-
-                      const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
-
-                      console.log(`Restoring ${itemsToDisplay.length} items (all loaded: ${allItemsLoaded}, page ${containerDataMap.currentPage}, ${containerDataMap.itemsPerPage} per page)`);
-
-                      // Add ALL items that should be visible (not just the current group)
-                      itemsToDisplay.forEach(element => {
-                        const clonedElement = element.cloneNode(true);
-                        clonedElement.style.display = 'block';
-                        clonedElement.style.visibility = 'visible';
-                        clonedElement.style.opacity = '1';
-                        clonedElement.removeAttribute('data-filtered');
-                        clonedElement.removeAttribute('data-search-result');
-                        targetItemsContainer.appendChild(clonedElement);
-                      });
-
-                      // Update the load more button visibility
-                      if (itemsToShow >= containerDataMap.allItems.length) {
-                        $nextButton.hide();
-                      } else {
-                        $nextButton.show();
-                      }
-                    }
-                  }
-                }
-
-                return; // Exit early for showAll case
-              }
-
-              // Clear container for search
-              itemsContainer.innerHTML = '';
-
-              // Search through ALL items in containerData, not just cached ones
-              let addedCount = 0;
-              let matchCount = 0;
-
-              containerDataMap.allItems.forEach((element, index) => {
-                console.log(`Processing item ${index}:`, element);
-
-                // Check if this element has the checkbox-filter attribute OR contains a child with it
-                const hasGroupAttribute = element.getAttribute('checkbox-filter') === groupName;
-                const groupCheckbox = element.querySelector(`[checkbox-filter="${groupName}"]`);
-
-                console.log(`Item ${index} - element has checkbox-filter="${groupName}":`, hasGroupAttribute);
-                console.log(`Item ${index} - contains child with checkbox-filter="${groupName}":`, !!groupCheckbox);
-
-                if (!hasGroupAttribute && !groupCheckbox) {
-                  console.log(`Item ${index} - no checkbox found for group "${groupName}", skipping`);
-                  return;
-                }
-
-                const labelText = extractLabelText(element);
-                console.log(`Item ${index} - labelText:`, labelText);
-                if (!labelText) {
-                  console.log(`Item ${index} - no label text found, skipping`);
-                  return;
-                }
-
-                // Check if checkbox is checked (checked items always show)
-                const isChecked = isCheckboxChecked(element);
-                let shouldShow = false;
-
-                if (isChecked) {
-                  shouldShow = true;
-                } else {
-                  // Calculate match score for search
-                  const normalizedLabel = utils.normalizeText(labelText);
-                  const searchTokens = createSearchTokens(normalizedSearchTerm);
-                  const itemData = {
-                    normalizedText: normalizedLabel,
-                    searchTokens: createSearchTokens(normalizedLabel)
-                  };
-
-                  const score = calculateMatchScore(normalizedSearchTerm, searchTokens, itemData);
-                  shouldShow = score > CONFIG.SCORE_THRESHOLD;
-                  if (shouldShow) matchCount++;
-
-                  console.log(`Item "${labelText}": score=${score}, threshold=${CONFIG.SCORE_THRESHOLD}, shouldShow=${shouldShow}`);
-                }
-
-                if (shouldShow) {
-                  const clonedElement = element.cloneNode(true);
-                  clonedElement.style.display = 'block';
-                  clonedElement.style.visibility = 'visible';
-                  clonedElement.style.opacity = '1';
-                  clonedElement.removeAttribute('data-filtered');
-                  clonedElement.setAttribute('data-search-result', 'true');
-
-                  itemsContainer.appendChild(clonedElement);
-                  addedCount++;
-                }
-              });
-
-              console.log(`Search complete: Found ${matchCount} matches, added ${addedCount} items to DOM`);
-            }
-          }
-        } else {
-          // Original pagination mode - add paginated items to the DOM
+        // Original pagination mode - add paginated items to the DOM
           if (paginatedToShow.length > 0 && itemsContainer) {
             console.log(`Attempting to add ${paginatedToShow.length} paginated items to DOM`);
             console.log('Items container:', itemsContainer);
@@ -1019,7 +1020,6 @@
           const altContainer = document.querySelector('.w-dyn-items');
           console.log('Alternative container:', altContainer);
         }
-      }
       }
 
       // Batch DOM updates for visibility
