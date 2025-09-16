@@ -59,6 +59,7 @@
 
   let isInitialized = false;
   let isInitializing = false; // Flag to prevent redundant initialization calls
+  let isLoadingMore = false; // Flag to track if we're in the middle of a load more operation
   let mutationObserver = null;
   let pendingPaginatedItems = new Map(); // Store items that need to be re-added
 
@@ -93,7 +94,13 @@
         // Add click listener to capture states before DOM changes
         loadMoreButton.addEventListener('click', function(e) {
           console.log('Load more button clicked - capturing checked states');
+          isLoadingMore = true;
           window.checkboxFilterScript.captureCurrentCheckedStates();
+          // Reset flag after DOM updates complete
+          setTimeout(() => {
+            isLoadingMore = false;
+            console.log('Load more operation complete');
+          }, 500);
         }, true); // Use capture phase to run before other handlers
       }
     });
@@ -783,18 +790,24 @@
           }
           const groupCheckedStates = cache.persistentCheckedStates.get(groupName);
 
-          const currentCheckboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
-          currentCheckboxes.forEach(checkbox => {
-            const labelText = extractLabelText(checkbox);
-            if (labelText) {
-              const isChecked = isCheckboxChecked(checkbox);
-              // Only update if the checkbox state has changed or is new
-              if (!groupCheckedStates.has(labelText) || groupCheckedStates.get(labelText) !== isChecked) {
-                groupCheckedStates.set(labelText, isChecked);
-                console.log(`Updated persistent checked state for "${labelText}": ${isChecked}`);
+          // Only update persistent states if we're NOT in the middle of a load more operation
+          // During load more, the DOM is being replaced with fresh unchecked clones
+          if (!isLoadingMore) {
+            const currentCheckboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
+            currentCheckboxes.forEach(checkbox => {
+              const labelText = extractLabelText(checkbox);
+              if (labelText) {
+                const isChecked = isCheckboxChecked(checkbox);
+                // Only update if the checkbox state has changed or is new
+                if (!groupCheckedStates.has(labelText) || groupCheckedStates.get(labelText) !== isChecked) {
+                  groupCheckedStates.set(labelText, isChecked);
+                  console.log(`Updated persistent checked state for "${labelText}": ${isChecked}`);
+                }
               }
-            }
-          });
+            });
+          } else {
+            console.log('Skipping persistent state update during load more operation');
+          }
 
           console.log(`Current persistent checked states for group "${groupName}":`, Array.from(groupCheckedStates.entries()));
 
