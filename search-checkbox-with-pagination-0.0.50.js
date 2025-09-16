@@ -95,9 +95,7 @@
       isInitializing = false;
     } catch (error) {
       isInitializing = false;
-      if (window.console && window.console.error) {
-        window.console.error('Checkbox filter initialization failed:', error);
-      }
+      // Silently fail
     }
   }
 
