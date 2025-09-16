@@ -29,7 +29,6 @@
       DYN_ITEM: '.w-dyn-item'
     },
     SCORE_THRESHOLD: 0.3,
-    LOAD_MORE_DELAY: 500,
     RESTORE_DELAY: 200
   };
 
@@ -109,9 +108,7 @@
           loadMoreButton.addEventListener('click', function(e) {
             isLoadingMore = true;
             window.checkboxFilterScript.captureCurrentCheckedStates();
-            setTimeout(() => {
-              isLoadingMore = false;
-            }, CONFIG.LOAD_MORE_DELAY);
+            // Note: isLoadingMore flag will be reset when seamless script calls recacheElements()
           }, true);
         }
       });
@@ -814,6 +811,11 @@
   // Public API
   window.checkboxFilterScript = {
     recacheElements() {
+      // Reset load more flag - this indicates seamless script has finished updating DOM
+      if (isLoadingMore) {
+        isLoadingMore = false;
+      }
+
       if (isInitialized) {
         setupElements();
         setupEventListeners();
