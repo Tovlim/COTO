@@ -1010,7 +1010,7 @@ function setupDropdownListeners() {
 
 // Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.011.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.015.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1033,9 +1033,8 @@ function loadCombinedGeoData() {
       // Store district-territory mapping for highlighting
       state.districtTerritoryMap = new Map();
       
-      // Process districts as regions - collect promises for visual content tracking
-      const districtPromises = [];
-      districts.forEach(districtFeature => {
+      // Process districts as regions - batch for performance
+      const districtPromises = districts.map(districtFeature => {
         const name = districtFeature.properties.name;
         const territory = districtFeature.properties.territory;
         
@@ -1049,25 +1048,30 @@ function loadCombinedGeoData() {
           state.districtTerritoryMap.set('Jerusalem', 'West Bank');
         }
         
-        districtPromises.push(addRegionBoundaryToMap(name, districtFeature, 'district'));
+        return addRegionBoundaryToMap(name, districtFeature, 'district');
       });
       
-      // Process areas - collect promises for visual content tracking  
-      const areaPromises = [];
-      areas.forEach(areaFeature => {
+      // Process areas - batch for performance  
+      const areaPromises = areas.map(areaFeature => {
         const name = areaFeature.properties.name;
-        areaPromises.push(addAreaOverlayToMap(name, areaFeature));
+        return addAreaOverlayToMap(name, areaFeature);
       });
       
-      // Store promises for later awaiting
+      // Store promises for later awaiting (using spread is faster than concat)
       state.visualContentPromises = [...districtPromises, ...areaPromises];
-      
+
       // Update region markers after processing
       state.setTimer('updateRegionMarkers', () => {
         addNativeRegionMarkers();
-        
+
+        // Setup district boundary interactions after districts are loaded
+        setupDistrictBoundaryInteractions();
+
+        // Emit event for district boundaries loaded
+        EventBus.emit('districts:loaded');
+
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
-        
+
         // GeoData loaded
       }, 100);
     })
@@ -1173,11 +1177,8 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
   mapLayers.layerCache.set(boundary.fillId, true);
   mapLayers.layerCache.set(boundary.borderId, true);
   
-  // Return a promise that resolves when the layers are actually added
-  return new Promise(resolve => {
-    // Use a small timeout to ensure the layers are rendered
-    setTimeout(resolve, 10);
-  });
+  // Return immediately resolved promise for faster initial load
+  return Promise.resolve();
 }
 
 // Area overlay addition with batching
@@ -1239,11 +1240,8 @@ async function addAreaOverlayToMap(name, areaFeature) {
   mapLayers.sourceCache.set(config.sourceId, true);
   mapLayers.layerCache.set(config.layerId, true);
   
-  // Return a promise that resolves when the layer is actually added
-  return new Promise(resolve => {
-    // Use a small timeout to ensure the layer is rendered
-    setTimeout(resolve, 10);
-  });
+  // Return immediately resolved promise for faster initial load
+  return Promise.resolve();
 }
 
 // DEFERRED: Area key controls - loads after main functionality
@@ -6466,10 +6464,7 @@ map.on("load", () => {
         // Add territory markers and wait for completion
         await addNativeTerritoryMarkers();
         
-        // Small additional delay to ensure all rendering is complete
-        await new Promise(resolve => setTimeout(resolve, 30));
-        
-        // Mark visual content as ready
+        // Mark visual content as ready immediately for faster loading
         loadingTracker.markComplete('visualContentReady');
         
       } catch (visualError) {
@@ -6959,10 +6954,10 @@ function highlightBoundary(regionName) {
     });
   }
   
-  // Clear highlighting in progress flag
+  // Clear highlighting in progress flag quickly to avoid blocking interactions
   setTimeout(() => {
     state.highlightingInProgress = false;
-  }, 100);
+  }, 50);
 }
 
 // Highlight all boundaries for a territory
@@ -7027,10 +7022,10 @@ function highlightTerritoryBoundaries(territoryName) {
     });
   }
   
-  // Clear highlighting in progress flag
+  // Clear highlighting in progress flag quickly to avoid blocking interactions
   setTimeout(() => {
     state.highlightingInProgress = false;
-  }, 100);
+  }, 50);
   
   return districtsToHighlight;
 }
@@ -7692,12 +7687,10 @@ async function addNativeTerritoryMarkers() {
   });
   
   setupTerritoryMarkerClicks();
-  
-  // Return a promise that resolves when territory markers are added
-  return new Promise(resolve => {
-    // Use a small timeout to ensure the markers are rendered
-    setTimeout(resolve, 20);
-  });
+  setupDistrictBoundaryInteractions();
+
+  // Return immediately resolved promise for faster initial load
+  return Promise.resolve();
 }
 
 // Setup territory marker click handlers
@@ -7754,6 +7747,131 @@ function setupTerritoryMarkerClicks() {
   // Cursor management
   map.on('mouseenter', 'territory-points', () => map.getCanvas().style.cursor = 'pointer');
   map.on('mouseleave', 'territory-points', () => map.getCanvas().style.cursor = '');
+}
+
+// Setup district boundary hover and click interactions
+function setupDistrictBoundaryInteractions() {
+  // Track hovered district for cleanup
+  let hoveredDistrictId = null;
+
+  // Helper to get all district boundary layer IDs
+  function getAllDistrictLayers() {
+    const districtLayers = [];
+    if (state.districtTerritoryMap) {
+      state.districtTerritoryMap.forEach((territory, districtName) => {
+        const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
+        const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
+        if (mapLayers.hasLayer(fillId)) {
+          districtLayers.push({ fillId, borderId, districtName, territory });
+        }
+      });
+    }
+    return districtLayers;
+  }
+
+  // Setup hover effects for all district boundaries
+  function setupDistrictHoverEffects() {
+    const districts = getAllDistrictLayers();
+
+    districts.forEach(({ fillId, borderId, districtName, territory }) => {
+      // Mouse enter - highlight on hover
+      map.on('mouseenter', fillId, (e) => {
+        // Change cursor to pointer
+        map.getCanvas().style.cursor = 'pointer';
+
+        // Store the hovered district
+        hoveredDistrictId = fillId;
+
+        // Apply hover highlight if not already highlighted
+        if (state.highlightedBoundary !== districtName &&
+            !state.layerOwnership.has(fillId)) {
+          map.setPaintProperty(fillId, 'fill-opacity', 0.3);
+          map.setPaintProperty(borderId, 'line-width', 2);
+          map.setPaintProperty(borderId, 'line-opacity', 1);
+        }
+      });
+
+      // Mouse leave - remove hover highlight
+      map.on('mouseleave', fillId, () => {
+        // Reset cursor
+        map.getCanvas().style.cursor = '';
+
+        // Only reset if this layer isn't permanently highlighted
+        if (hoveredDistrictId === fillId &&
+            state.highlightedBoundary !== districtName &&
+            !state.layerOwnership.has(fillId)) {
+          // Reset to default styles
+          map.setPaintProperty(fillId, 'fill-opacity', 0.15);
+          map.setPaintProperty(borderId, 'line-width', 1);
+          map.setPaintProperty(borderId, 'line-opacity', 0.8);
+        }
+
+        hoveredDistrictId = null;
+      });
+
+      // Click handler - same as territory marker click
+      map.on('click', fillId, (e) => {
+        // Prevent event from bubbling to map
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Territory has priority 1 (highest)
+        const myPriority = 1;
+
+        // Only handle if no one has claimed priority yet, or if we have higher priority
+        if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+          state.clickPriority = myPriority;
+        } else {
+          return; // Someone with equal or higher priority already claimed it
+        }
+
+        // Prevent rapid clicks
+        const currentTime = Date.now();
+        const markerKey = `district-${districtName}`;
+        if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+          return;
+        }
+
+        state.markerInteractionLock = true;
+        state.lastClickedMarker = markerKey;
+        state.lastClickTime = currentTime;
+        window.isMarkerClick = true;
+
+        // Remove any existing highlights
+        removeBoundaryHighlight();
+
+        // Select the territory checkbox (using the territory name, not district name)
+        selectTerritoryCheckbox(territory);
+        toggleShowWhenFilteredElements(true);
+        toggleSidebar('Left', true);
+
+        // Highlight and frame territory boundaries (all districts in this territory)
+        highlightTerritoryBoundaries(territory);
+        frameTerritoryBoundaries(territory);
+
+        // Cleanup timers
+        state.setTimer('districtBoundaryCleanup', () => {
+          window.isMarkerClick = false;
+          state.markerInteractionLock = false;
+        }, 800);
+
+        // Reset priority quickly for next click
+        state.setTimer('resetClickPriority', () => {
+          state.clickPriority = 999;
+        }, 50);
+      });
+    });
+  }
+
+  // Initialize hover and click effects when district boundaries are loaded
+  if (state.districtTerritoryMap && state.districtTerritoryMap.size > 0) {
+    setupDistrictHoverEffects();
+  }
+
+  // Also listen for when new districts are added
+  EventBus.on('districts:loaded', () => {
+    setupDistrictHoverEffects();
+  });
 }
 
 // Native markers with batched operations
@@ -8592,9 +8710,8 @@ function setupSidebars() {
       zIndex: zIndex,
       position: 'relative'
     });
-    utils.setStyles(tab, {
-      transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
-    });
+    // Removed transition from tab for instant response
+    utils.setStyles(tab, {});
     
     const bringToFront = () => {
       const newZ = ++zIndex;
