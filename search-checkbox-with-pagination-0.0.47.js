@@ -76,10 +76,27 @@
     setupEventListeners();
     initializeGroups();
     setupMutationObserver();
+    setupLoadMoreHandlers();
     // Load all paginated items for containers
     loadAllPaginatedItems();
     isInitialized = true;
     isInitializing = false;
+  }
+
+  // Set up load more button click handlers to capture checked states
+  function setupLoadMoreHandlers() {
+    // Find all load more buttons in seamless containers and hook into their clicks
+    const seamlessContainers = document.querySelectorAll('[seamless-replace="true"]');
+    seamlessContainers.forEach(container => {
+      const loadMoreButton = container.querySelector('.w-pagination-next');
+      if (loadMoreButton) {
+        // Add click listener to capture states before DOM changes
+        loadMoreButton.addEventListener('click', function(e) {
+          console.log('Load more button clicked - capturing checked states');
+          window.checkboxFilterScript.captureCurrentCheckedStates();
+        }, true); // Use capture phase to run before other handlers
+      }
+    });
   }
 
   // Set up MutationObserver to detect when our paginated items are removed
@@ -1214,6 +1231,7 @@
         setupElements();
         setupEventListeners();
         initializeGroups();
+        setupLoadMoreHandlers(); // Re-setup load more handlers for new buttons
         // Reload paginated items
         loadAllPaginatedItems();
 
@@ -1274,14 +1292,43 @@
     },
 
     restoreAllCheckedStates() {
-      // Restore checked states for all groups
-      cache.persistentCheckedStates.forEach((groupStates, groupName) => {
+      // Add a small delay to ensure DOM is fully updated after load more
+      setTimeout(() => {
+        console.log('Starting checked state restoration...');
+        // Restore checked states for all groups
+        cache.persistentCheckedStates.forEach((groupStates, groupName) => {
+          const checkboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
+          console.log(`Restoring states for group "${groupName}": found ${checkboxes.length} checkboxes`);
+
+          checkboxes.forEach(checkbox => {
+            restoreCheckedState(checkbox, groupName);
+          });
+        });
+        console.log('Completed checked state restoration for all groups');
+      }, 200);
+    },
+
+    captureCurrentCheckedStates() {
+      // Capture checked states from all currently visible checkboxes
+      console.log('Capturing current checked states before DOM changes...');
+      cache.checkboxGroups.forEach((_, groupName) => {
+        if (!cache.persistentCheckedStates.has(groupName)) {
+          cache.persistentCheckedStates.set(groupName, new Map());
+        }
+        const groupStates = cache.persistentCheckedStates.get(groupName);
+
         const checkboxes = document.querySelectorAll(`[checkbox-filter="${groupName}"]`);
         checkboxes.forEach(checkbox => {
-          restoreCheckedState(checkbox, groupName);
+          const labelText = extractLabelText(checkbox);
+          if (labelText) {
+            const isChecked = isCheckboxChecked(checkbox);
+            if (groupStates.get(labelText) !== isChecked) {
+              groupStates.set(labelText, isChecked);
+              console.log(`Captured checked state for "${labelText}": ${isChecked}`);
+            }
+          }
         });
       });
-      console.log('Restored checked states for all groups after load more');
     }
   };
 
