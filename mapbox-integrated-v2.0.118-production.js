@@ -1065,10 +1065,12 @@ function loadCombinedGeoData() {
         addNativeRegionMarkers();
 
         // Setup district boundary interactions after districts are loaded
-        setupDistrictBoundaryInteractions();
-
-        // Emit event for district boundaries loaded
-        EventBus.emit('districts:loaded');
+        // Add a delay to ensure all layers are properly added before setting up interactions
+        setTimeout(() => {
+          setupDistrictBoundaryInteractions();
+          // Emit event for district boundaries loaded
+          EventBus.emit('districts:loaded');
+        }, 200);
 
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
 
@@ -7687,7 +7689,6 @@ async function addNativeTerritoryMarkers() {
   });
   
   setupTerritoryMarkerClicks();
-  setupDistrictBoundaryInteractions();
 
   // Return immediately resolved promise for faster initial load
   return Promise.resolve();
@@ -7754,18 +7755,29 @@ function setupDistrictBoundaryInteractions() {
   // Track hovered district for cleanup
   let hoveredDistrictId = null;
 
+  // Debug: Log when function is called
+  console.log('setupDistrictBoundaryInteractions called');
+
   // Helper to get all district boundary layer IDs
   function getAllDistrictLayers() {
     const districtLayers = [];
+    console.log('Checking district layers, districtTerritoryMap:', state.districtTerritoryMap);
+
     if (state.districtTerritoryMap) {
       state.districtTerritoryMap.forEach((territory, districtName) => {
         const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
         const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
+
+        console.log(`Checking district: ${districtName}, fillId: ${fillId}, exists: ${mapLayers.hasLayer(fillId)}`);
+
         if (mapLayers.hasLayer(fillId)) {
           districtLayers.push({ fillId, borderId, districtName, territory });
+          console.log(`Added district layer: ${fillId} -> territory: ${territory}`);
         }
       });
     }
+
+    console.log(`Found ${districtLayers.length} district layers`);
     return districtLayers;
   }
 
@@ -7773,9 +7785,22 @@ function setupDistrictBoundaryInteractions() {
   function setupDistrictHoverEffects() {
     const districts = getAllDistrictLayers();
 
+    if (districts.length === 0) {
+      console.warn('No district layers found to setup interactions');
+      return;
+    }
+
     districts.forEach(({ fillId, borderId, districtName, territory }) => {
+      console.log(`Setting up interactions for district: ${districtName} (${fillId})`);
+
+      // Remove any existing event listeners for this layer to prevent duplicates
+      map.off('mouseenter', fillId);
+      map.off('mouseleave', fillId);
+      map.off('click', fillId);
+
       // Mouse enter - highlight on hover
       map.on('mouseenter', fillId, (e) => {
+        console.log(`Hover enter: ${districtName}`);
         // Change cursor to pointer
         map.getCanvas().style.cursor = 'pointer';
 
@@ -7783,27 +7808,38 @@ function setupDistrictBoundaryInteractions() {
         hoveredDistrictId = fillId;
 
         // Apply hover highlight if not already highlighted
-        if (state.highlightedBoundary !== districtName &&
+        if (state.highlightedBoundary !== territory &&
             !state.layerOwnership.has(fillId)) {
-          map.setPaintProperty(fillId, 'fill-opacity', 0.3);
-          map.setPaintProperty(borderId, 'line-width', 2);
-          map.setPaintProperty(borderId, 'line-opacity', 1);
+          try {
+            map.setPaintProperty(fillId, 'fill-opacity', 0.3);
+            map.setPaintProperty(borderId, 'line-width', 2);
+            map.setPaintProperty(borderId, 'line-opacity', 1);
+            console.log(`Applied hover highlight to ${districtName}`);
+          } catch (error) {
+            console.error(`Error applying hover highlight to ${districtName}:`, error);
+          }
         }
       });
 
       // Mouse leave - remove hover highlight
       map.on('mouseleave', fillId, () => {
+        console.log(`Hover leave: ${districtName}`);
         // Reset cursor
         map.getCanvas().style.cursor = '';
 
         // Only reset if this layer isn't permanently highlighted
         if (hoveredDistrictId === fillId &&
-            state.highlightedBoundary !== districtName &&
+            state.highlightedBoundary !== territory &&
             !state.layerOwnership.has(fillId)) {
-          // Reset to default styles
-          map.setPaintProperty(fillId, 'fill-opacity', 0.15);
-          map.setPaintProperty(borderId, 'line-width', 1);
-          map.setPaintProperty(borderId, 'line-opacity', 0.8);
+          try {
+            // Reset to default styles
+            map.setPaintProperty(fillId, 'fill-opacity', 0.15);
+            map.setPaintProperty(borderId, 'line-width', 1);
+            map.setPaintProperty(borderId, 'line-opacity', 0.8);
+            console.log(`Removed hover highlight from ${districtName}`);
+          } catch (error) {
+            console.error(`Error removing hover highlight from ${districtName}:`, error);
+          }
         }
 
         hoveredDistrictId = null;
@@ -7811,6 +7847,8 @@ function setupDistrictBoundaryInteractions() {
 
       // Click handler - same as territory marker click
       map.on('click', fillId, (e) => {
+        console.log(`District boundary clicked: ${districtName} -> territory: ${territory}`);
+
         // Prevent event from bubbling to map
         e.preventDefault();
         e.stopPropagation();
@@ -7822,6 +7860,7 @@ function setupDistrictBoundaryInteractions() {
         if (state.clickPriority === 999 || state.clickPriority > myPriority) {
           state.clickPriority = myPriority;
         } else {
+          console.log('Click ignored due to priority');
           return; // Someone with equal or higher priority already claimed it
         }
 
@@ -7829,8 +7868,11 @@ function setupDistrictBoundaryInteractions() {
         const currentTime = Date.now();
         const markerKey = `district-${districtName}`;
         if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+          console.log('Click ignored due to rapid click prevention');
           return;
         }
+
+        console.log(`Processing district click for territory: ${territory}`);
 
         state.markerInteractionLock = true;
         state.lastClickedMarker = markerKey;
@@ -7865,12 +7907,18 @@ function setupDistrictBoundaryInteractions() {
 
   // Initialize hover and click effects when district boundaries are loaded
   if (state.districtTerritoryMap && state.districtTerritoryMap.size > 0) {
-    setupDistrictHoverEffects();
+    // Add a small delay to ensure all layers are properly loaded
+    setTimeout(() => {
+      setupDistrictHoverEffects();
+    }, 100);
   }
 
   // Also listen for when new districts are added
   EventBus.on('districts:loaded', () => {
-    setupDistrictHoverEffects();
+    // Add a delay here too to ensure layers are ready
+    setTimeout(() => {
+      setupDistrictHoverEffects();
+    }, 100);
   });
 }
 
