@@ -481,10 +481,11 @@
         throw new Error('Please log in to upload files');
       }
 
-      // Get Firebase auth token
+      // Get Firebase auth token - force refresh to ensure it's valid
       console.log('[DEBUG] Getting Firebase ID token...');
-      const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken(true); // Force refresh
       console.log('[DEBUG] ID token obtained, length:', idToken ? idToken.length : 0);
+      console.log('[DEBUG] Token preview (first 50 chars):', idToken ? idToken.substring(0, 50) + '...' : 'No token');
 
       // Determine file type for worker
       const fileType = (type === 'video') ? 'video' : 'image';
@@ -507,9 +508,12 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
+          'Authorization': `Bearer ${idToken}`,
+          'Accept': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        mode: 'cors',
+        credentials: 'omit' // Don't send cookies
       });
 
       console.log('[DEBUG] Response status:', response.status);
@@ -519,20 +523,33 @@
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         try {
-          const errorData = await response.json();
-          console.log('[DEBUG] Error response data:', errorData);
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (parseError) {
-          console.log('[DEBUG] Could not parse error response as JSON:', parseError);
+          const errorText = await response.text();
+          console.log('[DEBUG] Raw error response text:', errorText);
+
+          // Try to parse as JSON
           try {
-            const errorText = await response.text();
-            console.log('[DEBUG] Error response text:', errorText);
+            const errorData = JSON.parse(errorText);
+            console.log('[DEBUG] Parsed error response data:', JSON.stringify(errorData, null, 2));
+            errorMessage = errorData.error || errorData.message || errorMessage;
+
+            // Log specific error details if available
+            if (errorData.error) {
+              console.log('[DEBUG] Error field:', errorData.error);
+            }
+            if (errorData.message) {
+              console.log('[DEBUG] Message field:', errorData.message);
+            }
+            if (errorData.details) {
+              console.log('[DEBUG] Error details:', errorData.details);
+            }
+          } catch (parseError) {
+            console.log('[DEBUG] Response is not JSON, using raw text');
             if (errorText) {
               errorMessage = errorText;
             }
-          } catch (textError) {
-            console.log('[DEBUG] Could not read error response as text:', textError);
           }
+        } catch (textError) {
+          console.log('[DEBUG] Could not read error response:', textError);
         }
         throw new Error(errorMessage);
       }
