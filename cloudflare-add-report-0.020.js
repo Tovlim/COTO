@@ -75,8 +75,25 @@
         console.log('[DEBUG] Current Firebase user at init:', currentUser ? 'Logged in' : 'Not logged in');
 
         // Also listen for auth state changes
-        firebase.auth().onAuthStateChanged((user) => {
+        firebase.auth().onAuthStateChanged(async (user) => {
           console.log('[DEBUG] Auth state changed:', user ? `User logged in (${user.email})` : 'User logged out');
+
+          // Test worker connection when user logs in
+          if (user && window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
+            console.log('[DEBUG] Testing worker endpoint connection...');
+            try {
+              const testToken = await user.getIdToken(true);
+              const testResponse = await fetch(WORKER_ENDPOINT + '/test', {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${testToken}`
+                }
+              });
+              console.log('[DEBUG] Worker test response:', testResponse.status);
+            } catch (testError) {
+              console.log('[DEBUG] Worker test failed:', testError.message);
+            }
+          }
         });
       }
     } else {
@@ -494,7 +511,12 @@
       const requestUrl = WORKER_ENDPOINT + '/get-upload-url';
       const requestBody = {
         type: fileType,
-        metadata: { source: "webflow_form", uploadType: type }
+        metadata: {
+          source: "webflow_form",
+          uploadType: type,
+          userEmail: user.email,
+          userId: user.uid
+        }
       };
 
       console.log('[DEBUG] Request URL:', requestUrl);
@@ -504,7 +526,10 @@
         'Authorization': `Bearer ${idToken.substring(0, 20)}...` // Show first 20 chars only
       });
 
-      const response = await fetch(requestUrl, {
+      // Try different auth header formats - some workers expect different formats
+      console.log('[DEBUG] Trying authentication with Bearer token format');
+
+      let response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
