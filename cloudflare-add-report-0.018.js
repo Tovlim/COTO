@@ -62,9 +62,35 @@
   
   // Initialize when DOM is ready
   function init() {
+    console.log('[DEBUG] Initializing Cloudflare upload script...');
+
+    // Check if Firebase is loaded
+    if (typeof firebase !== 'undefined') {
+      console.log('[DEBUG] Firebase is loaded');
+      console.log('[DEBUG] Firebase auth status:', firebase.auth ? 'Available' : 'Not available');
+
+      // Check current auth state
+      if (firebase.auth) {
+        const currentUser = firebase.auth().currentUser;
+        console.log('[DEBUG] Current Firebase user at init:', currentUser ? 'Logged in' : 'Not logged in');
+
+        // Also listen for auth state changes
+        firebase.auth().onAuthStateChanged((user) => {
+          console.log('[DEBUG] Auth state changed:', user ? `User logged in (${user.email})` : 'User logged out');
+        });
+      }
+    } else {
+      console.error('[DEBUG] Firebase is NOT loaded! This script requires Firebase.');
+    }
+
+    // Check worker endpoint
+    console.log('[DEBUG] Worker endpoint:', WORKER_ENDPOINT);
+
     setupFileInputs();
     setupClickHandlers();
     setupCustomControls();
+
+    console.log('[DEBUG] Initialization complete');
   }
   
   // Create hidden file inputs and setup
@@ -210,6 +236,16 @@
   
   // Handle file selection and validation
   function handleFileSelection(files, type) {
+    console.log('[DEBUG] File selection triggered:', {
+      type: type,
+      fileCount: files.length,
+      files: Array.from(files).map(f => ({
+        name: f.name,
+        type: f.type,
+        size: f.size
+      }))
+    });
+
     // Check rate limit first
     const rateLimitCheck = checkRateLimit();
     if (!rateLimitCheck.allowed) {
@@ -363,9 +399,17 @@
   
   // Upload individual file
   async function uploadFile(file, type, index) {
+    console.log('[DEBUG] Starting upload for file:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      uploadType: type,
+      index: index
+    });
+
     // Record this upload attempt for rate limiting
     recordUpload();
-    
+
     // Determine which progress div to use and show it
     let progressDiv;
     if (type === 'video') {
@@ -373,33 +417,47 @@
     } else if (type === 'image' || type === 'main-image') {
       progressDiv = document.querySelector('[cloudflare="image-progress"]');
     }
-    
+
+    console.log('[DEBUG] Progress div found:', !!progressDiv);
+
     // Show the progress div
     if (progressDiv) {
       progressDiv.style.display = 'flex';
     }
-    
+
     // Create progress element
     const progressElement = createProgressElement(file.name, index);
     if (progressDiv) {
       progressDiv.appendChild(progressElement);
     }
-    
+
     try {
+      console.log('[DEBUG] Getting upload URL from worker...');
       // Get upload URL from worker
       const uploadData = await getUploadUrl(type);
-      
+
+      console.log('[DEBUG] Upload URL obtained successfully');
+      console.log('[DEBUG] Upload data:', {
+        hasUploadURL: !!uploadData.uploadURL,
+        hasUid: !!uploadData.uid,
+        hasId: !!uploadData.id
+      });
+
       // Upload file
+      console.log('[DEBUG] Starting file upload to Cloudflare...');
       const result = await uploadToCloudflare(file, uploadData, type, (progress) => {
         updateProgress(progressElement, progress);
       });
-      
+
+      console.log('[DEBUG] Upload completed successfully:', result);
+
       // Mark as complete
       markProgressComplete(progressElement);
-      
+
       return result;
-      
+
     } catch (error) {
+      console.error('[DEBUG] Upload failed:', error);
       markProgressError(progressElement, error.message);
       throw error;
     }
@@ -408,42 +466,107 @@
   // Get upload URL from secure worker
   async function getUploadUrl(type) {
     try {
+      console.log('[DEBUG] Getting upload URL for type:', type);
+
       // Check if user is authenticated
       const user = firebase.auth().currentUser;
+      console.log('[DEBUG] Current user:', user ? 'Authenticated' : 'Not authenticated');
+      console.log('[DEBUG] User details:', user ? {
+        uid: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified
+      } : 'No user');
+
       if (!user) {
         throw new Error('Please log in to upload files');
       }
-      
+
       // Get Firebase auth token
+      console.log('[DEBUG] Getting Firebase ID token...');
       const idToken = await user.getIdToken();
-      
+      console.log('[DEBUG] ID token obtained, length:', idToken ? idToken.length : 0);
+
       // Determine file type for worker
       const fileType = (type === 'video') ? 'video' : 'image';
-      
-      const response = await fetch(WORKER_ENDPOINT + '/get-upload-url', {
+      console.log('[DEBUG] File type for worker:', fileType);
+
+      const requestUrl = WORKER_ENDPOINT + '/get-upload-url';
+      const requestBody = {
+        type: fileType,
+        metadata: { source: "webflow_form", uploadType: type }
+      };
+
+      console.log('[DEBUG] Request URL:', requestUrl);
+      console.log('[DEBUG] Request body:', JSON.stringify(requestBody));
+      console.log('[DEBUG] Request headers:', {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken.substring(0, 20)}...` // Show first 20 chars only
+      });
+
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`
         },
-        body: JSON.stringify({
-          type: fileType,
-          metadata: { source: "webflow_form", uploadType: type }
-        })
+        body: JSON.stringify(requestBody)
       });
-      
+
+      console.log('[DEBUG] Response status:', response.status);
+      console.log('[DEBUG] Response status text:', response.statusText);
+      console.log('[DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get upload URL');
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          console.log('[DEBUG] Error response data:', errorData);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          console.log('[DEBUG] Could not parse error response as JSON:', parseError);
+          try {
+            const errorText = await response.text();
+            console.log('[DEBUG] Error response text:', errorText);
+            if (errorText) {
+              errorMessage = errorText;
+            }
+          } catch (textError) {
+            console.log('[DEBUG] Could not read error response as text:', textError);
+          }
+        }
+        throw new Error(errorMessage);
       }
-      
+
       const data = await response.json();
+      console.log('[DEBUG] Upload URL data received:', {
+        hasUploadURL: !!data.uploadURL,
+        hasUid: !!data.uid,
+        hasId: !!data.id,
+        keys: Object.keys(data)
+      });
+
       return data;
-      
+
     } catch (error) {
+      console.error('[DEBUG] Error in getUploadUrl:', error);
+      console.error('[DEBUG] Error stack:', error.stack);
+
+      // Check for network errors
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        console.error('[DEBUG] Network error - possible CORS issue or worker is down');
+        throw new Error('Network error: Unable to reach upload service. Please check your connection.');
+      }
+
+      // Check for Firebase auth errors
+      if (error.code && error.code.startsWith('auth/')) {
+        console.error('[DEBUG] Firebase auth error:', error.code);
+        throw new Error(`Authentication error: ${error.message}`);
+      }
+
       if (error.message.includes('log in')) {
         showError(type, error.message);
       }
+
       throw error;
     }
   }
