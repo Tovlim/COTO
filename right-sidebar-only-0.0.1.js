@@ -1,9 +1,10 @@
 // ====================================================================
 // RIGHT SIDEBAR SCRIPT - Simplified from SharedCore
-// Contains: DOM cache, Event manager, Right Sidebar, Checkboxes, GeoJSON caching
-// Version: 1.0.0
+// Contains: DOM cache, Event manager, Right Sidebar, Checkboxes, GeoJSON caching, Field-item auto-checking
+// Version: 1.1.0
 //
 // Simplified version with only right sidebar functionality
+// Added in v1.1.0: Field-item auto-checking functionality
 // ====================================================================
 
 (function(window) {
@@ -763,6 +764,196 @@
   }
 
   // ====================================================================
+  // FIELD ITEM AUTO-CHECKING
+  // ====================================================================
+
+  // Utility function to trigger multiple events
+  function triggerEvent(element, events, isProgrammatic = false) {
+    events.forEach(eventType => {
+      const event = new Event(eventType, { bubbles: true });
+      if (isProgrammatic) {
+        event.isProgrammaticFieldItemCheck = true;
+      }
+      element.dispatchEvent(event);
+    });
+  }
+
+  // Function to programmatically check a checkbox with proper visual states
+  function checkCheckboxProgrammatically(input) {
+    if (!input || input.checked) return false;
+
+    input.checked = true;
+
+    // Trigger events - let Webflow handle visual classes
+    triggerEvent(input, ['change', 'input'], true);
+
+    // Also trigger form events
+    const form = input.closest('form');
+    if (form) {
+      const changeEvent = new Event('change', { bubbles: true });
+      const inputEvent = new Event('input', { bubbles: true });
+
+      changeEvent.isProgrammaticFieldItemCheck = true;
+      inputEvent.isProgrammaticFieldItemCheck = true;
+
+      form.dispatchEvent(changeEvent);
+      form.dispatchEvent(inputEvent);
+    }
+
+    return true;
+  }
+
+  // Track if Finsweet initialization has been checked (run only once)
+  let finsweetInitialized = false;
+
+  // Debounce state for processFieldItems
+  let processFieldItemsRunning = false;
+  let processFieldItemsTimer = null;
+
+  // Early detection of field-items to skip unnecessary processing
+  let hasFieldItemsOnPage = false;
+
+  // Check once if page has field-items
+  function checkForFieldItems() {
+    if (!hasFieldItemsOnPage) {
+      hasFieldItemsOnPage = document.querySelector('[field-item]') !== null;
+    }
+    return hasFieldItemsOnPage;
+  }
+
+  // Wait for Finsweet filters to initialize before processing field items (only once)
+  function waitForFinsweet() {
+    return new Promise((resolve) => {
+      if (finsweetInitialized) {
+        resolve();
+        return;
+      }
+
+      const checkFinsweet = () => {
+        const hiddenTagParent = document.getElementById('hiddentagparent');
+        const tagParent = document.getElementById('tagparent');
+
+        // Check if Finsweet has loaded (hiddentagparent gone OR tagparent empty)
+        const finsweetReady = !hiddenTagParent || (tagParent && tagParent.children.length === 0);
+
+        if (finsweetReady) {
+          finsweetInitialized = true;
+          resolve();
+        } else {
+          setTimeout(checkFinsweet, 100);
+        }
+      };
+
+      checkFinsweet();
+
+      // Fallback timeout after 5 seconds
+      setTimeout(() => {
+        finsweetInitialized = true;
+        resolve();
+      }, 5000);
+    });
+  }
+
+  // Debounced wrapper for processFieldItems
+  function processFieldItemsDebounced() {
+    if (!checkForFieldItems()) {
+      return;
+    }
+
+    if (processFieldItemsTimer) {
+      clearTimeout(processFieldItemsTimer);
+      processFieldItemsTimer = null;
+    }
+
+    if (processFieldItemsRunning) {
+      processFieldItemsTimer = setTimeout(processFieldItemsDebounced, 500);
+      return;
+    }
+
+    processFieldItemsTimer = setTimeout(processFieldItemsInternal, 100);
+  }
+
+  // Internal implementation of processFieldItems (debounced)
+  async function processFieldItemsInternal() {
+    if (processFieldItemsRunning) {
+      return;
+    }
+
+    const allFieldItems = document.querySelectorAll('[field-item]');
+    const fieldItems = Array.from(allFieldItems).filter(item => {
+      return !item.classList.contains('w-condition-invisible');
+    });
+
+    if (fieldItems.length === 0) {
+      return;
+    }
+
+    processFieldItemsRunning = true;
+
+    try {
+      await waitForFinsweet();
+
+      const processedItems = new Set();
+
+      for (const item of fieldItems) {
+        const fieldType = item.getAttribute('field-item');
+        const fieldValue = item.textContent.trim();
+
+        if (!fieldType || !fieldValue) continue;
+
+        const processKey = `${fieldType}:${fieldValue}`;
+        if (processedItems.has(processKey)) continue;
+        processedItems.add(processKey);
+
+        const fieldName = fieldType;
+
+        // Check if this is a generatable type (only localities and settlements need generation)
+        let checkboxType, containerId, skipGeneration = false;
+
+        if (fieldType.toLowerCase() === 'locality') {
+          checkboxType = 'localities';
+          containerId = 'locality-check-list';
+        } else if (fieldType.toLowerCase() === 'settlement') {
+          checkboxType = 'settlements';
+          containerId = 'settlement-check-list';
+        } else {
+          // For all other types, skip generation - they should already exist on the page
+          skipGeneration = true;
+        }
+
+        // Check if checkbox already exists
+        let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+
+        if (!input && !skipGeneration) {
+          // Generate the missing checkbox (only for localities and settlements)
+          const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
+
+          if (success) {
+            input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+          }
+        }
+
+        // Check the checkbox if found
+        if (input) {
+          checkCheckboxProgrammatically(input);
+        } else {
+          console.warn(`Could not find or generate checkbox for ${fieldValue} (${fieldType})`);
+        }
+      }
+
+      // Trigger filtered elements check after processing all field items
+      IdleExecution.scheduleUI(() => {
+        checkAndToggleFilteredElements();
+      }, { fallbackDelay: 100 });
+
+    } catch (error) {
+      console.error('Error in processFieldItems:', error);
+    } finally {
+      processFieldItemsRunning = false;
+    }
+  }
+
+  // ====================================================================
   // RIGHT SIDEBAR MANAGEMENT
   // ====================================================================
   const sidebarCache = {
@@ -1082,6 +1273,10 @@
     checkboxState,
     generateSingleCheckbox,
 
+    // Field-item auto-checking
+    processFieldItems: processFieldItemsDebounced,
+    checkCheckboxProgrammatically,
+
     // GeoJSON data access
     getGeoJSONData: async function() {
       return {
@@ -1105,6 +1300,13 @@
         element.style.pointerEvents = 'auto';
       });
     }
+
+    // Process field-item elements immediately to auto-check corresponding checkboxes
+    if (checkForFieldItems()) {
+      IdleExecution.scheduleUI(() => {
+        processFieldItemsDebounced();
+      }, { fallbackDelay: 200 });
+    }
   };
   immediateCheck();
 
@@ -1117,12 +1319,26 @@
         toggleShowWhenFilteredElements(true);
       }
 
+      // Process field items after DOM is ready
+      if (checkForFieldItems()) {
+        IdleExecution.scheduleUI(() => {
+          processFieldItemsDebounced();
+        }, { fallbackDelay: 300 });
+      }
+
       initializeCore();
     });
   } else {
     const hiddenTagParent = document.getElementById('hiddentagparent');
     if (hiddenTagParent) {
       toggleShowWhenFilteredElements(true);
+    }
+
+    // Process field items if DOM is already ready
+    if (checkForFieldItems()) {
+      IdleExecution.scheduleUI(() => {
+        processFieldItemsDebounced();
+      }, { fallbackDelay: 100 });
     }
 
     initializeCore();
@@ -1137,6 +1353,11 @@
     }, { fallbackDelay: 300 });
 
     state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
+
+    // Process field items after full page load as final fallback
+    if (checkForFieldItems()) {
+      state.setTimer('loadProcessFieldItems', processFieldItemsDebounced, 400);
+    }
   });
 
   window.addEventListener('beforeunload', () => {
