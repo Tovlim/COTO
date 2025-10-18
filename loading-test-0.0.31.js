@@ -531,6 +531,54 @@ function reprocessReportersForFilteredItems() {
   });
 }
 
+// Re-process dropdowns for filtered items
+function reprocessDropdownsForFilteredItems() {
+  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
+  const visibleDropdownItems = [];
+
+  allItems.forEach(item => {
+    // Check if item is actually visible
+    let currentElement = item;
+    let isVisible = true;
+
+    while (currentElement && currentElement !== document.body) {
+      const style = getComputedStyle(currentElement);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        isVisible = false;
+        break;
+      }
+      currentElement = currentElement.parentElement;
+    }
+
+    if (isVisible) {
+      // Remove from processed items to force re-initialization
+      processedDropdownItems.delete(item);
+      visibleDropdownItems.push(item);
+    }
+  });
+
+  // Re-initialize dropdowns for all visible items
+  visibleDropdownItems.forEach(item => {
+    initializeDropdowns(item);
+  });
+}
+
+// Process dropdowns for newly loaded items
+function processDropdownsForNewItems() {
+  // Find all CMS items that might have dropdowns
+  const cmsItems = document.querySelectorAll('[wfu-lightbox-group]');
+
+  cmsItems.forEach(item => {
+    if (!processedDropdownItems.has(item)) {
+      // Check if this item contains dropdowns
+      const hasDropdowns = item.querySelector('[dropdown="button"]');
+      if (hasDropdowns) {
+        initializeDropdowns(item);
+      }
+    }
+  });
+}
+
 // WEBFLOW DROPDOWN SYSTEM
 let dropdownIdCounter = 0;
 
@@ -1238,10 +1286,12 @@ function processFilteredItems() {
     // Reset states to allow re-processing after filtering
     item.setAttribute('data-tabs-state', ProcessingState.PENDING);
     item.setAttribute('data-reporters-state', ProcessingState.PENDING);
+    item.setAttribute('data-dropdowns-state', ProcessingState.PENDING);
   });
 
-  // Clear processed tabs and reporters to re-initialize them after filtering
+  // Clear processed tabs, reporters, and dropdowns to re-initialize them after filtering
   processedTabItems = new WeakSet();
+  processedDropdownItems = new WeakSet();
   processedReporterItems = new WeakSet();
   
   const filteredItems = document.querySelectorAll('[wfu-lightbox-group]');
@@ -1304,10 +1354,11 @@ function processFilteredItems() {
     });
   }
   
-  // Force re-process tabs and reporters for all visible filtered items
+  // Force re-process tabs, reporters, and dropdowns for all visible filtered items
   setTimeout(() => {
     reprocessTabsForFilteredItems();
     reprocessReportersForFilteredItems();
+    reprocessDropdownsForFilteredItems();
   }, 200);
 }
 
@@ -1360,9 +1411,10 @@ function deferNonCriticalProcessing() {
     if (nonCriticalProcessed) return;
     nonCriticalProcessed = true;
 
-    // Process tabs and reporters after critical loading
+    // Process tabs, reporters, and dropdowns after critical loading
     processTabsForNewItems();
     processReportersForNewItems();
+    processDropdownsForNewItems();
   };
   
   // Method 1: Process on first user interaction
@@ -1602,6 +1654,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let pendingLazyItems = new Set();
     let pendingTabItems = new Set();
     let pendingReporterItems = new Set();
+    let pendingDropdownItems = new Set();
     let queueTimeout = null;
     
     // Unified item queuing
@@ -1653,6 +1706,18 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         }
 
+        // Process dropdown items
+        if (pendingDropdownItems.size > 0) {
+          const itemsToProcess = Array.from(pendingDropdownItems);
+          pendingDropdownItems.clear();
+
+          itemsToProcess.forEach(item => {
+            if (!processedDropdownItems.has(item)) {
+              initializeDropdowns(item);
+            }
+          });
+        }
+
         queueTimeout = null;
       }, 100);
     };
@@ -1663,6 +1728,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let hasNewLoadMore = false;
       let hasNewTabs = false;
       let hasNewReporters = false;
+      let hasNewDropdowns = false;
       
       for (const mutation of mutations) {
         if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -1681,6 +1747,13 @@ document.addEventListener('DOMContentLoaded', function() {
               pendingReporterItems.add(node);
               hasNewReporters = true;
             }
+
+            // Also check for dropdowns in this item
+            const hasDropdowns = node.querySelector('[dropdown="button"]');
+            if (hasDropdowns) {
+              pendingDropdownItems.add(node);
+              hasNewDropdowns = true;
+            }
           } else if (node.querySelector) {
             const lightboxItems = node.querySelectorAll('[wfu-lightbox-group]');
             for (const item of lightboxItems) {
@@ -1692,6 +1765,13 @@ document.addEventListener('DOMContentLoaded', function() {
               if (hasReporters) {
                 pendingReporterItems.add(item);
                 hasNewReporters = true;
+              }
+
+              // Also check for dropdowns in these items
+              const hasDropdowns = item.querySelector('[dropdown="button"]');
+              if (hasDropdowns) {
+                pendingDropdownItems.add(item);
+                hasNewDropdowns = true;
               }
             }
             
@@ -1734,7 +1814,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      if (hasNewItems || hasNewTabs || hasNewReporters) {
+      if (hasNewItems || hasNewTabs || hasNewReporters || hasNewDropdowns) {
         scheduleItemQueuing();
       }
 
