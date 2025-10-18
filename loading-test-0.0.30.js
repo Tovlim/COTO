@@ -532,6 +532,8 @@ function reprocessReportersForFilteredItems() {
 }
 
 // WEBFLOW DROPDOWN SYSTEM
+let dropdownIdCounter = 0;
+
 function initializeDropdowns(cmsItem) {
   // Check state attribute first
   if (!needsProcessing(cmsItem, 'dropdowns')) {
@@ -574,12 +576,33 @@ function initializeDropdowns(cmsItem) {
       return;
     }
 
+    // Generate unique IDs for accessibility
+    dropdownIdCounter++;
+    const toggleId = `w-dropdown-toggle-${dropdownIdCounter}`;
+    const listId = `w-dropdown-list-${dropdownIdCounter}`;
+
+    // Set up accessibility attributes
+    button.setAttribute('id', toggleId);
+    button.setAttribute('aria-controls', listId);
+    button.setAttribute('aria-haspopup', 'menu');
+    button.setAttribute('role', 'button');
+    button.setAttribute('tabindex', '0');
+
+    dropdownList.setAttribute('id', listId);
+    dropdownList.setAttribute('aria-labelledby', toggleId);
+
     // Initialize dropdown as closed
     dropdownList.style.display = 'none';
     dropdownList.classList.remove('w--open');
     button.setAttribute('data-dropdown-open', 'false');
     button.setAttribute('aria-expanded', 'false');
     button.classList.remove('w--open');
+
+    // Add tabindex to links inside the dropdown for accessibility
+    const dropdownLinks = dropdownList.querySelectorAll('a');
+    dropdownLinks.forEach(link => {
+      link.setAttribute('tabindex', '0');
+    });
 
     // Add click handler
     button.addEventListener('click', function(e) {
@@ -652,59 +675,6 @@ document.addEventListener('click', function(e) {
     });
   }
 });
-
-// Process dropdowns for newly loaded items
-function processDropdownsForNewItems() {
-  // Find all CMS items that might have dropdowns
-  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
-
-  cmsItems.forEach(item => {
-    if (!processedDropdownItems.has(item)) {
-      // Check if this item contains dropdowns
-      const hasDropdowns = item.querySelector('[dropdown="button"]');
-      if (hasDropdowns) {
-        initializeDropdowns(item);
-      }
-    }
-  });
-}
-
-// Force re-process dropdowns for filtered items
-function reprocessDropdownsForFilteredItems() {
-  // Find all CMS items that might have dropdowns
-  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
-  const visibleDropdownItems = [];
-
-  cmsItems.forEach(item => {
-    // Check if this item contains dropdowns
-    const hasDropdowns = item.querySelector('[dropdown="button"]');
-    if (!hasDropdowns) return;
-
-    // Check if item is actually visible (not hidden by filtering)
-    let currentElement = item;
-    let isVisible = true;
-
-    while (currentElement && currentElement !== document.body) {
-      const style = getComputedStyle(currentElement);
-      if (style.display === 'none' || style.visibility === 'hidden') {
-        isVisible = false;
-        break;
-      }
-      currentElement = currentElement.parentElement;
-    }
-
-    if (isVisible) {
-      // Remove from processed items to force re-initialization
-      processedDropdownItems.delete(item);
-      visibleDropdownItems.push(item);
-    }
-  });
-
-  // Re-initialize dropdowns for all visible items
-  visibleDropdownItems.forEach(item => {
-    initializeDropdowns(item);
-  });
-}
 
 // Check if item needs processing based on state attributes
 function needsProcessing(item, type) {
@@ -1023,7 +993,6 @@ function clickLoadMore(element) {
     processNewlyAddedItems();
     processTabsForNewItems();
     processReportersForNewItems();
-    processDropdownsForNewItems();
   }, processDelay);
   
   // Reset loading flag after delay
@@ -1061,7 +1030,6 @@ function observeLoadMoreButton() {
           processNewlyAddedItems();
           processTabsForNewItems();
           processReportersForNewItems();
-          processDropdownsForNewItems();
         }, processDelay);
       });
     }
@@ -1270,13 +1238,11 @@ function processFilteredItems() {
     // Reset states to allow re-processing after filtering
     item.setAttribute('data-tabs-state', ProcessingState.PENDING);
     item.setAttribute('data-reporters-state', ProcessingState.PENDING);
-    item.setAttribute('data-dropdowns-state', ProcessingState.PENDING);
   });
 
-  // Clear processed tabs, reporters, and dropdowns to re-initialize them after filtering
+  // Clear processed tabs and reporters to re-initialize them after filtering
   processedTabItems = new WeakSet();
   processedReporterItems = new WeakSet();
-  processedDropdownItems = new WeakSet();
   
   const filteredItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
@@ -1338,11 +1304,10 @@ function processFilteredItems() {
     });
   }
   
-  // Force re-process tabs, reporters, and dropdowns for all visible filtered items
+  // Force re-process tabs and reporters for all visible filtered items
   setTimeout(() => {
     reprocessTabsForFilteredItems();
     reprocessReportersForFilteredItems();
-    reprocessDropdownsForFilteredItems();
   }, 200);
 }
 
@@ -1395,10 +1360,9 @@ function deferNonCriticalProcessing() {
     if (nonCriticalProcessed) return;
     nonCriticalProcessed = true;
 
-    // Process tabs, reporters, and dropdowns after critical loading
+    // Process tabs and reporters after critical loading
     processTabsForNewItems();
     processReportersForNewItems();
-    processDropdownsForNewItems();
   };
   
   // Method 1: Process on first user interaction
@@ -1638,7 +1602,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let pendingLazyItems = new Set();
     let pendingTabItems = new Set();
     let pendingReporterItems = new Set();
-    let pendingDropdownItems = new Set();
     let queueTimeout = null;
     
     // Unified item queuing
@@ -1690,18 +1653,6 @@ document.addEventListener('DOMContentLoaded', function() {
           });
         }
 
-        // Process dropdown items
-        if (pendingDropdownItems.size > 0) {
-          const itemsToProcess = Array.from(pendingDropdownItems);
-          pendingDropdownItems.clear();
-
-          itemsToProcess.forEach(item => {
-            if (!processedDropdownItems.has(item)) {
-              initializeDropdowns(item);
-            }
-          });
-        }
-
         queueTimeout = null;
       }, 100);
     };
@@ -1712,7 +1663,6 @@ document.addEventListener('DOMContentLoaded', function() {
       let hasNewLoadMore = false;
       let hasNewTabs = false;
       let hasNewReporters = false;
-      let hasNewDropdowns = false;
       
       for (const mutation of mutations) {
         if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -1776,25 +1726,6 @@ document.addEventListener('DOMContentLoaded', function() {
               }
             }
 
-            // Check for new dropdown items
-            const dropdownItems = node.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
-            for (const item of dropdownItems) {
-              const hasDropdowns = item.querySelector('[dropdown="button"]');
-              if (hasDropdowns) {
-                pendingDropdownItems.add(item);
-                hasNewDropdowns = true;
-              }
-            }
-
-            // Also check if the node itself has dropdowns
-            if (node.matches && (node.matches('.cms-item') || node.matches('[data-item-slug]') || node.matches('.w-dyn-item') || node.matches('[wfu-lightbox-group]'))) {
-              const hasDropdowns = node.querySelector('[dropdown="button"]');
-              if (hasDropdowns) {
-                pendingDropdownItems.add(node);
-                hasNewDropdowns = true;
-              }
-            }
-
             // Check for new load-more button
             if (node.id === 'load-more' || node.querySelector('#load-more')) {
               hasNewLoadMore = true;
@@ -1803,7 +1734,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      if (hasNewItems || hasNewTabs || hasNewReporters || hasNewDropdowns) {
+      if (hasNewItems || hasNewTabs || hasNewReporters) {
         scheduleItemQueuing();
       }
 
