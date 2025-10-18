@@ -1,12 +1,13 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter v9.0
-// 
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter + Dropdowns v9.1
+//
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
 // • FancyBox 6 grouping for ALL items (new, filtered, and existing)
-// • Integrates LazyLoad for images on new items  
+// • Integrates LazyLoad for images on new items
 // • Supports CMS lightbox grouping with [wfu-lightbox-group] attributes
 // • Parent-scoped tab system with data-tab and data-tab-content attributes
 // • Multi-reporter display with modal functionality
+// • Webflow native dropdown re-initialization for dynamically loaded items
 // • Shows #loading-reports during any loading/processing operations
 // • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
@@ -70,8 +71,11 @@ let filteringObserver = null;
 let processedItems = new WeakSet();
 let processedTabItems = new WeakSet();
 let processedReporterItems = new WeakSet();
+let processedDropdownItems = new WeakSet();
 let needsFancyBoxReInit = false;
+let needsWebflowReInit = false;
 let reInitTimeout = null;
+let webflowReInitTimeout = null;
 let lastFilteringState = false;
 let activeLoadingProcesses = 0;
 
@@ -497,16 +501,16 @@ function reprocessReportersForFilteredItems() {
   // Find all report items
   const reportItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleReporterItems = [];
-  
+
   reportItems.forEach(item => {
     // Check if this item contains reporters
     const hasReporters = item.querySelector('[reporters-wrap="true"]');
     if (!hasReporters) return;
-    
+
     // Check if item is actually visible (not hidden by filtering)
     let currentElement = item;
     let isVisible = true;
-    
+
     while (currentElement && currentElement !== document.body) {
       const style = getComputedStyle(currentElement);
       if (style.display === 'none' || style.visibility === 'hidden') {
@@ -515,18 +519,169 @@ function reprocessReportersForFilteredItems() {
       }
       currentElement = currentElement.parentElement;
     }
-    
+
     if (isVisible) {
       // Remove from processed items to force re-initialization
       processedReporterItems.delete(item);
       visibleReporterItems.push(item);
     }
   });
-  
+
   // Re-initialize reporters for all visible items
   visibleReporterItems.forEach(item => {
     initializeReporters(item);
   });
+}
+
+// WEBFLOW DROPDOWN SYSTEM
+function initializeDropdowns(cmsItem) {
+  // Check state attribute first
+  if (!needsProcessing(cmsItem, 'dropdowns')) {
+    return;
+  }
+
+  // Check if we've already processed dropdowns for this item
+  if (processedDropdownItems.has(cmsItem)) {
+    updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
+    return;
+  }
+
+  updateProcessingState(cmsItem, 'dropdowns', ProcessingState.PROCESSING);
+
+  // Find all dropdowns within this CMS item
+  const dropdownButtons = cmsItem.querySelectorAll('[dropdown="button"]');
+  const dropdownLists = cmsItem.querySelectorAll('[dropdown="list"]');
+
+  if (dropdownButtons.length === 0 || dropdownLists.length === 0) {
+    updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
+    return; // No dropdowns in this item
+  }
+
+  // Mark as needing Webflow re-initialization
+  needsWebflowReInit = true;
+
+  // Mark this item as processed for dropdowns
+  processedDropdownItems.add(cmsItem);
+  updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
+}
+
+// Process dropdowns for newly loaded items
+function processDropdownsForNewItems() {
+  // Find all CMS items that might have dropdowns
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
+
+  cmsItems.forEach(item => {
+    if (!processedDropdownItems.has(item)) {
+      // Check if this item contains dropdowns
+      const hasDropdowns = item.querySelector('[dropdown="button"]');
+      if (hasDropdowns) {
+        initializeDropdowns(item);
+      }
+    }
+  });
+}
+
+// Force re-process dropdowns for filtered items
+function reprocessDropdownsForFilteredItems() {
+  // Find all CMS items that might have dropdowns
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
+  const visibleDropdownItems = [];
+
+  cmsItems.forEach(item => {
+    // Check if this item contains dropdowns
+    const hasDropdowns = item.querySelector('[dropdown="button"]');
+    if (!hasDropdowns) return;
+
+    // Check if item is actually visible (not hidden by filtering)
+    let currentElement = item;
+    let isVisible = true;
+
+    while (currentElement && currentElement !== document.body) {
+      const style = getComputedStyle(currentElement);
+      if (style.display === 'none' || style.visibility === 'hidden') {
+        isVisible = false;
+        break;
+      }
+      currentElement = currentElement.parentElement;
+    }
+
+    if (isVisible) {
+      // Remove from processed items to force re-initialization
+      processedDropdownItems.delete(item);
+      visibleDropdownItems.push(item);
+    }
+  });
+
+  // Re-initialize dropdowns for all visible items
+  visibleDropdownItems.forEach(item => {
+    initializeDropdowns(item);
+  });
+
+  // Schedule Webflow re-initialization if we have items
+  if (visibleDropdownItems.length > 0) {
+    scheduleWebflowReInit();
+  }
+}
+
+// Webflow re-initialization with debouncing
+function scheduleWebflowReInit() {
+  if (webflowReInitTimeout) {
+    clearTimeout(webflowReInitTimeout);
+  }
+
+  const baseDelay = getIsMobileDevice() ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
+
+  webflowReInitTimeout = setTimeout(() => {
+    if (needsWebflowReInit) {
+      performWebflowReInit();
+    }
+    webflowReInitTimeout = null;
+  }, baseDelay);
+}
+
+function performWebflowReInit() {
+  try {
+    if (window.Webflow) {
+      // Method 1: Try to reinitialize ix2 (Webflow Interactions 2.0)
+      if (window.Webflow.require && typeof window.Webflow.require === 'function') {
+        try {
+          const ix2 = window.Webflow.require('ix2');
+          if (ix2 && typeof ix2.init === 'function') {
+            ix2.init();
+          }
+        } catch (e) {
+          // ix2 might not be available, continue to other methods
+        }
+      }
+
+      // Method 2: Destroy and re-initialize Webflow
+      if (typeof window.Webflow.destroy === 'function') {
+        window.Webflow.destroy();
+      }
+      if (typeof window.Webflow.ready === 'function') {
+        window.Webflow.ready();
+      }
+
+      // Method 3: Re-trigger Webflow's ready event
+      if (typeof window.Webflow.require === 'function') {
+        try {
+          const dropdown = window.Webflow.require('dropdown');
+          if (dropdown && typeof dropdown.ready === 'function') {
+            dropdown.ready();
+          }
+        } catch (e) {
+          // Dropdown module might not be available
+        }
+      }
+
+      needsWebflowReInit = false;
+      return true;
+    }
+  } catch (e) {
+    // Silently handle errors
+  }
+
+  return false;
 }
 
 // Check if item needs processing based on state attributes
@@ -538,15 +693,16 @@ function needsProcessing(item, type) {
 // Update processing state
 function updateProcessingState(item, type, state) {
   item.setAttribute(`data-${type}-state`, state);
-  
+
   // Update main processing state if all subsystems are complete
   if (state === ProcessingState.COMPLETED) {
     const lightboxDone = item.getAttribute('data-lightbox-state') === ProcessingState.COMPLETED;
     const tabsDone = item.getAttribute('data-tabs-state') === ProcessingState.COMPLETED;
     const reportersDone = item.getAttribute('data-reporters-state') === ProcessingState.COMPLETED;
     const lazyDone = item.getAttribute('data-lazy-state') === ProcessingState.COMPLETED;
-    
-    if (lightboxDone && tabsDone && reportersDone && lazyDone) {
+    const dropdownsDone = item.getAttribute('data-dropdowns-state') === ProcessingState.COMPLETED;
+
+    if (lightboxDone && tabsDone && reportersDone && lazyDone && dropdownsDone) {
       item.setAttribute('data-processing-state', ProcessingState.COMPLETED);
     }
   } else if (state === ProcessingState.PROCESSING) {
@@ -845,6 +1001,7 @@ function clickLoadMore(element) {
     processNewlyAddedItems();
     processTabsForNewItems();
     processReportersForNewItems();
+    processDropdownsForNewItems();
   }, processDelay);
   
   // Reset loading flag after delay
@@ -882,6 +1039,7 @@ function observeLoadMoreButton() {
           processNewlyAddedItems();
           processTabsForNewItems();
           processReportersForNewItems();
+          processDropdownsForNewItems();
         }, processDelay);
       });
     }
@@ -1072,11 +1230,14 @@ function processItemsBatch(items) {
     }
   });
   
-  // Update LazyLoad and schedule FancyBox re-init
+  // Update LazyLoad and schedule FancyBox and Webflow re-init
   setTimeout(() => {
     updateLazyLoad();
     if (needsFancyBoxReInit) {
       scheduleFancyBoxReInit();
+    }
+    if (needsWebflowReInit) {
+      scheduleWebflowReInit();
     }
     hideLoadingIndicator();
   }, 100);
@@ -1090,11 +1251,13 @@ function processFilteredItems() {
     // Reset states to allow re-processing after filtering
     item.setAttribute('data-tabs-state', ProcessingState.PENDING);
     item.setAttribute('data-reporters-state', ProcessingState.PENDING);
+    item.setAttribute('data-dropdowns-state', ProcessingState.PENDING);
   });
-  
-  // Clear processed tabs and reporters to re-initialize them after filtering
+
+  // Clear processed tabs, reporters, and dropdowns to re-initialize them after filtering
   processedTabItems = new WeakSet();
   processedReporterItems = new WeakSet();
+  processedDropdownItems = new WeakSet();
   
   const filteredItems = document.querySelectorAll('[wfu-lightbox-group]');
   const visibleItems = [];
@@ -1156,10 +1319,11 @@ function processFilteredItems() {
     });
   }
   
-  // Force re-process tabs and reporters for all visible filtered items
+  // Force re-process tabs, reporters, and dropdowns for all visible filtered items
   setTimeout(() => {
     reprocessTabsForFilteredItems();
     reprocessReportersForFilteredItems();
+    reprocessDropdownsForFilteredItems();
   }, 200);
 }
 
@@ -1211,10 +1375,11 @@ function deferNonCriticalProcessing() {
   const processNonCritical = () => {
     if (nonCriticalProcessed) return;
     nonCriticalProcessed = true;
-    
-    // Process tabs and reporters after critical loading
+
+    // Process tabs, reporters, and dropdowns after critical loading
     processTabsForNewItems();
     processReportersForNewItems();
+    processDropdownsForNewItems();
   };
   
   // Method 1: Process on first user interaction
@@ -1454,6 +1619,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let pendingLazyItems = new Set();
     let pendingTabItems = new Set();
     let pendingReporterItems = new Set();
+    let pendingDropdownItems = new Set();
     let queueTimeout = null;
     
     // Unified item queuing
@@ -1497,14 +1663,31 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pendingReporterItems.size > 0) {
           const itemsToProcess = Array.from(pendingReporterItems);
           pendingReporterItems.clear();
-          
+
           itemsToProcess.forEach(item => {
             if (!processedReporterItems.has(item)) {
               initializeReporters(item);
             }
           });
         }
-        
+
+        // Process dropdown items
+        if (pendingDropdownItems.size > 0) {
+          const itemsToProcess = Array.from(pendingDropdownItems);
+          pendingDropdownItems.clear();
+
+          itemsToProcess.forEach(item => {
+            if (!processedDropdownItems.has(item)) {
+              initializeDropdowns(item);
+            }
+          });
+
+          // Schedule Webflow re-initialization after processing dropdowns
+          if (itemsToProcess.length > 0) {
+            scheduleWebflowReInit();
+          }
+        }
+
         queueTimeout = null;
       }, 100);
     };
@@ -1515,6 +1698,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let hasNewLoadMore = false;
       let hasNewTabs = false;
       let hasNewReporters = false;
+      let hasNewDropdowns = false;
       
       for (const mutation of mutations) {
         if (mutation.type !== 'childList' || !mutation.addedNodes.length) continue;
@@ -1577,7 +1761,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasNewTabs = true;
               }
             }
-            
+
+            // Check for new dropdown items
+            const dropdownItems = node.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
+            for (const item of dropdownItems) {
+              const hasDropdowns = item.querySelector('[dropdown="button"]');
+              if (hasDropdowns) {
+                pendingDropdownItems.add(item);
+                hasNewDropdowns = true;
+              }
+            }
+
+            // Also check if the node itself has dropdowns
+            if (node.matches && (node.matches('.cms-item') || node.matches('[data-item-slug]') || node.matches('.w-dyn-item') || node.matches('[wfu-lightbox-group]'))) {
+              const hasDropdowns = node.querySelector('[dropdown="button"]');
+              if (hasDropdowns) {
+                pendingDropdownItems.add(node);
+                hasNewDropdowns = true;
+              }
+            }
+
             // Check for new load-more button
             if (node.id === 'load-more' || node.querySelector('#load-more')) {
               hasNewLoadMore = true;
@@ -1586,10 +1789,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
       
-      if (hasNewItems || hasNewTabs || hasNewReporters) {
+      if (hasNewItems || hasNewTabs || hasNewReporters || hasNewDropdowns) {
         scheduleItemQueuing();
       }
-      
+
       if (hasNewLoadMore) {
         setTimeout(() => {
           observeLoadMoreButton();
