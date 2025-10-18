@@ -73,9 +73,7 @@ let processedTabItems = new WeakSet();
 let processedReporterItems = new WeakSet();
 let processedDropdownItems = new WeakSet();
 let needsFancyBoxReInit = false;
-let needsWebflowReInit = false;
 let reInitTimeout = null;
-let webflowReInitTimeout = null;
 let lastFilteringState = false;
 let activeLoadingProcesses = 0;
 
@@ -573,13 +571,15 @@ function initializeDropdowns(cmsItem) {
     }
 
     if (!dropdownList) {
-      console.warn('Dropdown list not found for button:', button);
       return;
     }
 
     // Initialize dropdown as closed
     dropdownList.style.display = 'none';
+    dropdownList.classList.remove('w--open');
     button.setAttribute('data-dropdown-open', 'false');
+    button.setAttribute('aria-expanded', 'false');
+    button.classList.remove('w--open');
 
     // Add click handler
     button.addEventListener('click', function(e) {
@@ -591,7 +591,9 @@ function initializeDropdowns(cmsItem) {
       if (isOpen) {
         // Close dropdown
         dropdownList.style.display = 'none';
+        dropdownList.classList.remove('w--open');
         this.setAttribute('data-dropdown-open', 'false');
+        this.setAttribute('aria-expanded', 'false');
         this.classList.remove('w--open');
       } else {
         // Close all other dropdowns in the same CMS item first
@@ -600,16 +602,20 @@ function initializeDropdowns(cmsItem) {
 
         allButtons.forEach(btn => {
           btn.setAttribute('data-dropdown-open', 'false');
+          btn.setAttribute('aria-expanded', 'false');
           btn.classList.remove('w--open');
         });
 
         allLists.forEach(list => {
           list.style.display = 'none';
+          list.classList.remove('w--open');
         });
 
         // Open this dropdown
         dropdownList.style.display = 'flex';
+        dropdownList.classList.add('w--open');
         this.setAttribute('data-dropdown-open', 'true');
+        this.setAttribute('aria-expanded', 'true');
         this.classList.add('w--open');
       }
     });
@@ -618,14 +624,9 @@ function initializeDropdowns(cmsItem) {
     button.setAttribute('data-dropdown-initialized', 'true');
   });
 
-  // Also try Webflow re-initialization as backup
-  needsWebflowReInit = true;
-
   // Mark this item as processed for dropdowns
   processedDropdownItems.add(cmsItem);
   updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
-
-  console.log(`✅ Initialized ${dropdownButtons.length} dropdown(s) in CMS item`);
 }
 
 // Global click-outside-to-close handler for dropdowns
@@ -641,11 +642,13 @@ document.addEventListener('click', function(e) {
 
     allButtons.forEach(btn => {
       btn.setAttribute('data-dropdown-open', 'false');
+      btn.setAttribute('aria-expanded', 'false');
       btn.classList.remove('w--open');
     });
 
     allLists.forEach(list => {
       list.style.display = 'none';
+      list.classList.remove('w--open');
     });
   }
 });
@@ -701,72 +704,6 @@ function reprocessDropdownsForFilteredItems() {
   visibleDropdownItems.forEach(item => {
     initializeDropdowns(item);
   });
-
-  // Schedule Webflow re-initialization if we have items
-  if (visibleDropdownItems.length > 0) {
-    scheduleWebflowReInit();
-  }
-}
-
-// Webflow re-initialization with debouncing
-function scheduleWebflowReInit() {
-  if (webflowReInitTimeout) {
-    clearTimeout(webflowReInitTimeout);
-  }
-
-  const baseDelay = getIsMobileDevice() ? REINIT_DEBOUNCE_DELAY * 1.5 : REINIT_DEBOUNCE_DELAY;
-
-  webflowReInitTimeout = setTimeout(() => {
-    if (needsWebflowReInit) {
-      performWebflowReInit();
-    }
-    webflowReInitTimeout = null;
-  }, baseDelay);
-}
-
-function performWebflowReInit() {
-  try {
-    if (window.Webflow) {
-      // Method 1: Try to reinitialize ix2 (Webflow Interactions 2.0)
-      if (window.Webflow.require && typeof window.Webflow.require === 'function') {
-        try {
-          const ix2 = window.Webflow.require('ix2');
-          if (ix2 && typeof ix2.init === 'function') {
-            ix2.init();
-          }
-        } catch (e) {
-          // ix2 might not be available, continue to other methods
-        }
-      }
-
-      // Method 2: Destroy and re-initialize Webflow
-      if (typeof window.Webflow.destroy === 'function') {
-        window.Webflow.destroy();
-      }
-      if (typeof window.Webflow.ready === 'function') {
-        window.Webflow.ready();
-      }
-
-      // Method 3: Re-trigger Webflow's ready event
-      if (typeof window.Webflow.require === 'function') {
-        try {
-          const dropdown = window.Webflow.require('dropdown');
-          if (dropdown && typeof dropdown.ready === 'function') {
-            dropdown.ready();
-          }
-        } catch (e) {
-          // Dropdown module might not be available
-        }
-      }
-
-      needsWebflowReInit = false;
-      return true;
-    }
-  } catch (e) {
-    // Silently handle errors
-  }
-
-  return false;
 }
 
 // Check if item needs processing based on state attributes
@@ -1315,14 +1252,11 @@ function processItemsBatch(items) {
     }
   });
   
-  // Update LazyLoad and schedule FancyBox and Webflow re-init
+  // Update LazyLoad and schedule FancyBox re-init
   setTimeout(() => {
     updateLazyLoad();
     if (needsFancyBoxReInit) {
       scheduleFancyBoxReInit();
-    }
-    if (needsWebflowReInit) {
-      scheduleWebflowReInit();
     }
     hideLoadingIndicator();
   }, 100);
@@ -1766,11 +1700,6 @@ document.addEventListener('DOMContentLoaded', function() {
               initializeDropdowns(item);
             }
           });
-
-          // Schedule Webflow re-initialization after processing dropdowns
-          if (itemsToProcess.length > 0) {
-            scheduleWebflowReInit();
-          }
         }
 
         queueTimeout = null;
