@@ -548,22 +548,107 @@ function initializeDropdowns(cmsItem) {
 
   updateProcessingState(cmsItem, 'dropdowns', ProcessingState.PROCESSING);
 
-  // Find all dropdowns within this CMS item
+  // Find all dropdown buttons within this CMS item
   const dropdownButtons = cmsItem.querySelectorAll('[dropdown="button"]');
-  const dropdownLists = cmsItem.querySelectorAll('[dropdown="list"]');
 
-  if (dropdownButtons.length === 0 || dropdownLists.length === 0) {
+  if (dropdownButtons.length === 0) {
     updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
     return; // No dropdowns in this item
   }
 
-  // Mark as needing Webflow re-initialization
+  // Set up manual click handlers for each dropdown button
+  dropdownButtons.forEach((button) => {
+    // Skip if already initialized
+    if (button.hasAttribute('data-dropdown-initialized')) {
+      return;
+    }
+
+    // Find the corresponding dropdown list
+    // First try: sibling element
+    let dropdownList = button.nextElementSibling;
+    if (!dropdownList || dropdownList.getAttribute('dropdown') !== 'list') {
+      // Second try: within same parent
+      const parent = button.parentElement;
+      dropdownList = parent.querySelector('[dropdown="list"]');
+    }
+
+    if (!dropdownList) {
+      console.warn('Dropdown list not found for button:', button);
+      return;
+    }
+
+    // Initialize dropdown as closed
+    dropdownList.style.display = 'none';
+    button.setAttribute('data-dropdown-open', 'false');
+
+    // Add click handler
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const isOpen = this.getAttribute('data-dropdown-open') === 'true';
+
+      if (isOpen) {
+        // Close dropdown
+        dropdownList.style.display = 'none';
+        this.setAttribute('data-dropdown-open', 'false');
+        this.classList.remove('w--open');
+      } else {
+        // Close all other dropdowns in the same CMS item first
+        const allButtons = cmsItem.querySelectorAll('[dropdown="button"]');
+        const allLists = cmsItem.querySelectorAll('[dropdown="list"]');
+
+        allButtons.forEach(btn => {
+          btn.setAttribute('data-dropdown-open', 'false');
+          btn.classList.remove('w--open');
+        });
+
+        allLists.forEach(list => {
+          list.style.display = 'none';
+        });
+
+        // Open this dropdown
+        dropdownList.style.display = 'flex';
+        this.setAttribute('data-dropdown-open', 'true');
+        this.classList.add('w--open');
+      }
+    });
+
+    // Mark as initialized
+    button.setAttribute('data-dropdown-initialized', 'true');
+  });
+
+  // Also try Webflow re-initialization as backup
   needsWebflowReInit = true;
 
   // Mark this item as processed for dropdowns
   processedDropdownItems.add(cmsItem);
   updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
+
+  console.log(`✅ Initialized ${dropdownButtons.length} dropdown(s) in CMS item`);
 }
+
+// Global click-outside-to-close handler for dropdowns
+document.addEventListener('click', function(e) {
+  // Check if click is outside all dropdowns
+  const clickedButton = e.target.closest('[dropdown="button"]');
+  const clickedList = e.target.closest('[dropdown="list"]');
+
+  // If clicked outside dropdown system, close all dropdowns
+  if (!clickedButton && !clickedList) {
+    const allButtons = document.querySelectorAll('[dropdown="button"][data-dropdown-initialized="true"]');
+    const allLists = document.querySelectorAll('[dropdown="list"]');
+
+    allButtons.forEach(btn => {
+      btn.setAttribute('data-dropdown-open', 'false');
+      btn.classList.remove('w--open');
+    });
+
+    allLists.forEach(list => {
+      list.style.display = 'none';
+    });
+  }
+});
 
 // Process dropdowns for newly loaded items
 function processDropdownsForNewItems() {
