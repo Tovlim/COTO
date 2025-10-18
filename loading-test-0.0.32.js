@@ -1,4 +1,4 @@
-// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter + Dropdowns v9.1
+// 🚀 ENHANCED MOBILE-OPTIMIZED Auto Load More + FancyBox 6 Fix + Tabs + Multi-Reporter + Dropdowns v10.0
 //
 // ✅ FEATURES:
 // • Auto-clicks #load-more when visible with smart throttling
@@ -7,7 +7,7 @@
 // • Supports CMS lightbox grouping with [wfu-lightbox-group] attributes
 // • Parent-scoped tab system with data-tab and data-tab-content attributes
 // • Multi-reporter display with modal functionality
-// • Webflow native dropdown re-initialization for dynamically loaded items
+// • Manual dropdown handlers for dynamically loaded items with accessibility
 // • Shows #loading-reports during any loading/processing operations
 // • Works with Finsweet list load v2 (2025) + Finsweet Filter v2 (2025)
 // • IMMEDIATE processing of new load-more items
@@ -71,7 +71,6 @@ let filteringObserver = null;
 let processedItems = new WeakSet();
 let processedTabItems = new WeakSet();
 let processedReporterItems = new WeakSet();
-let processedDropdownItems = new WeakSet();
 let needsFancyBoxReInit = false;
 let reInitTimeout = null;
 let lastFilteringState = false;
@@ -533,10 +532,14 @@ function reprocessReportersForFilteredItems() {
 
 // Re-process dropdowns for filtered items
 function reprocessDropdownsForFilteredItems() {
-  const allItems = document.querySelectorAll('[wfu-lightbox-group]');
+  const allItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
   const visibleDropdownItems = [];
 
   allItems.forEach(item => {
+    // Check if this item contains dropdowns
+    const hasDropdowns = item.querySelector('[dropdown="button"]');
+    if (!hasDropdowns) return;
+
     // Check if item is actually visible
     let currentElement = item;
     let isVisible = true;
@@ -551,8 +554,6 @@ function reprocessDropdownsForFilteredItems() {
     }
 
     if (isVisible) {
-      // Remove from processed items to force re-initialization
-      processedDropdownItems.delete(item);
       visibleDropdownItems.push(item);
     }
   });
@@ -566,15 +567,13 @@ function reprocessDropdownsForFilteredItems() {
 // Process dropdowns for newly loaded items
 function processDropdownsForNewItems() {
   // Find all CMS items that might have dropdowns
-  const cmsItems = document.querySelectorAll('[wfu-lightbox-group]');
+  const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item, [wfu-lightbox-group]');
 
   cmsItems.forEach(item => {
-    if (!processedDropdownItems.has(item)) {
-      // Check if this item contains dropdowns
-      const hasDropdowns = item.querySelector('[dropdown="button"]');
-      if (hasDropdowns) {
-        initializeDropdowns(item);
-      }
+    // Check if this item contains dropdowns
+    const hasDropdowns = item.querySelector('[dropdown="button"]:not([data-dropdown-initialized])');
+    if (hasDropdowns) {
+      initializeDropdowns(item);
     }
   });
 }
@@ -583,24 +582,16 @@ function processDropdownsForNewItems() {
 let dropdownIdCounter = 0;
 
 function initializeDropdowns(cmsItem) {
-  // Check state attribute first
-  if (!needsProcessing(cmsItem, 'dropdowns')) {
+  // Check if already initialized by looking for initialized buttons
+  const alreadyInitialized = cmsItem.querySelector('[data-dropdown-initialized="true"]');
+  if (alreadyInitialized) {
     return;
   }
-
-  // Check if we've already processed dropdowns for this item
-  if (processedDropdownItems.has(cmsItem)) {
-    updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
-    return;
-  }
-
-  updateProcessingState(cmsItem, 'dropdowns', ProcessingState.PROCESSING);
 
   // Find all dropdown buttons within this CMS item
   const dropdownButtons = cmsItem.querySelectorAll('[dropdown="button"]');
 
   if (dropdownButtons.length === 0) {
-    updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
     return; // No dropdowns in this item
   }
 
@@ -688,39 +679,51 @@ function initializeDropdowns(cmsItem) {
         this.setAttribute('data-dropdown-open', 'true');
         this.setAttribute('aria-expanded', 'true');
         this.classList.add('w--open');
+
+        // Set global flag for optimized click-outside handler
+        dropdownsOpen = true;
       }
     });
 
     // Mark as initialized
     button.setAttribute('data-dropdown-initialized', 'true');
   });
-
-  // Mark this item as processed for dropdowns
-  processedDropdownItems.add(cmsItem);
-  updateProcessingState(cmsItem, 'dropdowns', ProcessingState.COMPLETED);
 }
 
-// Global click-outside-to-close handler for dropdowns
+// Global click-outside-to-close handler for dropdowns (optimized)
+let dropdownsOpen = false;
+
 document.addEventListener('click', function(e) {
+  // Skip if no dropdowns are open (performance optimization)
+  if (!dropdownsOpen) return;
+
   // Check if click is outside all dropdowns
   const clickedButton = e.target.closest('[dropdown="button"]');
   const clickedList = e.target.closest('[dropdown="list"]');
 
   // If clicked outside dropdown system, close all dropdowns
   if (!clickedButton && !clickedList) {
-    const allButtons = document.querySelectorAll('[dropdown="button"][data-dropdown-initialized="true"]');
-    const allLists = document.querySelectorAll('[dropdown="list"]');
+    const openButtons = document.querySelectorAll('[data-dropdown-open="true"]');
 
-    allButtons.forEach(btn => {
-      btn.setAttribute('data-dropdown-open', 'false');
-      btn.setAttribute('aria-expanded', 'false');
-      btn.classList.remove('w--open');
-    });
+    if (openButtons.length > 0) {
+      openButtons.forEach(btn => {
+        btn.setAttribute('data-dropdown-open', 'false');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.classList.remove('w--open');
 
-    allLists.forEach(list => {
-      list.style.display = 'none';
-      list.classList.remove('w--open');
-    });
+        // Find and close the corresponding list
+        const listId = btn.getAttribute('aria-controls');
+        if (listId) {
+          const list = document.getElementById(listId);
+          if (list) {
+            list.style.display = 'none';
+            list.classList.remove('w--open');
+          }
+        }
+      });
+
+      dropdownsOpen = false;
+    }
   }
 });
 
@@ -740,9 +743,8 @@ function updateProcessingState(item, type, state) {
     const tabsDone = item.getAttribute('data-tabs-state') === ProcessingState.COMPLETED;
     const reportersDone = item.getAttribute('data-reporters-state') === ProcessingState.COMPLETED;
     const lazyDone = item.getAttribute('data-lazy-state') === ProcessingState.COMPLETED;
-    const dropdownsDone = item.getAttribute('data-dropdowns-state') === ProcessingState.COMPLETED;
 
-    if (lightboxDone && tabsDone && reportersDone && lazyDone && dropdownsDone) {
+    if (lightboxDone && tabsDone && reportersDone && lazyDone) {
       item.setAttribute('data-processing-state', ProcessingState.COMPLETED);
     }
   } else if (state === ProcessingState.PROCESSING) {
@@ -1286,12 +1288,10 @@ function processFilteredItems() {
     // Reset states to allow re-processing after filtering
     item.setAttribute('data-tabs-state', ProcessingState.PENDING);
     item.setAttribute('data-reporters-state', ProcessingState.PENDING);
-    item.setAttribute('data-dropdowns-state', ProcessingState.PENDING);
   });
 
-  // Clear processed tabs, reporters, and dropdowns to re-initialize them after filtering
+  // Clear processed tabs and reporters to re-initialize them after filtering
   processedTabItems = new WeakSet();
-  processedDropdownItems = new WeakSet();
   processedReporterItems = new WeakSet();
   
   const filteredItems = document.querySelectorAll('[wfu-lightbox-group]');
@@ -1712,9 +1712,7 @@ document.addEventListener('DOMContentLoaded', function() {
           pendingDropdownItems.clear();
 
           itemsToProcess.forEach(item => {
-            if (!processedDropdownItems.has(item)) {
-              initializeDropdowns(item);
-            }
+            initializeDropdowns(item);
           });
         }
 
