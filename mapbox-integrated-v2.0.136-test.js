@@ -1174,8 +1174,8 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'fill-color': '#1a1b1e',
-      'fill-opacity': 0.15
+      'fill-color': '#000000',
+      'fill-opacity': 0.5
     }
   };
   
@@ -1191,7 +1191,7 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
   } else {
     map.addLayer(layerConfig);
   }
-  
+
   // Add border layer
   const borderConfig = {
     id: boundary.borderId,
@@ -1199,7 +1199,7 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'line-color': '#888888',
+      'line-color': '#000000',
       'line-width': 1,
       'line-opacity': 0.8
     }
@@ -1402,7 +1402,7 @@ function createVisualTestingControls() {
         map.setPaintProperty('territory-points', 'text-color', color);
       }
     }),
-    createColorPicker('Halo Color', '#2d1810', (color) => {
+    createColorPicker('Halo Color', '#000000', (color) => {
       if (mapLayers.hasLayer('territory-points')) {
         map.setPaintProperty('territory-points', 'text-halo-color', color);
       }
@@ -1421,7 +1421,7 @@ function createVisualTestingControls() {
         map.setPaintProperty('region-points', 'text-color', color);
       }
     }),
-    createColorPicker('Halo Color', '#6e3500', (color) => {
+    createColorPicker('Halo Color', '#000000', (color) => {
       if (mapLayers.hasLayer('region-points')) {
         map.setPaintProperty('region-points', 'text-halo-color', color);
       }
@@ -1440,7 +1440,7 @@ function createVisualTestingControls() {
         map.setPaintProperty('district-points', 'text-color', color);
       }
     }),
-    createColorPicker('Halo Color', '#4a2500', (color) => {
+    createColorPicker('Halo Color', '#000000', (color) => {
       if (mapLayers.hasLayer('district-points')) {
         map.setPaintProperty('district-points', 'text-halo-color', color);
       }
@@ -1462,7 +1462,7 @@ function createVisualTestingControls() {
         map.setPaintProperty('locality-clusters', 'text-color', color);
       }
     }),
-    createColorPicker('Halo Color', '#616100', (color) => {
+    createColorPicker('Halo Color', '#007a3d', (color) => {
       if (mapLayers.hasLayer('locality-points')) {
         map.setPaintProperty('locality-points', 'text-halo-color', color);
       }
@@ -1490,7 +1490,7 @@ function createVisualTestingControls() {
         map.setPaintProperty('settlement-clusters', 'text-color', color);
       }
     }),
-    createColorPicker('Halo Color', '#800000', (color) => {
+    createColorPicker('Halo Color', '#0038b8', (color) => {
       if (mapLayers.hasLayer('settlement-points')) {
         map.setPaintProperty('settlement-points', 'text-halo-color', color);
       }
@@ -1510,7 +1510,7 @@ function createVisualTestingControls() {
 
   // Boundary/Polygon Controls
   const boundaryControls = createControlGroup('Boundaries (District/Region)', [
-    createColorPicker('Fill Color', '#1a1b1e', (color) => {
+    createColorPicker('Fill Color', '#000000', (color) => {
       const layers = map.getStyle().layers.filter(l => l.id.includes('-fill'));
       layers.forEach(layer => {
         try {
@@ -1518,7 +1518,7 @@ function createVisualTestingControls() {
         } catch (e) {}
       });
     }),
-    createSlider('Fill Opacity', 0, 1, 0.05, 0.15, (value) => {
+    createSlider('Fill Opacity', 0, 1, 0.05, 0.5, (value) => {
       const layers = map.getStyle().layers.filter(l => l.id.includes('-fill'));
       layers.forEach(layer => {
         try {
@@ -1526,7 +1526,7 @@ function createVisualTestingControls() {
         } catch (e) {}
       });
     }),
-    createColorPicker('Border Color', '#888888', (color) => {
+    createColorPicker('Border Color', '#000000', (color) => {
       const layers = map.getStyle().layers.filter(l => l.id.includes('-border'));
       layers.forEach(layer => {
         try {
@@ -1800,17 +1800,17 @@ function setupDeferredAreaControls() {
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#8a8a00');
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#00a350');
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#8a8a00');
+              map.setPaintProperty('locality-points', 'text-halo-color', '#00a350');
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#b30000');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#0050ff');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#b30000');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#0050ff');
             }
           }
         };
@@ -1818,57 +1818,57 @@ function setupDeferredAreaControls() {
         const mouseLeaveHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
+              map.setPaintProperty('territory-points', 'text-halo-color', '#000000');
             }
             // Unhighlight all districts
             if (state.districtTerritoryMap) {
               state.districtTerritoryMap.forEach((territory, districtName) => {
                 const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
                 const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
-                
+
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
-                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
                   map.setPaintProperty(fillId, 'fill-color', currentColor);
-                  map.setPaintProperty(fillId, 'fill-opacity', 0.15);
-                  map.setPaintProperty(borderId, 'line-color', '#888888');
+                  map.setPaintProperty(fillId, 'fill-opacity', 0.5);
+                  map.setPaintProperty(borderId, 'line-color', '#000000');
                   map.setPaintProperty(borderId, 'line-opacity', 0.8);
                 }
               });
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
+              map.setPaintProperty('region-points', 'text-halo-color', '#000000');
             }
             if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#000000');
             }
-            
+
             // Remove region highlights
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
-                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
                 map.setPaintProperty(layer.id, 'fill-color', currentColor);
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.5);
               }
               if (layer.id.includes('-border')) {
-                map.setPaintProperty(layer.id, 'line-color', '#888888');
+                map.setPaintProperty(layer.id, 'line-color', '#000000');
                 map.setPaintProperty(layer.id, 'line-opacity', 0.8);
               }
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#616100');
+              map.setPaintProperty('locality-clusters', 'text-halo-color', '#007a3d');
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#616100');
+              map.setPaintProperty('locality-points', 'text-halo-color', '#007a3d');
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#800000');
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#0038b8');
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#800000');
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#0038b8');
             }
           }
         };
@@ -7251,24 +7251,24 @@ function frameRegionBoundary(regionName) {
 // Reset a layer to neutral state and clear ownership
 function resetLayerToNeutral(fillId, borderId) {
   if (mapLayers.hasLayer(fillId)) {
-    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
+    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
     try {
       map.setPaintProperty(fillId, 'fill-color', currentColor);
-      map.setPaintProperty(fillId, 'fill-opacity', 0.15);
+      map.setPaintProperty(fillId, 'fill-opacity', 0.5);
     } catch (error) {
       // Silent fail - layer might not exist
     }
   }
-  
+
   if (mapLayers.hasLayer(borderId)) {
     try {
-      map.setPaintProperty(borderId, 'line-color', '#888888');
+      map.setPaintProperty(borderId, 'line-color', '#000000');
       map.setPaintProperty(borderId, 'line-opacity', 0.8);
     } catch (error) {
       // Silent fail - layer might not exist
     }
   }
-  
+
   // Clear ownership tracking for both layers
   state.layerOwnership.delete(fillId);
   state.layerOwnership.delete(borderId);
@@ -7315,13 +7315,13 @@ function highlightBoundary(regionName) {
     state.layerOwnership.set(districtBorderId, 'single-boundary');
     state.highlightedBoundary = regionName;
     state.highlightedBoundaryType = 'district';
-    
+
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(districtFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(districtFillId, 'fill-opacity', 0.4);
-      map.setPaintProperty(districtBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(districtBorderId, 'line-opacity', 0.9);
+      map.setPaintProperty(districtFillId, 'fill-color', '#333333');
+      map.setPaintProperty(districtFillId, 'fill-opacity', 0.6);
+      map.setPaintProperty(districtBorderId, 'line-color', '#666666');
+      map.setPaintProperty(districtBorderId, 'line-opacity', 1);
     });
   }
   // Fallback to territory-level layers if district layers don't exist
@@ -7331,13 +7331,13 @@ function highlightBoundary(regionName) {
     state.layerOwnership.set(territoryBorderId, 'single-boundary');
     state.highlightedBoundary = regionName;
     state.highlightedBoundaryType = 'territory';
-    
+
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(territoryFillId, 'fill-color', '#6e3500');
-      map.setPaintProperty(territoryFillId, 'fill-opacity', 0.4);
-      map.setPaintProperty(territoryBorderId, 'line-color', '#6e3500');
-      map.setPaintProperty(territoryBorderId, 'line-opacity', 0.9);
+      map.setPaintProperty(territoryFillId, 'fill-color', '#333333');
+      map.setPaintProperty(territoryFillId, 'fill-opacity', 0.6);
+      map.setPaintProperty(territoryBorderId, 'line-color', '#666666');
+      map.setPaintProperty(territoryBorderId, 'line-opacity', 1);
     });
   }
   
@@ -7411,10 +7411,10 @@ function highlightTerritoryBoundaries(territoryName) {
     mapLayers.addToBatch(() => {
       districtsToHighlight.forEach((district) => {
         try {
-          map.setPaintProperty(district.fillId, 'fill-color', '#2d1810');
-          map.setPaintProperty(district.fillId, 'fill-opacity', 0.4);
-          map.setPaintProperty(district.borderId, 'line-color', '#2d1810');
-          map.setPaintProperty(district.borderId, 'line-opacity', 0.9);
+          map.setPaintProperty(district.fillId, 'fill-color', '#333333');
+          map.setPaintProperty(district.fillId, 'fill-opacity', 0.6);
+          map.setPaintProperty(district.borderId, 'line-color', '#666666');
+          map.setPaintProperty(district.borderId, 'line-opacity', 1);
         } catch (error) {
           // Silent fail - layer might not exist
         }
@@ -7856,7 +7856,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#800000',
+          'text-halo-color': '#0038b8',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7869,13 +7869,13 @@ function addSettlementMarkers() {
           ]
         }
       };
-      
+
       if (beforeId) {
         map.addLayer(layerConfig, beforeId);
       } else {
         map.addLayer(layerConfig);
       }
-      
+
       // Add individual settlement points layer with proper positioning
       const pointsLayerConfig = {
         id: 'settlement-points',
@@ -7904,7 +7904,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#800000',
+          'text-halo-color': '#0038b8',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -8084,7 +8084,7 @@ async function addNativeTerritoryMarkers() {
         },
         paint: {
           'text-color': '#ffffff', // White text inside
-          'text-halo-color': '#2d1810', // Dark brown halo outside
+          'text-halo-color': '#000000', // Black halo outside
           'text-halo-width': 2
         }
       });
@@ -8190,7 +8190,7 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#616100',
+          'text-halo-color': '#007a3d',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -8203,7 +8203,7 @@ function addNativeMarkers() {
           ]
         }
       });
-      
+
       // Add individual locality points layer WITHOUT highlighting (FIX #2)
       map.addLayer({
         id: 'locality-points',
@@ -8232,7 +8232,7 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#616100', // Always use normal color (no highlighting)
+          'text-halo-color': '#007a3d', // Green halo
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -8303,7 +8303,7 @@ function addNativeRegionMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#6e3500',
+          'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -8382,7 +8382,7 @@ function addNativeDistrictMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#4a2500', // Slightly different brown than regions (#6e3500)
+          'text-halo-color': '#000000', // Black halo
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
