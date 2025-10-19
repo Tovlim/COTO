@@ -1010,7 +1010,7 @@ function setupDropdownListeners() {
 
 // Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.017.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.018.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1074,8 +1074,9 @@ function loadCombinedGeoData() {
         },
         geometry: {
           type: "Point",
-          // Calculate centroid for the district
-          coordinates: utils.calculateCentroid(districtFeature.geometry.coordinates)
+          // Use admin_centre coordinates if available, otherwise calculate centroid
+          coordinates: districtFeature.properties.admin_centre?.coordinates ||
+                      utils.calculateCentroid(districtFeature.geometry.coordinates)
         }
       }));
 
@@ -1086,7 +1087,6 @@ function loadCombinedGeoData() {
 
       // Update region markers after processing
       state.setTimer('updateRegionMarkers', () => {
-        addNativeRegionMarkers();
         // Add district markers for all districts including Israeli ones
         addNativeDistrictMarkers();
 
@@ -1096,10 +1096,10 @@ function loadCombinedGeoData() {
       }, 100);
     })
     .catch(error => {
-      // Still update region markers in case some data was loaded
-      addNativeRegionMarkers();
+      // Still update district markers in case some data was loaded
+      addNativeDistrictMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
-      
+
       // Continue even with error
     });
 }
