@@ -1008,12 +1008,12 @@ function setupDropdownListeners() {
   });
 }
 
-// Combined GeoJSON loading with better performance
+// Combined GeoJSON loading with better performance - returns Promise for chaining
 function loadCombinedGeoData() {
   console.log('[DEBUG loadCombinedGeoData] ========== FUNCTION CALLED ==========');
   console.log('[DEBUG loadCombinedGeoData] Callstack:', new Error().stack);
 
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.019.geojson')
+  return fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.019.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1063,13 +1063,13 @@ function loadCombinedGeoData() {
 
         return addRegionBoundaryToMap(name, districtFeature, 'district');
       });
-      
-      // Process areas - batch for performance  
+
+      // Process areas - batch for performance
       const areaPromises = areas.map(areaFeature => {
         const name = areaFeature.properties.name;
         return addAreaOverlayToMap(name, areaFeature);
       });
-      
+
       // Store promises for later awaiting (using spread is faster than concat)
       state.visualContentPromises = [...districtPromises, ...areaPromises];
 
@@ -1108,13 +1108,18 @@ function loadCombinedGeoData() {
 
         // GeoData loaded
       }, 100);
+
+      // Return a resolved promise to ensure chaining works
+      return Promise.resolve();
     })
     .catch(error => {
+      console.error('[DEBUG loadCombinedGeoData] Error loading combined data:', error);
       // Still update district markers in case some data was loaded
       addNativeDistrictMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
 
-      // Continue even with error
+      // Continue even with error - don't re-throw to prevent blocking
+      return Promise.resolve();
     });
 }
 
@@ -6489,62 +6494,64 @@ const map = new mapboxgl.Map({
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
-// Map load event handler with optimized parallel operations
+// Map load event handler with SEQUENTIAL loading to prevent duplicates
 map.on("load", () => {
   try {
     init();
-    
-    // Load data in parallel for better performance
-    Promise.all([
-      // Load regions and territories immediately (they should always be visible)
-      loadCombinedGeoData(),
-      
-      // Load locality data in parallel (but don't show locality markers yet)
-      loadLocalitiesFromGeoJSON()
-    ]).then(async () => {
-      // Initialize territory data immediately (should always be visible)
-      initializeTerritoryData();
-      
-      // Mark data as loaded for loading screen
-      loadingTracker.markComplete('dataLoaded');
-      
-      // Now wait for all visual content to be added before marking visual content ready
-      try {
-        // Wait for all boundary and area overlays to complete
-        if (state.visualContentPromises && state.visualContentPromises.length > 0) {
-          await Promise.all(state.visualContentPromises);
+
+    // Load data in SEQUENCE to ensure districts load before localities
+    // This prevents duplicate markers for district names that also appear as regions
+    loadCombinedGeoData()
+      .then(() => {
+        console.log('[DEBUG] Districts loaded, now loading localities');
+        // Now that districts are loaded, load localities (which will filter out duplicate regions)
+        return loadLocalitiesFromGeoJSON();
+      })
+      .then(async () => {
+        console.log('[DEBUG] Localities loaded, initializing territory data');
+        // Initialize territory data immediately (should always be visible)
+        initializeTerritoryData();
+
+        // Mark data as loaded for loading screen
+        loadingTracker.markComplete('dataLoaded');
+
+        // Now wait for all visual content to be added before marking visual content ready
+        try {
+          // Wait for all boundary and area overlays to complete
+          if (state.visualContentPromises && state.visualContentPromises.length > 0) {
+            await Promise.all(state.visualContentPromises);
+          }
+
+          // Add territory markers and wait for completion
+          await addNativeTerritoryMarkers();
+
+          // Mark visual content as ready immediately for faster loading
+          loadingTracker.markComplete('visualContentReady');
+
+        } catch (visualError) {
+          console.warn('Error loading visual content:', visualError);
+          // Mark as complete anyway to prevent infinite loading
+          loadingTracker.markComplete('visualContentReady');
         }
-        
-        // Add territory markers and wait for completion
-        await addNativeTerritoryMarkers();
-        
-        // Mark visual content as ready immediately for faster loading
-        loadingTracker.markComplete('visualContentReady');
-        
-      } catch (visualError) {
-        console.warn('Error loading visual content:', visualError);
+
+        // Final layer optimization after all initial data is loaded
+        state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 100);
+
+        // Mark map as ready
+        loadingTracker.markComplete('mapReady');
+
+      }).catch(error => {
+        console.warn('Error loading initial data:', error);
         // Mark as complete anyway to prevent infinite loading
+        loadingTracker.markComplete('dataLoaded');
         loadingTracker.markComplete('visualContentReady');
-      }
-      
-      // Final layer optimization after all initial data is loaded
-      state.setTimer('finalOptimization', () => mapLayers.optimizeLayerOrder(), 100);
-      
-      // Mark map as ready
-      loadingTracker.markComplete('mapReady');
-      
-    }).catch(error => {
-      console.warn('Error loading initial data:', error);
-      // Mark as complete anyway to prevent infinite loading
-      loadingTracker.markComplete('dataLoaded');
-      loadingTracker.markComplete('visualContentReady');
-      loadingTracker.markComplete('mapReady');
-    });
-    
+        loadingTracker.markComplete('mapReady');
+      });
+
     // Ensure map initialization steps are marked as complete
     // These were moved inside Promise.all but need to be marked regardless
     loadingTracker.markComplete('mapReady');
-    
+
     // Note: Settlement data loading is now deferred until zoom threshold is reached
     
   } catch (error) {
