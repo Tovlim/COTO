@@ -1033,27 +1033,18 @@ function loadCombinedGeoData() {
       // Store district-territory mapping for highlighting
       state.districtTerritoryMap = new Map();
 
-      // Track Unknown districts to give them unique identifiers
-      let unknownDistrictCounter = 0;
-
       // Process districts as regions - batch for performance
       const districtPromises = districts.map(districtFeature => {
-        let name = districtFeature.properties.name;
+        const name = districtFeature.properties.name;
         const territory = districtFeature.properties.territory;
-
-        // Handle "Unknown" districts by giving them unique identifiers
-        if (name === 'Unknown' || !name) {
-          unknownDistrictCounter++;
-          // Create unique name based on territory and counter
-          name = `Unknown-${territory || 'NoTerritory'}-${unknownDistrictCounter}`;
-          // Store the generated name back in the feature for consistency
-          districtFeature.properties.displayName = 'Unknown';
-          districtFeature.properties.generatedName = name;
-        }
 
         // Store the district-territory mapping
         if (territory) {
           state.districtTerritoryMap.set(name, territory);
+          // Debug Israeli districts
+          if (territory === 'Israel') {
+            console.log(`Loaded Israeli district: ${name} -> ${territory}`);
+          }
         }
 
         // Manually add Jerusalem to West Bank if it's not already mapped
@@ -1101,6 +1092,13 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
     fillId: `${name.toLowerCase().replace(/\s+/g, '-')}${adminSuffix}-fill`,
     borderId: `${name.toLowerCase().replace(/\s+/g, '-')}${adminSuffix}-border`
   };
+
+  // Debug logging for Israeli districts
+  if (regionFeature.properties.territory === 'Israel') {
+    console.log(`Creating Israeli district layers for ${name}:`);
+    console.log(`  fillId: ${boundary.fillId}`);
+    console.log(`  borderId: ${boundary.borderId}`);
+  }
   
   // Remove existing layers/sources if they exist (batch operation)
   [boundary.borderId, boundary.fillId].forEach(layerId => {
@@ -1405,8 +1403,8 @@ function setupDeferredAreaControls() {
             // Highlight all districts for both territories (since hover doesn't specify which)
             if (state.districtTerritoryMap) {
               state.districtTerritoryMap.forEach((territory, districtName) => {
-                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
+                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
                   map.setPaintProperty(fillId, 'fill-color', '#2d1810');
@@ -1466,8 +1464,8 @@ function setupDeferredAreaControls() {
             // Unhighlight all districts
             if (state.districtTerritoryMap) {
               state.districtTerritoryMap.forEach((territory, districtName) => {
-                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-fill`;
-                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-border`;
+                const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
+                const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
                   const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#1a1b1e';
@@ -6988,7 +6986,7 @@ function highlightTerritoryBoundaries(territoryName) {
   
   // Get all district boundaries for this territory using our mapping
   const districtsToHighlight = [];
-  
+
   if (state.districtTerritoryMap) {
     // Find all districts that belong to this territory
     state.districtTerritoryMap.forEach((territory, districtName) => {
@@ -6996,11 +6994,20 @@ function highlightTerritoryBoundaries(territoryName) {
         // Use hierarchical naming for district boundaries within territories
         const fillId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-fill`;
         const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
-        
+
+        // Debug logging for Israeli districts
+        if (territoryName === 'Israel') {
+          console.log(`Israeli district: ${districtName}, looking for layers: ${fillId}, ${borderId}`);
+        }
+
         // Check if layers exist
         const hasFill = mapLayers.hasLayer(fillId);
         const hasBorder = mapLayers.hasLayer(borderId);
-        
+
+        if (territoryName === 'Israel') {
+          console.log(`  Layer check - fill exists: ${hasFill}, border exists: ${hasBorder}`);
+        }
+
         if (hasFill && hasBorder) {
           districtsToHighlight.push({
             fillId: fillId,
@@ -7010,6 +7017,10 @@ function highlightTerritoryBoundaries(territoryName) {
         }
       }
     });
+
+    if (territoryName === 'Israel') {
+      console.log(`Total Israeli districts to highlight: ${districtsToHighlight.length}`);
+    }
   }
   
   // Highlight all matching districts
