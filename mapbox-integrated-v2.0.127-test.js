@@ -1032,22 +1032,35 @@ function loadCombinedGeoData() {
       
       // Store district-territory mapping for highlighting
       state.districtTerritoryMap = new Map();
-      
+
+      // Track Unknown districts to give them unique identifiers
+      let unknownDistrictCounter = 0;
+
       // Process districts as regions - batch for performance
       const districtPromises = districts.map(districtFeature => {
-        const name = districtFeature.properties.name;
+        let name = districtFeature.properties.name;
         const territory = districtFeature.properties.territory;
-        
+
+        // Handle "Unknown" districts by giving them unique identifiers
+        if (name === 'Unknown' || !name) {
+          unknownDistrictCounter++;
+          // Create unique name based on territory and counter
+          name = `Unknown-${territory || 'NoTerritory'}-${unknownDistrictCounter}`;
+          // Store the generated name back in the feature for consistency
+          districtFeature.properties.displayName = 'Unknown';
+          districtFeature.properties.generatedName = name;
+        }
+
         // Store the district-territory mapping
         if (territory) {
           state.districtTerritoryMap.set(name, territory);
         }
-        
+
         // Manually add Jerusalem to West Bank if it's not already mapped
         if (name === 'Jerusalem' && !state.districtTerritoryMap.has('Jerusalem')) {
           state.districtTerritoryMap.set('Jerusalem', 'West Bank');
         }
-        
+
         return addRegionBoundaryToMap(name, districtFeature, 'district');
       });
       
@@ -2358,6 +2371,17 @@ function initializeTerritoryData() {
       geometry: {
         type: "Point",
         coordinates: [35.3050, 32.2873]
+      }
+    },
+    {
+      type: "Feature",
+      properties: {
+        name: "Israel",
+        type: "territory"
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [34.8516, 31.9688]  // Centered roughly on Israel
       }
     }
   ];
