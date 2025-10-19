@@ -1010,7 +1010,7 @@ function setupDropdownListeners() {
 
 // Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
-  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.018.geojson')
+  fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.019.geojson')
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -7280,30 +7280,37 @@ async function loadLocalitiesFromGeoJSON() {
       });
       
       // Create region features from the extracted data
-      state.allRegionFeatures = Array.from(regionMap.entries()).map(([regionName, coordinates]) => {
-        // Calculate centroid of all localities in this region
-        let totalLat = 0, totalLng = 0;
-        coordinates.forEach(coord => {
-          totalLng += coord[0];
-          totalLat += coord[1];
+      // Filter out regions that already exist as districts to avoid duplicates
+      const existingDistrictNames = new Set(
+        (state.allDistrictFeatures || []).map(d => d.properties.name)
+      );
+
+      state.allRegionFeatures = Array.from(regionMap.entries())
+        .filter(([regionName]) => !existingDistrictNames.has(regionName))
+        .map(([regionName, coordinates]) => {
+          // Calculate centroid of all localities in this region
+          let totalLat = 0, totalLng = 0;
+          coordinates.forEach(coord => {
+            totalLng += coord[0];
+            totalLat += coord[1];
+          });
+
+          // Find a locality with this region to get the territory
+          const localityInRegion = processedData.features.find(f => f.properties.region === regionName);
+
+          return {
+            type: "Feature",
+            properties: {
+              name: regionName,
+              type: "region",
+              territory: localityInRegion ? localityInRegion.properties.territory : null
+            },
+            geometry: {
+              type: "Point",
+              coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
+            }
+          };
         });
-        
-        // Find a locality with this region to get the territory
-        const localityInRegion = processedData.features.find(f => f.properties.region === regionName);
-        
-        return {
-          type: "Feature",
-          properties: {
-            name: regionName,
-            type: "region",
-            territory: localityInRegion ? localityInRegion.properties.territory : null
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [totalLng / coordinates.length, totalLat / coordinates.length]
-          }
-        };
-      });
       
       // Create subregion features from the extracted data
       state.allSubregionFeatures = Array.from(subregionMap.entries()).map(([subregionName, coordinates]) => {
