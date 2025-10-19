@@ -1290,6 +1290,324 @@ async function addAreaOverlayToMap(name, areaFeature) {
   return Promise.resolve();
 }
 
+// ========================
+// VISUAL TESTING CONTROLS
+// ========================
+function createVisualTestingControls() {
+  // Create control panel container
+  const panel = document.createElement('div');
+  panel.id = 'visual-testing-panel';
+  panel.style.cssText = `
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    z-index: 10000;
+    max-height: 90vh;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 12px;
+    width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  `;
+
+  // Title and toggle button
+  const header = document.createElement('div');
+  header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 10px;';
+  header.innerHTML = `
+    <strong style="font-size: 14px;">Visual Testing Controls</strong>
+    <button id="toggle-testing-panel" style="padding: 4px 8px; background: #333; color: white; border: 1px solid #666; border-radius: 4px; cursor: pointer;">Hide</button>
+  `;
+  panel.appendChild(header);
+
+  const content = document.createElement('div');
+  content.id = 'testing-panel-content';
+  panel.appendChild(content);
+
+  // Helper to create control group
+  const createControlGroup = (title, controls) => {
+    const group = document.createElement('div');
+    group.style.cssText = 'margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;';
+
+    const groupTitle = document.createElement('div');
+    groupTitle.style.cssText = 'font-weight: bold; margin-bottom: 8px; color: #aaa; font-size: 11px; text-transform: uppercase;';
+    groupTitle.textContent = title;
+    group.appendChild(groupTitle);
+
+    controls.forEach(control => group.appendChild(control));
+    return group;
+  };
+
+  // Helper to create slider control
+  const createSlider = (label, min, max, step, defaultValue, onChange) => {
+    const container = document.createElement('div');
+    container.style.cssText = 'margin-bottom: 8px;';
+
+    const labelEl = document.createElement('label');
+    labelEl.style.cssText = 'display: block; margin-bottom: 4px; font-size: 11px;';
+    labelEl.innerHTML = `${label}: <span style="color: #0f0; float: right;">${defaultValue}</span>`;
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = min;
+    slider.max = max;
+    slider.step = step;
+    slider.value = defaultValue;
+    slider.style.cssText = 'width: 100%; cursor: pointer;';
+
+    const valueSpan = labelEl.querySelector('span');
+    slider.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      valueSpan.textContent = value;
+      onChange(value);
+    });
+
+    container.appendChild(labelEl);
+    container.appendChild(slider);
+    return container;
+  };
+
+  // Helper to create color picker
+  const createColorPicker = (label, defaultValue, onChange) => {
+    const container = document.createElement('div');
+    container.style.cssText = 'margin-bottom: 8px;';
+
+    const labelEl = document.createElement('label');
+    labelEl.style.cssText = 'display: block; margin-bottom: 4px; font-size: 11px;';
+    labelEl.innerHTML = `${label}: <span style="color: #0f0; float: right;">${defaultValue}</span>`;
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = defaultValue;
+    picker.style.cssText = 'width: 100%; height: 30px; cursor: pointer; border: 1px solid #666; border-radius: 4px;';
+
+    const valueSpan = labelEl.querySelector('span');
+    picker.addEventListener('input', (e) => {
+      valueSpan.textContent = e.target.value;
+      onChange(e.target.value);
+    });
+
+    container.appendChild(labelEl);
+    container.appendChild(picker);
+    return container;
+  };
+
+  // Territory Markers Controls
+  const territoryControls = createControlGroup('Territory Markers', [
+    createColorPicker('Text Color', '#ffffff', (color) => {
+      if (mapLayers.hasLayer('territory-points')) {
+        map.setPaintProperty('territory-points', 'text-color', color);
+      }
+    }),
+    createColorPicker('Halo Color', '#2d1810', (color) => {
+      if (mapLayers.hasLayer('territory-points')) {
+        map.setPaintProperty('territory-points', 'text-halo-color', color);
+      }
+    }),
+    createSlider('Halo Width', 0, 5, 0.1, 2, (value) => {
+      if (mapLayers.hasLayer('territory-points')) {
+        map.setPaintProperty('territory-points', 'text-halo-width', value);
+      }
+    })
+  ]);
+
+  // Region Markers Controls
+  const regionControls = createControlGroup('Region Markers', [
+    createColorPicker('Text Color', '#ffffff', (color) => {
+      if (mapLayers.hasLayer('region-points')) {
+        map.setPaintProperty('region-points', 'text-color', color);
+      }
+    }),
+    createColorPicker('Halo Color', '#6e3500', (color) => {
+      if (mapLayers.hasLayer('region-points')) {
+        map.setPaintProperty('region-points', 'text-halo-color', color);
+      }
+    }),
+    createSlider('Halo Width', 0, 5, 0.1, 2, (value) => {
+      if (mapLayers.hasLayer('region-points')) {
+        map.setPaintProperty('region-points', 'text-halo-width', value);
+      }
+    })
+  ]);
+
+  // District Markers Controls
+  const districtControls = createControlGroup('District Markers', [
+    createColorPicker('Text Color', '#ffffff', (color) => {
+      if (mapLayers.hasLayer('district-points')) {
+        map.setPaintProperty('district-points', 'text-color', color);
+      }
+    }),
+    createColorPicker('Halo Color', '#4a2500', (color) => {
+      if (mapLayers.hasLayer('district-points')) {
+        map.setPaintProperty('district-points', 'text-halo-color', color);
+      }
+    }),
+    createSlider('Halo Width', 0, 5, 0.1, 2, (value) => {
+      if (mapLayers.hasLayer('district-points')) {
+        map.setPaintProperty('district-points', 'text-halo-width', value);
+      }
+    })
+  ]);
+
+  // Locality Markers Controls
+  const localityControls = createControlGroup('Locality Markers', [
+    createColorPicker('Text Color', '#ffffff', (color) => {
+      if (mapLayers.hasLayer('locality-points')) {
+        map.setPaintProperty('locality-points', 'text-color', color);
+      }
+      if (mapLayers.hasLayer('locality-clusters')) {
+        map.setPaintProperty('locality-clusters', 'text-color', color);
+      }
+    }),
+    createColorPicker('Halo Color', '#616100', (color) => {
+      if (mapLayers.hasLayer('locality-points')) {
+        map.setPaintProperty('locality-points', 'text-halo-color', color);
+      }
+      if (mapLayers.hasLayer('locality-clusters')) {
+        map.setPaintProperty('locality-clusters', 'text-halo-color', color);
+      }
+    }),
+    createSlider('Halo Width', 0, 5, 0.1, 2, (value) => {
+      if (mapLayers.hasLayer('locality-points')) {
+        map.setPaintProperty('locality-points', 'text-halo-width', value);
+      }
+      if (mapLayers.hasLayer('locality-clusters')) {
+        map.setPaintProperty('locality-clusters', 'text-halo-width', value);
+      }
+    })
+  ]);
+
+  // Settlement Markers Controls
+  const settlementControls = createControlGroup('Settlement Markers', [
+    createColorPicker('Text Color', '#ffffff', (color) => {
+      if (mapLayers.hasLayer('settlement-points')) {
+        map.setPaintProperty('settlement-points', 'text-color', color);
+      }
+      if (mapLayers.hasLayer('settlement-clusters')) {
+        map.setPaintProperty('settlement-clusters', 'text-color', color);
+      }
+    }),
+    createColorPicker('Halo Color', '#800000', (color) => {
+      if (mapLayers.hasLayer('settlement-points')) {
+        map.setPaintProperty('settlement-points', 'text-halo-color', color);
+      }
+      if (mapLayers.hasLayer('settlement-clusters')) {
+        map.setPaintProperty('settlement-clusters', 'text-halo-color', color);
+      }
+    }),
+    createSlider('Halo Width', 0, 5, 0.1, 2, (value) => {
+      if (mapLayers.hasLayer('settlement-points')) {
+        map.setPaintProperty('settlement-points', 'text-halo-width', value);
+      }
+      if (mapLayers.hasLayer('settlement-clusters')) {
+        map.setPaintProperty('settlement-clusters', 'text-halo-width', value);
+      }
+    })
+  ]);
+
+  // Boundary/Polygon Controls
+  const boundaryControls = createControlGroup('Boundaries (District/Region)', [
+    createColorPicker('Fill Color', '#1a1b1e', (color) => {
+      const layers = map.getStyle().layers.filter(l => l.id.includes('-fill'));
+      layers.forEach(layer => {
+        try {
+          map.setPaintProperty(layer.id, 'fill-color', color);
+        } catch (e) {}
+      });
+    }),
+    createSlider('Fill Opacity', 0, 1, 0.05, 0.15, (value) => {
+      const layers = map.getStyle().layers.filter(l => l.id.includes('-fill'));
+      layers.forEach(layer => {
+        try {
+          map.setPaintProperty(layer.id, 'fill-opacity', value);
+        } catch (e) {}
+      });
+    }),
+    createColorPicker('Border Color', '#888888', (color) => {
+      const layers = map.getStyle().layers.filter(l => l.id.includes('-border'));
+      layers.forEach(layer => {
+        try {
+          map.setPaintProperty(layer.id, 'line-color', color);
+        } catch (e) {}
+      });
+    }),
+    createSlider('Border Width', 0, 5, 0.1, 1, (value) => {
+      const layers = map.getStyle().layers.filter(l => l.id.includes('-border'));
+      layers.forEach(layer => {
+        try {
+          map.setPaintProperty(layer.id, 'line-width', value);
+        } catch (e) {}
+      });
+    }),
+    createSlider('Border Opacity', 0, 1, 0.05, 0.8, (value) => {
+      const layers = map.getStyle().layers.filter(l => l.id.includes('-border'));
+      layers.forEach(layer => {
+        try {
+          map.setPaintProperty(layer.id, 'line-opacity', value);
+        } catch (e) {}
+      });
+    })
+  ]);
+
+  // Area Overlays Controls
+  const areaControls = createControlGroup('Area Overlays (A/B/C)', [
+    createSlider('Area A Opacity', 0, 1, 0.05, 0.25, (value) => {
+      if (mapLayers.hasLayer('area-a-layer')) {
+        map.setPaintProperty('area-a-layer', 'fill-opacity', value);
+      }
+    }),
+    createSlider('Area B Opacity', 0, 1, 0.05, 0.25, (value) => {
+      if (mapLayers.hasLayer('area-b-layer')) {
+        map.setPaintProperty('area-b-layer', 'fill-opacity', value);
+      }
+    }),
+    createSlider('Area C Opacity', 0, 1, 0.05, 0.25, (value) => {
+      if (mapLayers.hasLayer('area-c-layer')) {
+        map.setPaintProperty('area-c-layer', 'fill-opacity', value);
+      }
+    }),
+    createSlider('Firing Zones Opacity', 0, 1, 0.05, 0.25, (value) => {
+      if (mapLayers.hasLayer('firing-zones-layer')) {
+        map.setPaintProperty('firing-zones-layer', 'fill-opacity', value);
+      }
+    })
+  ]);
+
+  // Append all control groups
+  content.appendChild(territoryControls);
+  content.appendChild(regionControls);
+  content.appendChild(districtControls);
+  content.appendChild(localityControls);
+  content.appendChild(settlementControls);
+  content.appendChild(boundaryControls);
+  content.appendChild(areaControls);
+
+  // Reset button
+  const resetButton = document.createElement('button');
+  resetButton.textContent = 'Reset All to Defaults';
+  resetButton.style.cssText = 'width: 100%; padding: 8px; background: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px;';
+  resetButton.addEventListener('click', () => {
+    location.reload();
+  });
+  content.appendChild(resetButton);
+
+  // Toggle functionality
+  document.body.appendChild(panel);
+
+  const toggleButton = document.getElementById('toggle-testing-panel');
+  let isVisible = true;
+  toggleButton.addEventListener('click', () => {
+    isVisible = !isVisible;
+    content.style.display = isVisible ? 'block' : 'none';
+    toggleButton.textContent = isVisible ? 'Hide' : 'Show';
+  });
+
+  console.log('🎨 Visual Testing Controls loaded. Panel appears in top-left corner.');
+}
+
 // DEFERRED: Area key controls - loads after main functionality
 function setupDeferredAreaControls() {
   // Defer loading area controls to improve initial load time
@@ -6563,6 +6881,14 @@ map.on("load", () => {
 // Listen for map idle event to detect when rendering is complete
 map.on('idle', () => {
   loadingTracker.onMapIdle();
+
+  // Initialize visual testing controls after first idle (ensures all layers are loaded)
+  if (!window._visualTestingControlsInitialized) {
+    window._visualTestingControlsInitialized = true;
+    setTimeout(() => {
+      createVisualTestingControls();
+    }, 1000); // Small delay to ensure all layers are ready
+  }
 });
 
 map.addControl(new mapboxgl.GeolocateControl({positionOptions: {enableHighAccuracy: true}, trackUserLocation: true, showUserHeading: true}));
