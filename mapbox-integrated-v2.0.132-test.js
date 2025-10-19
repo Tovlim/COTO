@@ -1010,6 +1010,9 @@ function setupDropdownListeners() {
 
 // Combined GeoJSON loading with better performance
 function loadCombinedGeoData() {
+  console.log('[DEBUG loadCombinedGeoData] ========== FUNCTION CALLED ==========');
+  console.log('[DEBUG loadCombinedGeoData] Callstack:', new Error().stack);
+
   fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.019.geojson')
     .then(response => {
       if (!response.ok) {
@@ -1018,18 +1021,24 @@ function loadCombinedGeoData() {
       return response.json();
     })
     .then(combinedData => {
+      console.log('[DEBUG loadCombinedGeoData] Received combined data with', combinedData.features.length, 'features');
+
       // Batch separate districts and areas
       const districts = [];
       const areas = [];
-      
+
       combinedData.features.forEach(feature => {
         if (feature.properties.type === 'district') {
+          console.log('[DEBUG loadCombinedGeoData] Found district:', feature.properties.name, 'territory:', feature.properties.territory);
           districts.push(feature);
         } else if (feature.properties.type === 'area') {
           areas.push(feature);
         }
       });
-      
+
+      console.log('[DEBUG loadCombinedGeoData] Total districts found:', districts.length);
+      console.log('[DEBUG loadCombinedGeoData] Total areas found:', areas.length);
+
       // Store district-territory mapping for highlighting
       state.districtTerritoryMap = new Map();
 
@@ -1065,6 +1074,8 @@ function loadCombinedGeoData() {
       state.visualContentPromises = [...districtPromises, ...areaPromises];
 
       // Store district features for marker creation
+      console.log('[DEBUG loadCombinedGeoData] Before creating district features, state.allDistrictFeatures length:', state.allDistrictFeatures?.length || 0);
+
       state.allDistrictFeatures = districts.map(districtFeature => ({
         type: "Feature",
         properties: {
@@ -1080,13 +1091,16 @@ function loadCombinedGeoData() {
         }
       }));
 
-      console.log(`Created ${state.allDistrictFeatures.length} district features for markers`);
+      console.log('[DEBUG loadCombinedGeoData] After creating district features, state.allDistrictFeatures length:', state.allDistrictFeatures.length);
+      console.log('[DEBUG loadCombinedGeoData] District features:', state.allDistrictFeatures.map(d => `${d.properties.name} (${d.properties.territory})`));
+
       // Log Israeli districts specifically
       const israeliDistricts = state.allDistrictFeatures.filter(d => d.properties.territory === 'Israel');
-      console.log(`Israeli district markers to create: ${israeliDistricts.length}`, israeliDistricts.map(d => d.properties.name));
+      console.log('[DEBUG loadCombinedGeoData] Israeli district markers to create:', israeliDistricts.length, israeliDistricts.map(d => d.properties.name));
 
       // Update region markers after processing
       state.setTimer('updateRegionMarkers', () => {
+        console.log('[DEBUG loadCombinedGeoData] Timer fired: calling addNativeDistrictMarkers');
         // Add district markers for all districts including Israeli ones
         addNativeDistrictMarkers();
 
@@ -7977,20 +7991,30 @@ function addNativeRegionMarkers() {
 
 // District markers for all districts including Israeli ones
 function addNativeDistrictMarkers() {
+  console.log('[DEBUG addNativeDistrictMarkers] ========== FUNCTION CALLED ==========');
+  console.log('[DEBUG addNativeDistrictMarkers] Callstack:', new Error().stack);
+
   if (!state.allDistrictFeatures || state.allDistrictFeatures.length === 0) {
-    console.log('No district features to add as markers');
+    console.log('[DEBUG addNativeDistrictMarkers] No district features to add as markers');
     return;
   }
 
-  console.log(`Adding ${state.allDistrictFeatures.length} district markers to map`);
+  console.log(`[DEBUG addNativeDistrictMarkers] Adding ${state.allDistrictFeatures.length} district markers to map`);
+  console.log('[DEBUG addNativeDistrictMarkers] District features:', state.allDistrictFeatures.map(d => d.properties.name));
+
+  // Check if source already exists
+  const sourceExists = mapLayers.hasSource('districts-source');
+  console.log('[DEBUG addNativeDistrictMarkers] districts-source exists?', sourceExists);
 
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('districts-source')) {
+      console.log('[DEBUG addNativeDistrictMarkers] UPDATING existing districts-source');
       map.getSource('districts-source').setData({
         type: "FeatureCollection",
         features: state.allDistrictFeatures
       });
     } else {
+      console.log('[DEBUG addNativeDistrictMarkers] CREATING new districts-source');
       map.addSource('districts-source', {
         type: 'geojson',
         data: {
