@@ -1063,13 +1063,35 @@ function loadCombinedGeoData() {
       
       // Store promises for later awaiting (using spread is faster than concat)
       state.visualContentPromises = [...districtPromises, ...areaPromises];
-      
+
+      // Store district features for marker creation
+      state.allDistrictFeatures = districts.map(districtFeature => ({
+        type: "Feature",
+        properties: {
+          name: districtFeature.properties.name,
+          territory: districtFeature.properties.territory,
+          type: "district"
+        },
+        geometry: {
+          type: "Point",
+          // Calculate centroid for the district
+          coordinates: utils.calculateCentroid(districtFeature.geometry.coordinates)
+        }
+      }));
+
+      console.log(`Created ${state.allDistrictFeatures.length} district features for markers`);
+      // Log Israeli districts specifically
+      const israeliDistricts = state.allDistrictFeatures.filter(d => d.properties.territory === 'Israel');
+      console.log(`Israeli district markers to create: ${israeliDistricts.length}`, israeliDistricts.map(d => d.properties.name));
+
       // Update region markers after processing
       state.setTimer('updateRegionMarkers', () => {
         addNativeRegionMarkers();
-        
+        // Add district markers for all districts including Israeli ones
+        addNativeDistrictMarkers();
+
         state.setTimer('finalLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
-        
+
         // GeoData loaded
       }, 100);
     })
@@ -6375,7 +6397,9 @@ class OptimizedMapState {
     this.allLocalityFeatures = [];
     this.allSettlementFeatures = [];
     this.allRegionFeatures = [];
-    this.allSubregionFeatures = []; // ADD THIS LINE
+    this.allSubregionFeatures = [];
+    this.allDistrictFeatures = []; // Add district features storage
+    this.allTerritoryFeatures = []; // Already initialized elsewhere but adding here for completeness
     this.timers = new Map();
     this.lastClickedMarker = null;
     this.lastClickTime = 0;
@@ -7942,6 +7966,145 @@ function addNativeRegionMarkers() {
   });
   
   setupRegionMarkerClicks();
+}
+
+// District markers for all districts including Israeli ones
+function addNativeDistrictMarkers() {
+  if (!state.allDistrictFeatures || state.allDistrictFeatures.length === 0) {
+    console.log('No district features to add as markers');
+    return;
+  }
+
+  console.log(`Adding ${state.allDistrictFeatures.length} district markers to map`);
+
+  mapLayers.addToBatch(() => {
+    if (mapLayers.hasSource('districts-source')) {
+      map.getSource('districts-source').setData({
+        type: "FeatureCollection",
+        features: state.allDistrictFeatures
+      });
+    } else {
+      map.addSource('districts-source', {
+        type: 'geojson',
+        data: {
+          type: "FeatureCollection",
+          features: state.allDistrictFeatures
+        }
+      });
+
+      // Add district points layer with styling similar to regions but slightly different
+      map.addLayer({
+        id: 'district-points',
+        type: 'symbol',
+        source: 'districts-source',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Regular'],
+          'text-size': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7, 11,    // Slightly smaller than regions at low zoom
+            10, 15,   // Slightly smaller than regions at mid zoom
+            14, 17    // Slightly smaller than regions at high zoom
+          ],
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-optional': true,
+          'text-padding': 5,
+          'text-offset': [0, 0],
+          'text-anchor': 'center',
+          'symbol-sort-key': 8 // Lower priority than regions (10) but higher than localities
+        },
+        paint: {
+          'text-color': '#ffffff',
+          'text-halo-color': '#4a2500', // Slightly different brown than regions (#6e3500)
+          'text-halo-width': 2,
+          'text-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            6, 0,
+            7, 1  // Appear at zoom 7 (regions appear at zoom 6)
+          ]
+        }
+      });
+
+      console.log('District markers layer added successfully');
+      mapLayers.invalidateCache();
+    }
+  });
+
+  setupDistrictMarkerClicks();
+}
+
+// Setup district marker click handlers
+function setupDistrictMarkerClicks() {
+  const districtClickHandler = (e) => {
+    // District has priority 2.5 (between territory/region and subregion)
+    const myPriority = 2.5;
+
+    // Only handle if no one has claimed priority yet, or if we have higher priority
+    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
+      state.clickPriority = myPriority;
+    } else {
+      return; // Someone with equal or higher priority already claimed it
+    }
+
+    const feature = e.features[0];
+    const districtName = feature.properties.name;
+    const territory = feature.properties.territory;
+
+    console.log(`District marker clicked: ${districtName} (${territory})`);
+
+    // Prevent rapid clicks
+    const currentTime = Date.now();
+    const markerKey = `district-${districtName}`;
+    if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      return;
+    }
+
+    state.markerInteractionLock = true;
+    state.lastClickedMarker = markerKey;
+    state.lastClickTime = currentTime;
+    window.isMarkerClick = true;
+
+    // Select the district as a region checkbox (districts use Governorate checkboxes)
+    selectRegionCheckbox(districtName);
+    toggleShowWhenFilteredElements(true);
+    toggleSidebar('Left', true);
+
+    // Highlight the district boundary
+    highlightBoundary(districtName);
+
+    // Frame the district boundary
+    const boundarySourceId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-boundary`;
+    if (map.getSource(boundarySourceId)) {
+      frameRegionBoundary(districtName);
+    } else {
+      // If no boundary, fly to the district center
+      map.flyTo({
+        center: feature.geometry.coordinates,
+        zoom: 10,
+        duration: 1000,
+        essential: true
+      });
+    }
+
+    state.setTimer('districtMarkerCleanup', () => {
+      window.isMarkerClick = false;
+      state.markerInteractionLock = false;
+    }, 800);
+
+    // Reset priority quickly for next click
+    state.setTimer('resetClickPriority', () => {
+      state.clickPriority = 999;
+    }, 50);
+  };
+
+  map.on('click', 'district-points', districtClickHandler);
+  map.on('mouseenter', 'district-points', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'district-points', () => map.getCanvas().style.cursor = '');
 }
 
 // Event setup with proper management and delegation
