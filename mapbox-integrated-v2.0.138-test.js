@@ -136,7 +136,7 @@ const APP_CONFIG = {
     idle: 5000
   },
   urls: {
-    localities: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/localities-0.010.geojson',
+    localities: 'https://webflow-geojson.occupation-crimes.workers.dev/',
     settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.006.geojson'
   },
   features: {
