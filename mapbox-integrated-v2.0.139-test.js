@@ -137,7 +137,7 @@ const APP_CONFIG = {
   },
   urls: {
     localities: 'https://webflow-geojson.occupation-crimes.workers.dev/',
-    settlements: 'https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/settlements-0.006.geojson'
+    settlements: 'https://webflow-settlements-geojson.occupation-crimes.workers.dev/'
   },
   features: {
     enableCache: true,
