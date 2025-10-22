@@ -1,7 +1,7 @@
 /*!
- * Checkbox Filter with Pagination Support v1.0.0
+ * Checkbox Filter with Pagination Support v1.1.0
  * Real-time checkbox filtering with fuzzy search and seamless pagination
- * Compatible with Webflow CMS and seamless-load-more.html
+ * Compatible with Webflow CMS, seamless-load-more.html, and Finsweet CMS Filter
  *
  * Features:
  * - Real-time search with fuzzy matching
@@ -9,6 +9,7 @@
  * - Persistent checked states across searches and pagination
  * - Multiple container support
  * - Automatic state restoration
+ * - Full Finsweet CMS Filter integration (syncs with tag-remove)
  */
 
 (function() {
@@ -90,6 +91,12 @@
       setupMutationObserver();
       setupLoadMoreHandlers();
       loadAllPaginatedItems();
+
+      // Sync with Finsweet on initial load
+      setTimeout(() => {
+        syncCheckboxStatesWithFinsweet();
+      }, 100);
+
       isInitialized = true;
       isInitializing = false;
     } catch (error) {
@@ -439,6 +446,125 @@
     return score;
   }
 
+  // Finsweet integration for tag removal
+  function setupFinsweetIntegration() {
+    try {
+      // Listen for Finsweet filter events
+      const finsweetEvents = [
+        'fs-cmsfilter-change',
+        'fs-cmsfilter-reset',
+        'fs-cmsfilter-click'
+      ];
+
+      finsweetEvents.forEach(eventName => {
+        const handler = (e) => {
+          // Sync checkbox states with Finsweet active filters
+          syncCheckboxStatesWithFinsweet();
+        };
+
+        document.addEventListener(eventName, handler);
+
+        if (!cache.eventListeners.has('finsweet')) {
+          cache.eventListeners.set('finsweet', []);
+        }
+        cache.eventListeners.get('finsweet').push({
+          element: document,
+          event: eventName,
+          handler: handler
+        });
+      });
+
+      // Listen for clicks on tag-remove elements using event delegation
+      const tagRemoveHandler = (e) => {
+        const tagRemove = e.target.closest('[fs-list-element="tag-remove"]');
+        if (!tagRemove) return;
+
+        // Small delay to let Finsweet process the removal
+        setTimeout(() => {
+          syncCheckboxStatesWithFinsweet();
+        }, 50);
+      };
+
+      document.addEventListener('click', tagRemoveHandler, true);
+
+      if (!cache.eventListeners.has('finsweet')) {
+        cache.eventListeners.set('finsweet', []);
+      }
+      cache.eventListeners.get('finsweet').push({
+        element: document,
+        event: 'click',
+        handler: tagRemoveHandler
+      });
+
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // Sync checkbox states with Finsweet active filters
+  function syncCheckboxStatesWithFinsweet() {
+    try {
+      // Get all active Finsweet filter tags
+      const activeTags = document.querySelectorAll('[fs-list-element="tag-label"]');
+      const activeValues = new Set();
+
+      activeTags.forEach(tag => {
+        const value = tag.textContent?.trim();
+        if (value) {
+          activeValues.add(value.toLowerCase());
+        }
+      });
+
+      // Check all checkboxes and sync their state
+      cache.checkboxGroups.forEach((checkboxData, groupName) => {
+        checkboxData.forEach(item => {
+          if (!item.element) return;
+
+          const labelText = item.labelText.toLowerCase();
+          const isActive = activeValues.has(labelText);
+          const checkbox = item.element.querySelector('input[type="checkbox"]');
+          const label = item.element.querySelector('label');
+          const checkboxInput = item.element.querySelector('.w-checkbox-input');
+
+          // Update checked state to match Finsweet
+          if (checkbox) {
+            checkbox.checked = isActive;
+          }
+
+          // Update visual classes
+          if (label) {
+            if (isActive) {
+              label.classList.add('is-list-active');
+            } else {
+              label.classList.remove('is-list-active');
+            }
+          }
+
+          if (checkboxInput) {
+            if (isActive) {
+              checkboxInput.classList.add('w--redirected-checked');
+            } else {
+              checkboxInput.classList.remove('w--redirected-checked');
+            }
+          }
+        });
+      });
+
+      // Also update persistent checked states
+      cache.persistentCheckedStates.forEach((groupStates, groupName) => {
+        groupStates.forEach((isChecked, labelText) => {
+          const shouldBeChecked = activeValues.has(labelText.toLowerCase());
+          if (isChecked !== shouldBeChecked) {
+            groupStates.set(labelText, shouldBeChecked);
+          }
+        });
+      });
+
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
   function setupEventListeners() {
     try {
       cleanupEventListeners();
@@ -473,6 +599,9 @@
           handler: handler
         });
       });
+
+      // Finsweet filter integration - listen for tag removal
+      setupFinsweetIntegration();
     } catch (error) {
       // Silently fail
     }
@@ -894,6 +1023,11 @@
           }
         });
       });
+    },
+
+    // Manually sync checkboxes with Finsweet filters
+    syncWithFinsweet() {
+      syncCheckboxStatesWithFinsweet();
     }
   };
 
