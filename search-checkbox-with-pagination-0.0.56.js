@@ -1,5 +1,5 @@
 /*!
- * Checkbox Filter with Pagination Support v1.4.0
+ * Checkbox Filter with Pagination Support v1.4.1
  * Real-time checkbox filtering with fuzzy search and seamless pagination
  * Compatible with Webflow CMS, seamless-load-more.html, and Finsweet CMS Filter
  *
@@ -13,6 +13,13 @@
  * - Advanced performance optimizations (batching, WeakMap caching)
  * - Custom events for integration with other scripts
  * - Intelligent parallel page loading (Finsweet-inspired)
+ *
+ * Changelog v1.4.1 (Loading Indicator):
+ * - Added simple, barebones loading indicator during pagination loading
+ * - Shows progress counter for parallel loading (e.g., "Loading checkboxes... (3/8)")
+ * - Automatically created or uses custom element with [checkbox-filter-loading]
+ * - Can be disabled with CONFIG.SHOW_LOADING_INDICATOR = false
+ * - Auto-hides when loading completes
  *
  * Changelog v1.4.0 (Parallel Loading Optimization):
  * - Added intelligent page count detection from pagination elements
@@ -58,11 +65,13 @@
       SEAMLESS_CONTAINER: '[seamless-replace="true"]',
       PAGINATION_WRAPPER: '.w-pagination-wrapper',
       PAGINATION_NEXT: '.w-pagination-next',
-      DYN_ITEM: '.w-dyn-item'
+      DYN_ITEM: '.w-dyn-item',
+      LOADING_INDICATOR: '[checkbox-filter-loading]' // Optional custom indicator
     },
     SCORE_THRESHOLD: 0.3,
     RESTORE_DELAY: 200,
-    DEBUG_MODE: false // Set to true for console warnings
+    DEBUG_MODE: false, // Set to true for console warnings
+    SHOW_LOADING_INDICATOR: true // Set to false to disable loading indicator
   };
 
   // Cache for checkbox elements and paginated data
@@ -114,6 +123,58 @@
   let syncDebounceTimer = null;
   let pendingCheckboxUpdates = new Map();
   let updateAnimationFrame = null;
+  let loadingIndicator = null;
+
+  // ====================================================================
+  // LOADING INDICATOR
+  // ====================================================================
+
+  function createLoadingIndicator() {
+    if (!CONFIG.SHOW_LOADING_INDICATOR) return null;
+
+    // Check for custom indicator element
+    const customIndicator = document.querySelector(CONFIG.SELECTORS.LOADING_INDICATOR);
+    if (customIndicator) {
+      customIndicator.style.display = 'none';
+      return customIndicator;
+    }
+
+    // Create default barebone indicator
+    const indicator = document.createElement('div');
+    indicator.setAttribute('checkbox-filter-loading', '');
+    indicator.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 999999;
+      display: none;
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    indicator.textContent = 'Loading checkboxes...';
+    document.body.appendChild(indicator);
+
+    return indicator;
+  }
+
+  function showLoadingIndicator() {
+    if (!loadingIndicator || !CONFIG.SHOW_LOADING_INDICATOR) return;
+    loadingIndicator.style.display = 'block';
+  }
+
+  function hideLoadingIndicator() {
+    if (!loadingIndicator || !CONFIG.SHOW_LOADING_INDICATOR) return;
+    loadingIndicator.style.display = 'none';
+  }
+
+  function updateLoadingIndicator(text) {
+    if (!loadingIndicator || !CONFIG.SHOW_LOADING_INDICATOR) return;
+    loadingIndicator.textContent = text;
+  }
 
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
@@ -127,6 +188,10 @@
       if (isInitializing) return;
 
       isInitializing = true;
+
+      // Create loading indicator
+      loadingIndicator = createLoadingIndicator();
+
       setupElements();
       setupEventListeners();
       initializeGroups();
@@ -143,6 +208,7 @@
       isInitializing = false;
     } catch (error) {
       isInitializing = false;
+      hideLoadingIndicator();
       utils.logError('initializeFilters', error);
     }
   }
@@ -239,6 +305,11 @@
   function loadAllPaginatedItems() {
     try {
       const containers = document.querySelectorAll('[seamless-replace="true"]');
+
+      // Show loading indicator if there are containers to load
+      if (containers.length > 0) {
+        showLoadingIndicator();
+      }
 
       containers.forEach((container, containerIndex) => {
         const containerKey = `container_${containerIndex}`;
@@ -338,8 +409,12 @@
       console.log(`[CheckboxFilter] Loading ${totalPages} pages in parallel using param: ${paginationParam}`);
     }
 
+    // Update loading indicator
+    updateLoadingIndicator(`Loading checkboxes... (0/${totalPages - 1})`);
+
     // Create fetch promises for all pages (starting from page 2)
     const fetchPromises = [];
+    let pagesLoaded = 0;
 
     for (let pageNumber = 2; pageNumber <= totalPages; pageNumber++) {
       const pagePromise = (async () => {
@@ -380,6 +455,10 @@
 
             containerData.pagesLoaded.add(pageUrl);
           }
+
+          // Update progress
+          pagesLoaded++;
+          updateLoadingIndicator(`Loading checkboxes... (${pagesLoaded}/${totalPages - 1})`);
         } catch (error) {
           utils.logError(`loadPagesInParallel page ${pageNumber}`, error);
         }
@@ -393,6 +472,7 @@
 
     containerData.isLoading = false;
     updateGroupsWithPaginatedData(containerKey);
+    hideLoadingIndicator();
 
     if (CONFIG.DEBUG_MODE) {
       console.log(`[CheckboxFilter] Parallel loading complete. Loaded ${containerData.pagesLoaded.size} pages`);
@@ -404,6 +484,7 @@
     if (!containerData || containerData.pagesLoaded.has(nextUrl)) {
       containerData.isLoading = false;
       updateGroupsWithPaginatedData(containerKey);
+      hideLoadingIndicator();
       return;
     }
 
@@ -435,15 +516,18 @@
           } else {
             containerData.isLoading = false;
             updateGroupsWithPaginatedData(containerKey);
+            hideLoadingIndicator();
           }
         } else {
           containerData.isLoading = false;
           updateGroupsWithPaginatedData(containerKey);
+          hideLoadingIndicator();
         }
       })
       .catch(() => {
         containerData.isLoading = false;
         updateGroupsWithPaginatedData(containerKey);
+        hideLoadingIndicator();
       });
   }
 
