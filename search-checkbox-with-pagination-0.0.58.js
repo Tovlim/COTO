@@ -1096,10 +1096,10 @@
       if (isLoadMoreMode) {
         // Load More mode - search through all items
         let targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
-        let targetContainer = seamlessContainer;
+        let loadMoreTargetContainer = seamlessContainer;
 
-        if (targetContainer) {
-          itemsContainer = targetContainer.querySelector('.w-dyn-items');
+        if (loadMoreTargetContainer) {
+          itemsContainer = loadMoreTargetContainer.querySelector('.w-dyn-items');
         }
 
         if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
@@ -1127,7 +1127,7 @@
 
             if (showAll) {
               // Restore normal pagination display
-              const container = targetContainer;
+              const container = loadMoreTargetContainer;
               if (container) {
                 const targetItemsContainer = container.querySelector('.w-dyn-items');
                 if (targetItemsContainer) {
@@ -1175,8 +1175,8 @@
                   }
 
                   // Hide searching indicator after restoring pagination
-                  if (targetContainer) {
-                    hideSearchingIndicator(targetContainer);
+                  if (loadMoreTargetContainer) {
+                    hideSearchingIndicator(loadMoreTargetContainer);
                   }
                 }
               }
@@ -1232,8 +1232,8 @@
               });
 
               // Hide searching indicator after search completes
-              if (targetContainer) {
-                hideSearchingIndicator(targetContainer);
+              if (loadMoreTargetContainer) {
+                hideSearchingIndicator(loadMoreTargetContainer);
               }
             }
           }
