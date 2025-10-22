@@ -1,5 +1,5 @@
 /*!
- * Checkbox Filter with Pagination Support v1.5.0
+ * Checkbox Filter with Pagination Support v1.6.0
  * Real-time checkbox filtering with fuzzy search and seamless pagination
  * Compatible with Webflow CMS, seamless-load-more.html, and Finsweet CMS Filter
  *
@@ -13,13 +13,21 @@
  * - Advanced performance optimizations (batching, WeakMap caching)
  * - Custom events for integration with other scripts
  * - Intelligent parallel page loading (Finsweet-inspired)
+ * - Real-time search during pagination loading
  * - User-controlled searching indicator
+ *
+ * Changelog v1.6.0 (Real-time Search During Pagination):
+ * - MAJOR: Search now works in real-time while pages are still loading
+ * - Results appear incrementally as matching checkboxes are found
+ * - Searching indicator stays visible until all pages are searched
+ * - Each page is filtered immediately as it loads if user is searching
+ * - Dramatically improved user experience - no more "false negatives"
+ * - Users can search immediately without waiting for all pages to load
  *
  * Changelog v1.5.0 (Searching Indicator):
  * - Replaced auto-created loading indicator with user-controlled searching indicator
  * - Uses custom div with attribute seamless-replace="searching-indicator" inside each container
  * - Shows indicator (display: flex) ONLY when actively searching checkboxes
- * - Does NOT show when loading pagination pages
  * - Fails silently if indicator element doesn't exist
  * - No animations or transitions for instant feedback
  *
@@ -125,47 +133,36 @@
   let updateAnimationFrame = null;
   let loadingIndicator = null;
 
+  // Track active search terms per group for filtering during pagination
+  const activeSearchTerms = new Map(); // groupName -> searchTerm
+
   // ====================================================================
   // SEARCHING INDICATOR
   // ====================================================================
 
   function showSearchingIndicator(container) {
-    if (!container) {
-      console.log('[SearchIndicator] showSearchingIndicator called with no container');
-      return;
-    }
+    if (!container) return;
 
     try {
       const indicator = container.querySelector('[seamless-replace="searching-indicator"]');
-      console.log('[SearchIndicator] Trying to show indicator. Container:', container);
-      console.log('[SearchIndicator] Found indicator:', indicator);
       if (indicator) {
         indicator.style.display = 'flex';
-        console.log('[SearchIndicator] ✅ Indicator shown (display: flex)');
-      } else {
-        console.log('[SearchIndicator] ⚠️ No indicator element found with [seamless-replace="searching-indicator"]');
       }
     } catch (error) {
-      console.error('[SearchIndicator] Error showing indicator:', error);
+      // Silently fail
     }
   }
 
   function hideSearchingIndicator(container) {
-    if (!container) {
-      console.log('[SearchIndicator] hideSearchingIndicator called with no container');
-      return;
-    }
+    if (!container) return;
 
     try {
       const indicator = container.querySelector('[seamless-replace="searching-indicator"]');
-      console.log('[SearchIndicator] Trying to hide indicator. Container:', container);
-      console.log('[SearchIndicator] Found indicator:', indicator);
       if (indicator) {
         indicator.style.display = 'none';
-        console.log('[SearchIndicator] ✅ Indicator hidden (display: none)');
       }
     } catch (error) {
-      console.error('[SearchIndicator] Error hiding indicator:', error);
+      // Silently fail
     }
   }
 
@@ -442,6 +439,25 @@
               if (groupName && labelText && !containerData.allCheckboxes.some(item =>
                 item.groupName === groupName && item.labelText === labelText)) {
                 containerData.allCheckboxes.push({ groupName, labelText, element: checkbox.cloneNode(true) });
+
+                // Immediately add to cache groups if there's an active search
+                const searchTerm = activeSearchTerms.get(groupName);
+                if (searchTerm !== undefined) {
+                  const checkboxData = cache.checkboxGroups.get(groupName);
+                  if (checkboxData && !checkboxData.some(item => item.labelText === labelText)) {
+                    checkboxData.push({
+                      element: checkbox.cloneNode(true),
+                      labelText: labelText,
+                      normalizedText: utils.normalizeText(labelText),
+                      searchTokens: createSearchTokens(labelText),
+                      isVisible: false,
+                      isPaginated: true
+                    });
+
+                    // Trigger filter update for this group
+                    filterCheckboxGroup(groupName, searchTerm);
+                  }
+                }
               }
             });
 
@@ -463,6 +479,13 @@
 
     containerData.isLoading = false;
     updateGroupsWithPaginatedData(containerKey);
+
+    // Hide searching indicator now that pagination is complete
+    // Check if there's still an active search for any group in this container
+    const hasActiveSearch = Array.from(activeSearchTerms.values()).some(term => term !== '');
+    if (hasActiveSearch) {
+      hideSearchingIndicator(container);
+    }
 
     if (CONFIG.DEBUG_MODE) {
       console.log(`[CheckboxFilter] Parallel loading complete. Loaded ${containerData.pagesLoaded.size} pages`);
@@ -1071,13 +1094,16 @@
         }
       }
 
-      // Show searching indicator when actually searching (not when clearing)
-      console.log('[FilterCheckbox] showAll:', showAll, 'targetContainer:', targetContainer);
-      if (!showAll && targetContainer) {
-        console.log('[FilterCheckbox] About to show searching indicator');
-        showSearchingIndicator(targetContainer);
+      // Track the active search term for this group
+      if (showAll) {
+        activeSearchTerms.delete(groupName);
       } else {
-        console.log('[FilterCheckbox] NOT showing indicator. showAll:', showAll, 'targetContainer exists:', !!targetContainer);
+        activeSearchTerms.set(groupName, searchTerm);
+      }
+
+      // Show searching indicator when actually searching (not when clearing)
+      if (!showAll && targetContainer) {
+        showSearchingIndicator(targetContainer);
       }
 
       if (!itemsContainer && firstGroupCheckbox) {
@@ -1111,7 +1137,11 @@
         isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
       }
 
-      console.log('[FilterCheckbox] Mode detection - isLoadMoreMode:', isLoadMoreMode);
+      // Check if pagination is still loading
+      const containerIndex = targetContainer ? Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer) : -1;
+      const containerKey = containerIndex >= 0 ? `container_${containerIndex}` : null;
+      const containerData = containerKey ? cache.paginatedData.get(containerKey) : null;
+      const isPaginationLoading = containerData?.isLoading || false;
 
       if (isLoadMoreMode) {
         // Load More mode - search through all items
@@ -1194,8 +1224,8 @@
                     Webflow.require('ix2').init();
                   }
 
-                  // Hide searching indicator after restoring pagination
-                  if (loadMoreTargetContainer) {
+                  // Hide searching indicator only if pagination is complete
+                  if (loadMoreTargetContainer && !isPaginationLoading) {
                     hideSearchingIndicator(loadMoreTargetContainer);
                   }
                 }
@@ -1251,8 +1281,8 @@
                 }
               });
 
-              // Hide searching indicator after search completes
-              if (loadMoreTargetContainer) {
+              // Hide searching indicator only if pagination is complete
+              if (loadMoreTargetContainer && !isPaginationLoading) {
                 hideSearchingIndicator(loadMoreTargetContainer);
               }
             }
@@ -1294,15 +1324,15 @@
         elementsToShow.forEach(item => showElement(item.element));
         elementsToHide.forEach(item => hideElement(item.element));
 
-        // Hide searching indicator after filtering completes
-        if (targetContainer) {
+        // Hide searching indicator only if pagination is complete
+        if (targetContainer && !isPaginationLoading) {
           hideSearchingIndicator(targetContainer);
         }
       });
     } catch (error) {
       // Silently fail
-      // Hide indicator on error too
-      if (targetContainer) {
+      // Hide indicator on error only if pagination is complete
+      if (targetContainer && !isPaginationLoading) {
         hideSearchingIndicator(targetContainer);
       }
     }
