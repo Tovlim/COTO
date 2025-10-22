@@ -130,28 +130,42 @@
   // ====================================================================
 
   function showSearchingIndicator(container) {
-    if (!container) return;
+    if (!container) {
+      console.log('[SearchIndicator] showSearchingIndicator called with no container');
+      return;
+    }
 
     try {
       const indicator = container.querySelector('[seamless-replace="searching-indicator"]');
+      console.log('[SearchIndicator] Trying to show indicator. Container:', container);
+      console.log('[SearchIndicator] Found indicator:', indicator);
       if (indicator) {
         indicator.style.display = 'flex';
+        console.log('[SearchIndicator] ✅ Indicator shown (display: flex)');
+      } else {
+        console.log('[SearchIndicator] ⚠️ No indicator element found with [seamless-replace="searching-indicator"]');
       }
     } catch (error) {
-      // Silently fail
+      console.error('[SearchIndicator] Error showing indicator:', error);
     }
   }
 
   function hideSearchingIndicator(container) {
-    if (!container) return;
+    if (!container) {
+      console.log('[SearchIndicator] hideSearchingIndicator called with no container');
+      return;
+    }
 
     try {
       const indicator = container.querySelector('[seamless-replace="searching-indicator"]');
+      console.log('[SearchIndicator] Trying to hide indicator. Container:', container);
+      console.log('[SearchIndicator] Found indicator:', indicator);
       if (indicator) {
         indicator.style.display = 'none';
+        console.log('[SearchIndicator] ✅ Indicator hidden (display: none)');
       }
     } catch (error) {
-      // Silently fail
+      console.error('[SearchIndicator] Error hiding indicator:', error);
     }
   }
 
@@ -1058,8 +1072,12 @@
       }
 
       // Show searching indicator when actually searching (not when clearing)
+      console.log('[FilterCheckbox] showAll:', showAll, 'targetContainer:', targetContainer);
       if (!showAll && targetContainer) {
+        console.log('[FilterCheckbox] About to show searching indicator');
         showSearchingIndicator(targetContainer);
+      } else {
+        console.log('[FilterCheckbox] NOT showing indicator. showAll:', showAll, 'targetContainer exists:', !!targetContainer);
       }
 
       if (!itemsContainer && firstGroupCheckbox) {
@@ -1092,6 +1110,8 @@
         const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
         isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
       }
+
+      console.log('[FilterCheckbox] Mode detection - isLoadMoreMode:', isLoadMoreMode);
 
       if (isLoadMoreMode) {
         // Load More mode - search through all items
