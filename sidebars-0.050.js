@@ -1,20 +1,19 @@
 // ====================================================================
 // SHARED CORE MODULE - Loads on ALL pages
-// Contains: DOM cache, Event manager, Sidebars, Checkboxes, GeoJSON caching
-// Version: 1.3.1 - PAGESPEED OPTIMIZED - Core Web Vitals Enhanced
-// 
+// Contains: DOM cache, Event manager, Sidebars, GeoJSON caching
+// Version: 1.4.0 - PAGESPEED OPTIMIZED - Core Web Vitals Enhanced
+//
+// Changes in v1.4.0:
+// - Removed checkbox generation functionality (localities/settlements)
+// - Checkboxes should now be pre-rendered on the page
+//
 // Changes in v1.3.1:
 // - Added AdvancedScheduler with scheduler.postTask support for background operations
 // - Implemented lazy event delegation setup to improve FID scores
 // - Added resource preloading and DNS prefetch hints for better LCP
 // - Enhanced memory management and cleanup for optimal performance
 // - Deferred non-critical initialization to minimize blocking time
-// 
-// Changes in v1.2.0:
-// - Deferred checkbox generation with requestIdleCallback
-// - Shows loading states during checkbox generation
-// - Prevents duplicate checkbox generation with state tracking
-// 
+//
 // Changes in v1.1.0:
 // - Added SafeStorage wrapper for robust localStorage handling
 // - Updated cache duration from 24 hours to 7 days
@@ -446,393 +445,10 @@
   };
   
   // ====================================================================
-  // CHECKBOX GENERATION (Lazy-loaded)
+  // CHECKBOX GENERATION - REMOVED
   // ====================================================================
-  const checkboxState = {
-    localitiesGenerated: false,
-    settlementsGenerated: false,
-    isGenerating: false,
-    generationPromise: null,
-    generatedCheckboxes: new Set() // Track individual generated checkboxes
-  };
-  
-  // Generate a single checkbox for a specific name and type
-  async function generateSingleCheckbox(type, name, containerId, fieldName) {
-    const container = $id(containerId);
-    if (!container) {
-      console.warn(`Target container #${containerId} not found`);
-      return false;
-    }
-    
-    // Check if already generated
-    const checkboxKey = `${type}:${name}`;
-    if (checkboxState.generatedCheckboxes.has(checkboxKey)) {
-      return true;
-    }
-    
-    try {
-      // Get data to find the specific feature
-      const data = await geoCache.fetch(type);
-      const feature = data.features.find(f => f.properties.name === name);
-      
-      if (!feature) {
-        console.warn(`Feature '${name}' not found in ${type} data`);
-        return false;
-      }
-      
-      // Generate the checkbox HTML
-      const slug = feature.properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
-      const filterType = type === 'settlements' ? 'settlement' : 'locality';
-      
-      const wrapperDiv = document.createElement('div');
-      wrapperDiv.setAttribute('checkbox-filter', filterType);
-      wrapperDiv.className = 'checbox-item';
-      
-      const label = document.createElement('label');
-      label.className = 'w-checkbox reporterwrap-copy';
-      
-      const link = document.createElement('a');
-      link.setAttribute('open', '');
-      link.href = `/${urlPrefix}/${slug}`;
-      link.target = '_blank';
-      link.className = 'open-in-new-tab w-inline-block';
-      link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-      
-      const checkboxDiv = document.createElement('div');
-      checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-      
-      const input = document.createElement('input');
-      input.setAttribute('data-auto-sidebar', 'true');
-      input.setAttribute('fs-list-value', name);
-      input.setAttribute('fs-list-field', fieldName);
-      input.type = 'checkbox';
-      input.name = filterType;
-      input.setAttribute('data-name', filterType);
-      input.setAttribute('activate-filter-indicator', 'place');
-      input.id = `${type}-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-      input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
-      
-      const span = document.createElement('span');
-      span.className = 'test3 w-form-label';
-      span.setAttribute('for', input.id);
-      span.textContent = name;
-      
-      const countContainer = document.createElement('div');
-      countContainer.className = 'div-block-31834';
-      const countDiv = document.createElement('div');
-      countDiv.setAttribute('fs-list-element', 'facet-count');
-      countDiv.className = 'test33';
-      countDiv.textContent = '0';
-      countContainer.appendChild(countDiv);
-      
-      label.appendChild(link);
-      label.appendChild(checkboxDiv);
-      label.appendChild(input);
-      label.appendChild(span);
-      label.appendChild(countContainer);
-      wrapperDiv.appendChild(label);
-      
-      // Insert in alphabetical order
-      const existingItems = Array.from(container.querySelectorAll('.checbox-item'));
-      let inserted = false;
-      
-      for (let i = 0; i < existingItems.length; i++) {
-        const existingName = existingItems[i].querySelector('span.test3').textContent;
-        if (name.localeCompare(existingName) < 0) {
-          container.insertBefore(wrapperDiv, existingItems[i]);
-          inserted = true;
-          break;
-        }
-      }
-      
-      if (!inserted) {
-        container.appendChild(wrapperDiv);
-      }
-      
-      // Track the generated checkbox
-      checkboxState.generatedCheckboxes.add(checkboxKey);
-      
-      
-      domCache.markStale();
-      domCache.refresh();
-      
-      setupGeneratedCheckboxEvents();
-      
-      // Refresh search script cache if available
-      IdleExecution.scheduleUI(() => {
-        if (window.checkboxFilterScript) {
-          window.checkboxFilterScript.recacheElements();
-        }
-      }, { fallbackDelay: 50 });
-      
-      return true;
-      
-    } catch (error) {
-      console.error(`Failed to generate single checkbox for ${name} (${type}):`, error);
-      return false;
-    }
-  }
+  // Checkbox generation has been removed. Checkboxes should be pre-rendered on the page.
 
-  async function generateCheckboxes(type, containerId, fieldName) {
-    const container = $id(containerId);
-    if (!container) {
-      console.warn(`Target container #${containerId} not found`);
-      return;
-    }
-    
-    try {
-      const data = await geoCache.fetch(type);
-      
-      // Extract unique features with valid names
-      const uniqueFeatures = [];
-      const seenNames = new Set();
-      
-      data.features.forEach(feature => {
-        const name = feature.properties.name;
-        if (name && name.trim() !== '' && !seenNames.has(name)) {
-          seenNames.add(name);
-          uniqueFeatures.push(feature);
-        }
-      });
-      
-      // Sort by name
-      uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
-      
-      if (uniqueFeatures.length === 0) {
-        console.warn(`No valid ${type} features found in GeoJSON data`);
-        return;
-      }
-      
-      // Clear existing content
-      container.innerHTML = '';
-      
-      // Generate checkboxes using document fragment
-      const fragment = document.createDocumentFragment();
-      
-      uniqueFeatures.forEach(feature => {
-        const name = feature.properties.name;
-        const slug = feature.properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        const urlPrefix = type === 'settlements' ? 'settlement' : 'locality';
-        
-        const wrapperDiv = document.createElement('div');
-        // Use singular form for checkbox-filter attribute to match search expectations
-        const filterType = type === 'settlements' ? 'settlement' : 'locality';
-        wrapperDiv.setAttribute('checkbox-filter', filterType);
-        wrapperDiv.className = 'checbox-item';
-        
-        const label = document.createElement('label');
-        label.className = 'w-checkbox reporterwrap-copy';
-        
-        // Create the link element
-        const link = document.createElement('a');
-        link.setAttribute('open', '');
-        link.href = `/${urlPrefix}/${slug}`;
-        link.target = '_blank';
-        link.className = 'open-in-new-tab w-inline-block';
-        link.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" id="Layer_1" viewBox="0 0 151.49 151.49" width="100%" fill="currentColor" class="svg-3"><polygon class="cls-1" points="151.49 0 151.49 151.49 120.32 151.49 120.32 53.21 22.04 151.49 0 129.45 98.27 31.17 0 31.17 0 0 151.49 0"></polygon></svg>';
-        
-        const checkboxDiv = document.createElement('div');
-        checkboxDiv.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-        
-        const input = document.createElement('input');
-        input.setAttribute('data-auto-sidebar', 'true');
-        input.setAttribute('fs-list-value', name);
-        input.setAttribute('fs-list-field', fieldName);
-        input.type = 'checkbox';
-        input.name = filterType;
-        input.setAttribute('data-name', filterType);
-        input.setAttribute('activate-filter-indicator', 'place');
-        input.id = `${type}-${name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        input.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
-        
-        const span = document.createElement('span');
-        span.className = 'test3 w-form-label';
-        span.setAttribute('for', input.id);
-        span.textContent = name;
-        
-        const countContainer = document.createElement('div');
-        countContainer.className = 'div-block-31834';
-        const countDiv = document.createElement('div');
-        countDiv.setAttribute('fs-list-element', 'facet-count');
-        countDiv.className = 'test33';
-        countDiv.textContent = '0';
-        countContainer.appendChild(countDiv);
-        
-        label.appendChild(link);
-        label.appendChild(checkboxDiv);
-        label.appendChild(input);
-        label.appendChild(span);
-        label.appendChild(countContainer);
-        wrapperDiv.appendChild(label);
-        fragment.appendChild(wrapperDiv);
-      });
-      
-      container.appendChild(fragment);
-      
-      // Track generated checkboxes
-      uniqueFeatures.forEach(feature => {
-        const name = feature.properties.name;
-        checkboxState.generatedCheckboxes.add(`${type}:${name}`);
-      });
-      
-      domCache.markStale();
-      domCache.refresh();
-      
-      setupGeneratedCheckboxEvents();
-      
-      // Refresh search script cache if available using idle execution
-      IdleExecution.scheduleUI(() => {
-        if (window.checkboxFilterScript) {
-          window.checkboxFilterScript.recacheElements();
-        }
-      }, { fallbackDelay: 50 });
-      
-    } catch (error) {
-      console.error(`Failed to generate ${type} checkboxes:`, error);
-    }
-  }
-  
-  function generateLocalityCheckboxes() {
-    if (checkboxState.localitiesGenerated) {
-      return Promise.resolve();
-    }
-    return generateCheckboxes('localities', 'locality-check-list', 'Locality')
-      .then(() => { checkboxState.localitiesGenerated = true; });
-  }
-  
-  function generateSettlementCheckboxes() {
-    if (checkboxState.settlementsGenerated) {
-      return Promise.resolve();
-    }
-    return generateCheckboxes('settlements', 'settlement-check-list', 'Settlement')
-      .then(() => { checkboxState.settlementsGenerated = true; });
-  }
-  
-  // Lazy load checkboxes when right sidebar opens
-  function lazyLoadCheckboxes() {
-    // Prevent multiple simultaneous generations
-    if (checkboxState.isGenerating) {
-      return checkboxState.generationPromise;
-    }
-    
-    // Check if already generated
-    if (checkboxState.localitiesGenerated && checkboxState.settlementsGenerated) {
-      return Promise.resolve();
-    }
-    
-    checkboxState.isGenerating = true;
-    
-    // Show loading state if containers exist
-    const localityContainer = $id('locality-check-list');
-    const settlementContainer = $id('settlement-check-list');
-    
-    if (localityContainer && !checkboxState.localitiesGenerated) {
-      localityContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading localities...</div>';
-    }
-    if (settlementContainer && !checkboxState.settlementsGenerated) {
-      settlementContainer.innerHTML = '<div style="padding: 10px; opacity: 0.6;">Loading settlements...</div>';
-    }
-    
-    // Use requestIdleCallback for non-urgent generation
-    checkboxState.generationPromise = new Promise((resolve) => {
-      const generateWithIdle = () => {
-        if ('requestIdleCallback' in window) {
-          requestIdleCallback(() => {
-            performCheckboxGeneration().then(resolve);
-          }, { timeout: 2000 }); // 2 second timeout
-        } else {
-          // Fallback for browsers without requestIdleCallback
-          IdleExecution.schedule(() => {
-            performCheckboxGeneration().then(resolve);
-          }, { fallbackDelay: 100 });
-        }
-      };
-      generateWithIdle();
-    });
-    
-    return checkboxState.generationPromise;
-  }
-  
-  async function performCheckboxGeneration() {
-    try {
-      // Generate in parallel but with idle priority
-      await Promise.all([
-        generateLocalityCheckboxes(),
-        generateSettlementCheckboxes()
-      ]);
-      
-      
-      // Recache elements after generation using idle execution
-      IdleExecution.scheduleUI(() => {
-        // Re-run the setupGeneratedCheckboxEvents for newly created checkboxes
-        setupGeneratedCheckboxEvents();
-        
-        // Check for filtered elements after checkbox generation
-        checkAndToggleFilteredElements();
-        
-        if (window.checkboxFilterScript) {
-          window.checkboxFilterScript.recacheElements();
-        }
-      }, { fallbackDelay: 100 });
-      
-    } catch (error) {
-      console.error('Failed to generate checkboxes:', error);
-    } finally {
-      checkboxState.isGenerating = false;
-    }
-  }
-  
-  // Setup Location tab click listener
-  function setupLocationTabListener() {
-    // Use event delegation for the Location tab - multiple selectors for reliability
-    const locationTabSelectors = [
-      '[data-w-tab="Locality/Region"]',  // Primary selector
-      '#w-tabs-0-data-w-tab-2'           // ID selector as backup
-      // Removed invalid CSS selector that was causing syntax error
-    ];
-    
-    // Try immediate setup
-    locationTabSelectors.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(element => {
-        if (element.dataset.checkboxListenerAdded === 'true') return;
-        
-        element.addEventListener('click', function(e) {
-          // Prevent checkbox events from triggering tab loading
-          // Check if the event originated from a checkbox or input element
-          if (e.target.tagName === 'INPUT' || e.target.hasAttribute('fs-list-field')) {
-            return;
-          }
-          
-          // Only load if not already generated
-          if (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated) {
-            lazyLoadCheckboxes();
-          }
-        });
-        
-        element.dataset.checkboxListenerAdded = 'true';
-      });
-    });
-    
-    // Also use event delegation for dynamically added tabs
-    document.addEventListener('click', function(e) {
-      const locationTab1 = e.target.closest('[data-w-tab="Locality/Region"]');
-      const locationTab2 = e.target.closest('#w-tabs-0-data-w-tab-2');
-      const locationTab = locationTab1 || locationTab2;
-      
-      if (locationTab && (!checkboxState.localitiesGenerated || !checkboxState.settlementsGenerated)) {
-        // Prevent checkbox events from triggering tab loading
-        // Check if the event originated from a checkbox or input element
-        if (e.target.tagName === 'INPUT' || e.target.hasAttribute('fs-list-field')) {
-          return;
-        }
-        
-        lazyLoadCheckboxes();
-      }
-    });
-  }
-  
   // ====================================================================
   // SIDEBAR MANAGEMENT
   // ====================================================================
@@ -1090,39 +706,14 @@
         // Use field-item value directly as fs-list-field (modular approach)
         const fieldName = fieldType;
         
-        // Check if this is a generatable type (only localities and settlements need generation)
-        let checkboxType, containerId, skipGeneration = false;
-        
-        if (fieldType.toLowerCase() === 'locality') {
-          checkboxType = 'localities';
-          containerId = 'locality-check-list';
-        } else if (fieldType.toLowerCase() === 'settlement') {
-          checkboxType = 'settlements';
-          containerId = 'settlement-check-list';
-        } else {
-          // For all other types (Governorate, Category, etc.), skip generation
-          // They should already exist on the page
-          skipGeneration = true;
-        }
-        
-        // Check if checkbox already exists
-        let input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
-        
-        if (!input && !skipGeneration) {
-          // Generate the missing checkbox (only for localities and settlements)
-          const success = await generateSingleCheckbox(checkboxType, fieldValue, containerId, fieldName);
-          
-          if (success) {
-            // Try to find the checkbox again after generation
-            input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
-          }
-        }
-        
+        // Find the checkbox (all checkboxes should be pre-rendered on the page)
+        const input = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${fieldValue}"]`);
+
         // Check the checkbox if found
         if (input) {
           checkCheckboxProgrammatically(input);
         } else {
-          console.warn(`Could not find or generate checkbox for ${fieldValue} (${fieldType})`);
+          console.warn(`Checkbox not found for ${fieldValue} (${fieldType}) - ensure checkboxes are pre-rendered on the page`);
         }
       }
       
@@ -1490,14 +1081,12 @@
   // INITIALIZATION
   // ====================================================================
   function initializeCore() {
-    // Don't generate checkboxes immediately - wait for Location tab click
     setupSidebars();
     setupEvents();
-    setupLocationTabListener();
-    
+
     // Check for filters immediately
     checkAndToggleFilteredElements(true);
-    
+
     // Start monitoring immediately
     monitorTags();
   }
@@ -1512,33 +1101,28 @@
     state,
     geoCache,
     utils,
-    
+
     // jQuery-like shortcuts
     $,
     $1,
     $id,
-    
+
     // Sidebar functions
     toggleSidebar,
     closeSidebar,
     sidebarCache,
-    
+
     // Filtered elements
     checkAndToggleFilteredElements,
     toggleShowWhenFilteredElements,
-    
+
     // Initialization
     init: initializeCore,
-    
-    // Checkbox generation (lazy-loaded)
-    lazyLoadCheckboxes,
-    checkboxState,
-    generateSingleCheckbox,
-    
+
     // Field-item auto-checking
     processFieldItems: processFieldItemsDebounced,
     checkCheckboxProgrammatically,
-    
+
     // For map page
     getGeoJSONData: async function() {
       return {
@@ -1700,10 +1284,6 @@
       tagParent._tagObserver.disconnect();
     }
     
-    // Clear global state
-    checkboxState.localitiesGenerated = false;
-    checkboxState.settlementsGenerated = false;
-    checkboxState.generationPromise = null;
   });
   
 })(window);
