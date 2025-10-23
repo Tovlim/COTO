@@ -1278,8 +1278,16 @@
           itemsContainer = loadMoreTargetContainer.querySelector('.w-dyn-items');
         }
 
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Load More mode - targetContainerIndex: ${targetContainerIndex}, has containerData: ${window.containerData.has(targetContainerIndex)}, itemsContainer: ${!!itemsContainer}`);
+        }
+
         if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
           const containerDataMap = window.containerData.get(targetContainerIndex);
+
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] containerDataMap.allItems: ${containerDataMap?.allItems?.length || 0}`);
+          }
 
           if (itemsContainer && containerDataMap.allItems) {
             if (!cache.persistentCheckedStates.has(groupName)) {
