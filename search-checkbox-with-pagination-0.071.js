@@ -1446,9 +1446,16 @@
               }
 
               // Reorder DOM elements by appending in sorted order (Finsweet approach)
-              matchingItems.forEach(({ element }) => {
+              matchingItems.forEach(({ element }, index) => {
+                if (CONFIG.DEBUG_MODE && index < 3) {
+                  console.log(`[CheckboxFilter] Appending element ${index}, display style: ${element.style.display}, parentElement: ${!!element.parentElement}`);
+                }
                 itemsContainer.appendChild(element);
               });
+
+              if (CONFIG.DEBUG_MODE) {
+                console.log(`[CheckboxFilter] itemsContainer children count: ${itemsContainer.children.length}`);
+              }
 
               // Hide searching indicator only if pagination is complete
               if (loadMoreTargetContainer && !isPaginationLoading) {
