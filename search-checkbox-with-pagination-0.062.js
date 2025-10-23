@@ -1,5 +1,5 @@
 /*!
- * Checkbox Filter with Pagination Support v1.7.0
+ * Checkbox Filter with Pagination Support v1.8.0
  * Real-time checkbox filtering with fuzzy search and seamless pagination
  * Compatible with Webflow CMS, seamless-load-more.html, and Finsweet CMS Filter
  *
@@ -17,6 +17,12 @@
  * - User-controlled searching indicator
  * - Automatic scroll position preservation
  * - Smart empty state handling
+ *
+ * Changelog v1.8.0 (Search UX Improvements):
+ * - Load more button now hides automatically when user is searching
+ * - Shows again when search is cleared
+ * - Empty state now shows immediately when no results (even if pagination still loading)
+ * - Provides instant feedback to users instead of waiting for all pages to load
  *
  * Changelog v1.7.0 (Scroll Preservation & Empty State):
  * - Added scroll position preservation during load more operations
@@ -1317,6 +1323,12 @@
               // Search mode
               itemsContainer.innerHTML = '';
 
+              const $container = $(loadMoreTargetContainer);
+              const $nextButton = $container.find('.w-pagination-next');
+
+              // Hide load more button when searching
+              $nextButton.hide();
+
               const searchTokens = normalizedSearchTerm.split(/\s+/);
 
               containerDataMap.allItems.forEach((element, index) => {
@@ -1369,10 +1381,10 @@
                 hideSearchingIndicator(loadMoreTargetContainer);
               }
 
-              // Show/hide empty state based on results
+              // Show/hide empty state immediately based on current results
               const hasResults = itemsContainer.children.length > 0;
-              if (!hasResults && !isPaginationLoading) {
-                // Show empty state only when: searching, no results, and pagination complete
+              if (!hasResults) {
+                // Show empty state immediately when no results (even if pagination still loading)
                 showEmptyState(loadMoreTargetContainer);
               } else {
                 hideEmptyState(loadMoreTargetContainer);
@@ -1424,8 +1436,8 @@
         // Show/hide empty state based on results
         if (targetContainer) {
           const hasVisibleResults = elementsToShow.length > 0 || checkboxData.some(item => item.isVisible);
-          if (!showAll && !hasVisibleResults && !isPaginationLoading) {
-            // Show empty state only when: searching, no results, and pagination complete
+          if (!showAll && !hasVisibleResults) {
+            // Show empty state immediately when no results (even if pagination still loading)
             showEmptyState(targetContainer);
           } else {
             hideEmptyState(targetContainer);
