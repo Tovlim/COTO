@@ -1368,22 +1368,25 @@
                 }
               }
             } else {
-              // Search mode - no cloning, just show/hide and reorder
+              // Search mode - work with LIVE DOM elements, not cached clones
               const $container = $(loadMoreTargetContainer);
               const $nextButton = $container.find('.w-pagination-next');
 
               // Hide load more button when searching
               $nextButton.hide();
 
+              // Get all LIVE items currently in the DOM
+              const allDomItems = Array.from(itemsContainer.children);
+
               if (CONFIG.DEBUG_MODE) {
-                console.log(`[CheckboxFilter] Search mode - processing ${containerDataMap.allItems.length} items for search term: "${searchTerm}"`);
+                console.log(`[CheckboxFilter] Search mode - processing ${allDomItems.length} LIVE DOM items for search term: "${searchTerm}"`);
               }
 
               // Collect matching items with their scores for sorting
               const matchingItems = [];
               const groupCheckedStates = cache.persistentCheckedStates.get(groupName) || new Map();
 
-              containerDataMap.allItems.forEach((element) => {
+              allDomItems.forEach((element) => {
                 const hasCheckboxFilter = element.hasAttribute('checkbox-filter');
                 const workingElement = hasCheckboxFilter ? element : element.querySelector('[checkbox-filter]');
 
