@@ -1,5 +1,5 @@
 /*!
- * Checkbox Filter with Pagination Support v1.6.0
+ * Checkbox Filter with Pagination Support v1.7.0
  * Real-time checkbox filtering with fuzzy search and seamless pagination
  * Compatible with Webflow CMS, seamless-load-more.html, and Finsweet CMS Filter
  *
@@ -15,6 +15,17 @@
  * - Intelligent parallel page loading (Finsweet-inspired)
  * - Real-time search during pagination loading
  * - User-controlled searching indicator
+ * - Automatic scroll position preservation
+ * - Smart empty state handling
+ *
+ * Changelog v1.7.0 (Scroll Preservation & Empty State):
+ * - Added scroll position preservation during load more operations
+ * - Scroll position of collection list wrapper is saved and restored
+ * - Prevents unwanted scroll to top when clicking load more
+ * - Added smart empty state support with seamless-replace="empty" attribute
+ * - Empty state shows only when: actively searching, no results, and pagination complete
+ * - Prevents false "no results" message while pages are still loading
+ * - Empty state automatically hides when results exist or search is cleared
  *
  * Changelog v1.6.0 (Real-time Search During Pagination):
  * - MAJOR: Search now works in real-time while pages are still loading
@@ -135,6 +146,75 @@
 
   // Track active search terms per group for filtering during pagination
   const activeSearchTerms = new Map(); // groupName -> searchTerm
+
+  // Track scroll positions for restoration
+  const scrollPositions = new Map(); // container -> scrollTop
+
+  // ====================================================================
+  // SCROLL POSITION HELPERS
+  // ====================================================================
+
+  function saveScrollPositions() {
+    try {
+      const containers = document.querySelectorAll('[seamless-replace="true"]');
+      containers.forEach(container => {
+        // Find the collection list wrapper (parent of .w-dyn-items)
+        const dynItems = container.querySelector('.w-dyn-items');
+        const wrapper = dynItems?.parentElement;
+        if (wrapper) {
+          scrollPositions.set(container, wrapper.scrollTop);
+        }
+      });
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  function restoreScrollPositions() {
+    try {
+      requestAnimationFrame(() => {
+        scrollPositions.forEach((scrollTop, container) => {
+          const dynItems = container.querySelector('.w-dyn-items');
+          const wrapper = dynItems?.parentElement;
+          if (wrapper) {
+            wrapper.scrollTop = scrollTop;
+          }
+        });
+      });
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // ====================================================================
+  // EMPTY STATE HELPERS
+  // ====================================================================
+
+  function showEmptyState(container) {
+    if (!container) return;
+
+    try {
+      const emptyState = container.querySelector('[seamless-replace="empty"]');
+      if (emptyState) {
+        emptyState.style.display = 'flex';
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  function hideEmptyState(container) {
+    if (!container) return;
+
+    try {
+      const emptyState = container.querySelector('[seamless-replace="empty"]');
+      if (emptyState) {
+        emptyState.style.display = 'none';
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
 
   // ====================================================================
   // SEARCHING INDICATOR
@@ -1228,6 +1308,9 @@
                   if (loadMoreTargetContainer && !isPaginationLoading) {
                     hideSearchingIndicator(loadMoreTargetContainer);
                   }
+
+                  // Hide empty state when showing all (no search)
+                  hideEmptyState(loadMoreTargetContainer);
                 }
               }
             } else {
@@ -1285,6 +1368,15 @@
               if (loadMoreTargetContainer && !isPaginationLoading) {
                 hideSearchingIndicator(loadMoreTargetContainer);
               }
+
+              // Show/hide empty state based on results
+              const hasResults = itemsContainer.children.length > 0;
+              if (!hasResults && !isPaginationLoading) {
+                // Show empty state only when: searching, no results, and pagination complete
+                showEmptyState(loadMoreTargetContainer);
+              } else {
+                hideEmptyState(loadMoreTargetContainer);
+              }
             }
           }
         }
@@ -1327,6 +1419,17 @@
         // Hide searching indicator only if pagination is complete
         if (targetContainer && !isPaginationLoading) {
           hideSearchingIndicator(targetContainer);
+        }
+
+        // Show/hide empty state based on results
+        if (targetContainer) {
+          const hasVisibleResults = elementsToShow.length > 0 || checkboxData.some(item => item.isVisible);
+          if (!showAll && !hasVisibleResults && !isPaginationLoading) {
+            // Show empty state only when: searching, no results, and pagination complete
+            showEmptyState(targetContainer);
+          } else {
+            hideEmptyState(targetContainer);
+          }
         }
       });
     } catch (error) {
@@ -1413,6 +1516,9 @@
   window.checkboxFilterScript = {
     // Recache all elements (call after DOM updates)
     recacheElements() {
+      // Save scroll positions before DOM updates
+      saveScrollPositions();
+
       // Reset load more flag - this indicates seamless script has finished updating DOM
       if (isLoadingMore) {
         isLoadingMore = false;
@@ -1425,6 +1531,9 @@
         setupLoadMoreHandlers();
         loadAllPaginatedItems();
         this.restoreAllCheckedStates();
+
+        // Restore scroll positions after DOM updates
+        restoreScrollPositions();
       } else {
         initializeFilters();
       }
