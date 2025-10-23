@@ -1,5 +1,5 @@
 /*!
- * Checkbox Filter with Pagination Support v1.8.0
+ * Checkbox Filter with Pagination Support v1.9.0
  * Real-time checkbox filtering with fuzzy search and seamless pagination
  * Compatible with Webflow CMS, seamless-load-more.html, and Finsweet CMS Filter
  *
@@ -17,6 +17,14 @@
  * - User-controlled searching indicator
  * - Automatic scroll position preservation
  * - Smart empty state handling
+ *
+ * Changelog v1.9.0 (Performance & Memory Improvements):
+ * - Added debounced search input (150ms) for better performance during typing
+ * - Immediate filtering when clearing search (no debounce)
+ * - AbortController cancels in-flight pagination requests when search changes
+ * - Loading skeleton/shimmer support with seamless-replace="loading-skeleton"
+ * - Prevents memory leaks by cleaning up Maps when containers/groups removed
+ * - Better resource cleanup and request cancellation
  *
  * Changelog v1.8.0 (Search UX Improvements):
  * - Load more button now hides automatically when user is searching
@@ -96,6 +104,7 @@
     },
     SCORE_THRESHOLD: 0.3,
     RESTORE_DELAY: 200,
+    SEARCH_DEBOUNCE_MS: 150, // Debounce delay for search input
     DEBUG_MODE: false // Set to true for console warnings
   };
 
@@ -155,6 +164,9 @@
 
   // Track scroll positions for restoration
   const scrollPositions = new Map(); // container -> scrollTop
+
+  // Search debounce timers per group
+  const searchDebounceTimers = new Map(); // groupName -> timerId
 
   // ====================================================================
   // SCROLL POSITION HELPERS
@@ -216,6 +228,36 @@
       const emptyState = container.querySelector('[seamless-replace="empty"]');
       if (emptyState) {
         emptyState.style.display = 'none';
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  // ====================================================================
+  // LOADING SKELETON HELPERS
+  // ====================================================================
+
+  function showLoadingSkeleton(container) {
+    if (!container) return;
+
+    try {
+      const skeleton = container.querySelector('[seamless-replace="loading-skeleton"]');
+      if (skeleton) {
+        skeleton.style.display = 'flex';
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }
+
+  function hideLoadingSkeleton(container) {
+    if (!container) return;
+
+    try {
+      const skeleton = container.querySelector('[seamless-replace="loading-skeleton"]');
+      if (skeleton) {
+        skeleton.style.display = 'none';
       }
     } catch (error) {
       // Silently fail
@@ -396,13 +438,21 @@
           cache.paginatedData.set(containerKey, {
             allCheckboxes: [],
             pagesLoaded: new Set(),
-            isLoading: false
+            isLoading: false,
+            abortController: null
           });
         }
 
         const containerData = cache.paginatedData.get(containerKey);
         if (containerData.isLoading) return;
 
+        // Cancel any existing pagination requests
+        if (containerData.abortController) {
+          containerData.abortController.abort();
+        }
+
+        // Create new AbortController for this loading session
+        containerData.abortController = new AbortController();
         containerData.isLoading = true;
         const currentPageUrl = window.location.href;
         containerData.pagesLoaded.add(currentPageUrl);
@@ -457,6 +507,9 @@
     const containerData = cache.paginatedData.get(containerKey);
     if (!containerData) return;
 
+    // Show loading skeleton when pagination starts
+    showLoadingSkeleton(container);
+
     // Extract the pagination parameter from the URL
     const paginationWrapper = container.querySelector('.w-pagination-wrapper');
     const nextLink = paginationWrapper?.querySelector('.w-pagination-next');
@@ -487,6 +540,9 @@
       console.log(`[CheckboxFilter] Loading ${totalPages} pages in parallel using param: ${paginationParam}`);
     }
 
+    // Get the abort signal for this loading session
+    const signal = containerData.abortController?.signal;
+
     // Create fetch promises for all pages (starting from page 2)
     const fetchPromises = [];
     let pagesLoaded = 0;
@@ -504,7 +560,7 @@
         if (containerData.pagesLoaded.has(pageUrl)) return;
 
         try {
-          const response = await fetch(pageUrl);
+          const response = await fetch(pageUrl, { signal });
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
@@ -553,18 +609,29 @@
           // Update progress
           pagesLoaded++;
         } catch (error) {
-          utils.logError(`loadPagesInParallel page ${pageNumber}`, error);
+          // Handle abort errors gracefully (expected when search changes)
+          if (error.name === 'AbortError') {
+            if (CONFIG.DEBUG_MODE) {
+              console.log(`[CheckboxFilter] Page ${pageNumber} fetch aborted`);
+            }
+          } else {
+            utils.logError(`loadPagesInParallel page ${pageNumber}`, error);
+          }
         }
       })();
 
       fetchPromises.push(pagePromise);
     }
 
-    // Wait for all pages to complete
+    // Wait for all pages to complete (or be aborted)
     await Promise.all(fetchPromises);
 
     containerData.isLoading = false;
+    containerData.abortController = null;
     updateGroupsWithPaginatedData(containerKey);
+
+    // Hide loading skeleton now that pagination is complete
+    hideLoadingSkeleton(container);
 
     // Hide searching indicator now that pagination is complete
     // Check if there's still an active search for any group in this container
@@ -1059,7 +1126,29 @@
       cleanupEventListeners();
 
       cache.searchBoxes.forEach((searchBox, groupName) => {
-        const handler = (e) => filterCheckboxGroup(groupName, e.target.value);
+        const handler = (e) => {
+          const searchTerm = e.target.value;
+          const normalizedSearchTerm = utils.normalizeText(searchTerm);
+
+          // Clear existing debounce timer for this group
+          if (searchDebounceTimers.has(groupName)) {
+            clearTimeout(searchDebounceTimers.get(groupName));
+          }
+
+          // If clearing search (empty), filter immediately without debounce
+          if (normalizedSearchTerm === '') {
+            filterCheckboxGroup(groupName, searchTerm);
+            searchDebounceTimers.delete(groupName);
+          } else {
+            // Debounce the search for better performance during typing
+            const timerId = setTimeout(() => {
+              filterCheckboxGroup(groupName, searchTerm);
+              searchDebounceTimers.delete(groupName);
+            }, CONFIG.SEARCH_DEBOUNCE_MS);
+
+            searchDebounceTimers.set(groupName, timerId);
+          }
+        };
         searchBox.addEventListener('input', handler);
 
         if (!cache.eventListeners.has(groupName)) {
@@ -1127,6 +1216,26 @@
 
     // Clear pending updates
     pendingCheckboxUpdates.clear();
+
+    // Memory leak prevention: Clear all debounce timers
+    searchDebounceTimers.forEach((timerId) => {
+      clearTimeout(timerId);
+    });
+    searchDebounceTimers.clear();
+
+    // Memory leak prevention: Abort all in-flight pagination requests
+    cache.paginatedData.forEach((data) => {
+      if (data.abortController) {
+        data.abortController.abort();
+        data.abortController = null;
+      }
+    });
+
+    // Memory leak prevention: Clear Maps to prevent memory leaks
+    // Keep cache.paginatedData, cache.persistentCheckedStates as they're needed for state
+    // But clear temporary state Maps
+    scrollPositions.clear();
+    activeSearchTerms.clear();
   }
 
   function initializeGroups() {
@@ -1534,6 +1643,50 @@
       // Reset load more flag - this indicates seamless script has finished updating DOM
       if (isLoadingMore) {
         isLoadingMore = false;
+      }
+
+      // Memory leak prevention: Clean up stale container references
+      if (isInitialized) {
+        const currentContainers = new Set(
+          Array.from(document.querySelectorAll('[seamless-replace="true"]'))
+        );
+
+        // Remove scroll positions for containers that no longer exist
+        scrollPositions.forEach((scrollTop, container) => {
+          if (!currentContainers.has(container)) {
+            scrollPositions.delete(container);
+          }
+        });
+
+        // Clean up paginated data for removed containers
+        const containerKeys = Array.from(cache.paginatedData.keys());
+        containerKeys.forEach(key => {
+          const containerIndex = parseInt(key.split('_')[1]);
+          const container = document.querySelectorAll('[seamless-replace="true"]')[containerIndex];
+          if (!container) {
+            const data = cache.paginatedData.get(key);
+            if (data?.abortController) {
+              data.abortController.abort();
+            }
+            cache.paginatedData.delete(key);
+          }
+        });
+
+        // Clean up search terms for groups that no longer exist
+        const currentGroups = new Set(cache.checkboxGroups.keys());
+        activeSearchTerms.forEach((term, groupName) => {
+          if (!currentGroups.has(groupName)) {
+            activeSearchTerms.delete(groupName);
+          }
+        });
+
+        // Clean up debounce timers for removed groups
+        searchDebounceTimers.forEach((timerId, groupName) => {
+          if (!currentGroups.has(groupName)) {
+            clearTimeout(timerId);
+            searchDebounceTimers.delete(groupName);
+          }
+        });
       }
 
       if (isInitialized) {
