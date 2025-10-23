@@ -114,7 +114,7 @@
     SCORE_THRESHOLD: 0.3,
     RESTORE_DELAY: 200,
     SEARCH_DEBOUNCE_MS: 150, // Debounce delay for search input
-    DEBUG_MODE: false // Set to true for console warnings
+    DEBUG_MODE: true // Set to true for console warnings
   };
 
   // Cache for checkbox elements and paginated data
@@ -386,7 +386,6 @@
                         element: element,
                         labelText: labelText,
                         normalizedText: utils.normalizeText(labelText),
-                        searchTokens: createSearchTokens(labelText),
                         isVisible: true,
                         isPaginated: true
                       });
@@ -570,7 +569,6 @@
                       element: checkbox.cloneNode(true),
                       labelText: labelText,
                       normalizedText: utils.normalizeText(labelText),
-                      searchTokens: createSearchTokens(labelText),
                       isVisible: false,
                       isPaginated: true
                     });
@@ -678,7 +676,6 @@
             element: element,
             labelText: labelText,
             normalizedText: utils.normalizeText(labelText),
-            searchTokens: createSearchTokens(labelText),
             isVisible: false,
             isPaginated: true
           });
@@ -1193,10 +1190,19 @@
     try {
       const checkboxData = cache.checkboxGroups.get(groupName);
 
-      if (!checkboxData) return;
+      if (!checkboxData) {
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] No checkbox data found for group: ${groupName}`);
+        }
+        return;
+      }
 
       const normalizedSearchTerm = utils.normalizeText(searchTerm);
       const showAll = normalizedSearchTerm === '';
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] Filtering group: ${groupName}, term: "${searchTerm}", showAll: ${showAll}, checkboxData length: ${checkboxData.length}`);
+      }
 
       // Mode detection for seamless containers
       let targetContainer = null;
@@ -1251,6 +1257,10 @@
       if (seamlessContainer && window.containerData && typeof window.containerData === 'object') {
         const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
         isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
+      }
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] Mode detection - isLoadMoreMode: ${isLoadMoreMode}, seamlessContainer: ${!!seamlessContainer}, window.containerData: ${!!window.containerData}`);
       }
 
       // Check if pagination is still loading
@@ -1444,6 +1454,10 @@
       }
 
       // Regular mode
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] Entering Regular mode for group: ${groupName}`);
+      }
+
       requestAnimationFrame(() => {
         const matchingItems = [];
 
@@ -1486,6 +1500,10 @@
             }
           }
         });
+
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Regular mode - matchingItems: ${matchingItems.length}, showAll: ${showAll}`);
+        }
 
         // Sort and reorder visible items by relevance score (highest first)
         if (!showAll && matchingItems.length > 0) {
