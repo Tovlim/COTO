@@ -325,6 +325,8 @@
         if (loadMoreButton && !loadMoreButton.hasAttribute('data-filter-handler')) {
           loadMoreButton.setAttribute('data-filter-handler', 'true');
           loadMoreButton.addEventListener('click', function(e) {
+            // Save scroll position BEFORE load more operation
+            saveScrollPositions();
             isLoadingMore = true;
             window.checkboxFilterScript.captureCurrentCheckedStates();
             // Note: isLoadingMore flag will be reset when seamless script calls recacheElements()
@@ -1512,7 +1514,7 @@
 
         // Show/hide empty state based on results
         if (targetContainer) {
-          const hasVisibleResults = elementsToShow.length > 0 || checkboxData.some(item => item.isVisible);
+          const hasVisibleResults = checkboxData.some(item => item.isVisible);
           if (!showAll && !hasVisibleResults) {
             // Show empty state immediately when no results (even if pagination still loading)
             showEmptyState(targetContainer);
