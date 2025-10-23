@@ -22,7 +22,7 @@
  * - Added debounced search input (150ms) for better performance during typing
  * - Immediate filtering when clearing search (no debounce)
  * - AbortController cancels in-flight pagination requests when search changes
- * - Loading skeleton/shimmer support with seamless-replace="loading-skeleton"
+ * - Search results now sorted by relevance score (exact matches first)
  * - Prevents memory leaks by cleaning up Maps when containers/groups removed
  * - Better resource cleanup and request cancellation
  *
@@ -228,36 +228,6 @@
       const emptyState = container.querySelector('[seamless-replace="empty"]');
       if (emptyState) {
         emptyState.style.display = 'none';
-      }
-    } catch (error) {
-      // Silently fail
-    }
-  }
-
-  // ====================================================================
-  // LOADING SKELETON HELPERS
-  // ====================================================================
-
-  function showLoadingSkeleton(container) {
-    if (!container) return;
-
-    try {
-      const skeleton = container.querySelector('[seamless-replace="loading-skeleton"]');
-      if (skeleton) {
-        skeleton.style.display = 'flex';
-      }
-    } catch (error) {
-      // Silently fail
-    }
-  }
-
-  function hideLoadingSkeleton(container) {
-    if (!container) return;
-
-    try {
-      const skeleton = container.querySelector('[seamless-replace="loading-skeleton"]');
-      if (skeleton) {
-        skeleton.style.display = 'none';
       }
     } catch (error) {
       // Silently fail
@@ -507,9 +477,6 @@
     const containerData = cache.paginatedData.get(containerKey);
     if (!containerData) return;
 
-    // Show loading skeleton when pagination starts
-    showLoadingSkeleton(container);
-
     // Extract the pagination parameter from the URL
     const paginationWrapper = container.querySelector('.w-pagination-wrapper');
     const nextLink = paginationWrapper?.querySelector('.w-pagination-next');
@@ -629,9 +596,6 @@
     containerData.isLoading = false;
     containerData.abortController = null;
     updateGroupsWithPaginatedData(containerKey);
-
-    // Hide loading skeleton now that pagination is complete
-    hideLoadingSkeleton(container);
 
     // Hide searching indicator now that pagination is complete
     // Check if there's still an active search for any group in this container
@@ -1440,6 +1404,9 @@
 
               const searchTokens = normalizedSearchTerm.split(/\s+/);
 
+              // Collect matching items with their scores for sorting
+              const matchingItems = [];
+
               containerDataMap.allItems.forEach((element, index) => {
                 const clonedForCheck = element.cloneNode(true);
 
@@ -1458,9 +1425,11 @@
                 const isChecked = groupCheckedStates.has(labelText) ? groupCheckedStates.get(labelText) : false;
 
                 let shouldShow = false;
+                let score = 0;
 
                 if (isChecked) {
                   shouldShow = true;
+                  score = 1.1; // Checked items get highest priority
                 } else {
                   const normalizedLabel = utils.normalizeText(labelText);
                   const searchTokens = createSearchTokens(normalizedSearchTerm);
@@ -1468,21 +1437,38 @@
                     normalizedText: normalizedLabel,
                     searchTokens: createSearchTokens(labelText)
                   };
-                  const score = calculateMatchScore(normalizedSearchTerm, searchTokens.tokens, itemData);
+                  score = calculateMatchScore(normalizedSearchTerm, searchTokens.tokens, itemData);
                   shouldShow = score > CONFIG.SCORE_THRESHOLD;
                 }
 
                 if (shouldShow) {
-                  const clonedElement = element.cloneNode(true);
-                  clonedElement.style.display = 'block';
-                  clonedElement.style.visibility = 'visible';
-                  clonedElement.style.opacity = '1';
-                  clonedElement.removeAttribute('data-filtered');
-                  clonedElement.setAttribute('data-search-result', 'true');
-
-                  itemsContainer.appendChild(clonedElement);
-                  restoreCheckedState(clonedElement, groupName);
+                  matchingItems.push({
+                    element: element,
+                    score: score,
+                    labelText: labelText
+                  });
                 }
+              });
+
+              // Sort by score (highest first), then alphabetically for same scores
+              matchingItems.sort((a, b) => {
+                if (b.score !== a.score) {
+                  return b.score - a.score;
+                }
+                return a.labelText.localeCompare(b.labelText);
+              });
+
+              // Append sorted items to container
+              matchingItems.forEach(({ element }) => {
+                const clonedElement = element.cloneNode(true);
+                clonedElement.style.display = 'block';
+                clonedElement.style.visibility = 'visible';
+                clonedElement.style.opacity = '1';
+                clonedElement.removeAttribute('data-filtered');
+                clonedElement.setAttribute('data-search-result', 'true');
+
+                itemsContainer.appendChild(clonedElement);
+                restoreCheckedState(clonedElement, groupName);
               });
 
               // Hide searching indicator only if pagination is complete
@@ -1512,20 +1498,24 @@
 
         checkboxData.forEach(item => {
           let shouldShow = false;
+          let score = 0;
 
           if (showAll) {
             shouldShow = true;
+            score = 0;
           } else {
             const isChecked = item.element && isCheckboxChecked(item.element);
             if (isChecked) {
               shouldShow = true;
+              score = 1.1; // Checked items get highest priority
             } else {
-              const score = calculateMatchScore(normalizedSearchTerm, searchTokens, item);
+              score = calculateMatchScore(normalizedSearchTerm, searchTokens, item);
               shouldShow = score > CONFIG.SCORE_THRESHOLD;
             }
           }
 
           if (shouldShow && !item.isVisible) {
+            item.score = score; // Store score for sorting
             elementsToShow.push(item);
             item.isVisible = true;
           } else if (!shouldShow && item.isVisible) {
@@ -1533,6 +1523,26 @@
             item.isVisible = false;
           }
         });
+
+        // Sort elements to show by relevance score (highest first)
+        if (!showAll && elementsToShow.length > 0) {
+          elementsToShow.sort((a, b) => {
+            if (b.score !== a.score) {
+              return b.score - a.score;
+            }
+            return a.labelText.localeCompare(b.labelText);
+          });
+
+          // Re-order DOM elements based on sorted order
+          const parent = elementsToShow[0]?.element?.parentElement;
+          if (parent) {
+            elementsToShow.forEach(item => {
+              if (item.element && item.element.parentElement === parent) {
+                parent.appendChild(item.element);
+              }
+            });
+          }
+        }
 
         elementsToShow.forEach(item => showElement(item.element));
         elementsToHide.forEach(item => hideElement(item.element));
