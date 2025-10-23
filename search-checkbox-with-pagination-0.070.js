@@ -1375,6 +1375,10 @@
               // Hide load more button when searching
               $nextButton.hide();
 
+              if (CONFIG.DEBUG_MODE) {
+                console.log(`[CheckboxFilter] Search mode - processing ${containerDataMap.allItems.length} items for search term: "${searchTerm}"`);
+              }
+
               // Collect matching items with their scores for sorting
               const matchingItems = [];
               const groupCheckedStates = cache.persistentCheckedStates.get(groupName) || new Map();
@@ -1436,6 +1440,10 @@
                 }
                 return a.labelText.localeCompare(b.labelText);
               });
+
+              if (CONFIG.DEBUG_MODE) {
+                console.log(`[CheckboxFilter] Search mode - found ${matchingItems.length} matching items`);
+              }
 
               // Reorder DOM elements by appending in sorted order (Finsweet approach)
               matchingItems.forEach(({ element }) => {
