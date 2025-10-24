@@ -901,6 +901,34 @@
         seamlessContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
       }
 
+      // Even if firstGroupCheckbox is null, check if this group was previously in a load-more container
+      if (!seamlessContainer && window.containerData && typeof window.containerData === 'object') {
+        // Try to find the container by checking if any of the cached items belong to a load-more container
+        const containers = document.querySelectorAll('[seamless-replace="true"]');
+        for (let i = 0; i < containers.length; i++) {
+          if (window.containerData.has && window.containerData.has(i)) {
+            const containerDataMap = window.containerData.get(i);
+            // Check if this container has items from our group
+            if (containerDataMap && containerDataMap.allItems && containerDataMap.allItems.length > 0) {
+              // Check if any item in the container belongs to this group
+              const hasGroupItem = containerDataMap.allItems.some(element => {
+                const tempElement = element.cloneNode(true);
+                return tempElement.hasAttribute('checkbox-filter') &&
+                       tempElement.getAttribute('checkbox-filter') === groupName;
+              });
+              if (hasGroupItem) {
+                seamlessContainer = containers[i];
+                itemsContainer = seamlessContainer.querySelector('.w-dyn-items');
+                if (CONFIG.DEBUG_MODE) {
+                  console.log(`[CheckboxFilter] Found load-more container for group ${groupName} at index ${i}`);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+
       if (seamlessContainer && window.containerData && typeof window.containerData === 'object') {
         const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
         if (CONFIG.DEBUG_MODE) {
