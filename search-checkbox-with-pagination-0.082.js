@@ -372,18 +372,34 @@
   // INITIALIZATION
   // ====================================================================
 
-  // Wait for seamless-load-more to initialize before starting
+  // Wait for seamless-load-more to fully load all pages before starting
   function waitForSeamlessLoadMore() {
-    // Check if seamless-load-more has initialized
+    // Check if seamless-load-more exists
     if (window.containerData && window.containerData.size > 0) {
-      if (CONFIG.DEBUG_MODE) {
-        console.log('[CheckboxFilter] seamless-load-more detected, initializing...');
+      // Check if all containers have finished loading
+      let allContainersLoaded = true;
+      window.containerData.forEach((data) => {
+        if (data.isLoading) {
+          allContainersLoaded = false;
+        }
+      });
+
+      if (allContainersLoaded) {
+        if (CONFIG.DEBUG_MODE) {
+          console.log('[CheckboxFilter] seamless-load-more fully loaded, initializing...');
+        }
+        initializeFilters();
+      } else {
+        // Still loading, wait and check again
+        if (CONFIG.DEBUG_MODE) {
+          console.log('[CheckboxFilter] Waiting for seamless-load-more to finish loading all pages...');
+        }
+        setTimeout(waitForSeamlessLoadMore, 200);
       }
-      initializeFilters();
     } else {
-      // Wait a bit and check again
+      // No seamless-load-more detected, or not initialized yet
       if (CONFIG.DEBUG_MODE) {
-        console.log('[CheckboxFilter] Waiting for seamless-load-more...');
+        console.log('[CheckboxFilter] No seamless-load-more detected, checking again...');
       }
       setTimeout(waitForSeamlessLoadMore, 100);
     }
@@ -391,12 +407,12 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      // Give seamless-load-more time to initialize
-      setTimeout(waitForSeamlessLoadMore, 500);
+      // Give seamless-load-more time to start
+      setTimeout(waitForSeamlessLoadMore, 1000);
     });
   } else {
-    // Give seamless-load-more time to initialize
-    setTimeout(waitForSeamlessLoadMore, 500);
+    // Give seamless-load-more time to start
+    setTimeout(waitForSeamlessLoadMore, 1000);
   }
 
   function initializeFilters() {
