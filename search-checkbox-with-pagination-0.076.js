@@ -1041,15 +1041,31 @@
     const showAll = normalizedSearchTerm === '';
 
     if (showAll) {
-      // Show all items
+      // Show all items - force visibility regardless of previous state
       requestAnimationFrame(() => {
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Showing all items for group: ${groupName}, total items: ${checkboxData.length}`);
+        }
+
+        let shownCount = 0;
         checkboxData.forEach(itemData => {
           const fullItem = cache.checkboxItemsById.get(itemData.id);
-          if (fullItem && fullItem.element) {
-            showElement(fullItem.element);
-            fullItem.isVisible = true;
+          if (fullItem) {
+            if (fullItem.element) {
+              showElement(fullItem.element);
+              fullItem.isVisible = true;
+              shownCount++;
+            } else if (CONFIG.DEBUG_MODE) {
+              console.warn(`[CheckboxFilter] Item ${itemData.id} has no element:`, itemData.labelText);
+            }
+          } else if (CONFIG.DEBUG_MODE) {
+            console.warn(`[CheckboxFilter] Could not find fullItem for id: ${itemData.id}`);
           }
         });
+
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Successfully showed ${shownCount} items out of ${checkboxData.length}`);
+        }
 
         if (targetContainer) {
           hideEmptyState(targetContainer);
