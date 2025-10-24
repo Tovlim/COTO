@@ -915,6 +915,11 @@
 
         if (showAll) {
           // Restore normal pagination display
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter LoadMore] Restoring all items for group: ${groupName}`);
+            console.log(`[CheckboxFilter LoadMore] Total items in containerData: ${containerDataMap.allItems.length}`);
+          }
+
           itemsContainer.innerHTML = '';
 
           const $container = $(seamlessContainer);
@@ -929,6 +934,10 @@
             itemsToShow = containerDataMap.allItems.length;
           } else {
             itemsToShow = Math.max(containerDataMap.currentPage, 1) * containerDataMap.itemsPerPage;
+          }
+
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter LoadMore] Items to show: ${itemsToShow}, currentPage: ${containerDataMap.currentPage}`);
           }
 
           const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
