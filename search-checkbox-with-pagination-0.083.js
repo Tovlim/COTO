@@ -373,35 +373,62 @@
   // ====================================================================
 
   // Wait for seamless-load-more to fully load all pages before starting
+  let waitAttempts = 0;
+  const MAX_WAIT_ATTEMPTS = 150; // 30 seconds max (150 * 200ms)
+
   function waitForSeamlessLoadMore() {
+    waitAttempts++;
+
     // Check if seamless-load-more exists
     if (window.containerData && window.containerData.size > 0) {
-      // Check if all containers have finished loading
-      let allContainersLoaded = true;
+      // Check if all containers have finished loading by checking if allItems is populated
+      let allContainersReady = true;
+      let totalItems = 0;
+
       window.containerData.forEach((data) => {
-        if (data.isLoading) {
-          allContainersLoaded = false;
+        // Consider loaded if allItems exists and has items, OR if isLoading is explicitly false
+        if (!data.allItems || data.allItems.length === 0) {
+          allContainersReady = false;
+        } else {
+          totalItems += data.allItems.length;
         }
       });
 
-      if (allContainersLoaded) {
+      if (allContainersReady && totalItems > 0) {
         if (CONFIG.DEBUG_MODE) {
-          console.log('[CheckboxFilter] seamless-load-more fully loaded, initializing...');
+          console.log(`[CheckboxFilter] seamless-load-more fully loaded (${totalItems} total items), initializing...`);
         }
         initializeFilters();
+        return;
+      } else if (waitAttempts >= MAX_WAIT_ATTEMPTS) {
+        // Timeout - initialize anyway
+        if (CONFIG.DEBUG_MODE) {
+          console.warn('[CheckboxFilter] Timeout waiting for seamless-load-more, initializing anyway...');
+        }
+        initializeFilters();
+        return;
       } else {
         // Still loading, wait and check again
-        if (CONFIG.DEBUG_MODE) {
-          console.log('[CheckboxFilter] Waiting for seamless-load-more to finish loading all pages...');
+        if (CONFIG.DEBUG_MODE && waitAttempts % 10 === 0) {
+          console.log(`[CheckboxFilter] Waiting for seamless-load-more to finish loading... (attempt ${waitAttempts}/${MAX_WAIT_ATTEMPTS}, ${totalItems} items so far)`);
         }
         setTimeout(waitForSeamlessLoadMore, 200);
       }
     } else {
-      // No seamless-load-more detected, or not initialized yet
-      if (CONFIG.DEBUG_MODE) {
-        console.log('[CheckboxFilter] No seamless-load-more detected, checking again...');
+      // No seamless-load-more detected yet
+      if (waitAttempts >= MAX_WAIT_ATTEMPTS) {
+        // Timeout - no seamless-load-more found, initialize in regular mode
+        if (CONFIG.DEBUG_MODE) {
+          console.log('[CheckboxFilter] No seamless-load-more detected, initializing in regular mode...');
+        }
+        initializeFilters();
+        return;
+      } else {
+        if (CONFIG.DEBUG_MODE && waitAttempts % 10 === 0) {
+          console.log(`[CheckboxFilter] Waiting for seamless-load-more... (attempt ${waitAttempts}/${MAX_WAIT_ATTEMPTS})`);
+        }
+        setTimeout(waitForSeamlessLoadMore, 100);
       }
-      setTimeout(waitForSeamlessLoadMore, 100);
     }
   }
 
