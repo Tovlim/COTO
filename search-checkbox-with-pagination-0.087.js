@@ -1061,8 +1061,27 @@
               console.log(`[CheckboxFilter] Appended item ${index}:`, clonedElement);
             }
 
+            // Update cache references for this group
             if (clonedElement.hasAttribute('checkbox-filter')) {
               const elementGroupName = clonedElement.getAttribute('checkbox-filter');
+              const labelText = extractLabelText(clonedElement);
+
+              // Find and update the cache entry for this item
+              const checkboxData = cache.checkboxGroups.get(elementGroupName);
+              if (checkboxData && labelText) {
+                const itemData = checkboxData.find(item => item.labelText === labelText);
+                if (itemData) {
+                  const fullItem = cache.checkboxItemsById.get(itemData.id);
+                  if (fullItem) {
+                    fullItem.element = clonedElement;
+                    fullItem.isVisible = true;
+                    if (CONFIG.DEBUG_MODE && index < 3) {
+                      console.log(`[CheckboxFilter] Updated cache for item: ${labelText}`);
+                    }
+                  }
+                }
+              }
+
               restoreCheckedState(clonedElement, elementGroupName);
             }
           });
@@ -1088,6 +1107,11 @@
           }
         } else {
           // Search mode - use Web Worker
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] LoadMore mode - SEARCH branch`);
+            console.log(`[CheckboxFilter] Clearing itemsContainer`);
+          }
+
           itemsContainer.innerHTML = '';
 
           const $container = $(seamlessContainer);
