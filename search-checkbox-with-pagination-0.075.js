@@ -269,43 +269,9 @@
   }
 
   // ====================================================================
-  // SEARCHING INDICATOR
+  // SEARCHING INDICATOR (REMOVED)
   // ====================================================================
-
-  function showSearchingIndicator(container) {
-    if (!container) return;
-    try {
-      const indicator = container.querySelector('[seamless-replace="searching-indicator"]');
-      if (indicator) {
-        indicator.style.display = 'flex';
-      }
-    } catch (error) {
-      // Silently fail
-    }
-  }
-
-  function hideSearchingIndicator(container) {
-    if (!container) return;
-    try {
-      const indicator = container.querySelector('[seamless-replace="searching-indicator"]');
-      if (indicator) {
-        indicator.style.display = 'none';
-      }
-    } catch (error) {
-      // Silently fail
-    }
-  }
-
-  function hideAllSearchingIndicators() {
-    try {
-      const indicators = document.querySelectorAll('[seamless-replace="searching-indicator"]');
-      indicators.forEach(indicator => {
-        indicator.style.display = 'none';
-      });
-    } catch (error) {
-      // Silently fail
-    }
-  }
+  // Searching indicator functionality has been removed as requested
 
   // ====================================================================
   // FIELD DATA EXTRACTION (Finsweet-inspired)
@@ -771,9 +737,6 @@
     updateGroupsWithPaginatedData(containerKey);
 
     const hasActiveSearch = Array.from(activeSearchTerms.values()).some(term => term !== '');
-    if (hasActiveSearch) {
-      hideSearchingIndicator(container);
-    }
 
     if (CONFIG.DEBUG_MODE) {
       console.log(`[CheckboxFilter] Parallel loading complete. Loaded ${containerData.pagesLoaded.size} pages`);
@@ -887,10 +850,6 @@
         activeSearchTerms.set(groupName, searchTerm);
       }
 
-      if (!showAll && targetContainer) {
-        showSearchingIndicator(targetContainer);
-      }
-
       if (!itemsContainer && firstGroupCheckbox) {
         itemsContainer = firstGroupCheckbox.closest('.w-dyn-items') ||
                         firstGroupCheckbox.closest('.collection-list') ||
@@ -999,10 +958,6 @@
             Webflow.require('ix2').init();
           }
 
-          if (!isPaginationLoading) {
-            hideSearchingIndicator(seamlessContainer);
-          }
-
           hideEmptyState(seamlessContainer);
         } else {
           // Search mode - use Web Worker
@@ -1070,10 +1025,6 @@
             restoreCheckedState(clonedElement, groupName);
           });
 
-          if (!isPaginationLoading) {
-            hideSearchingIndicator(seamlessContainer);
-          }
-
           const hasResults = itemsContainer.children.length > 0;
           if (!hasResults) {
             showEmptyState(seamlessContainer);
@@ -1099,10 +1050,6 @@
             fullItem.isVisible = true;
           }
         });
-
-        if (targetContainer && !isPaginationLoading) {
-          hideSearchingIndicator(targetContainer);
-        }
 
         if (targetContainer) {
           hideEmptyState(targetContainer);
@@ -1137,11 +1084,15 @@
 
           const shouldShow = matchedIds.has(itemData.id);
 
-          if (shouldShow && !fullItem.isVisible) {
-            itemsToShow.push(fullItem);
+          if (shouldShow) {
+            if (!fullItem.isVisible) {
+              itemsToShow.push(fullItem);
+            }
             fullItem.isVisible = true;
-          } else if (!shouldShow && fullItem.isVisible) {
-            itemsToHide.push(fullItem);
+          } else {
+            if (fullItem.isVisible) {
+              itemsToHide.push(fullItem);
+            }
             fullItem.isVisible = false;
           }
         });
@@ -1162,10 +1113,6 @@
 
         itemsToShow.forEach(item => showElement(item.element));
         itemsToHide.forEach(item => hideElement(item.element));
-
-        if (targetContainer && !isPaginationLoading) {
-          hideSearchingIndicator(targetContainer);
-        }
 
         if (targetContainer) {
           const hasVisibleResults = itemsToShow.length > 0 || checkboxData.some(itemData => {
