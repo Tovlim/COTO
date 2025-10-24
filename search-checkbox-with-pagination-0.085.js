@@ -47,7 +47,7 @@
     RESTORE_DELAY: 200,
     SEARCH_DEBOUNCE_MS: 150,
     WORKER_POOL_SIZE: navigator.hardwareConcurrency || 4,
-    DEBUG_MODE: true
+    DEBUG_MODE: false
   };
 
   // Web Worker inline code (embedded to avoid external file dependency)
@@ -372,74 +372,10 @@
   // INITIALIZATION
   // ====================================================================
 
-  // Wait for seamless-load-more to fully load all pages before starting
-  let waitAttempts = 0;
-  const MAX_WAIT_ATTEMPTS = 150; // 30 seconds max (150 * 200ms)
-
-  function waitForSeamlessLoadMore() {
-    waitAttempts++;
-
-    // Check if seamless-load-more exists
-    if (window.containerData && window.containerData.size > 0) {
-      // Check if all containers have finished loading by checking if allItems is populated
-      let allContainersReady = true;
-      let totalItems = 0;
-
-      window.containerData.forEach((data) => {
-        // Consider loaded if allItems exists and has items, OR if isLoading is explicitly false
-        if (!data.allItems || data.allItems.length === 0) {
-          allContainersReady = false;
-        } else {
-          totalItems += data.allItems.length;
-        }
-      });
-
-      if (allContainersReady && totalItems > 0) {
-        if (CONFIG.DEBUG_MODE) {
-          console.log(`[CheckboxFilter] seamless-load-more fully loaded (${totalItems} total items), initializing...`);
-        }
-        initializeFilters();
-        return;
-      } else if (waitAttempts >= MAX_WAIT_ATTEMPTS) {
-        // Timeout - initialize anyway
-        if (CONFIG.DEBUG_MODE) {
-          console.warn('[CheckboxFilter] Timeout waiting for seamless-load-more, initializing anyway...');
-        }
-        initializeFilters();
-        return;
-      } else {
-        // Still loading, wait and check again
-        if (CONFIG.DEBUG_MODE && waitAttempts % 10 === 0) {
-          console.log(`[CheckboxFilter] Waiting for seamless-load-more to finish loading... (attempt ${waitAttempts}/${MAX_WAIT_ATTEMPTS}, ${totalItems} items so far)`);
-        }
-        setTimeout(waitForSeamlessLoadMore, 200);
-      }
-    } else {
-      // No seamless-load-more detected yet
-      if (waitAttempts >= MAX_WAIT_ATTEMPTS) {
-        // Timeout - no seamless-load-more found, initialize in regular mode
-        if (CONFIG.DEBUG_MODE) {
-          console.log('[CheckboxFilter] No seamless-load-more detected, initializing in regular mode...');
-        }
-        initializeFilters();
-        return;
-      } else {
-        if (CONFIG.DEBUG_MODE && waitAttempts % 10 === 0) {
-          console.log(`[CheckboxFilter] Waiting for seamless-load-more... (attempt ${waitAttempts}/${MAX_WAIT_ATTEMPTS})`);
-        }
-        setTimeout(waitForSeamlessLoadMore, 100);
-      }
-    }
-  }
-
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      // Give seamless-load-more time to start
-      setTimeout(waitForSeamlessLoadMore, 1000);
-    });
+    document.addEventListener('DOMContentLoaded', initializeFilters);
   } else {
-    // Give seamless-load-more time to start
-    setTimeout(waitForSeamlessLoadMore, 1000);
+    initializeFilters();
   }
 
   function initializeFilters() {
@@ -933,49 +869,6 @@
         seamlessContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
       }
 
-      // If no checkbox found in DOM, check if any items in this group are marked as paginated
-      // which means they were loaded by seamless-load-more
-      if (!seamlessContainer && checkboxData.length > 0) {
-        // Check if we have paginated items for this group
-        const hasPaginatedItems = checkboxData.some(itemData => {
-          const fullItem = cache.checkboxItemsById.get(itemData.id);
-          return fullItem && fullItem.isPaginated;
-        });
-
-        if (hasPaginatedItems) {
-          if (CONFIG.DEBUG_MODE) {
-            console.log(`[CheckboxFilter] Group "${groupName}" has paginated items but no checkboxes in DOM. Checking for seamless-load-more...`);
-          }
-
-          // Find the seamless container by checking all containers for load more initialization
-          const containers = document.querySelectorAll('[seamless-replace="true"]');
-          containers.forEach((container, idx) => {
-            if (window.containerData && window.containerData.has && window.containerData.has(idx)) {
-              const containerDataMap = window.containerData.get(idx);
-              if (containerDataMap && containerDataMap.allItems) {
-                // Check if any items in this container have our group's checkboxes
-                for (const element of containerDataMap.allItems) {
-                  const checkbox = element.querySelector(`[checkbox-filter="${groupName}"]`) ||
-                                  (element.hasAttribute('checkbox-filter') && element.getAttribute('checkbox-filter') === groupName ? element : null);
-                  if (checkbox) {
-                    seamlessContainer = container;
-                    itemsContainer = container.querySelector('.w-dyn-items');
-                    if (CONFIG.DEBUG_MODE) {
-                      console.log(`[CheckboxFilter] Found seamless container for group "${groupName}" at index ${idx}`);
-                    }
-                    break;
-                  }
-                }
-              }
-            }
-          });
-
-          if (!seamlessContainer && CONFIG.DEBUG_MODE) {
-            console.warn(`[CheckboxFilter] Could not find seamless container for group "${groupName}" with paginated items. window.containerData exists: ${!!window.containerData}`);
-          }
-        }
-      }
-
       if (seamlessContainer && window.containerData && typeof window.containerData === 'object') {
         const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
         isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
@@ -1022,15 +915,21 @@
 
         if (showAll) {
           // Restore normal pagination display
-          if (CONFIG.DEBUG_MODE) {
-            console.log(`[CheckboxFilter LoadMore] Restoring all items for group: ${groupName}`);
-            console.log(`[CheckboxFilter LoadMore] Total items in containerData: ${containerDataMap.allItems.length}`);
-          }
-
           itemsContainer.innerHTML = '';
 
           const $container = $(seamlessContainer);
           const $nextButton = $container.find('.w-pagination-next');
+
+          // Safety check: ensure allItems exists and has content
+          if (!containerDataMap.allItems || containerDataMap.allItems.length === 0) {
+            if (CONFIG.DEBUG_MODE) {
+              console.warn('[CheckboxFilter] No items in containerDataMap.allItems, falling back to regular mode');
+            }
+            // Fall back to regular filtering mode
+            hideEmptyState(seamlessContainer);
+            await filterRegularMode(groupName, searchTerm, checkboxData, seamlessContainer, isPaginationLoading);
+            return;
+          }
 
           const userLoadedMorePages = containerDataMap.currentPage > 1;
           const buttonExplicitlyHidden = $nextButton.is(':hidden');
@@ -1041,10 +940,6 @@
             itemsToShow = containerDataMap.allItems.length;
           } else {
             itemsToShow = Math.max(containerDataMap.currentPage, 1) * containerDataMap.itemsPerPage;
-          }
-
-          if (CONFIG.DEBUG_MODE) {
-            console.log(`[CheckboxFilter LoadMore] Items to show: ${itemsToShow}, currentPage: ${containerDataMap.currentPage}`);
           }
 
           const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
@@ -1164,23 +1059,13 @@
         }
 
         let shownCount = 0;
-        let skippedCount = 0;
         checkboxData.forEach(itemData => {
           const fullItem = cache.checkboxItemsById.get(itemData.id);
           if (fullItem) {
             if (fullItem.element) {
-              // Only show elements that are actually in the DOM
-              if (fullItem.element.isConnected) {
-                showElement(fullItem.element);
-                fullItem.isVisible = true;
-                shownCount++;
-              } else {
-                // Element exists but is not in the DOM (paginated item not yet loaded)
-                skippedCount++;
-                if (CONFIG.DEBUG_MODE) {
-                  console.log(`[CheckboxFilter] Skipping disconnected element: ${itemData.labelText}`);
-                }
-              }
+              showElement(fullItem.element);
+              fullItem.isVisible = true;
+              shownCount++;
             } else if (CONFIG.DEBUG_MODE) {
               console.warn(`[CheckboxFilter] Item ${itemData.id} has no element:`, itemData.labelText);
             }
@@ -1190,7 +1075,7 @@
         });
 
         if (CONFIG.DEBUG_MODE) {
-          console.log(`[CheckboxFilter] Successfully showed ${shownCount} items out of ${checkboxData.length} (skipped ${skippedCount} disconnected elements)`);
+          console.log(`[CheckboxFilter] Successfully showed ${shownCount} items out of ${checkboxData.length}`);
         }
 
         if (targetContainer) {
