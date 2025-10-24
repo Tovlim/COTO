@@ -869,6 +869,38 @@
         seamlessContainer = firstGroupCheckbox.closest('[seamless-replace="true"]');
       }
 
+      // If no checkbox found in DOM, check if any items in this group are marked as paginated
+      // which means they were loaded by seamless-load-more
+      if (!seamlessContainer && checkboxData.length > 0) {
+        // Check if we have paginated items for this group
+        const hasPaginatedItems = checkboxData.some(itemData => {
+          const fullItem = cache.checkboxItemsById.get(itemData.id);
+          return fullItem && fullItem.isPaginated;
+        });
+
+        if (hasPaginatedItems) {
+          // Find the seamless container by checking all containers for load more initialization
+          const containers = document.querySelectorAll('[seamless-replace="true"]');
+          containers.forEach((container, idx) => {
+            if (window.containerData && window.containerData.has && window.containerData.has(idx)) {
+              const containerDataMap = window.containerData.get(idx);
+              if (containerDataMap && containerDataMap.allItems) {
+                // Check if any items in this container have our group's checkboxes
+                for (const element of containerDataMap.allItems) {
+                  const checkbox = element.querySelector(`[checkbox-filter="${groupName}"]`) ||
+                                  (element.hasAttribute('checkbox-filter') && element.getAttribute('checkbox-filter') === groupName ? element : null);
+                  if (checkbox) {
+                    seamlessContainer = container;
+                    itemsContainer = container.querySelector('.w-dyn-items');
+                    break;
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
+
       if (seamlessContainer && window.containerData && typeof window.containerData === 'object') {
         const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
         isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
