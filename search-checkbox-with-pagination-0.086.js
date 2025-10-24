@@ -827,11 +827,29 @@
 
   async function filterCheckboxGroup(groupName, searchTerm) {
     try {
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] === filterCheckboxGroup START ===`);
+        console.log(`[CheckboxFilter] groupName: "${groupName}", searchTerm: "${searchTerm}"`);
+      }
+
       const checkboxData = cache.checkboxGroups.get(groupName);
-      if (!checkboxData) return;
+      if (!checkboxData) {
+        if (CONFIG.DEBUG_MODE) {
+          console.warn(`[CheckboxFilter] No checkboxData found for group: ${groupName}`);
+        }
+        return;
+      }
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] checkboxData length: ${checkboxData.length}`);
+      }
 
       const normalizedSearchTerm = utils.normalizeText(searchTerm);
       const showAll = normalizedSearchTerm === '';
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] normalizedSearchTerm: "${normalizedSearchTerm}", showAll: ${showAll}`);
+      }
 
       let targetContainer = null;
       let itemsContainer = null;
@@ -844,6 +862,12 @@
         }
       }
 
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] firstGroupCheckbox:`, firstGroupCheckbox);
+        console.log(`[CheckboxFilter] targetContainer:`, targetContainer);
+        console.log(`[CheckboxFilter] itemsContainer:`, itemsContainer);
+      }
+
       if (showAll) {
         activeSearchTerms.delete(groupName);
       } else {
@@ -854,12 +878,20 @@
         itemsContainer = firstGroupCheckbox.closest('.w-dyn-items') ||
                         firstGroupCheckbox.closest('.collection-list') ||
                         firstGroupCheckbox.parentElement;
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Fallback itemsContainer:`, itemsContainer);
+        }
       }
 
       const containerIndex = targetContainer ? Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(targetContainer) : -1;
       const containerKey = containerIndex >= 0 ? `container_${containerIndex}` : null;
       const containerData = containerKey ? cache.paginatedData.get(containerKey) : null;
       const isPaginationLoading = containerData?.isLoading || false;
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] containerIndex: ${containerIndex}, containerKey: ${containerKey}`);
+        console.log(`[CheckboxFilter] isPaginationLoading: ${isPaginationLoading}`);
+      }
 
       // Check if we're in load more mode
       let isLoadMoreMode = false;
@@ -871,28 +903,80 @@
 
       if (seamlessContainer && window.containerData && typeof window.containerData === 'object') {
         const containerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
-        isLoadMoreMode = containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex);
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Checking load-more mode - containerIndex: ${containerIndex}`);
+          console.log(`[CheckboxFilter] window.containerData exists: ${!!window.containerData}`);
+          console.log(`[CheckboxFilter] window.containerData.has: ${!!window.containerData.has}`);
+        }
+
+        if (containerIndex >= 0 && window.containerData.has && window.containerData.has(containerIndex)) {
+          const containerDataMap = window.containerData.get(containerIndex);
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] containerDataMap:`, containerDataMap);
+            console.log(`[CheckboxFilter] containerDataMap.allItems length: ${containerDataMap?.allItems?.length || 0}`);
+          }
+          // Only use load more mode if allItems exists
+          isLoadMoreMode = containerDataMap && containerDataMap.allItems && containerDataMap.allItems.length > 0;
+
+          if (CONFIG.DEBUG_MODE && !isLoadMoreMode) {
+            console.log('[CheckboxFilter] Load-more container detected but allItems is empty, using regular mode');
+          }
+        }
+      }
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] DECISION: isLoadMoreMode = ${isLoadMoreMode}`);
       }
 
       if (isLoadMoreMode) {
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Calling filterLoadMoreMode`);
+        }
         await filterLoadMoreMode(groupName, searchTerm, seamlessContainer, itemsContainer, isPaginationLoading);
       } else {
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] Calling filterRegularMode`);
+        }
         await filterRegularMode(groupName, searchTerm, checkboxData, targetContainer, isPaginationLoading);
+      }
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] === filterCheckboxGroup END ===`);
       }
 
     } catch (error) {
       utils.logError('filterCheckboxGroup', error);
+      if (CONFIG.DEBUG_MODE) {
+        console.error('[CheckboxFilter] ERROR in filterCheckboxGroup:', error);
+      }
     }
   }
 
   async function filterLoadMoreMode(groupName, searchTerm, seamlessContainer, itemsContainer, isPaginationLoading) {
+    if (CONFIG.DEBUG_MODE) {
+      console.log(`[CheckboxFilter] === filterLoadMoreMode START ===`);
+      console.log(`[CheckboxFilter] groupName: "${groupName}", searchTerm: "${searchTerm}"`);
+    }
+
     const normalizedSearchTerm = utils.normalizeText(searchTerm);
     const showAll = normalizedSearchTerm === '';
 
+    if (CONFIG.DEBUG_MODE) {
+      console.log(`[CheckboxFilter] showAll: ${showAll}`);
+    }
+
     const targetContainerIndex = Array.from(document.querySelectorAll('[seamless-replace="true"]')).indexOf(seamlessContainer);
+
+    if (CONFIG.DEBUG_MODE) {
+      console.log(`[CheckboxFilter] targetContainerIndex: ${targetContainerIndex}`);
+    }
 
     if (targetContainerIndex !== null && window.containerData.has && window.containerData.has(targetContainerIndex)) {
       const containerDataMap = window.containerData.get(targetContainerIndex);
+
+      if (CONFIG.DEBUG_MODE) {
+        console.log(`[CheckboxFilter] containerDataMap found, allItems length: ${containerDataMap?.allItems?.length || 0}`);
+      }
 
       if (itemsContainer && containerDataMap.allItems) {
         if (!cache.persistentCheckedStates.has(groupName)) {
@@ -914,6 +998,12 @@
         }
 
         if (showAll) {
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] LoadMore mode - SHOW ALL branch`);
+            console.log(`[CheckboxFilter] itemsContainer before clear:`, itemsContainer);
+            console.log(`[CheckboxFilter] itemsContainer.children.length: ${itemsContainer.children.length}`);
+          }
+
           // Restore normal pagination display
           itemsContainer.innerHTML = '';
 
@@ -926,9 +1016,18 @@
               console.warn('[CheckboxFilter] No items in containerDataMap.allItems, falling back to regular mode');
             }
             // Fall back to regular filtering mode
-            hideEmptyState(seamlessContainer);
-            await filterRegularMode(groupName, searchTerm, checkboxData, seamlessContainer, isPaginationLoading);
+            const checkboxData = cache.checkboxGroups.get(groupName);
+            if (checkboxData) {
+              hideEmptyState(seamlessContainer);
+              await filterRegularMode(groupName, searchTerm, checkboxData, seamlessContainer, isPaginationLoading);
+            }
             return;
+          }
+
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] containerDataMap.allItems.length: ${containerDataMap.allItems.length}`);
+            console.log(`[CheckboxFilter] containerDataMap.currentPage: ${containerDataMap.currentPage}`);
+            console.log(`[CheckboxFilter] containerDataMap.itemsPerPage: ${containerDataMap.itemsPerPage}`);
           }
 
           const userLoadedMorePages = containerDataMap.currentPage > 1;
@@ -944,7 +1043,12 @@
 
           const itemsToDisplay = containerDataMap.allItems.slice(0, itemsToShow);
 
-          itemsToDisplay.forEach(element => {
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] itemsToShow: ${itemsToShow}`);
+            console.log(`[CheckboxFilter] itemsToDisplay.length: ${itemsToDisplay.length}`);
+          }
+
+          itemsToDisplay.forEach((element, index) => {
             const clonedElement = element.cloneNode(true);
             clonedElement.style.display = 'block';
             clonedElement.style.visibility = 'visible';
@@ -953,11 +1057,19 @@
             clonedElement.removeAttribute('data-search-result');
             itemsContainer.appendChild(clonedElement);
 
+            if (CONFIG.DEBUG_MODE && index < 3) {
+              console.log(`[CheckboxFilter] Appended item ${index}:`, clonedElement);
+            }
+
             if (clonedElement.hasAttribute('checkbox-filter')) {
               const elementGroupName = clonedElement.getAttribute('checkbox-filter');
               restoreCheckedState(clonedElement, elementGroupName);
             }
           });
+
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] After appending - itemsContainer.children.length: ${itemsContainer.children.length}`);
+          }
 
           if (itemsToShow >= containerDataMap.allItems.length) {
             $nextButton.hide();
@@ -970,6 +1082,10 @@
           }
 
           hideEmptyState(seamlessContainer);
+
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] === filterLoadMoreMode END (show all) ===`);
+          }
         } else {
           // Search mode - use Web Worker
           itemsContainer.innerHTML = '';
@@ -1048,24 +1164,46 @@
   }
 
   async function filterRegularMode(groupName, searchTerm, checkboxData, targetContainer, isPaginationLoading) {
+    if (CONFIG.DEBUG_MODE) {
+      console.log(`[CheckboxFilter] === filterRegularMode START ===`);
+      console.log(`[CheckboxFilter] groupName: "${groupName}", searchTerm: "${searchTerm}"`);
+      console.log(`[CheckboxFilter] checkboxData.length: ${checkboxData?.length || 0}`);
+      console.log(`[CheckboxFilter] targetContainer:`, targetContainer);
+    }
+
     const normalizedSearchTerm = utils.normalizeText(searchTerm);
     const showAll = normalizedSearchTerm === '';
+
+    if (CONFIG.DEBUG_MODE) {
+      console.log(`[CheckboxFilter] showAll: ${showAll}`);
+    }
 
     if (showAll) {
       // Show all items - force visibility regardless of previous state
       requestAnimationFrame(() => {
         if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] RegularMode - SHOW ALL branch`);
           console.log(`[CheckboxFilter] Showing all items for group: ${groupName}, total items: ${checkboxData.length}`);
         }
 
         let shownCount = 0;
-        checkboxData.forEach(itemData => {
+        let elementsInDOM = 0;
+        checkboxData.forEach((itemData, index) => {
           const fullItem = cache.checkboxItemsById.get(itemData.id);
           if (fullItem) {
             if (fullItem.element) {
+              if (document.contains(fullItem.element)) {
+                elementsInDOM++;
+              }
               showElement(fullItem.element);
               fullItem.isVisible = true;
               shownCount++;
+
+              if (CONFIG.DEBUG_MODE && index < 3) {
+                console.log(`[CheckboxFilter] Showing item ${index}:`, fullItem.element);
+                console.log(`[CheckboxFilter] Element in DOM: ${document.contains(fullItem.element)}`);
+                console.log(`[CheckboxFilter] Element display: ${fullItem.element.style.display}`);
+              }
             } else if (CONFIG.DEBUG_MODE) {
               console.warn(`[CheckboxFilter] Item ${itemData.id} has no element:`, itemData.labelText);
             }
@@ -1076,10 +1214,15 @@
 
         if (CONFIG.DEBUG_MODE) {
           console.log(`[CheckboxFilter] Successfully showed ${shownCount} items out of ${checkboxData.length}`);
+          console.log(`[CheckboxFilter] Elements actually in DOM: ${elementsInDOM}`);
         }
 
         if (targetContainer) {
           hideEmptyState(targetContainer);
+        }
+
+        if (CONFIG.DEBUG_MODE) {
+          console.log(`[CheckboxFilter] === filterRegularMode END (show all) ===`);
         }
       });
     } else {
