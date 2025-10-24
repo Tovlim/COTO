@@ -372,10 +372,31 @@
   // INITIALIZATION
   // ====================================================================
 
+  // Wait for seamless-load-more to initialize before starting
+  function waitForSeamlessLoadMore() {
+    // Check if seamless-load-more has initialized
+    if (window.containerData && window.containerData.size > 0) {
+      if (CONFIG.DEBUG_MODE) {
+        console.log('[CheckboxFilter] seamless-load-more detected, initializing...');
+      }
+      initializeFilters();
+    } else {
+      // Wait a bit and check again
+      if (CONFIG.DEBUG_MODE) {
+        console.log('[CheckboxFilter] Waiting for seamless-load-more...');
+      }
+      setTimeout(waitForSeamlessLoadMore, 100);
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeFilters);
+    document.addEventListener('DOMContentLoaded', () => {
+      // Give seamless-load-more time to initialize
+      setTimeout(waitForSeamlessLoadMore, 500);
+    });
   } else {
-    initializeFilters();
+    // Give seamless-load-more time to initialize
+    setTimeout(waitForSeamlessLoadMore, 500);
   }
 
   function initializeFilters() {
