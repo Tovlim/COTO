@@ -47,7 +47,7 @@
     RESTORE_DELAY: 200,
     SEARCH_DEBOUNCE_MS: 150,
     WORKER_POOL_SIZE: navigator.hardwareConcurrency || 4,
-    DEBUG_MODE: false
+    DEBUG_MODE: true
   };
 
   // Web Worker inline code (embedded to avoid external file dependency)
@@ -879,6 +879,10 @@
         });
 
         if (hasPaginatedItems) {
+          if (CONFIG.DEBUG_MODE) {
+            console.log(`[CheckboxFilter] Group "${groupName}" has paginated items but no checkboxes in DOM. Checking for seamless-load-more...`);
+          }
+
           // Find the seamless container by checking all containers for load more initialization
           const containers = document.querySelectorAll('[seamless-replace="true"]');
           containers.forEach((container, idx) => {
@@ -892,12 +896,19 @@
                   if (checkbox) {
                     seamlessContainer = container;
                     itemsContainer = container.querySelector('.w-dyn-items');
+                    if (CONFIG.DEBUG_MODE) {
+                      console.log(`[CheckboxFilter] Found seamless container for group "${groupName}" at index ${idx}`);
+                    }
                     break;
                   }
                 }
               }
             }
           });
+
+          if (!seamlessContainer && CONFIG.DEBUG_MODE) {
+            console.warn(`[CheckboxFilter] Could not find seamless container for group "${groupName}" with paginated items. window.containerData exists: ${!!window.containerData}`);
+          }
         }
       }
 
