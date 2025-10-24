@@ -1057,13 +1057,23 @@
         }
 
         let shownCount = 0;
+        let skippedCount = 0;
         checkboxData.forEach(itemData => {
           const fullItem = cache.checkboxItemsById.get(itemData.id);
           if (fullItem) {
             if (fullItem.element) {
-              showElement(fullItem.element);
-              fullItem.isVisible = true;
-              shownCount++;
+              // Only show elements that are actually in the DOM
+              if (fullItem.element.isConnected) {
+                showElement(fullItem.element);
+                fullItem.isVisible = true;
+                shownCount++;
+              } else {
+                // Element exists but is not in the DOM (paginated item not yet loaded)
+                skippedCount++;
+                if (CONFIG.DEBUG_MODE) {
+                  console.log(`[CheckboxFilter] Skipping disconnected element: ${itemData.labelText}`);
+                }
+              }
             } else if (CONFIG.DEBUG_MODE) {
               console.warn(`[CheckboxFilter] Item ${itemData.id} has no element:`, itemData.labelText);
             }
@@ -1073,7 +1083,7 @@
         });
 
         if (CONFIG.DEBUG_MODE) {
-          console.log(`[CheckboxFilter] Successfully showed ${shownCount} items out of ${checkboxData.length}`);
+          console.log(`[CheckboxFilter] Successfully showed ${shownCount} items out of ${checkboxData.length} (skipped ${skippedCount} disconnected elements)`);
         }
 
         if (targetContainer) {
