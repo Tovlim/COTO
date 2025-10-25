@@ -214,10 +214,30 @@
       const containers = document.querySelectorAll('[seamless-replace="true"]');
       containers.forEach(container => {
         const dynItems = container.querySelector('.w-dyn-items');
+
+        // Try multiple potential scroll containers
+        let scrollableElement = null;
+        let scrollTop = 0;
+
+        // Check if .w-dyn-items parent is scrollable
         const wrapper = dynItems?.parentElement;
-        if (wrapper) {
-          scrollPositions.set(container, wrapper.scrollTop);
+        if (wrapper && wrapper.scrollHeight > wrapper.clientHeight) {
+          scrollableElement = wrapper;
+          scrollTop = wrapper.scrollTop;
         }
+
+        // Check if container itself is scrollable
+        if (!scrollableElement && container.scrollHeight > container.clientHeight) {
+          scrollableElement = container;
+          scrollTop = container.scrollTop;
+        }
+
+        // Check window scroll as fallback
+        if (!scrollableElement) {
+          scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        }
+
+        scrollPositions.set(container, { element: scrollableElement, scrollTop });
       });
     } catch (error) {
       // Silently fail
@@ -227,11 +247,12 @@
   function restoreScrollPositions() {
     try {
       requestAnimationFrame(() => {
-        scrollPositions.forEach((scrollTop, container) => {
-          const dynItems = container.querySelector('.w-dyn-items');
-          const wrapper = dynItems?.parentElement;
-          if (wrapper) {
-            wrapper.scrollTop = scrollTop;
+        scrollPositions.forEach((scrollData, container) => {
+          if (scrollData.element) {
+            scrollData.element.scrollTop = scrollData.scrollTop;
+          } else {
+            // Restore window scroll
+            window.scrollTo(0, scrollData.scrollTop);
           }
         });
       });
@@ -942,6 +963,10 @@
 
         if (showAll) {
           // Restore normal pagination display
+          // Save scroll position before clearing
+          const scrollParent = itemsContainer.parentElement;
+          const savedScrollTop = scrollParent ? scrollParent.scrollTop : 0;
+
           itemsContainer.innerHTML = '';
 
           const $container = $(seamlessContainer);
@@ -1013,6 +1038,13 @@
           }
 
           hideEmptyState(seamlessContainer);
+
+          // Restore scroll position after DOM update
+          requestAnimationFrame(() => {
+            if (scrollParent) {
+              scrollParent.scrollTop = savedScrollTop;
+            }
+          });
         } else {
           // Search mode - use Web Worker
           itemsContainer.innerHTML = '';
