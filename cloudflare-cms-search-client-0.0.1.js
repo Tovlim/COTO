@@ -48,6 +48,7 @@
     emptyStates: new Map(), // searchType -> empty state
     eventListeners: new Map(), // searchType -> [listeners]
     persistentCheckedStates: new Map(), // searchType -> Map(itemName -> boolean)
+    checkedItemSlugs: new Map(), // searchType -> Map(itemName -> slug)
     abortControllers: new Map() // searchType -> AbortController
   };
 
@@ -223,36 +224,78 @@
   // ====================================================================
 
   /**
-   * Get all currently checked checkboxes for a search type
-   * Extracts data from DOM elements
+   * Capture checked states from DOM and store in persistent cache
+   * Should be called BEFORE clearing/re-rendering DOM
+   */
+  function captureCheckedStatesFromDOM(searchType) {
+    try {
+      const fieldName = searchType === 'localities' ? 'Locality' : 'Settlement';
+      const states = cache.persistentCheckedStates.get(searchType) || new Map();
+
+      // Find all checkboxes for this field (checked and unchecked)
+      const allCheckboxes = document.querySelectorAll(`input[fs-list-field="${fieldName}"]`);
+
+      allCheckboxes.forEach(checkbox => {
+        const name = checkbox.getAttribute('fs-list-value');
+        if (!name) return;
+
+        // Update state in persistent cache
+        states.set(name, checkbox.checked);
+
+        // Also cache the slug if checkbox is checked
+        if (checkbox.checked) {
+          const container = checkbox.closest('[checkbox-filter]') || checkbox.closest('.w-dyn-item');
+          const link = container?.querySelector('a[href^="/"]');
+          const href = link?.getAttribute('href');
+
+          if (href) {
+            const urlPath = CONFIG.URL_PATHS[searchType];
+            if (href.startsWith(urlPath + '/')) {
+              const slug = href.substring(urlPath.length + 1);
+              // Store slug in a separate cache for checked items
+              if (!cache.checkedItemSlugs) {
+                cache.checkedItemSlugs = new Map();
+              }
+              if (!cache.checkedItemSlugs.has(searchType)) {
+                cache.checkedItemSlugs.set(searchType, new Map());
+              }
+              cache.checkedItemSlugs.get(searchType).set(name, slug);
+            }
+          }
+        }
+      });
+
+      cache.persistentCheckedStates.set(searchType, states);
+      utils.log(`Captured ${states.size} checkbox states for ${searchType}`);
+
+    } catch (error) {
+      utils.logError('captureCheckedStatesFromDOM', error);
+    }
+  }
+
+  /**
+   * Get all currently checked items from persistent cache
+   * Returns items marked as checked with their data
    */
   function getCheckedItems(searchType) {
     try {
       const checkedItems = [];
-      const fieldName = searchType === 'localities' ? 'Locality' : 'Settlement';
+      const states = cache.persistentCheckedStates.get(searchType);
 
-      // Find all checked checkboxes for this field
-      const checkedCheckboxes = document.querySelectorAll(`input[fs-list-field="${fieldName}"]:checked`);
+      if (!states) {
+        utils.log(`No persistent states found for ${searchType}`);
+        return [];
+      }
 
-      checkedCheckboxes.forEach(checkbox => {
-        const name = checkbox.getAttribute('fs-list-value');
-        if (!name) return;
+      // Get cached slugs
+      const slugCache = cache.checkedItemSlugs?.get(searchType) || new Map();
 
-        // Try to find the slug from the link element
-        const container = checkbox.closest('[checkbox-filter]') || checkbox.closest('.w-dyn-item');
-        const link = container?.querySelector('a[href^="/"]');
-        const href = link?.getAttribute('href');
+      // Iterate through persistent states to find checked items
+      states.forEach((isChecked, name) => {
+        if (!isChecked) return; // Skip unchecked items
 
-        // Extract slug from href (e.g., "/locality/abda" -> "abda")
-        let slug = '';
-        if (href) {
-          const urlPath = CONFIG.URL_PATHS[searchType];
-          if (href.startsWith(urlPath + '/')) {
-            slug = href.substring(urlPath.length + 1);
-          }
-        }
-
-        // If no slug found, create one from name
+        // Get slug from cache or generate from name
+        let slug = slugCache.get(name);
         if (!slug) {
           slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         }
@@ -264,7 +307,7 @@
         });
       });
 
-      utils.log(`Found ${checkedItems.length} checked items for ${searchType}`);
+      utils.log(`Found ${checkedItems.length} checked items from persistent cache for ${searchType}`);
       return checkedItems;
 
     } catch (error) {
@@ -318,7 +361,11 @@
         return;
       }
 
-      // Get currently checked items BEFORE making API call
+      // IMPORTANT: Capture checked states from DOM BEFORE clearing
+      // This preserves user's checkbox selections across searches
+      captureCheckedStatesFromDOM(searchType);
+
+      // Get currently checked items from persistent cache
       const checkedItems = getCheckedItems(searchType);
 
       // Show searching indicator
@@ -423,19 +470,15 @@
       // Hide empty state
       hideEmptyState(searchType);
 
-      // Capture current checked states before rendering
-      captureCheckedStates(searchType);
-
       // Render each result as a checkbox item
+      // Checked state is already embedded in the HTML via generateCheckboxHtml
       results.forEach(result => {
         const checkboxHtml = generateCheckboxHtml(searchType, result);
         resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
       });
 
-      // Restore checked states
-      restoreCheckedStates(searchType);
-
-      // Sync with Finsweet
+      // No need to restore checked states - they're already set in the HTML
+      // But we still sync with Finsweet for facet counts and other features
       setTimeout(() => {
         syncWithFinsweet(searchType);
       }, 50);
@@ -493,63 +536,10 @@
   // ====================================================================
   // CHECKBOX STATE MANAGEMENT
   // ====================================================================
-
-  function captureCheckedStates(searchType) {
-    try {
-      const resultsContainer = cache.resultsContainers.get(searchType);
-      if (!resultsContainer) return;
-
-      const checkboxes = resultsContainer.querySelectorAll('input[type="checkbox"]');
-      const states = cache.persistentCheckedStates.get(searchType) || new Map();
-
-      checkboxes.forEach(checkbox => {
-        const name = checkbox.getAttribute('fs-list-value');
-        if (name) {
-          states.set(name, checkbox.checked);
-        }
-      });
-
-      cache.persistentCheckedStates.set(searchType, states);
-
-    } catch (error) {
-      utils.logError('captureCheckedStates', error);
-    }
-  }
-
-  function restoreCheckedStates(searchType) {
-    try {
-      const resultsContainer = cache.resultsContainers.get(searchType);
-      if (!resultsContainer) return;
-
-      const states = cache.persistentCheckedStates.get(searchType);
-      if (!states) return;
-
-      const checkboxes = resultsContainer.querySelectorAll('input[type="checkbox"]');
-
-      checkboxes.forEach(checkbox => {
-        const name = checkbox.getAttribute('fs-list-value');
-        if (name && states.has(name)) {
-          const isChecked = states.get(name);
-          checkbox.checked = isChecked;
-
-          // Update visual state
-          const label = checkbox.closest('label');
-          const checkboxInput = checkbox.parentElement.querySelector('.w-checkbox-input');
-
-          if (isChecked) {
-            if (label) label.classList.add('is-list-active');
-            if (checkboxInput) checkboxInput.classList.add('w--redirected-checked');
-          } else {
-            if (label) label.classList.remove('is-list-active');
-            if (checkboxInput) checkboxInput.classList.remove('w--redirected-checked');
-          }
-        }
-      });
-
-    } catch (error) {
-      utils.logError('restoreCheckedStates', error);
-    }
-  }
+  // Note: Checkbox state management is now handled by:
+  // 1. captureCheckedStatesFromDOM() - captures states before search
+  // 2. getCheckedItems() - retrieves checked items from cache
+  // 3. generateCheckboxHtml() - renders with correct checked state
 
   // ====================================================================
   // UI STATE MANAGEMENT
