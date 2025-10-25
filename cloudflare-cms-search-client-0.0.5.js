@@ -442,10 +442,10 @@
   }
 
   /**
-   * Show initial state - only checked checkboxes visible
+   * Show initial state - checked checkboxes + 12 random results
    * Called when user clears the search input
    */
-  function showInitialState(searchType) {
+  async function showInitialState(searchType) {
     try {
       // Capture current states first
       captureCheckedStatesFromDOM(searchType);
@@ -456,24 +456,42 @@
       const resultsContainer = cache.resultsContainers.get(searchType);
       if (!resultsContainer) return;
 
+      // Show searching indicator
+      showSearchingIndicator(searchType);
+
       // Clear container
       resultsContainer.innerHTML = '';
 
-      // If no checked items, just hide empty state and leave container empty
-      if (checkedItems.length === 0) {
-        hideEmptyState(searchType);
-        utils.log(`No checked items to show for ${searchType}`);
-        return;
+      // Fetch 12 random results from API
+      const endpoint = CONFIG.ENDPOINTS[searchType];
+      if (!endpoint) {
+        throw new Error(`No endpoint configured for searchType: ${searchType}`);
       }
 
-      // Render only checked items
-      checkedItems.forEach(result => {
+      const url = `${CONFIG.API_BASE_URL}${endpoint}?random=12`;
+      utils.log(`Fetching random results: ${url}`);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const randomResults = data.results || [];
+
+      // Merge checked items with random results
+      const mergedResults = mergeCheckedWithResults(checkedItems, randomResults);
+
+      // Render merged results
+      mergedResults.forEach(result => {
         const checkboxHtml = generateCheckboxHtml(searchType, result);
         resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
       });
 
+      hideSearchingIndicator(searchType);
       hideEmptyState(searchType);
-      utils.log(`Showing ${checkedItems.length} checked items for ${searchType}`);
+      utils.log(`Showing ${checkedItems.length} checked + ${randomResults.length} random items for ${searchType}`);
 
       // Sync with Finsweet
       setTimeout(() => {
@@ -482,6 +500,18 @@
 
     } catch (error) {
       utils.logError('showInitialState', error);
+      hideSearchingIndicator(searchType);
+
+      // Fallback: just show checked items if API fails
+      const checkedItems = getCheckedItems(searchType);
+      const resultsContainer = cache.resultsContainers.get(searchType);
+      if (resultsContainer) {
+        resultsContainer.innerHTML = '';
+        checkedItems.forEach(result => {
+          const checkboxHtml = generateCheckboxHtml(searchType, result);
+          resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
+        });
+      }
     }
   }
 
