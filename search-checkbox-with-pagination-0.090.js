@@ -388,14 +388,29 @@
       initializeGroups();
       setupMutationObserver();
       setupLoadMoreHandlers();
-      loadAllPaginatedItems();
-
-      setTimeout(() => {
-        syncCheckboxStatesWithFinsweet();
-      }, 100);
 
       isInitialized = true;
       isInitializing = false;
+
+      // Defer non-critical operations
+      if (window.requestIdleCallback) {
+        requestIdleCallback(() => {
+          loadAllPaginatedItems();
+
+          setTimeout(() => {
+            syncCheckboxStatesWithFinsweet();
+          }, 100);
+        }, { timeout: 2000 });
+      } else {
+        setTimeout(() => {
+          loadAllPaginatedItems();
+
+          setTimeout(() => {
+            syncCheckboxStatesWithFinsweet();
+          }, 100);
+        }, 100);
+      }
+
     } catch (error) {
       isInitializing = false;
       utils.logError('initializeFilters', error);
@@ -647,11 +662,16 @@
 
     const signal = containerData.abortController?.signal;
     const fetchPromises = [];
+    const maxConcurrentFetches = 3; // Limit concurrent requests
 
     for (let pageNumber = 2; pageNumber <= totalPages; pageNumber++) {
       const pagePromise = (async () => {
+        // Throttle concurrent fetches
         if (pageNumber > 2) {
-          await fetchPromises[pageNumber - 3];
+          const waitForIndex = Math.max(0, pageNumber - maxConcurrentFetches - 1);
+          if (fetchPromises[waitForIndex]) {
+            await fetchPromises[waitForIndex];
+          }
         }
 
         const { origin, pathname } = window.location;
