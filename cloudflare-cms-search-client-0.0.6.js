@@ -38,7 +38,8 @@
     eventListeners: new Map(), // searchType -> [listeners]
     persistentCheckedStates: new Map(), // searchType -> Map(itemName -> boolean)
     checkedItemSlugs: new Map(), // searchType -> Map(itemName -> slug)
-    abortControllers: new Map() // searchType -> AbortController
+    abortControllers: new Map(), // searchType -> AbortController
+    initialResults: new Map() // searchType -> array of initial checkbox data from page load
   };
 
   let isInitialized = false;
@@ -70,6 +71,7 @@
       utils.log('Initializing Cloudflare CMS Search');
 
       setupElements();
+      captureInitialResults(); // Capture initial checkboxes from page load
       setupEventListeners();
 
       isInitialized = true;
@@ -211,6 +213,58 @@
   // ====================================================================
   // SEARCH FUNCTIONALITY
   // ====================================================================
+
+  /**
+   * Capture initial results from page load
+   * Called once during initialization to preserve the initial 12 checkboxes
+   */
+  function captureInitialResults() {
+    try {
+      cache.containers.forEach((container, searchType) => {
+        const resultsContainer = cache.resultsContainers.get(searchType);
+        if (!resultsContainer) return;
+
+        const fieldName = searchType === 'localities' ? 'Locality' : 'Settlement';
+        const initialCheckboxes = resultsContainer.querySelectorAll(`input[fs-list-field="${fieldName}"]`);
+        const initialResults = [];
+
+        initialCheckboxes.forEach(checkbox => {
+          const name = checkbox.getAttribute('fs-list-value');
+          if (!name) return;
+
+          // Get slug from link
+          const container = checkbox.closest('[checkbox-filter]') || checkbox.closest('.w-dyn-item');
+          const link = container?.querySelector('a[href^="/"]');
+          const href = link?.getAttribute('href');
+
+          let slug = '';
+          if (href) {
+            const urlPath = CONFIG.URL_PATHS[searchType];
+            if (href.startsWith(urlPath + '/')) {
+              slug = href.substring(urlPath.length + 1);
+            }
+          }
+
+          // Fallback slug generation
+          if (!slug) {
+            slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          }
+
+          initialResults.push({
+            name: name,
+            slug: slug,
+            isChecked: false // Initial results are not checked by default
+          });
+        });
+
+        cache.initialResults.set(searchType, initialResults);
+        utils.log(`Captured ${initialResults.length} initial results for ${searchType}`);
+      });
+
+    } catch (error) {
+      utils.logError('captureInitialResults', error);
+    }
+  }
 
   /**
    * Capture checked states from DOM and store in persistent cache
@@ -442,10 +496,10 @@
   }
 
   /**
-   * Show initial state - checked checkboxes + 12 random results
+   * Show initial state - checked checkboxes + initial 12 from page load
    * Called when user clears the search input
    */
-  async function showInitialState(searchType) {
+  function showInitialState(searchType) {
     try {
       // Capture current states first
       captureCheckedStatesFromDOM(searchType);
@@ -453,35 +507,17 @@
       // Get checked items
       const checkedItems = getCheckedItems(searchType);
 
+      // Get initial results from cache
+      const initialResults = cache.initialResults.get(searchType) || [];
+
       const resultsContainer = cache.resultsContainers.get(searchType);
       if (!resultsContainer) return;
-
-      // Show searching indicator
-      showSearchingIndicator(searchType);
 
       // Clear container
       resultsContainer.innerHTML = '';
 
-      // Fetch 12 random results from API
-      const endpoint = CONFIG.ENDPOINTS[searchType];
-      if (!endpoint) {
-        throw new Error(`No endpoint configured for searchType: ${searchType}`);
-      }
-
-      const url = `${CONFIG.API_BASE_URL}${endpoint}?random=12`;
-      utils.log(`Fetching random results: ${url}`);
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const randomResults = data.results || [];
-
-      // Merge checked items with random results
-      const mergedResults = mergeCheckedWithResults(checkedItems, randomResults);
+      // Merge checked items with initial results
+      const mergedResults = mergeCheckedWithResults(checkedItems, initialResults);
 
       // Render merged results
       mergedResults.forEach(result => {
@@ -489,9 +525,8 @@
         resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
       });
 
-      hideSearchingIndicator(searchType);
       hideEmptyState(searchType);
-      utils.log(`Showing ${checkedItems.length} checked + ${randomResults.length} random items for ${searchType}`);
+      utils.log(`Showing ${checkedItems.length} checked + ${initialResults.length} initial items for ${searchType}`);
 
       // Sync with Finsweet
       setTimeout(() => {
@@ -500,18 +535,6 @@
 
     } catch (error) {
       utils.logError('showInitialState', error);
-      hideSearchingIndicator(searchType);
-
-      // Fallback: just show checked items if API fails
-      const checkedItems = getCheckedItems(searchType);
-      const resultsContainer = cache.resultsContainers.get(searchType);
-      if (resultsContainer) {
-        resultsContainer.innerHTML = '';
-        checkedItems.forEach(result => {
-          const checkboxHtml = generateCheckboxHtml(searchType, result);
-          resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
-        });
-      }
     }
   }
 
