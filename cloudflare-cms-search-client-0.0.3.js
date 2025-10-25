@@ -1,16 +1,5 @@
-/*!
- * Cloudflare CMS Search Client v1.0.0
- * Real-time search using Cloudflare Workers API
- * Replaces search-checkbox-with-pagination-0.091.js
- *
- * Features:
- * - Server-side search via Cloudflare Workers
- * - Real-time results (no debounce delay)
- * - Dynamic checkbox generation from API results
- * - Full Finsweet CMS Filter integration
- * - Persistent checkbox states
- * - Empty state handling
- */
+// Cloudflare CMS Search Client v1.0.0
+// Real-time search using Cloudflare Workers API
 
 (function() {
   'use strict';
