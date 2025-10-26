@@ -516,6 +516,12 @@
       // Clear container
       resultsContainer.innerHTML = '';
 
+      // Clear mapbox LazyCheckboxState tracking since we're wiping the DOM
+      if (window.LazyCheckboxState) {
+        const type = searchType === 'localities' ? 'locality' : 'settlement';
+        window.LazyCheckboxState.clearType(type);
+      }
+
       // Merge checked items with initial results
       const mergedResults = mergeCheckedWithResults(checkedItems, initialResults);
 
@@ -523,6 +529,12 @@
       mergedResults.forEach(result => {
         const checkboxHtml = generateCheckboxHtml(searchType, result);
         resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
+
+        // Re-track each rendered checkbox in mapbox LazyCheckboxState
+        if (window.LazyCheckboxState) {
+          const type = searchType === 'localities' ? 'locality' : 'settlement';
+          window.LazyCheckboxState.addCheckbox(result.name, type);
+        }
       });
 
       hideEmptyState(searchType);
@@ -550,6 +562,13 @@
       // Clear existing results
       resultsContainer.innerHTML = '';
 
+      // Clear mapbox LazyCheckboxState tracking since we're wiping the DOM
+      // This allows mapbox to regenerate checkboxes that are no longer in the results
+      if (window.LazyCheckboxState) {
+        const type = searchType === 'localities' ? 'locality' : 'settlement';
+        window.LazyCheckboxState.clearType(type);
+      }
+
       // If no results, show empty state
       if (results.length === 0) {
         showEmptyState(searchType);
@@ -564,6 +583,12 @@
       results.forEach(result => {
         const checkboxHtml = generateCheckboxHtml(searchType, result);
         resultsContainer.insertAdjacentHTML('beforeend', checkboxHtml);
+
+        // Re-track each rendered checkbox in mapbox LazyCheckboxState
+        if (window.LazyCheckboxState) {
+          const type = searchType === 'localities' ? 'locality' : 'settlement';
+          window.LazyCheckboxState.addCheckbox(result.name, type);
+        }
       });
 
       // No need to restore checked states - they're already set in the HTML
