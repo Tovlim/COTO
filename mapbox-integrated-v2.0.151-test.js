@@ -2523,11 +2523,6 @@ window.addEventListener('beforeunload', () => {
                     searchInput.removeEventListener('focus', handleFirstFocus);
                     searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
                     loadAutocomplete('user-interaction');
-                    // Load both locality and settlement data for autocomplete functionality
-                    Promise.all([
-                        loadLocalitiesIfNeeded('autocomplete-focus'),
-                        loadSettlementsIfNeeded('autocomplete-focus')
-                    ]);
                 }
             };
             
@@ -2538,11 +2533,6 @@ window.addEventListener('beforeunload', () => {
                     searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
                     searchInput.removeEventListener('focus', handleFirstFocus);
                     loadAutocomplete('user-hover');
-                    // Load both locality and settlement data for autocomplete functionality
-                    Promise.all([
-                        loadLocalitiesIfNeeded('autocomplete-hover'),
-                        loadSettlementsIfNeeded('autocomplete-hover')
-                    ]);
                 }
             };
             
@@ -3283,26 +3273,14 @@ window.addEventListener('beforeunload', () => {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // Fly to settlement using passed coordinates or find by name as fallback
+                // Fly to settlement using passed coordinates
                 if (window.map && lat && lng) {
-                    // Use passed coordinates directly (handles duplicates)
                     window.map.flyTo({
                         center: [lng, lat],
                         zoom: 13.5,
                         duration: 1000,
                         essential: true
                     });
-                } else if (window.map) {
-                    // Fallback to finding by name (for backward compatibility)
-                    const settlement = this.data.settlements.find(s => s.name === settlementName);
-                    if (settlement && settlement.lat && settlement.lng) {
-                        window.map.flyTo({
-                            center: [settlement.lng, settlement.lat],
-                            zoom: 13.5,
-                            duration: 1000,
-                            essential: true
-                        });
-                    }
                 }
                 
                 // Clean up flag
@@ -3468,26 +3446,14 @@ window.addEventListener('beforeunload', () => {
                     window.mapUtilities.toggleSidebar('Left', true);
                 }
                 
-                // Fly to locality using passed coordinates or find by name as fallback
+                // Fly to locality using passed coordinates
                 if (window.map && lat && lng) {
-                    // Use passed coordinates directly (handles duplicates)
                     window.map.flyTo({
                         center: [lng, lat],
                         zoom: 13.5,
                         duration: 1000,
                         essential: true
                     });
-                } else if (window.map) {
-                    // Fallback to finding by name (for backward compatibility)
-                    const locality = this.data.localities.find(l => l.name === localityName);
-                    if (locality && locality.lat && locality.lng) {
-                        window.map.flyTo({
-                            center: [locality.lng, locality.lat],
-                            zoom: 13.5,
-                            duration: 1000,
-                            essential: true
-                        });
-                    }
                 }
                 
                 setTimeout(() => {
@@ -3640,11 +3606,9 @@ window.addEventListener('beforeunload', () => {
             
             getStats() {
                 return {
-                    totalItems: this.data.regions.length + this.data.subregions.length + this.data.localities.length + this.data.settlements.length,
+                    totalItems: this.data.regions.length + this.data.subregions.length,
                     regions: this.data.regions.length,
                     subregions: this.data.subregions.length,
-                    localities: this.data.localities.length,
-                    settlements: this.data.settlements.length,
                     filteredResults: this.data.filteredResults.length,
                     cacheSize: this.cache.size
                 };
@@ -3696,11 +3660,6 @@ window.addEventListener('beforeunload', () => {
             const loadOnInteraction = () => {
                 if (autocompleteLoadState === 'pending') {
                     loadAutocomplete('user-interaction');
-                    // Load both locality and settlement data for autocomplete functionality
-                    Promise.all([
-                        loadLocalitiesIfNeeded('autocomplete-interaction'),
-                        loadSettlementsIfNeeded('autocomplete-interaction')
-                    ]);
                 }
             };
             
