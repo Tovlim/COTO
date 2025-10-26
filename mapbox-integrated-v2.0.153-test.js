@@ -7030,6 +7030,11 @@ async function addNativeTerritoryMarkers() {
       });
       
       // Add territory points layer - on top of everything
+      // Remove and re-add to ensure it's the topmost symbol layer
+      if (mapLayers.hasLayer('territory-points')) {
+        map.removeLayer('territory-points');
+      }
+
       map.addLayer({
         id: 'territory-points',
         type: 'symbol',
@@ -7049,7 +7054,7 @@ async function addNativeTerritoryMarkers() {
           'text-ignore-placement': true,
           'text-offset': [0, 0],
           'text-anchor': 'center',
-          'symbol-sort-key': 0, // Highest priority
+          'symbol-sort-key': -1, // Negative value ensures highest priority (renders on top)
           'visibility': 'visible'
         },
         paint: {
@@ -7279,8 +7284,8 @@ function addNativeRegionMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6, 0,     // Match district opacity timing
-            7, 1      // Match district opacity timing
+            7, 0,
+            8, 1
           ]
         }
       });
@@ -7350,8 +7355,8 @@ function addNativeDistrictMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6, 0,
-            7, 1  // Appear at zoom 7 (regions appear at zoom 6)
+            7, 0,
+            8, 1
           ]
         }
       });
@@ -7663,27 +7668,28 @@ function addNativeSubregionMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            6, 12,
-            10, 16,
-            14, 18
+            7, 11,    // Match district sizing
+            10, 15,   // Match district sizing
+            14, 17    // Match district sizing
           ],
           'text-allow-overlap': false,
           'text-ignore-placement': false,
           'text-optional': true,
-          'text-padding': 6,
+          'text-padding': 5,    // Match district padding
           'text-offset': [0, 0],
-          'text-anchor': 'center'
+          'text-anchor': 'center',
+          'symbol-sort-key': 8  // Match district priority
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#6e3500',
+          'text-halo-color': '#000000',  // Match district/region halo color (black)
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
             ['linear'],
             ['zoom'],
-            5, 0,
-            6, 1
+            7, 0,
+            8, 1
           ]
         }
       });
