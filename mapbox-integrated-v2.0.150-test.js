@@ -2037,37 +2037,87 @@ function setupZoomBasedMarkerLoading() {
   const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 9 : 10;
   let markersLoaded = false;
 
+  console.log('[DEBUG setupZoomBasedMarkerLoading] ========== INITIALIZATION ==========');
+  console.log('[DEBUG setupZoomBasedMarkerLoading] Window width:', window.innerWidth);
+  console.log('[DEBUG setupZoomBasedMarkerLoading] Mobile breakpoint:', APP_CONFIG.breakpoints.mobile);
+  console.log('[DEBUG setupZoomBasedMarkerLoading] Device type:', window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 'MOBILE' : 'DESKTOP');
+  console.log('[DEBUG setupZoomBasedMarkerLoading] Zoom threshold:', MARKER_ZOOM_THRESHOLD);
+
   async function checkZoomAndLoadMarkers() {
     const currentZoom = map.getZoom();
+    console.log('[DEBUG checkZoomAndLoadMarkers] ========== CHECK TRIGGERED ==========');
+    console.log('[DEBUG checkZoomAndLoadMarkers] Current zoom:', currentZoom.toFixed(2));
+    console.log('[DEBUG checkZoomAndLoadMarkers] Threshold:', MARKER_ZOOM_THRESHOLD);
+    console.log('[DEBUG checkZoomAndLoadMarkers] Markers already loaded?', markersLoaded);
+    console.log('[DEBUG checkZoomAndLoadMarkers] Zoom >= threshold?', currentZoom >= MARKER_ZOOM_THRESHOLD);
 
     if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
-      // Load markers only when zoomed in enough
+      console.log('[DEBUG checkZoomAndLoadMarkers] ✅ THRESHOLD REACHED - Starting marker load');
       markersLoaded = true;
 
-      // Load both locality and settlement data together
-      await Promise.all([
-        loadLocalitiesIfNeeded('zoom-threshold'),
-        loadSettlementsIfNeeded('zoom-threshold')
-      ]);
+      const startTime = performance.now();
+      console.log('[DEBUG checkZoomAndLoadMarkers] Load start time:', new Date().toISOString());
+
+      try {
+        // Load both locality and settlement data together
+        console.log('[DEBUG checkZoomAndLoadMarkers] Starting Promise.all for localities and settlements');
+
+        await Promise.all([
+          loadLocalitiesIfNeeded('zoom-threshold'),
+          loadSettlementsIfNeeded('zoom-threshold')
+        ]);
+
+        const loadTime = performance.now() - startTime;
+        console.log('[DEBUG checkZoomAndLoadMarkers] ✅ Load complete in', loadTime.toFixed(2), 'ms');
+        console.log('[DEBUG checkZoomAndLoadMarkers] Locality features count:', state.allLocalityFeatures?.length || 0);
+        console.log('[DEBUG checkZoomAndLoadMarkers] Settlement features count:', state.allSettlementFeatures?.length || 0);
+        console.log('[DEBUG checkZoomAndLoadMarkers] Locality layers exist?', {
+          source: mapLayers.hasSource('localities-source'),
+          clusters: mapLayers.hasLayer('locality-clusters'),
+          points: mapLayers.hasLayer('locality-points')
+        });
+        console.log('[DEBUG checkZoomAndLoadMarkers] Settlement layers exist?', {
+          source: mapLayers.hasSource('settlements-source'),
+          clusters: mapLayers.hasLayer('settlement-clusters'),
+          points: mapLayers.hasLayer('settlement-points')
+        });
+      } catch (error) {
+        console.error('[DEBUG checkZoomAndLoadMarkers] ❌ Error during load:', error);
+        console.error('[DEBUG checkZoomAndLoadMarkers] Error stack:', error.stack);
+        markersLoaded = false; // Reset flag on error so we can retry
+      }
 
       // Layers now use opacity interpolation for smooth fade in/out
       // No need to toggle visibility - opacity handles the transition
     } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
+      if (markersLoaded) {
+        console.log('[DEBUG checkZoomAndLoadMarkers] ⚠️ Zoom below threshold - resetting markersLoaded flag');
+      }
       // Reset flag so data can be loaded again when zooming back in
       markersLoaded = false;
+    } else {
+      console.log('[DEBUG checkZoomAndLoadMarkers] No action needed (zoom:', currentZoom.toFixed(2), 'threshold:', MARKER_ZOOM_THRESHOLD, 'loaded:', markersLoaded, ')');
     }
   }
 
   // Listen to zoom events
+  console.log('[DEBUG setupZoomBasedMarkerLoading] Attaching zoom event listeners');
   map.on('zoom', checkZoomAndLoadMarkers);
   map.on('zoomend', checkZoomAndLoadMarkers);
 
   // Initial check when map is ready
   if (map.isStyleLoaded()) {
+    console.log('[DEBUG setupZoomBasedMarkerLoading] Map style already loaded - performing initial check');
     checkZoomAndLoadMarkers();
   } else {
-    map.on('style.load', checkZoomAndLoadMarkers);
+    console.log('[DEBUG setupZoomBasedMarkerLoading] Waiting for map style to load');
+    map.on('style.load', () => {
+      console.log('[DEBUG setupZoomBasedMarkerLoading] Map style loaded event fired - performing initial check');
+      checkZoomAndLoadMarkers();
+    });
   }
+
+  console.log('[DEBUG setupZoomBasedMarkerLoading] ========== SETUP COMPLETE ==========');
 }
 
 // Initialize territory data immediately (no loading required)
@@ -2112,29 +2162,65 @@ function initializeTerritoryData() {
 
 // Locality loading helper - can be called from zoom or autocomplete interaction
 async function loadLocalitiesIfNeeded(trigger = 'unknown') {
+  console.log('[DEBUG loadLocalitiesIfNeeded] ========== FUNCTION CALLED ==========');
+  console.log('[DEBUG loadLocalitiesIfNeeded] Trigger:', trigger);
+  console.log('[DEBUG loadLocalitiesIfNeeded] state.allLocalityFeatures exists?', !!state.allLocalityFeatures);
+  console.log('[DEBUG loadLocalitiesIfNeeded] state.allLocalityFeatures length:', state.allLocalityFeatures?.length || 0);
+
   // Only load if not already loaded
   if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
+    console.log('[DEBUG loadLocalitiesIfNeeded] ✅ Localities NOT loaded - starting load from GeoJSON');
+    const startTime = performance.now();
+
     try {
       await loadLocalitiesFromGeoJSON();
+
+      const loadTime = performance.now() - startTime;
+      console.log('[DEBUG loadLocalitiesIfNeeded] ✅ Load complete in', loadTime.toFixed(2), 'ms');
+      console.log('[DEBUG loadLocalitiesIfNeeded] Loaded', state.allLocalityFeatures?.length || 0, 'locality features');
+      console.log('[DEBUG loadLocalitiesIfNeeded] Emitting data:locality-loaded event');
+
       EventBus.emit('data:locality-loaded', { trigger });
     } catch (error) {
+      console.error('[DEBUG loadLocalitiesIfNeeded] ❌ Error loading locality data:', error);
+      console.error('[DEBUG loadLocalitiesIfNeeded] Error stack:', error.stack);
       console.warn(`Error loading locality data (${trigger}):`, error);
       EventBus.emit('data:locality-error', { error, trigger });
     }
+  } else {
+    console.log('[DEBUG loadLocalitiesIfNeeded] ⏭️ Localities already loaded (', state.allLocalityFeatures.length, 'features) - skipping');
   }
 }
 
 // Settlement loading helper - can be called from zoom or autocomplete interaction
 async function loadSettlementsIfNeeded(trigger = 'unknown') {
+  console.log('[DEBUG loadSettlementsIfNeeded] ========== FUNCTION CALLED ==========');
+  console.log('[DEBUG loadSettlementsIfNeeded] Trigger:', trigger);
+  console.log('[DEBUG loadSettlementsIfNeeded] state.allSettlementFeatures exists?', !!state.allSettlementFeatures);
+  console.log('[DEBUG loadSettlementsIfNeeded] state.allSettlementFeatures length:', state.allSettlementFeatures?.length || 0);
+
   // Only load if not already loaded
   if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
+    console.log('[DEBUG loadSettlementsIfNeeded] ✅ Settlements NOT loaded - starting load from cache');
+    const startTime = performance.now();
+
     try {
       await loadSettlementsFromCache();
+
+      const loadTime = performance.now() - startTime;
+      console.log('[DEBUG loadSettlementsIfNeeded] ✅ Load complete in', loadTime.toFixed(2), 'ms');
+      console.log('[DEBUG loadSettlementsIfNeeded] Loaded', state.allSettlementFeatures?.length || 0, 'settlement features');
+      console.log('[DEBUG loadSettlementsIfNeeded] Emitting data:settlement-loaded event');
+
       EventBus.emit('data:settlement-loaded', { trigger });
     } catch (error) {
+      console.error('[DEBUG loadSettlementsIfNeeded] ❌ Error loading settlement data:', error);
+      console.error('[DEBUG loadSettlementsIfNeeded] Error stack:', error.stack);
       console.warn(`Error loading settlement data (${trigger}):`, error);
       EventBus.emit('data:settlement-error', { error, trigger });
     }
+  } else {
+    console.log('[DEBUG loadSettlementsIfNeeded] ⏭️ Settlements already loaded (', state.allSettlementFeatures.length, 'features) - skipping');
   }
 }
 
