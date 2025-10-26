@@ -280,72 +280,9 @@ const CheckboxFactory = {
     return checkboxWrapper;
   },
   
-  // Generic bulk generation function
-  generateBulkCheckboxes(containerId, features, type, stateName) {
-    if (LazyCheckboxState.isFullyGenerated(type)) {
-      return Promise.resolve();
-    }
-    
-    const container = document.getElementById(containerId);
-    if (!container) return Promise.resolve();
-    
-    
-    return new Promise((resolve) => {
-      const generate = () => {
-        try {
-          // Clear and reset using DOMFactory
-          DOMFactory.clearContainer(container);
-          LazyCheckboxState.clearType(type);
-          
-          // Extract unique features
-          const uniqueFeatures = [];
-          const seenNames = new Set();
-          
-          features.forEach(feature => {
-            if (feature?.properties?.name) {
-              const name = feature.properties.name.trim();
-              if (name && !seenNames.has(name)) {
-                seenNames.add(name);
-                uniqueFeatures.push(feature);
-              }
-            }
-          });
-          
-          // Sort alphabetically
-          uniqueFeatures.sort((a, b) => a.properties.name.localeCompare(b.properties.name));
-          
-          // Generate using document fragment
-          const fragment = document.createDocumentFragment();
-          
-          uniqueFeatures.forEach(feature => {
-            const name = feature.properties.name;
-            const checkboxElement = this.createCheckboxElement(name, type, feature.properties);
-            fragment.appendChild(checkboxElement);
-            LazyCheckboxState.addCheckbox(name, type);
-          });
-          
-          // Single DOM insertion
-          container.appendChild(fragment);
-          
-          LazyCheckboxState.markFullyGenerated(type);
-          resolve();
-        } catch (error) {
-          const recovery = ErrorHandler.handle(error, ErrorHandler.categories.GENERATION, {
-            operation: `generateAll${type.charAt(0).toUpperCase() + type.slice(1)}Checkboxes`,
-            type: type,
-            container: container?.id
-          });
-          
-          if (recovery.recovered) {
-          }
-          resolve();
-        }
-      };
-      
-      // Generate during idle time for non-blocking performance
-      IdleExecution.scheduleHeavy(generate, { timeout: 2000, fallbackDelay: 100 });
-    });
-  }
+  // Bulk checkbox generation removed - now handled by Cloudflare CMS Search script
+  // The Cloudflare script manages initial display and search-based bulk rendering
+  // Single checkbox generation (generateSingleCheckbox) is still handled by this script
 };
 
 // ========================
@@ -1808,75 +1745,14 @@ function generateSingleCheckbox(name, type, properties = {}) {
   return true;
 }
 
-// Bulk generate all locality checkboxes (for Location tab click)
-function generateAllLocalityCheckboxes() {
-  return CheckboxFactory.generateBulkCheckboxes(
-    'locality-check-list',
-    state.allLocalityFeatures || [],
-    'locality',
-    'allLocalityFeatures'
-  );
-}
-
-// Bulk generate all settlement checkboxes (for Location tab click)
-function generateAllSettlementCheckboxes() {
-  return CheckboxFactory.generateBulkCheckboxes(
-    'settlement-check-list',
-    state.allSettlementFeatures || [],
-    'settlement',
-    'allSettlementFeatures'
-  );
-}
-
-// Generate all checkboxes when Location tab is clicked
-function generateAllCheckboxes() {
-  if (LazyCheckboxState.isGeneratingBulk) {
-    return Promise.resolve();
-  }
-  
-  LazyCheckboxState.isGeneratingBulk = true;
-  
-  // Show loading state
-  const localityContainer = $id('locality-check-list');
-  const settlementContainer = $id('settlement-check-list');
-  
-  if (localityContainer && !LazyCheckboxState.isFullyGenerated('locality')) {
-    DOMFactory.clearContainer(localityContainer);
-    localityContainer.appendChild(DOMFactory.createLoadingState('Loading localities...'));
-  }
-  if (settlementContainer && !LazyCheckboxState.isFullyGenerated('settlement')) {
-    DOMFactory.clearContainer(settlementContainer);
-    settlementContainer.appendChild(DOMFactory.createLoadingState('Loading settlements...'));
-  }
-  
-  return Promise.all([
-    generateAllLocalityCheckboxes(),
-    generateAllSettlementCheckboxes()
-  ]).then(() => {
-    LazyCheckboxState.isGeneratingBulk = false;
-    
-    // Setup event listeners for all new checkboxes
-    setupGeneratedCheckboxEvents();
-    
-    // Recache after bulk generation (lighter than forceRebuild for batch operations)
-    if (window.checkboxFilterScript) {
-      setTimeout(() => {
-        // Use lighter recacheElements for batch operations since we're not mixing individual insertions
-        window.checkboxFilterScript.recacheElements();
-      }, 100);
-    }
-    
-    // Rescan filter indicators for all new checkboxes
-    if (window.filterIndicators) {
-      setTimeout(() => {
-        window.filterIndicators.rescan();
-      }, 50);
-    }
-  }).catch((error) => {
-    LazyCheckboxState.isGeneratingBulk = false;
-    // console.error('Bulk checkbox generation failed:', error);
-  });
-}
+// Bulk checkbox generation functions removed - now handled by Cloudflare CMS Search script
+// The Cloudflare script handles:
+// - Initial display of checkboxes (captured from page load)
+// - Search-based bulk rendering via API
+// - Persistent checkbox state management across searches
+//
+// This mapbox script only handles single checkbox generation via generateSingleCheckbox()
+// for on-demand needs like map clicks and autocomplete selections
 
 // Generate locality checkboxes from map data (modified for lazy loading)
 function generateLocalityCheckboxes() {
@@ -2547,7 +2423,7 @@ function setupGlobalExports() {
         settlement: selectSettlementCheckbox
       },
       generate: {
-        all: generateAllCheckboxes,
+        // Bulk generation removed - handled by Cloudflare CMS Search script
         single: generateSingleCheckbox
       }
     },
@@ -9083,14 +8959,15 @@ if (document.readyState === 'loading') {
         if (element.dataset.mapboxCheckboxListenerAdded === 'true') return;
         
         element.addEventListener('click', async function(e) {
-          // Load settlement data and generate all checkboxes when Location tab is clicked
+          // Load settlement data when Location tab is clicked
           if (APP_CONFIG.features.enableLazyCheckboxes) {
-            
+
             // Load settlement data if not already loaded
             await loadSettlementsIfNeeded('tab-click');
-            
-            // Generate all checkboxes (including settlements now that data is loaded)
-            generateAllCheckboxes();
+
+            // Checkbox display is now handled by Cloudflare CMS Search script
+            // It automatically shows initial checkboxes captured from page load
+            // Users can search to load more items via the API
           }
         });
         
@@ -9104,12 +8981,13 @@ if (document.readyState === 'loading') {
                          e.target.closest('#w-tabs-0-data-w-tab-2');
       
       if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
-        
+
         // Load settlement data if not already loaded
         await loadSettlementsIfNeeded('tab-click');
-        
-        // Generate all checkboxes (including settlements now that data is loaded)
-        generateAllCheckboxes();
+
+        // Checkbox display is now handled by Cloudflare CMS Search script
+        // It automatically shows initial checkboxes captured from page load
+        // Users can search to load more items via the API
       }
     });
   }
