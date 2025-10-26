@@ -1786,30 +1786,16 @@ function generateSingleCheckbox(name, type, properties = {}) {
   checkboxWrapper.appendChild(label);
   console.log('[DEBUG generateSingleCheckbox] Assembled checkbox structure');
 
-  // Insert in alphabetical order
-  console.log('[DEBUG generateSingleCheckbox] Finding insertion position...');
-  const existingCheckboxes = Array.from(container.querySelectorAll('.w-dyn-item .test3'));
-  console.log('[DEBUG generateSingleCheckbox] Existing checkboxes count:', existingCheckboxes.length);
-  console.log('[DEBUG generateSingleCheckbox] Existing checkbox names:', existingCheckboxes.map(cb => cb.textContent));
+  // Insert at top of container (generated checkboxes are always checked)
+  console.log('[DEBUG generateSingleCheckbox] Inserting checkbox at top of container...');
+  const firstCheckbox = container.querySelector('.w-dyn-item');
 
-  let insertPosition = existingCheckboxes.length;
-
-  for (let i = 0; i < existingCheckboxes.length; i++) {
-    if (name.localeCompare(existingCheckboxes[i].textContent) < 0) {
-      insertPosition = i;
-      console.log('[DEBUG generateSingleCheckbox] Found insertion position:', insertPosition, 'before:', existingCheckboxes[i].textContent);
-      break;
-    }
-  }
-
-  if (insertPosition >= existingCheckboxes.length) {
-    console.log('[DEBUG generateSingleCheckbox] Appending checkbox to end of container');
-    container.appendChild(checkboxWrapper);
+  if (firstCheckbox) {
+    console.log('[DEBUG generateSingleCheckbox] Inserting before first checkbox');
+    container.insertBefore(checkboxWrapper, firstCheckbox);
   } else {
-    console.log('[DEBUG generateSingleCheckbox] Inserting checkbox at position:', insertPosition);
-    const referenceNode = existingCheckboxes[insertPosition].closest('.w-dyn-item');
-    console.log('[DEBUG generateSingleCheckbox] Reference node for insertion:', referenceNode);
-    container.insertBefore(checkboxWrapper, referenceNode);
+    console.log('[DEBUG generateSingleCheckbox] No existing checkboxes, appending to container');
+    container.appendChild(checkboxWrapper);
   }
   console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox inserted into DOM');
 
