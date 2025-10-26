@@ -1622,52 +1622,76 @@ function generateSingleCheckbox(name, type, properties = {}) {
   if (!APP_CONFIG.features.enableLazyCheckboxes) {
     return false;
   }
-  
-  // Check if already generated
+
+  // Check if already generated in Mapbox state
   if (LazyCheckboxState.hasCheckbox(name, type)) {
     return true;
   }
-  
+
+  // Determine the search type for Cloudflare script
+  const searchType = type === 'locality' ? 'localities' : 'settlements';
+
+  // Check if checkbox already exists in the DOM (Cloudflare might have rendered it)
+  const fieldName = type.charAt(0).toUpperCase() + type.slice(1);
+  const existingCheckbox = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${name}"]`);
+
+  if (existingCheckbox) {
+    // Checkbox already exists - just track it in Mapbox state
+    LazyCheckboxState.addCheckbox(name, type);
+    return true;
+  }
+
   const containerId = type === 'locality' ? 'locality-check-list' : 'settlement-check-list';
   const container = $id(containerId);
   if (!container) {
-    // console.warn(`Container ${containerId} not found for single checkbox generation`);
     return false;
   }
-  
-  // Create the complex checkbox structure to match sidebars script EXACTLY
+
+  // Generate slug
+  const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  // Try to use Cloudflare script's API if available
+  if (window.cloudflareSearch) {
+    // Add to Cloudflare's persistent state so it survives searches
+    try {
+      const cloudflareCache = window.cloudflareSearch.getState ? window.cloudflareSearch.getState() : null;
+
+      // Cloudflare script will handle rendering via its own mechanism
+      // We just need to make sure the checkbox is in the container
+      // So we'll add it directly to the DOM and let Cloudflare sync with it
+    } catch (error) {
+      // Cloudflare script might not be ready yet, continue with manual insertion
+    }
+  }
+
+  // Create the checkbox HTML structure matching Cloudflare's format
   const checkboxWrapper = document.createElement('div');
   checkboxWrapper.setAttribute('checkbox-filter', type);
-  checkboxWrapper.className = 'checbox-item'; // Note: keeping original typo to match existing structure
-  
+  checkboxWrapper.setAttribute('role', 'listitem');
+  checkboxWrapper.className = 'collection-item-3 w-dyn-item';
+
   const label = document.createElement('label');
   label.className = 'w-checkbox reporterwrap-copy';
-  
-  // Generate slug and URL exactly like sidebars script
-  const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const urlPrefix = type === 'settlement' ? 'settlement' : 'locality';
-  
+
   // Create the external link
+  const urlPrefix = type === 'settlement' ? 'settlement' : 'locality';
   const link = document.createElement('a');
   link.setAttribute('open', '');
   link.href = `/${urlPrefix}/${slug}`;
   link.target = '_blank';
   link.className = 'open-in-new-tab w-inline-block';
-  
-  // Add the SVG icon using DOMFactory
   link.innerHTML = DOMFactory.getSVGIcon('external');
-  
+
   // Create the custom checkbox input wrapper
   const checkboxInputWrapper = document.createElement('div');
   checkboxInputWrapper.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-  
-  // Create the actual checkbox input - MATCH SIDEBARS SCRIPT EXACTLY
+
+  // Create the actual checkbox input
   const checkbox = document.createElement('input');
-  const pluralType = type === 'locality' ? 'localities' : 'settlements'; // Use plural for ID like sidebars
-  const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-'); // Match sidebars regex exactly
-  const fieldName = type.charAt(0).toUpperCase() + type.slice(1); // Capitalize for field name
-  
-  // Set attributes exactly like sidebars script
+  const pluralType = type === 'locality' ? 'localities' : 'settlements';
+  const cleanName = name.replace(/[^a-zA-Z0-9]/g, '-');
+
+  // Set attributes matching Cloudflare's format
   checkbox.setAttribute('data-auto-sidebar', 'true');
   checkbox.setAttribute('fs-list-value', name);
   checkbox.setAttribute('fs-list-field', fieldName);
@@ -1675,73 +1699,79 @@ function generateSingleCheckbox(name, type, properties = {}) {
   checkbox.name = type;
   checkbox.setAttribute('data-name', type);
   checkbox.setAttribute('activate-filter-indicator', 'place');
-  checkbox.id = `${pluralType}-${cleanName}`; // Match sidebars format exactly
+  checkbox.id = `${pluralType}-${cleanName}`;
   checkbox.style.cssText = 'opacity: 0; position: absolute; z-index: -1;';
-  
+
   // Create the label text
   const labelText = document.createElement('span');
   labelText.className = 'test3 w-form-label';
   labelText.setAttribute('for', checkbox.id);
   labelText.textContent = name;
-  
+
   // Create the count wrapper
   const countWrapper = document.createElement('div');
   countWrapper.className = 'div-block-31834';
-  
+
   const countElement = document.createElement('div');
   countElement.setAttribute('fs-list-element', 'facet-count');
   countElement.className = 'test33';
-  countElement.textContent = '0'; // Default count
-  
+  countElement.textContent = '0';
+
   countWrapper.appendChild(countElement);
-  
+
   // Assemble the structure
   label.appendChild(link);
   label.appendChild(checkboxInputWrapper);
   label.appendChild(checkbox);
   label.appendChild(labelText);
   label.appendChild(countWrapper);
-  
+
   checkboxWrapper.appendChild(label);
-  
+
   // Insert in alphabetical order
-  const existingCheckboxes = Array.from(container.querySelectorAll('.checbox-item .test3'));
+  const existingCheckboxes = Array.from(container.querySelectorAll('.w-dyn-item .test3'));
   let insertPosition = existingCheckboxes.length;
-  
+
   for (let i = 0; i < existingCheckboxes.length; i++) {
     if (name.localeCompare(existingCheckboxes[i].textContent) < 0) {
       insertPosition = i;
       break;
     }
   }
-  
+
   if (insertPosition >= existingCheckboxes.length) {
     container.appendChild(checkboxWrapper);
   } else {
-    container.insertBefore(checkboxWrapper, existingCheckboxes[insertPosition].closest('.checbox-item'));
+    container.insertBefore(checkboxWrapper, existingCheckboxes[insertPosition].closest('.w-dyn-item'));
   }
-  
+
   // Track the generated checkbox
   LazyCheckboxState.addCheckbox(name, type);
-  
+
   // Setup event listeners for the new checkbox
   setupGeneratedCheckboxEvents();
-  
+
+  // Sync with Cloudflare script if available
+  if (window.cloudflareSearch && window.cloudflareSearch.syncWithFinsweet) {
+    setTimeout(() => {
+      window.cloudflareSearch.syncWithFinsweet();
+    }, 50);
+  }
+
   // Force complete rebuild of filter script cache for better integration
   if (window.checkboxFilterScript) {
     setTimeout(() => {
-      // Use forceRebuild for single checkboxes to ensure cache invalidation
       window.checkboxFilterScript.forceRebuild();
     }, 150);
   }
-  
+
   // Rescan filter indicators for the new checkbox
   if (window.filterIndicators) {
     setTimeout(() => {
       window.filterIndicators.rescan();
     }, 100);
   }
-  
+
   return true;
 }
 
