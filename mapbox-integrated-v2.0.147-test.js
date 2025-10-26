@@ -1632,14 +1632,6 @@ function generateSingleCheckbox(name, type, properties = {}) {
   }
   console.log('[DEBUG generateSingleCheckbox] ✅ enableLazyCheckboxes is enabled');
 
-  // Check if already generated in Mapbox state
-  const alreadyTracked = LazyCheckboxState.hasCheckbox(name, type);
-  console.log('[DEBUG generateSingleCheckbox] Already tracked in LazyCheckboxState?', alreadyTracked);
-  if (alreadyTracked) {
-    console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox already tracked');
-    return true;
-  }
-
   // Determine the search type for Cloudflare script
   const searchType = type === 'locality' ? 'localities' : 'settlements';
   console.log('[DEBUG generateSingleCheckbox] searchType:', searchType);
@@ -1654,16 +1646,27 @@ function generateSingleCheckbox(name, type, properties = {}) {
   const existingCheckbox = document.querySelector(selector);
   console.log('[DEBUG generateSingleCheckbox] existingCheckbox found:', existingCheckbox);
 
-  if (existingCheckbox) {
-    console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox already exists in DOM');
-    console.log('[DEBUG generateSingleCheckbox] Existing checkbox element:', existingCheckbox);
-    console.log('[DEBUG generateSingleCheckbox] Tracking in LazyCheckboxState...');
-    // Checkbox already exists - just track it in Mapbox state
+  // Check if already tracked in Mapbox state
+  const alreadyTracked = LazyCheckboxState.hasCheckbox(name, type);
+  console.log('[DEBUG generateSingleCheckbox] Already tracked in LazyCheckboxState?', alreadyTracked);
+
+  if (existingCheckbox && alreadyTracked) {
+    console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox exists in DOM and is tracked');
+    return true;
+  }
+
+  if (existingCheckbox && !alreadyTracked) {
+    console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox exists in DOM but not tracked - tracking it now');
     LazyCheckboxState.addCheckbox(name, type);
     console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox tracked');
     return true;
   }
-  console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox does NOT exist in DOM - will create it');
+
+  if (!existingCheckbox && alreadyTracked) {
+    console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox tracked but missing from DOM - will recreate it');
+  } else {
+    console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox does NOT exist in DOM - will create it');
+  }
 
   // Use Cloudflare's container lookup pattern: [cloudflare-search] -> .w-dyn-items
   // searchType already declared above at line 1644
