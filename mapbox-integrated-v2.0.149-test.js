@@ -1514,108 +1514,7 @@ function setupDeferredAreaControls() {
 }
 
 // Generate settlement checkboxes from loaded settlement data (modified for lazy loading) 
-function generateSettlementCheckboxes() {
-  if (APP_CONFIG.features.enableLazyCheckboxes) {
-    return;
-  }
-  
-  const container = $id('settlement-check-list');
-  if (!container) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Extract unique settlement names from settlement features
-  const settlementNames = state.allSettlementFeatures
-    .map(feature => feature.properties.name)
-    .sort();
-  
-  if (settlementNames.length === 0) {
-    return;
-  }
-  
-  // Batch generate checkboxes using document fragment
-  const fragment = document.createDocumentFragment();
-  settlementNames.forEach(settlementName => {
-    // Find the settlement feature to get the slug
-    const settlementFeature = state.allSettlementFeatures.find(feature => feature.properties.name === settlementName);
-    const settlementSlug = settlementFeature?.properties?.slug || settlementName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'settlement');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the link element using DOMFactory
-    const link = DOMFactory.createExternalLink(null, settlementSlug, 'settlement');
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', settlementName);
-    input.setAttribute('fs-list-field', 'Settlement');
-    input.type = 'checkbox';
-    input.name = 'settlement';
-    input.setAttribute('data-name', 'settlement');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `settlement-${settlementName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = settlementName;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(link);
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    fragment.appendChild(wrapperDiv);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  });
-  
-  container.appendChild(fragment);
-  
-  // Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterSettlementGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
-  domCache.markStale();
-  
-  // Refresh search script cache if available
-  if (window.checkboxFilterScript) {
-    window.checkboxFilterScript.recacheElements();
-  }
-}
+// Bulk checkbox generation removed - now handled by Cloudflare CMS Search script
 
 // Generate single checkbox for a specific location (lazy loading)
 function generateSingleCheckbox(name, type, properties = {}) {
@@ -1864,212 +1763,7 @@ function generateSingleCheckbox(name, type, properties = {}) {
 // for on-demand needs like map clicks and autocomplete selections
 
 // Generate locality checkboxes from map data (modified for lazy loading)
-function generateLocalityCheckboxes() {
-  if (APP_CONFIG.features.enableLazyCheckboxes) {
-    return;
-  }
-  
-  const container = $id('locality-check-list');
-  if (!container) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Extract unique locality names from map data
-  const localityNames = [...new Set(state.allLocalityFeatures.map(feature => feature.properties.name))].sort();
-  
-  if (localityNames.length === 0) {
-    return;
-  }
-  
-  // Batch generate checkboxes using document fragment
-  const fragment = document.createDocumentFragment();
-  localityNames.forEach(localityName => {
-    // Find the locality feature to get the slug
-    const localityFeature = state.allLocalityFeatures.find(feature => feature.properties.name === localityName);
-    const localitySlug = localityFeature?.properties?.slug || localityName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', 'locality');
-    wrapperDiv.className = 'checbox-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the link element
-    const link = document.createElement('a');
-    link.setAttribute('open', '');
-    link.href = `/locality/${localitySlug}`;
-    link.target = '_blank';
-    link.className = 'open-in-new-tab w-inline-block';
-    link.innerHTML = DOMFactory.getSVGIcon('external');
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', localityName);
-    input.setAttribute('fs-list-field', 'Locality');
-    input.type = 'checkbox';
-    input.name = 'locality';
-    input.setAttribute('data-name', 'locality');
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = `locality-${localityName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'test3 w-form-label';
-    span.setAttribute('for', input.id);
-    span.textContent = localityName;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(link);
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    fragment.appendChild(wrapperDiv);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  });
-  
-  container.appendChild(fragment);
-  
-  // Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
-  domCache.markStale();
-  
-  // Refresh search script cache if available
-  if (window.checkboxFilterScript) {
-    window.checkboxFilterScript.recacheElements();
-  }
-}
-
-// Generate region checkboxes from map data
-function generateRegionCheckboxes() {
-  const container = $id('region-check-list');
-  if (!container) {
-    return;
-  }
-  
-  // Clear the container
-  container.innerHTML = '';
-  
-  // Extract unique region names
-  const regionNames = [...new Set(state.allRegionFeatures.map(feature => feature.properties.name))].sort();
-  
-  // Extract unique subregion names
-  const subregionNames = state.allSubregionFeatures ? 
-    [...new Set(state.allSubregionFeatures.map(feature => feature.properties.name))].sort() : [];
-  
-  if (regionNames.length === 0 && subregionNames.length === 0) {
-    return;
-  }
-  
-  // Combine both lists for alphabetical display
-  const allItems = [
-    ...regionNames.map(name => ({ name, type: 'region' })),
-    ...subregionNames.map(name => ({ name, type: 'subregion' }))
-  ].sort((a, b) => a.name.localeCompare(b.name));
-  
-  // Batch generate checkboxes using document fragment
-  const fragment = document.createDocumentFragment();
-  allItems.forEach(item => {
-    // Create the wrapper div
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.setAttribute('checkbox-filter', item.type === 'region' ? 'Governorate' : 'Region');
-    wrapperDiv.setAttribute('role', 'listitem');
-    wrapperDiv.className = 'collection-item-3 w-dyn-item';
-    
-    // Create the label
-    const label = document.createElement('label');
-    label.className = 'w-checkbox reporterwrap-copy';
-    
-    // Create the custom checkbox div
-    const customCheckbox = document.createElement('div');
-    customCheckbox.className = 'w-checkbox-input w-checkbox-input--inputType-custom toggleable';
-    
-    // Create the actual input
-    const input = document.createElement('input');
-    input.setAttribute('data-auto-sidebar', 'true');
-    input.setAttribute('fs-list-value', item.name);
-    input.setAttribute('fs-list-field', item.type === 'region' ? 'Governorate' : 'Region');
-    input.type = 'checkbox';
-    input.name = item.type;
-    input.setAttribute('data-name', item.type);
-    input.setAttribute('activate-filter-indicator', 'place');
-    input.id = item.type;
-    input.style.opacity = '0';
-    input.style.position = 'absolute';
-    input.style.zIndex = '-1';
-    
-    // Create the span label
-    const span = document.createElement('span');
-    span.className = 'checkbox-text w-form-label';
-    span.setAttribute('for', item.type);
-    span.textContent = item.name;
-    
-    // Create the count div structure
-    const countWrapper = document.createElement('div');
-    countWrapper.className = 'div-block-31834';
-    
-    const countDiv = document.createElement('div');
-    countDiv.setAttribute('fs-list-element', 'facet-count');
-    countDiv.className = 'test33';
-    countDiv.textContent = '0';
-    
-    countWrapper.appendChild(countDiv);
-    
-    // Assemble the structure
-    label.appendChild(customCheckbox);
-    label.appendChild(input);
-    label.appendChild(span);
-    label.appendChild(countWrapper);
-    wrapperDiv.appendChild(label);
-    fragment.appendChild(wrapperDiv);
-    
-    // Setup events for this checkbox
-    setupCheckboxEvents(wrapperDiv);
-  });
-  
-  container.appendChild(fragment);
-  
-  // Check filtered elements after generating checkboxes
-  state.setTimer('checkFilteredAfterRegionGeneration', checkAndToggleFilteredElements, 200);
-  
-  // Invalidate DOM cache since we added new elements
-  domCache.markStale();
-  
-  // Refresh search script cache if available
-  if (window.checkboxFilterScript) {
-    window.checkboxFilterScript.recacheElements();
-  }
-}
+// Bulk checkbox generation removed - now handled by Cloudflare CMS Search script
 
 
 // Setup events for newly generated checkboxes (matches sidebars script exactly)
@@ -2342,17 +2036,20 @@ function setupZoomBasedMarkerLoading() {
   // Mobile users get markers at lower zoom level for better experience
   const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 9 : 10;
   let markersLoaded = false;
-  
+
   async function checkZoomAndLoadMarkers() {
     const currentZoom = map.getZoom();
-    
+
     if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
       // Load markers only when zoomed in enough
       markersLoaded = true;
-      
-      // Load settlement data if not already loaded
-      await loadSettlementsIfNeeded('zoom-threshold');
-      
+
+      // Load both locality and settlement data together
+      await Promise.all([
+        loadLocalitiesIfNeeded('zoom-threshold'),
+        loadSettlementsIfNeeded('zoom-threshold')
+      ]);
+
       // Layers now use opacity interpolation for smooth fade in/out
       // No need to toggle visibility - opacity handles the transition
     } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
@@ -2360,11 +2057,11 @@ function setupZoomBasedMarkerLoading() {
       markersLoaded = false;
     }
   }
-  
+
   // Listen to zoom events
   map.on('zoom', checkZoomAndLoadMarkers);
   map.on('zoomend', checkZoomAndLoadMarkers);
-  
+
   // Initial check when map is ready
   if (map.isStyleLoaded()) {
     checkZoomAndLoadMarkers();
@@ -2411,6 +2108,20 @@ function initializeTerritoryData() {
       }
     }
   ];
+}
+
+// Locality loading helper - can be called from zoom or autocomplete interaction
+async function loadLocalitiesIfNeeded(trigger = 'unknown') {
+  // Only load if not already loaded
+  if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
+    try {
+      await loadLocalitiesFromGeoJSON();
+      EventBus.emit('data:locality-loaded', { trigger });
+    } catch (error) {
+      console.warn(`Error loading locality data (${trigger}):`, error);
+      EventBus.emit('data:locality-error', { error, trigger });
+    }
+  }
 }
 
 // Settlement loading helper - can be called from zoom or autocomplete interaction
@@ -2726,8 +2437,11 @@ window.addEventListener('beforeunload', () => {
                     searchInput.removeEventListener('focus', handleFirstFocus);
                     searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
                     loadAutocomplete('user-interaction');
-                    // Also load settlement data for autocomplete functionality
-                    loadSettlementsIfNeeded('autocomplete-focus');
+                    // Load both locality and settlement data for autocomplete functionality
+                    Promise.all([
+                        loadLocalitiesIfNeeded('autocomplete-focus'),
+                        loadSettlementsIfNeeded('autocomplete-focus')
+                    ]);
                 }
             };
             
@@ -2738,8 +2452,11 @@ window.addEventListener('beforeunload', () => {
                     searchInput.removeEventListener('mouseenter', handleFirstMouseEnter);
                     searchInput.removeEventListener('focus', handleFirstFocus);
                     loadAutocomplete('user-hover');
-                    // Also load settlement data for autocomplete functionality
-                    loadSettlementsIfNeeded('autocomplete-hover');
+                    // Load both locality and settlement data for autocomplete functionality
+                    Promise.all([
+                        loadLocalitiesIfNeeded('autocomplete-hover'),
+                        loadSettlementsIfNeeded('autocomplete-hover')
+                    ]);
                 }
             };
             
@@ -3893,8 +3610,11 @@ window.addEventListener('beforeunload', () => {
             const loadOnInteraction = () => {
                 if (autocompleteLoadState === 'pending') {
                     loadAutocomplete('user-interaction');
-                    // Also load settlement data for autocomplete functionality
-                    loadSettlementsIfNeeded('autocomplete-interaction');
+                    // Load both locality and settlement data for autocomplete functionality
+                    Promise.all([
+                        loadLocalitiesIfNeeded('autocomplete-interaction'),
+                        loadSettlementsIfNeeded('autocomplete-interaction')
+                    ]);
                 }
             };
             
@@ -6205,10 +5925,10 @@ class OptimizedMapState {
 const state = new OptimizedMapState();
 window.isLinkClick = false;
 
-// Define the bounding box for the map view
+// Define the bounding box for the map view - Full Israel-Palestine region
 const mapBounds = [
-  [34.15033592116498, 31.16632630001915], // Southwest coordinates
-  [35.70311064830133, 32.60506354440827]  // Northeast coordinates
+  [34.2654, 29.5013], // Southwest coordinates (southern tip near Eilat)
+  [35.8950, 33.2774]  // Northeast coordinates (northern border with Lebanon)
 ];
 
 const map = new mapboxgl.Map({
@@ -6229,13 +5949,8 @@ map.on("load", () => {
     // Load data in SEQUENCE to ensure districts load before localities
     // This prevents duplicate markers for district names that also appear as regions
     loadCombinedGeoData()
-      .then(() => {
-        console.log('[DEBUG] Districts loaded, now loading localities');
-        // Now that districts are loaded, load localities (which will filter out duplicate regions)
-        return loadLocalitiesFromGeoJSON();
-      })
       .then(async () => {
-        console.log('[DEBUG] Localities loaded, initializing territory data');
+        console.log('[DEBUG] Districts loaded, initializing territory data');
         // Initialize territory data immediately (should always be visible)
         initializeTerritoryData();
 
@@ -7092,8 +6807,7 @@ async function loadLocalitiesFromGeoJSON() {
       addNativeSubregionMarkers();
       
       // Generate checkboxes
-      state.setTimer('generateLocalityCheckboxes', generateLocalityCheckboxes, 500);
-      state.setTimer('generateRegionCheckboxes', generateRegionCheckboxes, 500);
+      // Checkbox generation now handled by Cloudflare CMS Search script
       
       
       // Settlement loading is now deferred until zoom threshold is reached
@@ -7148,9 +6862,8 @@ async function loadSettlementsFromCache() {
     
     // Territory markers are now loaded independently during initial map load
     // No need to initialize territory data here anymore
-    
-    // Generate settlement checkboxes
-    state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
+
+    // Checkbox generation now handled by Cloudflare CMS Search script
     
   } catch (error) {
     // console.error('Failed to load settlements:', error);
@@ -7176,9 +6889,8 @@ function loadSettlements() {
       
       // Territory markers are now loaded independently during initial map load
       // No need to initialize territory data here anymore
-      
-      // Generate settlement checkboxes
-      state.setTimer('generateSettlementCheckboxes', generateSettlementCheckboxes, 500);
+
+      // Checkbox generation now handled by Cloudflare CMS Search script
       
       // Emit event that settlements are loaded
       EventBus.emit('settlements:loaded', processedData.settlements);
@@ -8793,58 +8505,5 @@ if (document.readyState === 'loading') {
 // ========================
 // LOCATION TAB LAZY LOADING
 // ========================
-(function setupLocationTabLazyLoading() {
-  function setupLocationTabListener() {
-    // Use event delegation for the Location tab - multiple selectors for reliability
-    const locationTabSelectors = [
-      '[data-w-tab="Locality/Region"]',  // Primary selector
-      '#w-tabs-0-data-w-tab-2',          // ID selector as backup
-    ];
-    
-    // Try immediate setup
-    locationTabSelectors.forEach(selector => {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(element => {
-        if (element.dataset.mapboxCheckboxListenerAdded === 'true') return;
-        
-        element.addEventListener('click', async function(e) {
-          // Load settlement data when Location tab is clicked
-          if (APP_CONFIG.features.enableLazyCheckboxes) {
-
-            // Load settlement data if not already loaded
-            await loadSettlementsIfNeeded('tab-click');
-
-            // Checkbox display is now handled by Cloudflare CMS Search script
-            // It automatically shows initial checkboxes captured from page load
-            // Users can search to load more items via the API
-          }
-        });
-        
-        element.dataset.mapboxCheckboxListenerAdded = 'true';
-      });
-    });
-    
-    // Also use event delegation for dynamically added tabs
-    document.addEventListener('click', async function(e) {
-      const locationTab = e.target.closest('[data-w-tab="Locality/Region"]') ||
-                         e.target.closest('#w-tabs-0-data-w-tab-2');
-      
-      if (locationTab && APP_CONFIG.features.enableLazyCheckboxes) {
-
-        // Load settlement data if not already loaded
-        await loadSettlementsIfNeeded('tab-click');
-
-        // Checkbox display is now handled by Cloudflare CMS Search script
-        // It automatically shows initial checkboxes captured from page load
-        // Users can search to load more items via the API
-      }
-    });
-  }
-
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupLocationTabListener);
-  } else {
-    setupLocationTabListener();
-  }
-})();
+// Location tab loading is now handled by zoom-based loading and autocomplete interactions
+// No need for separate tab click handlers since Cloudflare CMS Search script handles checkbox display
