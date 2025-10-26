@@ -1619,56 +1619,101 @@ function generateSettlementCheckboxes() {
 
 // Generate single checkbox for a specific location (lazy loading)
 function generateSingleCheckbox(name, type, properties = {}) {
+  console.log('[DEBUG generateSingleCheckbox] ========== CALLED ==========');
+  console.log('[DEBUG generateSingleCheckbox] name:', name);
+  console.log('[DEBUG generateSingleCheckbox] type:', type);
+  console.log('[DEBUG generateSingleCheckbox] properties:', properties);
+  console.log('[DEBUG generateSingleCheckbox] Callstack:', new Error().stack);
+
   if (!APP_CONFIG.features.enableLazyCheckboxes) {
+    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: enableLazyCheckboxes is disabled');
+    console.log('[DEBUG generateSingleCheckbox] APP_CONFIG.features.enableLazyCheckboxes:', APP_CONFIG.features.enableLazyCheckboxes);
     return false;
   }
+  console.log('[DEBUG generateSingleCheckbox] ✅ enableLazyCheckboxes is enabled');
 
   // Check if already generated in Mapbox state
-  if (LazyCheckboxState.hasCheckbox(name, type)) {
+  const alreadyTracked = LazyCheckboxState.hasCheckbox(name, type);
+  console.log('[DEBUG generateSingleCheckbox] Already tracked in LazyCheckboxState?', alreadyTracked);
+  if (alreadyTracked) {
+    console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox already tracked');
     return true;
   }
 
   // Determine the search type for Cloudflare script
   const searchType = type === 'locality' ? 'localities' : 'settlements';
+  console.log('[DEBUG generateSingleCheckbox] searchType:', searchType);
 
   // Check if checkbox already exists in the DOM (Cloudflare might have rendered it)
   const fieldName = type.charAt(0).toUpperCase() + type.slice(1);
-  const existingCheckbox = document.querySelector(`input[fs-list-field="${fieldName}"][fs-list-value="${name}"]`);
+  console.log('[DEBUG generateSingleCheckbox] fieldName:', fieldName);
+
+  const selector = `input[fs-list-field="${fieldName}"][fs-list-value="${name}"]`;
+  console.log('[DEBUG generateSingleCheckbox] Looking for existing checkbox with selector:', selector);
+
+  const existingCheckbox = document.querySelector(selector);
+  console.log('[DEBUG generateSingleCheckbox] existingCheckbox found:', existingCheckbox);
 
   if (existingCheckbox) {
+    console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox already exists in DOM');
+    console.log('[DEBUG generateSingleCheckbox] Existing checkbox element:', existingCheckbox);
+    console.log('[DEBUG generateSingleCheckbox] Tracking in LazyCheckboxState...');
     // Checkbox already exists - just track it in Mapbox state
     LazyCheckboxState.addCheckbox(name, type);
+    console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox tracked');
     return true;
   }
+  console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox does NOT exist in DOM - will create it');
 
   const containerId = type === 'locality' ? 'locality-check-list' : 'settlement-check-list';
+  console.log('[DEBUG generateSingleCheckbox] containerId:', containerId);
+
   const container = $id(containerId);
+  console.log('[DEBUG generateSingleCheckbox] container element:', container);
+  console.log('[DEBUG generateSingleCheckbox] container exists?', !!container);
+
   if (!container) {
+    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: Container not found!');
+    console.log('[DEBUG generateSingleCheckbox] Available elements with id containing "check":',
+      Array.from(document.querySelectorAll('[id*="check"]')).map(el => el.id)
+    );
     return false;
   }
+  console.log('[DEBUG generateSingleCheckbox] ✅ Container found, proceeding with checkbox creation');
 
   // Generate slug
   const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  console.log('[DEBUG generateSingleCheckbox] Generated slug:', slug);
 
   // Try to use Cloudflare script's API if available
+  console.log('[DEBUG generateSingleCheckbox] Checking for Cloudflare script...');
+  console.log('[DEBUG generateSingleCheckbox] window.cloudflareSearch exists?', !!window.cloudflareSearch);
   if (window.cloudflareSearch) {
+    console.log('[DEBUG generateSingleCheckbox] ✅ Cloudflare script found');
     // Add to Cloudflare's persistent state so it survives searches
     try {
       const cloudflareCache = window.cloudflareSearch.getState ? window.cloudflareSearch.getState() : null;
+      console.log('[DEBUG generateSingleCheckbox] Cloudflare cache state:', cloudflareCache);
 
       // Cloudflare script will handle rendering via its own mechanism
       // We just need to make sure the checkbox is in the container
       // So we'll add it directly to the DOM and let Cloudflare sync with it
     } catch (error) {
+      console.log('[DEBUG generateSingleCheckbox] ⚠️ Cloudflare script error:', error);
       // Cloudflare script might not be ready yet, continue with manual insertion
     }
+  } else {
+    console.log('[DEBUG generateSingleCheckbox] ⚠️ Cloudflare script not found');
   }
+
+  console.log('[DEBUG generateSingleCheckbox] Creating checkbox HTML structure...');
 
   // Create the checkbox HTML structure matching Cloudflare's format
   const checkboxWrapper = document.createElement('div');
   checkboxWrapper.setAttribute('checkbox-filter', type);
   checkboxWrapper.setAttribute('role', 'listitem');
   checkboxWrapper.className = 'collection-item-3 w-dyn-item';
+  console.log('[DEBUG generateSingleCheckbox] Created checkboxWrapper:', checkboxWrapper);
 
   const label = document.createElement('label');
   label.className = 'w-checkbox reporterwrap-copy';
@@ -1727,51 +1772,84 @@ function generateSingleCheckbox(name, type, properties = {}) {
   label.appendChild(countWrapper);
 
   checkboxWrapper.appendChild(label);
+  console.log('[DEBUG generateSingleCheckbox] Assembled checkbox structure');
 
   // Insert in alphabetical order
+  console.log('[DEBUG generateSingleCheckbox] Finding insertion position...');
   const existingCheckboxes = Array.from(container.querySelectorAll('.w-dyn-item .test3'));
+  console.log('[DEBUG generateSingleCheckbox] Existing checkboxes count:', existingCheckboxes.length);
+  console.log('[DEBUG generateSingleCheckbox] Existing checkbox names:', existingCheckboxes.map(cb => cb.textContent));
+
   let insertPosition = existingCheckboxes.length;
 
   for (let i = 0; i < existingCheckboxes.length; i++) {
     if (name.localeCompare(existingCheckboxes[i].textContent) < 0) {
       insertPosition = i;
+      console.log('[DEBUG generateSingleCheckbox] Found insertion position:', insertPosition, 'before:', existingCheckboxes[i].textContent);
       break;
     }
   }
 
   if (insertPosition >= existingCheckboxes.length) {
+    console.log('[DEBUG generateSingleCheckbox] Appending checkbox to end of container');
     container.appendChild(checkboxWrapper);
   } else {
-    container.insertBefore(checkboxWrapper, existingCheckboxes[insertPosition].closest('.w-dyn-item'));
+    console.log('[DEBUG generateSingleCheckbox] Inserting checkbox at position:', insertPosition);
+    const referenceNode = existingCheckboxes[insertPosition].closest('.w-dyn-item');
+    console.log('[DEBUG generateSingleCheckbox] Reference node for insertion:', referenceNode);
+    container.insertBefore(checkboxWrapper, referenceNode);
   }
+  console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox inserted into DOM');
+
+  // Verify insertion
+  const verifySelector = `input[fs-list-field="${fieldName}"][fs-list-value="${name}"]`;
+  const verifyCheckbox = document.querySelector(verifySelector);
+  console.log('[DEBUG generateSingleCheckbox] Verification - checkbox now exists in DOM?', !!verifyCheckbox);
 
   // Track the generated checkbox
+  console.log('[DEBUG generateSingleCheckbox] Tracking checkbox in LazyCheckboxState...');
   LazyCheckboxState.addCheckbox(name, type);
+  console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox tracked');
 
   // Setup event listeners for the new checkbox
+  console.log('[DEBUG generateSingleCheckbox] Setting up event listeners...');
   setupGeneratedCheckboxEvents();
+  console.log('[DEBUG generateSingleCheckbox] ✅ Event listeners setup');
 
   // Sync with Cloudflare script if available
   if (window.cloudflareSearch && window.cloudflareSearch.syncWithFinsweet) {
+    console.log('[DEBUG generateSingleCheckbox] Syncing with Cloudflare script...');
     setTimeout(() => {
       window.cloudflareSearch.syncWithFinsweet();
+      console.log('[DEBUG generateSingleCheckbox] ✅ Cloudflare sync complete');
     }, 50);
+  } else {
+    console.log('[DEBUG generateSingleCheckbox] ⚠️ Cloudflare syncWithFinsweet not available');
   }
 
   // Force complete rebuild of filter script cache for better integration
   if (window.checkboxFilterScript) {
+    console.log('[DEBUG generateSingleCheckbox] Rebuilding filter script cache...');
     setTimeout(() => {
       window.checkboxFilterScript.forceRebuild();
+      console.log('[DEBUG generateSingleCheckbox] ✅ Filter script cache rebuilt');
     }, 150);
+  } else {
+    console.log('[DEBUG generateSingleCheckbox] ⚠️ checkboxFilterScript not available');
   }
 
   // Rescan filter indicators for the new checkbox
   if (window.filterIndicators) {
+    console.log('[DEBUG generateSingleCheckbox] Rescanning filter indicators...');
     setTimeout(() => {
       window.filterIndicators.rescan();
+      console.log('[DEBUG generateSingleCheckbox] ✅ Filter indicators rescanned');
     }, 100);
+  } else {
+    console.log('[DEBUG generateSingleCheckbox] ⚠️ filterIndicators not available');
   }
 
+  console.log('[DEBUG generateSingleCheckbox] ========== COMPLETE (returning true) ==========');
   return true;
 }
 
