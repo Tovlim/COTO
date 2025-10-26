@@ -507,11 +507,42 @@
       // Get checked items
       const checkedItems = getCheckedItems(searchType);
 
-      // Get initial results from cache
-      const initialResults = cache.initialResults.get(searchType) || [];
-
       const resultsContainer = cache.resultsContainers.get(searchType);
       if (!resultsContainer) return;
+
+      // Capture ALL currently displayed checkboxes (including map-generated ones)
+      const fieldName = searchType === 'localities' ? 'Locality' : 'Settlement';
+      const currentCheckboxes = resultsContainer.querySelectorAll(`input[fs-list-field="${fieldName}"]`);
+      const allCurrentResults = [];
+
+      currentCheckboxes.forEach(checkbox => {
+        const name = checkbox.getAttribute('fs-list-value');
+        if (!name) return;
+
+        // Get slug from link
+        const container = checkbox.closest('[checkbox-filter]') || checkbox.closest('.w-dyn-item');
+        const link = container?.querySelector('a[href^="/"]');
+        const href = link?.getAttribute('href');
+
+        let slug = '';
+        if (href) {
+          const urlPath = CONFIG.URL_PATHS[searchType];
+          if (href.startsWith(urlPath + '/')) {
+            slug = href.substring(urlPath.length + 1);
+          }
+        }
+
+        // Fallback slug generation
+        if (!slug) {
+          slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        }
+
+        allCurrentResults.push({
+          name: name,
+          slug: slug,
+          isChecked: checkbox.checked
+        });
+      });
 
       // Clear container
       resultsContainer.innerHTML = '';
@@ -522,8 +553,8 @@
         window.LazyCheckboxState.clearType(type);
       }
 
-      // Merge checked items with initial results
-      const mergedResults = mergeCheckedWithResults(checkedItems, initialResults);
+      // Merge checked items with all current results (not just initial 12)
+      const mergedResults = mergeCheckedWithResults(checkedItems, allCurrentResults);
 
       // Render merged results
       mergedResults.forEach(result => {
@@ -538,7 +569,7 @@
       });
 
       hideEmptyState(searchType);
-      utils.log(`Showing ${checkedItems.length} checked + ${initialResults.length} initial items for ${searchType}`);
+      utils.log(`Showing ${checkedItems.length} checked + ${allCurrentResults.length} current items for ${searchType}`);
 
       // Sync with Finsweet
       setTimeout(() => {
