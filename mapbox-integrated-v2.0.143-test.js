@@ -1665,17 +1665,29 @@ function generateSingleCheckbox(name, type, properties = {}) {
   }
   console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox does NOT exist in DOM - will create it');
 
-  const containerId = type === 'locality' ? 'locality-check-list' : 'settlement-check-list';
-  console.log('[DEBUG generateSingleCheckbox] containerId:', containerId);
+  // Use Cloudflare's container lookup pattern: [cloudflare-search] -> .w-dyn-items
+  // searchType already declared above at line 1644
 
-  const container = $id(containerId);
-  console.log('[DEBUG generateSingleCheckbox] container element:', container);
-  console.log('[DEBUG generateSingleCheckbox] container exists?', !!container);
+  // Find the cloudflare-search container first
+  const cloudflareContainer = document.querySelector(`[cloudflare-search="${searchType}"]`);
+  console.log('[DEBUG generateSingleCheckbox] cloudflareContainer found:', !!cloudflareContainer);
+
+  if (!cloudflareContainer) {
+    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: cloudflare-search container not found!');
+    console.log('[DEBUG generateSingleCheckbox] Available cloudflare-search containers:',
+      Array.from(document.querySelectorAll('[cloudflare-search]')).map(el => el.getAttribute('cloudflare-search'))
+    );
+    return false;
+  }
+
+  // Find the .w-dyn-items container inside cloudflare-search container
+  const container = cloudflareContainer.querySelector('.w-dyn-items');
+  console.log('[DEBUG generateSingleCheckbox] .w-dyn-items container found:', !!container);
 
   if (!container) {
-    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: Container not found!');
-    console.log('[DEBUG generateSingleCheckbox] Available elements with id containing "check":',
-      Array.from(document.querySelectorAll('[id*="check"]')).map(el => el.id)
+    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: .w-dyn-items container not found inside cloudflare-search!');
+    console.log('[DEBUG generateSingleCheckbox] Available classes in cloudflare container:',
+      Array.from(cloudflareContainer.querySelectorAll('[class*="dyn"]')).map(el => el.className)
     );
     return false;
   }
