@@ -2809,21 +2809,24 @@ window.addEventListener('beforeunload', () => {
                     visibleItems: options.visibleItems || 8,
                     fuzzySearch: options.fuzzySearch !== false,
                     maxResults: options.maxResults || 200,
-                    debounceMs: options.debounceMs || 50,
+                    debounceMs: options.debounceMs || 300, // Increased for API calls
                     highlightMatches: false,
-                    scoreThreshold: options.scoreThreshold || 0.3
+                    scoreThreshold: options.scoreThreshold || 0.3,
+                    apiUrl: options.apiUrl || 'https://webflow-cms-search.occupation-crimes.workers.dev'
                 };
                 
                 // Data storage
                 this.data = {
-                    regions: [],
-                    subregions: [],
-                    localities: [],
-                    settlements: [],
                     filteredResults: [],
                     selectedIndex: -1
                 };
-                
+
+                // API state
+                this.apiState = {
+                    currentRequest: null,
+                    isLoading: false
+                };
+
                 // Click state tracking
                 this.isClickingDropdownItem = false;
                 
@@ -2841,12 +2844,7 @@ window.addEventListener('beforeunload', () => {
                 this.scrollFrame = null;
                 this.filterTimeout = null;
                 this.isFirstShow = true;
-                
-                // Memoize the createSearchTokens function
-                this.createSearchTokens = APP_CONFIG.features.enableMemoization ? 
-                    Memoize.fn(this._createSearchTokens.bind(this), (text) => text.toLowerCase()) :
-                    this._createSearchTokens.bind(this);
-                    
+
                 // Initialize recent searches
                 this.recentSearches = this.loadRecentSearches();
                 
@@ -2882,10 +2880,6 @@ window.addEventListener('beforeunload', () => {
                 
                 // Apply initial styles
                 this.applyStyles();
-                
-                // Load data from window state when available
-                this.waitForData();
-                
             }
             
             setupDropdownStructure() {
@@ -2894,178 +2888,6 @@ window.addEventListener('beforeunload', () => {
                 `;
                 
                 this.elements.list = this.elements.wrapper.querySelector('.autocomplete-list');
-            }
-            
-  waitForData() {
-  // Check if data is already loaded
-  const checkData = () => {
-    if (window.mapUtilities && window.mapUtilities.state) {
-      const state = window.mapUtilities.state;
-      // Wait for actual data to be loaded - now regions come from localities
-      // Don't load until we have locality data (settlements will come later)
-      if (state.allLocalityFeatures && state.allLocalityFeatures.length > 0) {
-        this.loadDataFromState();
-        // If settlements aren't loaded yet, they'll be added when refresh is called
-        return true;
-      }
-    }
-    return false;
-  };
-  
-                // Check immediately
-                if (checkData()) return;
-                
-                // Otherwise wait and retry
-                const retryInterval = setInterval(() => {
-                    if (checkData()) {
-                        clearInterval(retryInterval);
-                    }
-                }, 500);
-                
-                // Stop trying after 30 seconds
-                setTimeout(() => clearInterval(retryInterval), 30000);
-            }
-            
-loadDataFromState() {
-  if (!window.mapUtilities || !window.mapUtilities.state) {
-    return;
-  }
-  const state = window.mapUtilities.state;
-  
-  // Load regions (districts) - now from extracted data
-  if (state.allRegionFeatures && state.allRegionFeatures.length > 0) {
-    this.data.regions = state.allRegionFeatures
-      .filter(feature => feature.geometry && feature.geometry.coordinates)
-      .map(feature => ({
-        name: feature.properties.name,
-        nameLower: feature.properties.name.toLowerCase(),
-        type: 'region',
-        territory: feature.properties.territory,
-        lat: feature.geometry.coordinates[1],
-        lng: feature.geometry.coordinates[0],
-        searchTokens: this.createSearchTokens(feature.properties.name)
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
-  
-  // Load subregions - now from extracted data
-  if (state.allSubregionFeatures && state.allSubregionFeatures.length > 0) {
-    this.data.subregions = state.allSubregionFeatures
-      .filter(feature => feature.geometry && feature.geometry.coordinates)
-      .map(feature => ({
-        name: feature.properties.name,
-        nameLower: feature.properties.name.toLowerCase(),
-        type: 'subregion',
-        lat: feature.geometry.coordinates[1],
-        lng: feature.geometry.coordinates[0],
-        searchTokens: this.createSearchTokens(feature.properties.name)
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }                
-                // Load localities
-                if (state.allLocalityFeatures && state.allLocalityFeatures.length > 0) {
-                    // Extract unique subregions
-                    const subregionSet = new Set();
-                    
-                    this.data.localities = state.allLocalityFeatures
-                        .filter(feature => feature.geometry && feature.geometry.coordinates)
-                        .map(feature => {
-                            const subregion = feature.properties.subRegion;
-                            if (subregion) {
-                                subregionSet.add(subregion);
-                            }
-                            
-                            return {
-                                name: feature.properties.name,
-                                nameLower: feature.properties.name.toLowerCase(),
-                                region: feature.properties.region,
-                                subregion: subregion,
-                                territory: feature.properties.territory,
-                                lat: feature.geometry.coordinates[1],
-                                lng: feature.geometry.coordinates[0],
-                                type: 'locality',
-                                searchTokens: this.createSearchTokens(feature.properties.name)
-                            };
-                        })
-                        .sort((a, b) => a.name.localeCompare(b.name));
-                    
-                    // Create subregions array
-                    this.data.subregions = Array.from(subregionSet)
-                        .filter(subregion => subregion) // Filter out null/undefined
-                        .map(subregion => {
-                            // Find a locality with this subregion to get the territory
-                            const localityWithSubregion = this.data.localities.find(loc => loc.subregion === subregion);
-                            return {
-                                name: subregion,
-                                nameLower: subregion.toLowerCase(),
-                                type: 'subregion',
-                                territory: localityWithSubregion ? localityWithSubregion.territory : null,
-                                searchTokens: this.createSearchTokens(subregion)
-                            };
-                        })
-                        .sort((a, b) => a.name.localeCompare(b.name));
-                }
-                
-                // Load settlements
-                if (state.allSettlementFeatures && state.allSettlementFeatures.length > 0) {
-                    this.data.settlements = state.allSettlementFeatures
-                        .filter(feature => feature.geometry && feature.geometry.coordinates)
-                        .map(feature => ({
-                            name: feature.properties.name,
-                            nameLower: feature.properties.name.toLowerCase(),
-                            type: 'settlement',
-                            region: feature.properties.region,
-                            subRegion: feature.properties.subRegion,
-                            territory: feature.properties.territory,
-                            lat: feature.geometry.coordinates[1],
-                            lng: feature.geometry.coordinates[0],
-                            searchTokens: this.createSearchTokens(feature.properties.name)
-                        }))
-                        .sort((a, b) => a.name.localeCompare(b.name));
-                }
-                
-                // Load territories
-                if (state.allTerritoryFeatures && state.allTerritoryFeatures.length > 0) {
-                    this.data.territories = state.allTerritoryFeatures
-                        .filter(feature => feature.geometry && feature.geometry.coordinates)
-                        .map(feature => ({
-                            name: feature.properties.name,
-                            nameLower: feature.properties.name.toLowerCase(),
-                            type: 'territory',
-                            lat: feature.geometry.coordinates[1],
-                            lng: feature.geometry.coordinates[0],
-                            searchTokens: this.createSearchTokens(feature.properties.name)
-                        }))
-                        .sort((a, b) => a.name.localeCompare(b.name));
-                }
-                
-                // Shuffle each category once for variety in dropdown display
-                this.shuffleArray(this.data.regions);
-                this.shuffleArray(this.data.subregions);
-                this.shuffleArray(this.data.localities);
-                this.shuffleArray(this.data.settlements);
-                if (this.data.territories) {
-                    this.shuffleArray(this.data.territories);
-                }
-                
-                
-                // If we have data, trigger a refresh of the current search
-                if (this.elements.input && this.elements.input.value) {
-                    this.handleInput(this.elements.input.value);
-                }
-            }
-            
-            _createSearchTokens(text) {
-                const tokens = text.toLowerCase().split(/\s+/);
-                const ngrams = [];
-                
-                for (let n = 2; n <= 3; n++) {
-                    for (let i = 0; i <= text.length - n; i++) {
-                        ngrams.push(text.toLowerCase().substr(i, n));
-                    }
-                }
-                
-                return { tokens, ngrams };
             }
             
             // Recent searches functionality
@@ -3170,23 +2992,21 @@ loadDataFromState() {
                 }
             }
             
-            handleInput(searchText) {
+            async handleInput(searchText) {
                 if (!searchText || searchText.length === 0) {
                     this.showAllItems();
+                    this.renderResults();
+                    this.showDropdown();
                 } else {
-                    this.performSearch(searchText);
+                    await this.performSearch(searchText);
+                    this.renderResults();
+                    this.showDropdown();
                 }
-                
-                this.renderResults();
-                this.showDropdown();
             }
             
             showAllItems() {
-                // Always reload data from state to get latest
-                this.loadDataFromState();
-                
                 const results = [];
-                
+
                 // Add recent searches first if enabled and available
                 if (APP_CONFIG.features.enableRecentSearches && this.recentSearches.length > 0) {
                     const recentItems = this.recentSearches.slice(0, 5).map(search => ({
@@ -3197,132 +3017,60 @@ loadDataFromState() {
                     }));
                     results.push(...recentItems);
                 }
-                
-                // Make sure we have data before showing items
-                if (this.data.regions.length === 0 && 
-                    this.data.localities.length === 0 && 
-                    this.data.settlements.length === 0) {
-                    this.data.filteredResults = results;
-                    return;
-                }
-                
-                // Hierarchical display: Regions → Subregions → Localities → Settlements
-                // (Territories excluded from default view - only appear in search)
-                // results array already initialized with recent searches
-                
-                // 1. Show top 2-3 regions (most important geographic areas)
-                const maxRegions = Math.min(3, this.data.regions.length);
-                const selectedRegions = this.data.regions.slice(0, maxRegions);
-                results.push(...selectedRegions);
-                
-                // 2. Show top 2-3 subregions (subdivisions of regions)
-                const maxSubregions = Math.min(3, this.data.subregions.length);
-                const selectedSubregions = this.data.subregions.slice(0, maxSubregions);
-                results.push(...selectedSubregions);
-                
-                // 3. Show 4-5 major localities (important cities/towns)
-                const maxLocalities = Math.min(5, this.data.localities.length);
-                const selectedLocalities = this.data.localities.slice(0, maxLocalities);
-                results.push(...selectedLocalities);
-                
-                // 4. Show 2-3 settlements (smaller communities)
-                const maxSettlements = Math.min(3, this.data.settlements.length);
-                const selectedSettlements = this.data.settlements.slice(0, maxSettlements);
-                results.push(...selectedSettlements);
-                
-                
+
+                // Just show recent searches when input is empty
                 this.data.filteredResults = results;
             }
             
-            performSearch(searchText) {
-                const startTime = performance.now();
-                const searchLower = searchText.toLowerCase();
-                const searchTokens = searchText.toLowerCase().split(/\s+/);
-                
-                const scoredResults = [];
-                
-                // Search all categories including settlements and territories
-                const allItems = [
-                    ...this.data.regions, 
-                    ...this.data.subregions, 
-                    ...this.data.localities, 
-                    ...this.data.settlements,
-                    ...(this.data.territories || [])
-                ];
-                allItems.forEach(item => {
-                    const score = this.calculateMatchScore(searchLower, searchTokens, item);
-                    if (score > this.config.scoreThreshold) {
-                        scoredResults.push({ ...item, score });
-                    }
-                });
-                
-                // Sort by score and type
-                scoredResults.sort((a, b) => {
-                    if (Math.abs(b.score - a.score) > 0.1) {
-                        return b.score - a.score;
-                    }
-                    if (a.type !== 'locality' && a.type !== 'settlement' && (b.type === 'locality' || b.type === 'settlement')) return -1;
-                    if ((a.type === 'locality' || a.type === 'settlement') && b.type !== 'locality' && b.type !== 'settlement') return 1;
-                    return a.name.localeCompare(b.name);
-                });
-                
-                // Limit regions/subregions to 3 total
-                let regionCount = 0;
-                const limitedResults = [];
-                
-                for (const result of scoredResults) {
-                    if (result.type === 'region' || result.type === 'subregion') {
-                        if (regionCount < 3) {
-                            limitedResults.push(result);
-                            regionCount++;
-                        }
-                    } else {
-                        limitedResults.push(result);
-                    }
-                    
-                    if (limitedResults.length >= this.config.maxResults) break;
+            async performSearch(searchText) {
+                // Cancel previous request if still pending
+                if (this.apiState.currentRequest) {
+                    this.apiState.currentRequest.abort();
                 }
-                
-                this.data.filteredResults = limitedResults;
-                
-            }
-            
-            calculateMatchScore(searchLower, searchTokens, item) {
-                let score = 0;
-                
-                if (item.nameLower === searchLower) {
-                    return 1.0;
-                }
-                
-                if (item.nameLower.startsWith(searchLower)) {
-                    score = 0.9;
-                } else if (item.nameLower.includes(searchLower)) {
-                    score = 0.7;
-                }
-                
-                if (searchTokens.length > 1) {
-                    const matchedTokens = searchTokens.filter(token => 
-                        item.searchTokens.tokens.some(itemToken => itemToken.includes(token))
-                    );
-                    score = Math.max(score, matchedTokens.length / searchTokens.length * 0.8);
-                }
-                
-                if (this.config.fuzzySearch && score < 0.5) {
-                    const searchNgrams = new Set();
-                    for (let i = 0; i <= searchLower.length - 2; i++) {
-                        searchNgrams.add(searchLower.substr(i, 2));
-                    }
-                    
-                    let matches = 0;
-                    searchNgrams.forEach(ngram => {
-                        if (item.searchTokens.ngrams.includes(ngram)) matches++;
+
+                // Create new AbortController for this request
+                const controller = new AbortController();
+                this.apiState.currentRequest = controller;
+                this.apiState.isLoading = true;
+
+                try {
+                    const url = `${this.config.apiUrl}/search/all?q=${encodeURIComponent(searchText)}&limit=${this.config.maxResults}`;
+
+                    const response = await fetch(url, {
+                        signal: controller.signal
                     });
-                    
-                    const fuzzyScore = matches / Math.max(searchNgrams.size, 1) * 0.6;
-                    score = Math.max(score, fuzzyScore);
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Transform API results to match expected format
+                    this.data.filteredResults = data.results.map(item => ({
+                        name: item.name,
+                        nameLower: item.name.toLowerCase(),
+                        type: item.type,
+                        region: item.region,
+                        subRegion: item.subRegion,
+                        territory: item.territory,
+                        slug: item.slug,
+                        score: parseFloat(item.score) / 100, // Normalize score to 0-1
+                        collection: item.collection
+                    }));
+
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        // Request was cancelled, this is normal
+                        return;
+                    }
+                    console.error('Autocomplete API error:', error);
+                    // Show empty results on error
+                    this.data.filteredResults = [];
+                } finally {
+                    this.apiState.isLoading = false;
+                    this.apiState.currentRequest = null;
                 }
-                
-                return score;
             }
             
             renderResults() {
@@ -4053,22 +3801,14 @@ loadDataFromState() {
                 // Clear any cached results to force fresh data
                 this.cache.clear();
                 this.data.filteredResults = [];
-                
-                // Clear memoization cache for fresh data
-                if (APP_CONFIG.features.enableMemoization) {
-                    Memoize.clear();
-                }
-                
-                // Reload data from state
-                this.loadDataFromState();
-                
+
                 // Force update the dropdown if it's visible OR if input is focused
                 if (this.isDropdownVisible() || document.activeElement === this.elements.input) {
                     if (this.elements.input.value) {
                         // Re-run search with current value
                         this.handleInput(this.elements.input.value);
                     } else {
-                        // Show all items with new data including recent searches
+                        // Show recent searches
                         this.showAllItems();
                         this.renderResults();
                         if (this.data.filteredResults.length > 0) {
