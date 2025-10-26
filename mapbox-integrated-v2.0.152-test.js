@@ -474,7 +474,6 @@ const ErrorHandler = {
     };
     
     // Log error with context
-    // // console.error(`[${category.toUpperCase()}] Error in ${context.operation || 'unknown'}:`, errorInfo);
     
     // Category-specific handling
     switch (category) {
@@ -494,13 +493,11 @@ const ErrorHandler = {
   },
   
   handleStorageError(error, context) {
-    // console.warn('Storage error - falling back to memory storage');
     // Storage errors are already handled by SafeStorage
     return { recovered: true, fallback: 'memory' };
   },
   
   handleNetworkError(error, context) {
-    // console.warn('Network error - will retry with cached data if available');
     return { 
       recovered: false, 
       retry: true,
@@ -510,7 +507,6 @@ const ErrorHandler = {
   },
   
   handleDOMError(error, context) {
-    // console.warn('DOM error - element may not exist yet');
     return { 
       recovered: false, 
       retry: true,
@@ -520,7 +516,6 @@ const ErrorHandler = {
   },
   
   handleGenerationError(error, context) {
-    // console.warn('Checkbox generation error - continuing with partial generation');
     return { 
       recovered: true, 
       continuePartial: true,
@@ -529,12 +524,10 @@ const ErrorHandler = {
   },
   
   handleUIError(error, context) {
-    // console.warn('UI error - interface may continue with reduced functionality');
     return { recovered: true, reducedFunctionality: true };
   },
   
   handleGenericError(error, context) {
-    // console.error('Unhandled error - check console for details');
     return { recovered: false };
   },
   
@@ -552,7 +545,6 @@ const ErrorHandler = {
               reject(error);
             } else {
               const delay = baseDelay * Math.pow(2, attempts - 1);
-              // console.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempts}/${maxRetries})`);
               setTimeout(attemptOperation, delay);
             }
           });
@@ -697,7 +689,6 @@ const SafeStorage = {
       this.available = true;
     } catch(e) {
       this.available = false;
-      // console.warn('localStorage not available, caching disabled');
     }
     return this.available;
   },
@@ -863,7 +854,6 @@ const EventBus = {
       try {
         context ? callback.call(context, ...args) : callback(...args);
       } catch (error) {
-        // console.error(`Error in event listener for '${event}':`, error);
       }
     });
   },
@@ -947,8 +937,6 @@ function setupDropdownListeners() {
 
 // Combined GeoJSON loading with better performance - returns Promise for chaining
 function loadCombinedGeoData() {
-  console.log('[DEBUG loadCombinedGeoData] ========== FUNCTION CALLED ==========');
-  console.log('[DEBUG loadCombinedGeoData] Callstack:', new Error().stack);
 
   return fetch('https://cdn.jsdelivr.net/gh/Tovlim/COTO@main/Combined-GEOJSON-0.019.geojson')
     .then(response => {
@@ -958,7 +946,6 @@ function loadCombinedGeoData() {
       return response.json();
     })
     .then(combinedData => {
-      console.log('[DEBUG loadCombinedGeoData] Received combined data with', combinedData.features.length, 'features');
 
       // Batch separate districts and areas
       const districts = [];
@@ -966,15 +953,12 @@ function loadCombinedGeoData() {
 
       combinedData.features.forEach(feature => {
         if (feature.properties.type === 'district') {
-          console.log('[DEBUG loadCombinedGeoData] Found district:', feature.properties.name, 'territory:', feature.properties.territory);
           districts.push(feature);
         } else if (feature.properties.type === 'area') {
           areas.push(feature);
         }
       });
 
-      console.log('[DEBUG loadCombinedGeoData] Total districts found:', districts.length);
-      console.log('[DEBUG loadCombinedGeoData] Total areas found:', areas.length);
 
       // Store district-territory mapping for highlighting
       state.districtTerritoryMap = new Map();
@@ -989,7 +973,6 @@ function loadCombinedGeoData() {
           state.districtTerritoryMap.set(name, territory);
           // Debug Israeli districts
           if (territory === 'Israel') {
-            console.log(`Loaded Israeli district: ${name} -> ${territory}`);
           }
         }
 
@@ -1011,7 +994,6 @@ function loadCombinedGeoData() {
       state.visualContentPromises = [...districtPromises, ...areaPromises];
 
       // Store district features for marker creation
-      console.log('[DEBUG loadCombinedGeoData] Before creating district features, state.allDistrictFeatures length:', state.allDistrictFeatures?.length || 0);
 
       state.allDistrictFeatures = districts.map(districtFeature => ({
         type: "Feature",
@@ -1028,16 +1010,12 @@ function loadCombinedGeoData() {
         }
       }));
 
-      console.log('[DEBUG loadCombinedGeoData] After creating district features, state.allDistrictFeatures length:', state.allDistrictFeatures.length);
-      console.log('[DEBUG loadCombinedGeoData] District features:', state.allDistrictFeatures.map(d => `${d.properties.name} (${d.properties.territory})`));
 
       // Log Israeli districts specifically
       const israeliDistricts = state.allDistrictFeatures.filter(d => d.properties.territory === 'Israel');
-      console.log('[DEBUG loadCombinedGeoData] Israeli district markers to create:', israeliDistricts.length, israeliDistricts.map(d => d.properties.name));
 
       // Update region markers after processing
       state.setTimer('updateRegionMarkers', () => {
-        console.log('[DEBUG loadCombinedGeoData] Timer fired: calling addNativeDistrictMarkers');
         // Add district markers for all districts including Israeli ones
         addNativeDistrictMarkers();
 
@@ -1050,7 +1028,6 @@ function loadCombinedGeoData() {
       return Promise.resolve();
     })
     .catch(error => {
-      console.error('[DEBUG loadCombinedGeoData] Error loading combined data:', error);
       // Still update district markers in case some data was loaded
       addNativeDistrictMarkers();
       state.setTimer('errorLayerOrder', () => mapLayers.optimizeLayerOrder(), 300);
@@ -1073,9 +1050,6 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
 
   // Debug logging for Israeli districts
   if (regionFeature.properties.territory === 'Israel') {
-    console.log(`Creating Israeli district layers for ${name}:`);
-    console.log(`  fillId: ${boundary.fillId}`);
-    console.log(`  borderId: ${boundary.borderId}`);
   }
   
   // Remove existing layers/sources if they exist (batch operation)
@@ -1313,13 +1287,10 @@ function setupDeferredAreaControls() {
     
     // Setup marker controls
     markerControls.forEach(control => {
-      // console.log(`🔍 Looking for marker control: keyId="${control.keyId}", wrapId="${control.wrapId}"`);
       const checkbox = $id(control.keyId);
       if (!checkbox) {
-        // console.log(`❌ Could not find checkbox element with id: ${control.keyId}`);
         return;
       }
-      // console.log(`✅ Found checkbox element: ${control.keyId}`);
       
       checkbox.checked = false;
       
@@ -1367,11 +1338,8 @@ function setupDeferredAreaControls() {
       }
       
       const wrapperDiv = $id(control.wrapId);
-      // console.log(`🔍 Looking for wrapper element: ${control.wrapId}`);
       if (!wrapperDiv) {
-        // console.log(`❌ Could not find wrapper element with id: ${control.wrapId}`);
       } else {
-        // console.log(`✅ Found wrapper element: ${control.wrapId}`);
       }
       
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
@@ -1518,53 +1486,35 @@ function setupDeferredAreaControls() {
 
 // Generate single checkbox for a specific location (lazy loading)
 function generateSingleCheckbox(name, type, properties = {}) {
-  console.log('[DEBUG generateSingleCheckbox] ========== CALLED ==========');
-  console.log('[DEBUG generateSingleCheckbox] name:', name);
-  console.log('[DEBUG generateSingleCheckbox] type:', type);
-  console.log('[DEBUG generateSingleCheckbox] properties:', properties);
-  console.log('[DEBUG generateSingleCheckbox] Callstack:', new Error().stack);
 
   if (!APP_CONFIG.features.enableLazyCheckboxes) {
-    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: enableLazyCheckboxes is disabled');
-    console.log('[DEBUG generateSingleCheckbox] APP_CONFIG.features.enableLazyCheckboxes:', APP_CONFIG.features.enableLazyCheckboxes);
     return false;
   }
-  console.log('[DEBUG generateSingleCheckbox] ✅ enableLazyCheckboxes is enabled');
 
   // Determine the search type for Cloudflare script
   const searchType = type === 'locality' ? 'localities' : 'settlements';
-  console.log('[DEBUG generateSingleCheckbox] searchType:', searchType);
 
   // Check if checkbox already exists in the DOM (Cloudflare might have rendered it)
   const fieldName = type.charAt(0).toUpperCase() + type.slice(1);
-  console.log('[DEBUG generateSingleCheckbox] fieldName:', fieldName);
 
   const selector = `input[fs-list-field="${fieldName}"][fs-list-value="${name}"]`;
-  console.log('[DEBUG generateSingleCheckbox] Looking for existing checkbox with selector:', selector);
 
   const existingCheckbox = document.querySelector(selector);
-  console.log('[DEBUG generateSingleCheckbox] existingCheckbox found:', existingCheckbox);
 
   // Check if already tracked in Mapbox state
   const alreadyTracked = LazyCheckboxState.hasCheckbox(name, type);
-  console.log('[DEBUG generateSingleCheckbox] Already tracked in LazyCheckboxState?', alreadyTracked);
 
   if (existingCheckbox && alreadyTracked) {
-    console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox exists in DOM and is tracked');
     return true;
   }
 
   if (existingCheckbox && !alreadyTracked) {
-    console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox exists in DOM but not tracked - tracking it now');
     LazyCheckboxState.addCheckbox(name, type);
-    console.log('[DEBUG generateSingleCheckbox] ✅ EARLY EXIT: Checkbox tracked');
     return true;
   }
 
   if (!existingCheckbox && alreadyTracked) {
-    console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox tracked but missing from DOM - will recreate it');
   } else {
-    console.log('[DEBUG generateSingleCheckbox] ⚠️ Checkbox does NOT exist in DOM - will create it');
   }
 
   // Use Cloudflare's container lookup pattern: [cloudflare-search] -> .w-dyn-items
@@ -1572,62 +1522,42 @@ function generateSingleCheckbox(name, type, properties = {}) {
 
   // Find the cloudflare-search container first
   const cloudflareContainer = document.querySelector(`[cloudflare-search="${searchType}"]`);
-  console.log('[DEBUG generateSingleCheckbox] cloudflareContainer found:', !!cloudflareContainer);
 
   if (!cloudflareContainer) {
-    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: cloudflare-search container not found!');
-    console.log('[DEBUG generateSingleCheckbox] Available cloudflare-search containers:',
-      Array.from(document.querySelectorAll('[cloudflare-search]')).map(el => el.getAttribute('cloudflare-search'))
-    );
     return false;
   }
 
   // Find the .w-dyn-items container inside cloudflare-search container
   const container = cloudflareContainer.querySelector('.w-dyn-items');
-  console.log('[DEBUG generateSingleCheckbox] .w-dyn-items container found:', !!container);
 
   if (!container) {
-    console.log('[DEBUG generateSingleCheckbox] ❌ EARLY EXIT: .w-dyn-items container not found inside cloudflare-search!');
-    console.log('[DEBUG generateSingleCheckbox] Available classes in cloudflare container:',
-      Array.from(cloudflareContainer.querySelectorAll('[class*="dyn"]')).map(el => el.className)
-    );
     return false;
   }
-  console.log('[DEBUG generateSingleCheckbox] ✅ Container found, proceeding with checkbox creation');
 
   // Generate slug
   const slug = properties.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  console.log('[DEBUG generateSingleCheckbox] Generated slug:', slug);
 
   // Try to use Cloudflare script's API if available
-  console.log('[DEBUG generateSingleCheckbox] Checking for Cloudflare script...');
-  console.log('[DEBUG generateSingleCheckbox] window.cloudflareSearch exists?', !!window.cloudflareSearch);
   if (window.cloudflareSearch) {
-    console.log('[DEBUG generateSingleCheckbox] ✅ Cloudflare script found');
     // Add to Cloudflare's persistent state so it survives searches
     try {
       const cloudflareCache = window.cloudflareSearch.getState ? window.cloudflareSearch.getState() : null;
-      console.log('[DEBUG generateSingleCheckbox] Cloudflare cache state:', cloudflareCache);
 
       // Cloudflare script will handle rendering via its own mechanism
       // We just need to make sure the checkbox is in the container
       // So we'll add it directly to the DOM and let Cloudflare sync with it
     } catch (error) {
-      console.log('[DEBUG generateSingleCheckbox] ⚠️ Cloudflare script error:', error);
       // Cloudflare script might not be ready yet, continue with manual insertion
     }
   } else {
-    console.log('[DEBUG generateSingleCheckbox] ⚠️ Cloudflare script not found');
   }
 
-  console.log('[DEBUG generateSingleCheckbox] Creating checkbox HTML structure...');
 
   // Create the checkbox HTML structure matching Cloudflare's format
   const checkboxWrapper = document.createElement('div');
   checkboxWrapper.setAttribute('checkbox-filter', type);
   checkboxWrapper.setAttribute('role', 'listitem');
   checkboxWrapper.className = 'collection-item-3 w-dyn-item';
-  console.log('[DEBUG generateSingleCheckbox] Created checkboxWrapper:', checkboxWrapper);
 
   const label = document.createElement('label');
   label.className = 'w-checkbox reporterwrap-copy';
@@ -1686,70 +1616,50 @@ function generateSingleCheckbox(name, type, properties = {}) {
   label.appendChild(countWrapper);
 
   checkboxWrapper.appendChild(label);
-  console.log('[DEBUG generateSingleCheckbox] Assembled checkbox structure');
 
   // Insert at top of container (generated checkboxes are always checked)
-  console.log('[DEBUG generateSingleCheckbox] Inserting checkbox at top of container...');
   const firstCheckbox = container.querySelector('.w-dyn-item');
 
   if (firstCheckbox) {
-    console.log('[DEBUG generateSingleCheckbox] Inserting before first checkbox');
     container.insertBefore(checkboxWrapper, firstCheckbox);
   } else {
-    console.log('[DEBUG generateSingleCheckbox] No existing checkboxes, appending to container');
     container.appendChild(checkboxWrapper);
   }
-  console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox inserted into DOM');
 
   // Verify insertion
   const verifySelector = `input[fs-list-field="${fieldName}"][fs-list-value="${name}"]`;
   const verifyCheckbox = document.querySelector(verifySelector);
-  console.log('[DEBUG generateSingleCheckbox] Verification - checkbox now exists in DOM?', !!verifyCheckbox);
 
   // Track the generated checkbox
-  console.log('[DEBUG generateSingleCheckbox] Tracking checkbox in LazyCheckboxState...');
   LazyCheckboxState.addCheckbox(name, type);
-  console.log('[DEBUG generateSingleCheckbox] ✅ Checkbox tracked');
 
   // Setup event listeners for the new checkbox
-  console.log('[DEBUG generateSingleCheckbox] Setting up event listeners...');
   setupGeneratedCheckboxEvents();
-  console.log('[DEBUG generateSingleCheckbox] ✅ Event listeners setup');
 
   // Sync with Cloudflare script if available
   if (window.cloudflareSearch && window.cloudflareSearch.syncWithFinsweet) {
-    console.log('[DEBUG generateSingleCheckbox] Syncing with Cloudflare script...');
     setTimeout(() => {
       window.cloudflareSearch.syncWithFinsweet();
-      console.log('[DEBUG generateSingleCheckbox] ✅ Cloudflare sync complete');
     }, 50);
   } else {
-    console.log('[DEBUG generateSingleCheckbox] ⚠️ Cloudflare syncWithFinsweet not available');
   }
 
   // Force complete rebuild of filter script cache for better integration
   if (window.checkboxFilterScript) {
-    console.log('[DEBUG generateSingleCheckbox] Rebuilding filter script cache...');
     setTimeout(() => {
       window.checkboxFilterScript.forceRebuild();
-      console.log('[DEBUG generateSingleCheckbox] ✅ Filter script cache rebuilt');
     }, 150);
   } else {
-    console.log('[DEBUG generateSingleCheckbox] ⚠️ checkboxFilterScript not available');
   }
 
   // Rescan filter indicators for the new checkbox
   if (window.filterIndicators) {
-    console.log('[DEBUG generateSingleCheckbox] Rescanning filter indicators...');
     setTimeout(() => {
       window.filterIndicators.rescan();
-      console.log('[DEBUG generateSingleCheckbox] ✅ Filter indicators rescanned');
     }, 100);
   } else {
-    console.log('[DEBUG generateSingleCheckbox] ⚠️ filterIndicators not available');
   }
 
-  console.log('[DEBUG generateSingleCheckbox] ========== COMPLETE (returning true) ==========');
   return true;
 }
 
@@ -2037,30 +1947,17 @@ function setupZoomBasedMarkerLoading() {
   const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 9 : 10;
   let markersLoaded = false;
 
-  console.log('[DEBUG setupZoomBasedMarkerLoading] ========== INITIALIZATION ==========');
-  console.log('[DEBUG setupZoomBasedMarkerLoading] Window width:', window.innerWidth);
-  console.log('[DEBUG setupZoomBasedMarkerLoading] Mobile breakpoint:', APP_CONFIG.breakpoints.mobile);
-  console.log('[DEBUG setupZoomBasedMarkerLoading] Device type:', window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 'MOBILE' : 'DESKTOP');
-  console.log('[DEBUG setupZoomBasedMarkerLoading] Zoom threshold:', MARKER_ZOOM_THRESHOLD);
 
   async function checkZoomAndLoadMarkers() {
     const currentZoom = map.getZoom();
-    console.log('[DEBUG checkZoomAndLoadMarkers] ========== CHECK TRIGGERED ==========');
-    console.log('[DEBUG checkZoomAndLoadMarkers] Current zoom:', currentZoom.toFixed(2));
-    console.log('[DEBUG checkZoomAndLoadMarkers] Threshold:', MARKER_ZOOM_THRESHOLD);
-    console.log('[DEBUG checkZoomAndLoadMarkers] Markers already loaded?', markersLoaded);
-    console.log('[DEBUG checkZoomAndLoadMarkers] Zoom >= threshold?', currentZoom >= MARKER_ZOOM_THRESHOLD);
 
     if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
-      console.log('[DEBUG checkZoomAndLoadMarkers] ✅ THRESHOLD REACHED - Starting marker load');
       markersLoaded = true;
 
       const startTime = performance.now();
-      console.log('[DEBUG checkZoomAndLoadMarkers] Load start time:', new Date().toISOString());
 
       try {
         // Load both locality and settlement data together
-        console.log('[DEBUG checkZoomAndLoadMarkers] Starting Promise.all for localities and settlements');
 
         await Promise.all([
           loadLocalitiesIfNeeded('zoom-threshold'),
@@ -2068,22 +1965,7 @@ function setupZoomBasedMarkerLoading() {
         ]);
 
         const loadTime = performance.now() - startTime;
-        console.log('[DEBUG checkZoomAndLoadMarkers] ✅ Load complete in', loadTime.toFixed(2), 'ms');
-        console.log('[DEBUG checkZoomAndLoadMarkers] Locality features count:', state.allLocalityFeatures?.length || 0);
-        console.log('[DEBUG checkZoomAndLoadMarkers] Settlement features count:', state.allSettlementFeatures?.length || 0);
-        console.log('[DEBUG checkZoomAndLoadMarkers] Locality layers exist?', {
-          source: mapLayers.hasSource('localities-source'),
-          clusters: mapLayers.hasLayer('locality-clusters'),
-          points: mapLayers.hasLayer('locality-points')
-        });
-        console.log('[DEBUG checkZoomAndLoadMarkers] Settlement layers exist?', {
-          source: mapLayers.hasSource('settlements-source'),
-          clusters: mapLayers.hasLayer('settlement-clusters'),
-          points: mapLayers.hasLayer('settlement-points')
-        });
       } catch (error) {
-        console.error('[DEBUG checkZoomAndLoadMarkers] ❌ Error during load:', error);
-        console.error('[DEBUG checkZoomAndLoadMarkers] Error stack:', error.stack);
         markersLoaded = false; // Reset flag on error so we can retry
       }
 
@@ -2091,33 +1973,26 @@ function setupZoomBasedMarkerLoading() {
       // No need to toggle visibility - opacity handles the transition
     } else if (currentZoom < MARKER_ZOOM_THRESHOLD) {
       if (markersLoaded) {
-        console.log('[DEBUG checkZoomAndLoadMarkers] ⚠️ Zoom below threshold - resetting markersLoaded flag');
       }
       // Reset flag so data can be loaded again when zooming back in
       markersLoaded = false;
     } else {
-      console.log('[DEBUG checkZoomAndLoadMarkers] No action needed (zoom:', currentZoom.toFixed(2), 'threshold:', MARKER_ZOOM_THRESHOLD, 'loaded:', markersLoaded, ')');
     }
   }
 
   // Listen to zoom events
-  console.log('[DEBUG setupZoomBasedMarkerLoading] Attaching zoom event listeners');
   map.on('zoom', checkZoomAndLoadMarkers);
   map.on('zoomend', checkZoomAndLoadMarkers);
 
   // Initial check when map is ready
   if (map.isStyleLoaded()) {
-    console.log('[DEBUG setupZoomBasedMarkerLoading] Map style already loaded - performing initial check');
     checkZoomAndLoadMarkers();
   } else {
-    console.log('[DEBUG setupZoomBasedMarkerLoading] Waiting for map style to load');
     map.on('style.load', () => {
-      console.log('[DEBUG setupZoomBasedMarkerLoading] Map style loaded event fired - performing initial check');
       checkZoomAndLoadMarkers();
     });
   }
 
-  console.log('[DEBUG setupZoomBasedMarkerLoading] ========== SETUP COMPLETE ==========');
 }
 
 // Initialize territory data immediately (no loading required)
@@ -2162,65 +2037,41 @@ function initializeTerritoryData() {
 
 // Locality loading helper - can be called from zoom or autocomplete interaction
 async function loadLocalitiesIfNeeded(trigger = 'unknown') {
-  console.log('[DEBUG loadLocalitiesIfNeeded] ========== FUNCTION CALLED ==========');
-  console.log('[DEBUG loadLocalitiesIfNeeded] Trigger:', trigger);
-  console.log('[DEBUG loadLocalitiesIfNeeded] state.allLocalityFeatures exists?', !!state.allLocalityFeatures);
-  console.log('[DEBUG loadLocalitiesIfNeeded] state.allLocalityFeatures length:', state.allLocalityFeatures?.length || 0);
 
   // Only load if not already loaded
   if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
-    console.log('[DEBUG loadLocalitiesIfNeeded] ✅ Localities NOT loaded - starting load from GeoJSON');
     const startTime = performance.now();
 
     try {
       await loadLocalitiesFromGeoJSON();
 
       const loadTime = performance.now() - startTime;
-      console.log('[DEBUG loadLocalitiesIfNeeded] ✅ Load complete in', loadTime.toFixed(2), 'ms');
-      console.log('[DEBUG loadLocalitiesIfNeeded] Loaded', state.allLocalityFeatures?.length || 0, 'locality features');
-      console.log('[DEBUG loadLocalitiesIfNeeded] Emitting data:locality-loaded event');
 
       EventBus.emit('data:locality-loaded', { trigger });
     } catch (error) {
-      console.error('[DEBUG loadLocalitiesIfNeeded] ❌ Error loading locality data:', error);
-      console.error('[DEBUG loadLocalitiesIfNeeded] Error stack:', error.stack);
-      console.warn(`Error loading locality data (${trigger}):`, error);
       EventBus.emit('data:locality-error', { error, trigger });
     }
   } else {
-    console.log('[DEBUG loadLocalitiesIfNeeded] ⏭️ Localities already loaded (', state.allLocalityFeatures.length, 'features) - skipping');
   }
 }
 
 // Settlement loading helper - can be called from zoom or autocomplete interaction
 async function loadSettlementsIfNeeded(trigger = 'unknown') {
-  console.log('[DEBUG loadSettlementsIfNeeded] ========== FUNCTION CALLED ==========');
-  console.log('[DEBUG loadSettlementsIfNeeded] Trigger:', trigger);
-  console.log('[DEBUG loadSettlementsIfNeeded] state.allSettlementFeatures exists?', !!state.allSettlementFeatures);
-  console.log('[DEBUG loadSettlementsIfNeeded] state.allSettlementFeatures length:', state.allSettlementFeatures?.length || 0);
 
   // Only load if not already loaded
   if (!state.allSettlementFeatures || state.allSettlementFeatures.length === 0) {
-    console.log('[DEBUG loadSettlementsIfNeeded] ✅ Settlements NOT loaded - starting load from cache');
     const startTime = performance.now();
 
     try {
       await loadSettlementsFromCache();
 
       const loadTime = performance.now() - startTime;
-      console.log('[DEBUG loadSettlementsIfNeeded] ✅ Load complete in', loadTime.toFixed(2), 'ms');
-      console.log('[DEBUG loadSettlementsIfNeeded] Loaded', state.allSettlementFeatures?.length || 0, 'settlement features');
-      console.log('[DEBUG loadSettlementsIfNeeded] Emitting data:settlement-loaded event');
 
       EventBus.emit('data:settlement-loaded', { trigger });
     } catch (error) {
-      console.error('[DEBUG loadSettlementsIfNeeded] ❌ Error loading settlement data:', error);
-      console.error('[DEBUG loadSettlementsIfNeeded] Error stack:', error.stack);
-      console.warn(`Error loading settlement data (${trigger}):`, error);
       EventBus.emit('data:settlement-error', { error, trigger });
     }
   } else {
-    console.log('[DEBUG loadSettlementsIfNeeded] ⏭️ Settlements already loaded (', state.allSettlementFeatures.length, 'features) - skipping');
   }
 }
 
@@ -2571,7 +2422,6 @@ window.addEventListener('beforeunload', () => {
                     autocompleteLoadState = 'loaded';
                     resolve();
                 } catch (error) {
-                    // console.error('Failed to load autocomplete:', error);
                     autocompleteLoadState = 'pending'; // Reset to allow retry
                     resolve(); // Resolve anyway to prevent blocking
                 }
@@ -2661,7 +2511,6 @@ window.addEventListener('beforeunload', () => {
                 };
                 
                 if (!this.elements.input || !this.elements.wrapper) {
-                    // console.error('Required elements not found');
                     return;
                 }
                 
@@ -2857,7 +2706,6 @@ window.addEventListener('beforeunload', () => {
                         // Request was cancelled, this is normal
                         return;
                     }
-                    console.error('Autocomplete API error:', error);
                     // Show empty results on error
                     this.data.filteredResults = [];
                 } finally {
@@ -2869,7 +2717,6 @@ window.addEventListener('beforeunload', () => {
             renderResults() {
                 // Safety check - ensure we're properly initialized
                 if (!this.elements || !this.elements.list) {
-                    // console.warn('Autocomplete not properly initialized, skipping render');
                     return;
                 }
                 
@@ -2881,7 +2728,6 @@ window.addEventListener('beforeunload', () => {
                     try {
                         this.renderWithVirtualDOM();
                     } catch (error) {
-                        // console.error('Error in renderWithVirtualDOM:', error);
                         // Fallback to simple render
                         this.fallbackRender();
                     }
@@ -2940,7 +2786,6 @@ window.addEventListener('beforeunload', () => {
             fullRender(items) {
                 // Ensure elements exist
                 if (!this.elements || !this.elements.list) {
-                    // console.warn('Autocomplete elements not initialized yet');
                     return;
                 }
                 
@@ -4336,7 +4181,6 @@ class DataLoader {
     })
     .catch(error => {
       this.loadingPromises.delete(key);
-      // console.error(`Failed to load ${url}:`, error);
       throw error;
     });
     
@@ -4369,7 +4213,6 @@ class DataLoader {
       
       return organizedData;
     } catch (error) {
-      // console.error('Failed to load data:', error);
       throw error;
     }
   }
@@ -4769,7 +4612,6 @@ class WorkerManager {
       URL.revokeObjectURL(workerUrl);
       return this.workers.get(name);
     } catch (error) {
-      // console.warn('Web Worker not supported:', error);
       return null;
     }
   }
@@ -4809,7 +4651,6 @@ class WorkerManager {
   
   // Handle worker errors
   handleWorkerError(workerName, error) {
-    // console.error(`Worker ${workerName} error:`, error);
     const workerInfo = this.workers.get(workerName);
     
     if (workerInfo) {
@@ -5082,7 +4923,6 @@ class ProgressiveLoader {
   // Enhanced lazy loading with intersection observer
   setupLazyLoading() {
     if (!('IntersectionObserver' in window)) {
-      // console.warn('IntersectionObserver not supported, falling back to immediate loading');
       return this.loadAllSteps();
     }
     
@@ -5160,7 +5000,6 @@ class ProgressiveLoader {
       document.dispatchEvent(event);
       
     } catch (error) {
-      // console.error(`Failed to load step ${stepName}:`, error);
       throw error;
     }
     
@@ -5265,7 +5104,6 @@ class PerformanceMonitor {
         observer.observe({ entryTypes: ['navigation', 'resource', 'measure', 'mark'] });
         this.observers.push(observer);
       } catch (e) {
-        // console.warn('PerformanceObserver not fully supported');
       }
     }
     
@@ -5304,7 +5142,6 @@ class PerformanceMonitor {
   }
   
   recordLongTask(entry) {
-    // console.warn('Long task detected:', entry.duration + 'ms');
     
     if (window.gtag) {
       gtag('event', 'long_task', {
@@ -5366,7 +5203,6 @@ class PerformanceMonitor {
       
       // Warn if memory usage is high
       if (memoryMetrics.usage_percentage > 80) {
-        // console.warn('High memory usage detected:', memoryMetrics);
         this.triggerMemoryCleanup();
       }
       
@@ -5411,7 +5247,6 @@ class PerformanceMonitor {
         
         // Log warning if FPS is low
         if (fps < 30) {
-          // console.warn('Low FPS detected:', fps);
         }
         
         frameCount = 0;
@@ -5863,7 +5698,6 @@ class OptimizedEventManager {
         }
         break;
       default:
-        // console.warn('Unknown button action:', action);
     }
   }
 
@@ -5995,7 +5829,6 @@ map.on("load", () => {
     // This prevents duplicate markers for district names that also appear as regions
     loadCombinedGeoData()
       .then(async () => {
-        console.log('[DEBUG] Districts loaded, initializing territory data');
         // Initialize territory data immediately (should always be visible)
         initializeTerritoryData();
 
@@ -6016,7 +5849,6 @@ map.on("load", () => {
           loadingTracker.markComplete('visualContentReady');
 
         } catch (visualError) {
-          console.warn('Error loading visual content:', visualError);
           // Mark as complete anyway to prevent infinite loading
           loadingTracker.markComplete('visualContentReady');
         }
@@ -6028,7 +5860,6 @@ map.on("load", () => {
         loadingTracker.markComplete('mapReady');
 
       }).catch(error => {
-        console.warn('Error loading initial data:', error);
         // Mark as complete anyway to prevent infinite loading
         loadingTracker.markComplete('dataLoaded');
         loadingTracker.markComplete('visualContentReady');
@@ -6529,7 +6360,6 @@ function highlightTerritoryBoundaries(territoryName) {
 
         // Debug logging for Israeli districts
         if (territoryName === 'Israel') {
-          console.log(`Israeli district: ${districtName}, looking for layers: ${fillId}, ${borderId}`);
         }
 
         // Check if layers exist
@@ -6537,7 +6367,6 @@ function highlightTerritoryBoundaries(territoryName) {
         const hasBorder = mapLayers.hasLayer(borderId);
 
         if (territoryName === 'Israel') {
-          console.log(`  Layer check - fill exists: ${hasFill}, border exists: ${hasBorder}`);
         }
 
         if (hasFill && hasBorder) {
@@ -6551,7 +6380,6 @@ function highlightTerritoryBoundaries(territoryName) {
     });
 
     if (territoryName === 'Israel') {
-      console.log(`Total Israeli districts to highlight: ${districtsToHighlight.length}`);
     }
   }
   
@@ -6662,24 +6490,20 @@ const toggleShowWhenFilteredElements = show => {
 // Checkbox selection functions with proper settlement unchecking
 // Unified checkbox selection function
 function selectCheckbox(type, value) {
-  // console.log(`🔍 selectCheckbox called with type: "${type}", value: "${value}"`);
   
   const checkboxTypes = ['Governorate', 'Region', 'locality', 'settlement', 'territory'];
   
   requestAnimationFrame(() => {
-    // console.log(`🔍 Looking for checkboxes with selector: [checkbox-filter="${type}"] input[fs-list-value]`);
     
     // Get all checkbox groups - using native queries to avoid caching
     const allCheckboxes = checkboxTypes.flatMap(checkboxType => 
       Array.from(document.querySelectorAll(`[checkbox-filter="${checkboxType}"] input[fs-list-value]`))
     );
     
-    // console.log(`🔍 Found ${allCheckboxes.length} total checkboxes across all types`);
     
     // Clear all checkboxes first
     allCheckboxes.forEach(checkbox => {
       if (checkbox.checked) {
-        // console.log(`🔍 Unchecking: ${checkbox.getAttribute('fs-list-value')} (${checkbox.parentElement.getAttribute('checkbox-filter')})`);
         checkbox.checked = false;
         utils.triggerEvent(checkbox, ['change', 'input']);
         
@@ -6693,10 +6517,8 @@ function selectCheckbox(type, value) {
     
     // Find and check the target checkbox
     const targetCheckboxes = Array.from(document.querySelectorAll(`[checkbox-filter="${type}"] input[fs-list-value]`));
-    // console.log(`🔍 Found ${targetCheckboxes.length} checkboxes for type "${type}"`);
     
     targetCheckboxes.forEach((cb, index) => {
-      // console.log(`🔍 Checkbox ${index}: fs-list-value="${cb.getAttribute('fs-list-value')}", checkbox-filter="${cb.parentElement.getAttribute('checkbox-filter')}"`);
     });
     
     const targetCheckbox = targetCheckboxes.find(checkbox => 
@@ -6704,7 +6526,6 @@ function selectCheckbox(type, value) {
     );
     
     if (targetCheckbox) {
-      // console.log(`✅ Found target checkbox for "${value}", checking it`);
       targetCheckbox.checked = true;
       utils.triggerEvent(targetCheckbox, ['change', 'input']);
       
@@ -6714,14 +6535,11 @@ function selectCheckbox(type, value) {
         form.dispatchEvent(new Event('input', {bubbles: true}));
       }
     } else {
-      // console.log(`❌ Could not find checkbox for type "${type}" with value "${value}"`);
       
       // Additional debugging - show all available checkboxes
-      // console.log(`🔍 All available checkboxes in DOM:`);
       document.querySelectorAll('[checkbox-filter]').forEach((wrapper, index) => {
         const input = wrapper.querySelector('input[fs-list-value]');
         if (input) {
-          // console.log(`  ${index}: checkbox-filter="${wrapper.getAttribute('checkbox-filter')}", fs-list-value="${input.getAttribute('fs-list-value')}"`);
         }
       });
     }
@@ -6730,12 +6548,10 @@ function selectCheckbox(type, value) {
 
 // Wrapper functions for backward compatibility
 function selectRegionCheckbox(regionName) {
-  // console.log(`🔍 selectRegionCheckbox called with: "${regionName}"`);
   selectCheckbox('Governorate', regionName);
 }
 
 function selectSubregionCheckbox(subregionName) {
-  // console.log(`🔍 selectSubregionCheckbox called with: "${subregionName}"`);
   selectCheckbox('Region', subregionName);
 }
 
@@ -6866,7 +6682,6 @@ async function loadLocalitiesFromGeoJSON() {
       // Mark data as loaded
       loadingTracker.markComplete('dataLoaded');
   } catch (error) {
-    // console.error('Failed to load localities:', error);
     // Mark as loaded even on error to prevent infinite loading
     loadingTracker.markComplete('dataLoaded');
   }
@@ -6911,7 +6726,6 @@ async function loadSettlementsFromCache() {
     // Checkbox generation now handled by Cloudflare CMS Search script
     
   } catch (error) {
-    // console.error('Failed to load settlements:', error);
   }
 }
 
@@ -6947,7 +6761,6 @@ function loadSettlements() {
       
     })
     .catch(error => {
-      // console.error('Failed to load settlements:', error);
     });
 }
 
@@ -7091,7 +6904,6 @@ function addSettlementMarkers() {
           }
         });
       } catch (error) {
-        // console.error('[DEBUG] Error hiding base layers:', error);
       }
       
       mapLayers.invalidateCache();
@@ -7482,30 +7294,22 @@ function addNativeRegionMarkers() {
 
 // District markers for all districts including Israeli ones
 function addNativeDistrictMarkers() {
-  console.log('[DEBUG addNativeDistrictMarkers] ========== FUNCTION CALLED ==========');
-  console.log('[DEBUG addNativeDistrictMarkers] Callstack:', new Error().stack);
 
   if (!state.allDistrictFeatures || state.allDistrictFeatures.length === 0) {
-    console.log('[DEBUG addNativeDistrictMarkers] No district features to add as markers');
     return;
   }
 
-  console.log(`[DEBUG addNativeDistrictMarkers] Adding ${state.allDistrictFeatures.length} district markers to map`);
-  console.log('[DEBUG addNativeDistrictMarkers] District features:', state.allDistrictFeatures.map(d => d.properties.name));
 
   // Check if source already exists
   const sourceExists = mapLayers.hasSource('districts-source');
-  console.log('[DEBUG addNativeDistrictMarkers] districts-source exists?', sourceExists);
 
   mapLayers.addToBatch(() => {
     if (mapLayers.hasSource('districts-source')) {
-      console.log('[DEBUG addNativeDistrictMarkers] UPDATING existing districts-source');
       map.getSource('districts-source').setData({
         type: "FeatureCollection",
         features: state.allDistrictFeatures
       });
     } else {
-      console.log('[DEBUG addNativeDistrictMarkers] CREATING new districts-source');
       map.addSource('districts-source', {
         type: 'geojson',
         data: {
@@ -7552,7 +7356,6 @@ function addNativeDistrictMarkers() {
         }
       });
 
-      console.log('District markers layer added successfully');
       mapLayers.invalidateCache();
     }
   });
@@ -7577,7 +7380,6 @@ function setupDistrictMarkerClicks() {
     const districtName = feature.properties.name;
     const territory = feature.properties.territory;
 
-    console.log(`District marker clicked: ${districtName} (${territory})`);
 
     // Prevent rapid clicks
     const currentTime = Date.now();
@@ -8518,7 +8320,6 @@ function initializeOptimizationSystems() {
     if (window.performanceMonitor) {
       window.performanceMonitor.trackUserInteraction('error', 0);
     }
-    // console.error('Optimization system error:', event.error);
   });
   
   // Periodic performance checks
@@ -8526,7 +8327,6 @@ function initializeOptimizationSystems() {
     if (window.performanceMonitor && window.performanceMonitor.enabled) {
       const bottlenecks = window.performanceMonitor.detectBottlenecks();
       if (bottlenecks.length > 0) {
-        // console.warn('Performance bottlenecks detected:', bottlenecks);
         
         // Auto-optimize if possible
         bottlenecks.forEach(bottleneck => {
