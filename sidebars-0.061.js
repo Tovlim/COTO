@@ -758,9 +758,27 @@
       return false;
     }
 
-    // Check if any list has active filters (hasInteracted computed property)
+    // Check if any list has active filters by examining the filters object
     const hasActiveFilters = window._finsweetListInstances.some(instance => {
-      return instance.hasInteracted && instance.hasInteracted.value === true;
+      if (!instance.filters || !instance.filters.value) return false;
+
+      const filters = instance.filters.value;
+
+      // Check if any group has conditions with values
+      if (filters.groups && filters.groups.length > 0) {
+        return filters.groups.some(group => {
+          return group.conditions && group.conditions.some(condition => {
+            const value = condition.value;
+            // Check if value exists and is not empty
+            if (Array.isArray(value)) {
+              return value.length > 0;
+            }
+            return value !== '' && value !== null && value !== undefined;
+          });
+        });
+      }
+
+      return false;
     });
 
     toggleShowWhenFilteredElements(hasActiveFilters);
@@ -781,13 +799,14 @@
           // Store instances globally for access
           window._finsweetListInstances = listInstances;
 
-          // Listen to filter changes via reactive watch
+          // Listen to filter changes via reactive watch on filters object
           listInstances.forEach(instance => {
             instance.watch(
-              () => instance.hasInteracted,
+              () => instance.filters,
               () => {
                 checkAndToggleFilteredElements();
-              }
+              },
+              { deep: true } // Watch nested changes in filters
             );
           });
 
