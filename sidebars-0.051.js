@@ -1089,6 +1089,16 @@
 
     // Start monitoring immediately
     monitorTags();
+
+    // Hide loading indicators after sidebars are loaded
+    hideSidebarLoadingIndicators();
+  }
+
+  function hideSidebarLoadingIndicators() {
+    const loadingIndicators = document.querySelectorAll('[sidebar-loading="indicator"]');
+    loadingIndicators.forEach(indicator => {
+      indicator.style.display = 'none';
+    });
   }
   
   // ====================================================================
