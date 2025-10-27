@@ -1030,18 +1030,18 @@
     };
     
     const setupInitialMargins = () => {
-      if (window.innerWidth <= 478) return;
+      if (window.innerWidth > 478) {
+        ['Left', 'Right', 'SecondLeft'].forEach(side => {
+          const sidebar = sidebarCache.getSidebar(side);
+          if (sidebar && !sidebar.classList.contains('is-show')) {
+            const width = sidebarCache.getWidth(side);
+            const jsMarginProperty = sidebarCache.getMarginProperty(side);
+            sidebar.style[jsMarginProperty] = `-${width + 1}px`;
+          }
+        });
+      }
 
-      ['Left', 'Right', 'SecondLeft'].forEach(side => {
-        const sidebar = sidebarCache.getSidebar(side);
-        if (sidebar && !sidebar.classList.contains('is-show')) {
-          const width = sidebarCache.getWidth(side);
-          const jsMarginProperty = sidebarCache.getMarginProperty(side);
-          sidebar.style[jsMarginProperty] = `-${width + 1}px`;
-        }
-      });
-
-      // Hide loading indicators after sidebars are fully set up
+      // Hide loading indicators after sidebars are fully set up (works on all screen sizes)
       hideSidebarLoadingIndicators();
     };
 
