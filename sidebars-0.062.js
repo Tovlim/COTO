@@ -897,7 +897,20 @@
   
   function setupControls() {
     const controlMap = {
-      'AllEvents': () => $id('ClearAll')?.click(),
+      'AllEvents': () => {
+        // Use Finsweet API to reset all filters
+        if (window._finsweetListInstances && window._finsweetListInstances.length > 0) {
+          window._finsweetListInstances.forEach(instance => {
+            // Reset filters using Finsweet API
+            if (instance.filters && instance.filters.value) {
+              instance.filters.value = {
+                groupsMatch: 'and',
+                groups: []
+              };
+            }
+          });
+        }
+      },
       'ToggleLeft': () => {
         const leftSidebar = $id('LeftSidebar');
         if (leftSidebar) toggleSidebar('Left', !leftSidebar.classList.contains('is-show'));
