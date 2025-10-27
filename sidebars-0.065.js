@@ -901,9 +901,27 @@
         // Use Finsweet API to reset all filters
         if (window._finsweetListInstances && window._finsweetListInstances.length > 0) {
           window._finsweetListInstances.forEach(instance => {
-            // Find all form elements associated with this list
-            const forms = document.querySelectorAll('form[fs-cmsfilter-element="filters"]');
+            // Reset filters in the API by clearing condition values (Finsweet approach)
+            if (instance.filters && instance.filters.value) {
+              const filters = instance.filters.value;
 
+              // Clear all condition values in all groups
+              if (filters.groups && filters.groups.length > 0) {
+                filters.groups.forEach(group => {
+                  if (group.conditions && group.conditions.length > 0) {
+                    group.conditions.forEach(condition => {
+                      // Set value to empty array or empty string based on type
+                      condition.value = Array.isArray(condition.value) ? [] : '';
+                      // Mark as not interacted (like Finsweet's clear button does)
+                      condition.interacted = false;
+                    });
+                  }
+                });
+              }
+            }
+
+            // Reset form inputs to sync with API state
+            const forms = document.querySelectorAll('form[fs-cmsfilter-element="filters"]');
             forms.forEach(form => {
               // Reset all checkboxes
               form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
@@ -924,19 +942,7 @@
               form.querySelectorAll('select').forEach(select => {
                 select.selectedIndex = 0;
               });
-
-              // Trigger change event on form to notify Finsweet
-              form.dispatchEvent(new Event('change', { bubbles: true }));
-              form.dispatchEvent(new Event('input', { bubbles: true }));
             });
-
-            // Also reset filters in the API
-            if (instance.filters && instance.filters.value) {
-              instance.filters.value = {
-                groupsMatch: 'and',
-                groups: []
-              };
-            }
           });
         }
       },
