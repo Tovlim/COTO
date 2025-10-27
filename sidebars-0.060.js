@@ -745,27 +745,22 @@
     });
   };
 
-  // Use Finsweet CMS Filter API to detect active filters
+  // Use Finsweet List API to detect active filters
   const checkAndToggleFilteredElements = () => {
     // Check if Finsweet API is available
-    if (typeof window.fsAttributes === 'undefined' || !window.fsAttributes.cmsfilter) {
+    if (typeof window.FinsweetAttributes === 'undefined') {
       return false;
     }
 
-    // Get filter instances
-    const filterInstances = window.fsAttributes.cmsfilter.instances;
-    if (!filterInstances || filterInstances.length === 0) {
+    // Get list instances from stored reference
+    if (!window._finsweetListInstances || window._finsweetListInstances.length === 0) {
       toggleShowWhenFilteredElements(false);
       return false;
     }
 
-    // Check if any filter has active filters
-    const hasActiveFilters = filterInstances.some(instance => {
-      const activeFilters = instance.filtersData;
-      // Check if any filter group has selected values
-      return activeFilters && activeFilters.some(filter =>
-        filter.values && filter.values.length > 0
-      );
+    // Check if any list has active filters (hasInteracted computed property)
+    const hasActiveFilters = window._finsweetListInstances.some(instance => {
+      return instance.hasInteracted && instance.hasInteracted.value === true;
     });
 
     toggleShowWhenFilteredElements(hasActiveFilters);
@@ -779,20 +774,27 @@
       if (isSetup) return;
 
       // Wait for Finsweet to be ready
-      if (typeof window.fsAttributes !== 'undefined') {
-        window.fsAttributes.cmsfilter = window.fsAttributes.cmsfilter || [];
-        window.fsAttributes.cmsfilter.push((filterInstances) => {
-          // Listen to filter events via Finsweet API
-          filterInstances.forEach(instance => {
-            instance.listInstance.on('renderitems', () => {
-              checkAndToggleFilteredElements();
-            });
+      window.FinsweetAttributes = window.FinsweetAttributes || [];
+      window.FinsweetAttributes.push([
+        'list',
+        (listInstances) => {
+          // Store instances globally for access
+          window._finsweetListInstances = listInstances;
+
+          // Listen to filter changes via reactive watch
+          listInstances.forEach(instance => {
+            instance.watch(
+              () => instance.hasInteracted,
+              () => {
+                checkAndToggleFilteredElements();
+              }
+            );
           });
 
           // Initial check
           checkAndToggleFilteredElements();
-        });
-      }
+        }
+      ]);
 
       isSetup = true;
     };
