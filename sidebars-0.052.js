@@ -1030,7 +1030,7 @@
     
     const setupInitialMargins = () => {
       if (window.innerWidth <= 478) return;
-      
+
       ['Left', 'Right', 'SecondLeft'].forEach(side => {
         const sidebar = sidebarCache.getSidebar(side);
         if (sidebar && !sidebar.classList.contains('is-show')) {
@@ -1039,8 +1039,11 @@
           sidebar.style[jsMarginProperty] = `-${width + 1}px`;
         }
       });
+
+      // Hide loading indicators after sidebars are fully set up
+      hideSidebarLoadingIndicators();
     };
-    
+
     attemptSetup();
   }
   
@@ -1089,9 +1092,6 @@
 
     // Start monitoring immediately
     monitorTags();
-
-    // Hide loading indicators after sidebars are loaded
-    hideSidebarLoadingIndicators();
   }
 
   function hideSidebarLoadingIndicators() {
