@@ -732,83 +732,68 @@
   }
   
   // ====================================================================
-  // FILTERED ELEMENTS
+  // FILTERED ELEMENTS - Using Finsweet API
   // ====================================================================
 
-  // Track if initial delay has passed
-  let initialDelayPassed = false;
-
-  // Set timer to enable show-when-filtered after 10 seconds
-  setTimeout(() => {
-    initialDelayPassed = true;
-    // Check immediately after delay expires
-    checkAndToggleFilteredElements();
-  }, 10000);
-
-  // Toggle filtered elements with immediate DOM updates (matching mapbox)
+  // Toggle filtered elements with immediate DOM updates
   const toggleShowWhenFilteredElements = show => {
-    // Don't show during initial 10-second delay
-    if (!initialDelayPassed) return;
-
-    // Don't use cached results for critical filtering elements - always fresh query
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
 
-    // Apply changes immediately - no delay logic needed
     elements.forEach(element => {
       element.style.display = show ? 'block' : 'none';
     });
   };
 
-  // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
+  // Use Finsweet CMS Filter API to detect active filters
   const checkAndToggleFilteredElements = () => {
-    // Skip during initial delay
-    if (!initialDelayPassed) return false;
+    // Check if Finsweet API is available
+    if (typeof window.fsAttributes === 'undefined' || !window.fsAttributes.cmsfilter) {
+      return false;
+    }
 
-    // Check for hiddentagparent (Finsweet official filtering indicator)
-    const hiddenTagParent = document.getElementById('hiddentagparent');
-    const shouldShow = !!hiddenTagParent;
+    // Get filter instances
+    const filterInstances = window.fsAttributes.cmsfilter.instances;
+    if (!filterInstances || filterInstances.length === 0) {
+      toggleShowWhenFilteredElements(false);
+      return false;
+    }
 
-    toggleShowWhenFilteredElements(shouldShow);
-    return shouldShow;
+    // Check if any filter has active filters
+    const hasActiveFilters = filterInstances.some(instance => {
+      const activeFilters = instance.filtersData;
+      // Check if any filter group has selected values
+      return activeFilters && activeFilters.some(filter =>
+        filter.values && filter.values.length > 0
+      );
+    });
+
+    toggleShowWhenFilteredElements(hasActiveFilters);
+    return hasActiveFilters;
   };
-  
+
   const monitorTags = (() => {
     let isSetup = false;
-    let pollingTimer = null;
-    
+
     return () => {
       if (isSetup) return;
-      
-      checkAndToggleFilteredElements();
-      
-      const tagParent = document.getElementById('tagparent');
-      if (tagParent) {
-        if (tagParent._mutationObserver) {
-          tagParent._mutationObserver.disconnect();
-        }
-        
-        const observer = new MutationObserver(() => {
-          // Immediate check when DOM changes (like mapbox)
+
+      // Wait for Finsweet to be ready
+      if (typeof window.fsAttributes !== 'undefined') {
+        window.fsAttributes.cmsfilter = window.fsAttributes.cmsfilter || [];
+        window.fsAttributes.cmsfilter.push((filterInstances) => {
+          // Listen to filter events via Finsweet API
+          filterInstances.forEach(instance => {
+            instance.listInstance.on('renderitems', () => {
+              checkAndToggleFilteredElements();
+            });
+          });
+
+          // Initial check
           checkAndToggleFilteredElements();
         });
-        observer.observe(tagParent, {childList: true, subtree: true});
-        
-        tagParent._mutationObserver = observer;
       }
-      
-      // Individual event listeners removed - using document delegation only
-      
-      const startPolling = () => {
-        if (pollingTimer) clearTimeout(pollingTimer);
-        
-        pollingTimer = setTimeout(() => {
-          checkAndToggleFilteredElements(); // Just check, don't setup again
-          startPolling(); // Continue polling
-        }, 1000);
-      };
-      
-      startPolling();
+
       isSetup = true;
     };
   })();
