@@ -24,6 +24,7 @@
       settlements: '/settlement'
     },
     SEARCH_LIMIT: 100, // Number of results to fetch
+    DEBOUNCE_DELAY: 300, // Milliseconds to wait before searching
     DEBUG_MODE: false
   };
 
@@ -39,7 +40,8 @@
     persistentCheckedStates: new Map(), // searchType -> Map(itemName -> boolean)
     checkedItemSlugs: new Map(), // searchType -> Map(itemName -> slug)
     abortControllers: new Map(), // searchType -> AbortController
-    initialResults: new Map() // searchType -> array of initial checkbox data from page load
+    initialResults: new Map(), // searchType -> array of initial checkbox data from page load
+    debounceTimers: new Map() // searchType -> timeout ID
   };
 
   let isInitialized = false;
@@ -151,11 +153,23 @@
     try {
       cleanupEventListeners();
 
-      // Setup search input listeners
+      // Setup search input listeners with debouncing
       cache.searchBoxes.forEach((searchBox, searchType) => {
         const handler = (e) => {
           const searchTerm = e.target.value.trim();
-          handleSearch(searchType, searchTerm);
+
+          // Clear existing timer
+          if (cache.debounceTimers.has(searchType)) {
+            clearTimeout(cache.debounceTimers.get(searchType));
+          }
+
+          // Set new timer
+          const timerId = setTimeout(() => {
+            handleSearch(searchType, searchTerm);
+            cache.debounceTimers.delete(searchType);
+          }, CONFIG.DEBOUNCE_DELAY);
+
+          cache.debounceTimers.set(searchType, timerId);
         };
 
         searchBox.addEventListener('input', handler);
@@ -466,6 +480,12 @@
 
   function clearSearch(searchType) {
     try {
+      // Clear any pending debounce timer
+      if (cache.debounceTimers.has(searchType)) {
+        clearTimeout(cache.debounceTimers.get(searchType));
+        cache.debounceTimers.delete(searchType);
+      }
+
       const searchBox = cache.searchBoxes.get(searchType);
       if (searchBox) {
         searchBox.value = '';
