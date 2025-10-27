@@ -734,25 +734,41 @@
   // ====================================================================
   // FILTERED ELEMENTS
   // ====================================================================
-  
+
+  // Track if initial delay has passed
+  let initialDelayPassed = false;
+
+  // Set timer to enable show-when-filtered after 10 seconds
+  setTimeout(() => {
+    initialDelayPassed = true;
+    // Check immediately after delay expires
+    checkAndToggleFilteredElements();
+  }, 10000);
+
   // Toggle filtered elements with immediate DOM updates (matching mapbox)
   const toggleShowWhenFilteredElements = show => {
+    // Don't show during initial 10-second delay
+    if (!initialDelayPassed) return;
+
     // Don't use cached results for critical filtering elements - always fresh query
     const elements = document.querySelectorAll('[show-when-filtered="true"]');
     if (elements.length === 0) return;
-    
+
     // Apply changes immediately - no delay logic needed
     elements.forEach(element => {
       element.style.display = show ? 'block' : 'none';
     });
   };
-  
+
   // SIMPLIFIED: Only use hiddentagparent method for filtering detection (matching mapbox)
   const checkAndToggleFilteredElements = () => {
+    // Skip during initial delay
+    if (!initialDelayPassed) return false;
+
     // Check for hiddentagparent (Finsweet official filtering indicator)
     const hiddenTagParent = document.getElementById('hiddentagparent');
     const shouldShow = !!hiddenTagParent;
-    
+
     toggleShowWhenFilteredElements(shouldShow);
     return shouldShow;
   };
