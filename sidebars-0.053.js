@@ -597,11 +597,11 @@
   let processFieldItemsTimer = null;
   
   // Early detection of field-items to skip unnecessary processing
-  let hasFieldItemsOnPage = false;
-  
+  let hasFieldItemsOnPage = null; // null = not checked yet, true/false = cached result
+
   // Check once if page has field-items
   function checkForFieldItems() {
-    if (!hasFieldItemsOnPage) {
+    if (hasFieldItemsOnPage === null) {
       hasFieldItemsOnPage = document.querySelector('[field-item]') !== null;
     }
     return hasFieldItemsOnPage;
@@ -1008,23 +1008,24 @@
       return true;
     };
     
-    const attemptSetup = (attempt = 1, maxAttempts = 5) => {
+    const attemptSetup = (attempt = 1, maxAttempts = 3) => {
       const leftReady = setupSidebarElement('Left');
       const rightReady = setupSidebarElement('Right');
       const secondLeftReady = setupSidebarElement('SecondLeft');
-      
+
       if (leftReady && rightReady) {
         setupInitialMargins();
-        state.setTimer('setupControls', setupControls, 50);
+        setupControls();
         return;
       }
-      
+
       if (attempt < maxAttempts) {
-        const delay = [50, 150, 250, 500][attempt - 1] || 500;
+        const delay = [50, 100, 200][attempt - 1] || 200;
         state.setTimer(`sidebarSetup-${attempt}`, () => attemptSetup(attempt + 1, maxAttempts), delay);
       } else {
+        // Final attempt - setup with whatever elements are available
         setupInitialMargins();
-        state.setTimer('setupControls', setupControls, 50);
+        setupControls();
       }
     };
     
@@ -1095,6 +1096,9 @@
   }
 
   function hideSidebarLoadingIndicators() {
+    // Early bailout if no loading indicators exist
+    if (!document.querySelector('[sidebar-loading="indicator"]')) return;
+
     const loadingIndicators = document.querySelectorAll('[sidebar-loading="indicator"]');
     loadingIndicators.forEach(indicator => {
       indicator.style.display = 'none';
@@ -1256,17 +1260,15 @@
   window.addEventListener('load', () => {
     // Check immediately on window load
     checkAndToggleFilteredElements();
-    
-    setupSidebars();
-    
+
     // Check for filtered elements using idle execution
     IdleExecution.scheduleUI(() => {
       checkAndToggleFilteredElements();
     }, { fallbackDelay: 300 });
-    
+
     // Additional check after page is fully loaded (matching mapbox timing)
     state.setTimer('loadCheckFiltered', checkAndToggleFilteredElements, 200);
-    
+
     // Process field items after full page load as final fallback
     if (checkForFieldItems()) {
       state.setTimer('loadProcessFieldItems', processFieldItemsDebounced, 400);
