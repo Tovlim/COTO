@@ -1016,6 +1016,8 @@
       if (leftReady && rightReady) {
         setupInitialMargins();
         setupControls();
+        // Hide loading indicators after everything is set up
+        hideSidebarLoadingIndicators();
         return;
       }
 
@@ -1026,9 +1028,11 @@
         // Final attempt - setup with whatever elements are available
         setupInitialMargins();
         setupControls();
+        // Hide loading indicators even if not all sidebars are ready
+        hideSidebarLoadingIndicators();
       }
     };
-    
+
     const setupInitialMargins = () => {
       if (window.innerWidth > 478) {
         ['Left', 'Right', 'SecondLeft'].forEach(side => {
@@ -1040,9 +1044,6 @@
           }
         });
       }
-
-      // Hide loading indicators after sidebars are fully set up (works on all screen sizes)
-      hideSidebarLoadingIndicators();
     };
 
     attemptSetup();
