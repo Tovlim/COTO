@@ -1170,16 +1170,10 @@
   const immediateCheck = () => {
     const hiddenTagParent = document.getElementById('hiddentagparent');
     if (hiddenTagParent) {
-      // Show filtered elements immediately!
-      const elements = document.querySelectorAll('[show-when-filtered="true"]');
-      elements.forEach(element => {
-        element.style.display = 'block';
-        element.style.visibility = 'visible';
-        element.style.opacity = '1';
-        element.style.pointerEvents = 'auto';
-      });
+      // Don't show filtered elements immediately - wait for 10 second delay to pass
+      // The setTimeout at line 742-746 will handle showing them after the delay
     }
-    
+
     // Process field-item elements immediately to auto-check corresponding checkboxes
     // Only schedule if field-items exist
     if (checkForFieldItems()) {
@@ -1241,36 +1235,28 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       immediateCheck();
-      
-      // Check immediately since hiddentagparent might exist
-      const hiddenTagParent = document.getElementById('hiddentagparent');
-      if (hiddenTagParent) {
-        toggleShowWhenFilteredElements(true);
-      }
-      
+
+      // Don't show filtered elements immediately - wait for 10 second delay to pass
+
       // Process field items after DOM is ready
       if (checkForFieldItems()) {
         IdleExecution.scheduleUI(() => {
           processFieldItemsDebounced();
         }, { fallbackDelay: 300 });
       }
-      
+
       initializeCore();
     });
   } else {
-    // Check immediately if hiddentagparent exists
-    const hiddenTagParent = document.getElementById('hiddentagparent');
-    if (hiddenTagParent) {
-      toggleShowWhenFilteredElements(true);
-    }
-    
+    // Don't show filtered elements immediately - wait for 10 second delay to pass
+
     // Process field items if DOM is already ready
     if (checkForFieldItems()) {
       IdleExecution.scheduleUI(() => {
         processFieldItemsDebounced();
       }, { fallbackDelay: 100 });
     }
-    
+
     initializeCore();
   }
   
