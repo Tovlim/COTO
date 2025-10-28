@@ -186,37 +186,30 @@ function checkFilteringStateChange() {
 
 // TAB SYSTEM
 function initializeTabs(cmsItem) {
-  console.log('🔍 [TAB DEBUG] initializeTabs called for item:', cmsItem);
 
   // Check state attribute first
   if (!needsProcessing(cmsItem, 'tabs')) {
-    console.log('⏭️ [TAB DEBUG] Item does not need processing (already completed)');
     return;
   }
 
   // Check if we've already processed tabs for this item
   if (processedTabItems.has(cmsItem)) {
-    console.log('✅ [TAB DEBUG] Item already in processedTabItems, marking complete');
     updateProcessingState(cmsItem, 'tabs', ProcessingState.COMPLETED);
     return;
   }
 
   updateProcessingState(cmsItem, 'tabs', ProcessingState.PROCESSING);
-  console.log('⚙️ [TAB DEBUG] State set to PROCESSING');
 
   // Find all tabs within this CMS item
   const tabs = cmsItem.querySelectorAll('[data-tab]');
   const tabContents = cmsItem.querySelectorAll('[data-tab-content]');
 
-  console.log(`📊 [TAB DEBUG] Found ${tabs.length} tabs and ${tabContents.length} tab contents`);
 
   if (tabs.length === 0 || tabContents.length === 0) {
-    console.log('❌ [TAB DEBUG] No tabs or tab contents found, skipping item');
     return; // No tabs in this item
   }
   
   // Remove any existing event listeners before re-initializing
-  console.log('🔄 [TAB DEBUG] Cloning tabs to remove old listeners');
   tabs.forEach((tab) => {
     const newTab = tab.cloneNode(true);
     tab.parentNode.replaceChild(newTab, tab);
@@ -224,7 +217,6 @@ function initializeTabs(cmsItem) {
 
   // Re-query tabs after cloning
   const freshTabs = cmsItem.querySelectorAll('[data-tab]');
-  console.log(`🔄 [TAB DEBUG] Re-queried tabs: ${freshTabs.length} fresh tabs found`);
   
   // Hide all tab contents by default (no active tab)
   tabContents.forEach((content) => {
@@ -290,82 +282,34 @@ function initializeTabs(cmsItem) {
   // Mark this item as processed for tabs
   processedTabItems.add(cmsItem);
   updateProcessingState(cmsItem, 'tabs', ProcessingState.COMPLETED);
-  console.log('✅ [TAB DEBUG] Tabs initialized successfully and marked as COMPLETED');
 }
 
 // Process tabs for newly loaded items
 function processTabsForNewItems() {
-  console.log('🔍 [TAB DEBUG] processTabsForNewItems called');
-
   // Find all CMS items that might have tabs
   const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
-  console.log(`📊 [TAB DEBUG] Found ${cmsItems.length} potential CMS items`);
 
-  // Check if the problematic item is in this list
-  const problematicItem = document.querySelector('[data-item-slug="armed-settler-seizes-palestinian-familys-backyard-and-cemetery-with-israeli-military-support"]');
-  if (problematicItem) {
-    console.log('🔍 [TAB DEBUG] Problematic item EXISTS in DOM');
-    console.log('   Has .stickytabs?', !!problematicItem.querySelector('.stickytabs'));
-    console.log('   Has [data-tab]?', !!problematicItem.querySelector('[data-tab]'));
-    console.log('   All [data-tab] elements:', problematicItem.querySelectorAll('[data-tab]'));
-    console.log('   In cmsItems list?', Array.from(cmsItems).includes(problematicItem));
-  } else {
-    console.log('❌ [TAB DEBUG] Problematic item NOT in DOM yet');
-  }
-
-  let processedCount = 0;
-  let skippedCount = 0;
-  let noTabsCount = 0;
-
-  cmsItems.forEach((item, index) => {
+  cmsItems.forEach((item) => {
     if (!processedTabItems.has(item)) {
       // Check if this item contains tabs
       const hasTabs = item.querySelector('[data-tab]');
       if (hasTabs) {
-        console.log(`✅ [TAB DEBUG] Processing item ${index + 1}: has tabs`);
-        console.log(`   Item slug: ${item.getAttribute('data-item-slug')}`);
         initializeTabs(item);
-        processedCount++;
-      } else {
-        // Debug: Check if this is the problematic item
-        const slug = item.getAttribute('data-item-slug');
-        if (slug === 'armed-settler-seizes-palestinian-familys-backyard-and-cemetery-with-israeli-military-support') {
-          console.log(`❌ [TAB DEBUG] PROBLEM ITEM FOUND at index ${index + 1}`);
-          console.log(`   querySelector('[data-tab]') result:`, item.querySelector('[data-tab]'));
-          console.log(`   Item structure:`, item);
-          console.log(`   .stickytabs found:`, item.querySelector('.stickytabs'));
-          console.log(`   All [data-tab] in document:`, document.querySelectorAll('[data-tab]').length);
-        }
-        noTabsCount++;
       }
-    } else {
-      skippedCount++;
     }
   });
-
-  console.log(`📊 [TAB DEBUG] Summary - Processed: ${processedCount}, Skipped (already processed): ${skippedCount}, No tabs: ${noTabsCount}`);
 }
 
 // Force re-process tabs for filtered items
 function reprocessTabsForFilteredItems() {
-  console.log('🔍 [TAB DEBUG] reprocessTabsForFilteredItems called');
-
   // Find all CMS items that might have tabs
   const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
   const visibleTabItems = [];
 
-  console.log(`📊 [TAB DEBUG] Checking ${cmsItems.length} CMS items for tabs`);
-
-  let withTabsCount = 0;
-  let hiddenCount = 0;
-  let visibleCount = 0;
-
-  cmsItems.forEach((item, index) => {
+  cmsItems.forEach((item) => {
     // Check if this item contains tabs
     const hasTabs = item.querySelector('[data-tab]');
     if (!hasTabs) return;
-
-    withTabsCount++;
 
     // Check if item is actually visible (not hidden by filtering)
     let currentElement = item;
@@ -381,22 +325,14 @@ function reprocessTabsForFilteredItems() {
     }
 
     if (isVisible) {
-      console.log(`✅ [TAB DEBUG] Item ${index + 1} is visible, will re-process tabs`);
       // Remove from processed items to force re-initialization
       processedTabItems.delete(item);
       visibleTabItems.push(item);
-      visibleCount++;
-    } else {
-      console.log(`❌ [TAB DEBUG] Item ${index + 1} is hidden`);
-      hiddenCount++;
     }
   });
 
-  console.log(`📊 [TAB DEBUG] Items with tabs: ${withTabsCount}, Visible: ${visibleCount}, Hidden: ${hiddenCount}`);
-
   // Re-initialize tabs for all visible items
-  visibleTabItems.forEach((item, index) => {
-    console.log(`🔄 [TAB DEBUG] Re-initializing tabs for visible item ${index + 1}`);
+  visibleTabItems.forEach((item) => {
     initializeTabs(item);
   });
 }
@@ -1750,16 +1686,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Process tab items
         if (pendingTabItems.size > 0) {
-          console.log(`🔄 [TAB DEBUG] Processing ${pendingTabItems.size} pending tab items from queue`);
           const itemsToProcess = Array.from(pendingTabItems);
           pendingTabItems.clear();
 
-          itemsToProcess.forEach((item, index) => {
+          itemsToProcess.forEach((item) => {
             if (!processedTabItems.has(item)) {
-              console.log(`🔄 [TAB DEBUG] Processing pending item ${index + 1}`);
               initializeTabs(item);
-            } else {
-              console.log(`⏭️ [TAB DEBUG] Pending item ${index + 1} already processed, skipping`);
             }
           });
         }
@@ -1860,7 +1792,6 @@ document.addEventListener('DOMContentLoaded', function() {
             for (const item of cmsItems) {
               const hasTabs = item.querySelector('[data-tab]');
               if (hasTabs) {
-                console.log('🆕 [TAB DEBUG] New CMS item with tabs detected via mutation observer');
                 pendingTabItems.add(item);
                 hasNewTabs = true;
               }
@@ -1870,7 +1801,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (node.matches && (node.matches('.cms-item') || node.matches('[data-item-slug]') || node.matches('.w-dyn-item'))) {
               const hasTabs = node.querySelector('[data-tab]');
               if (hasTabs) {
-                console.log('🆕 [TAB DEBUG] New direct CMS item node with tabs detected');
                 pendingTabItems.add(node);
                 hasNewTabs = true;
               }
@@ -1942,20 +1872,13 @@ function initFinsweetListAPI() {
   window.FinsweetAttributes.push([
     'list',
     (listInstances) => {
-      console.log('🔗 [FINSWEET API] List instances detected:', listInstances.length);
-
-      listInstances.forEach((listInstance, index) => {
-        console.log(`🔗 [FINSWEET API] Integrating with list instance ${index + 1}`);
-
+      listInstances.forEach((listInstance) => {
         // Hook into the filter phase - runs whenever filtering changes
         listInstance.addHook('filter', (items) => {
-          console.log('🔍 [FINSWEET API] Filter hook triggered, items:', items.length);
-
           // Trigger re-processing of filtered items
           const delay = getIsMobileDevice() ? 150 : 100;
           setTimeout(() => {
             if (checkFilteringStateChange()) {
-              console.log('🔄 [FINSWEET API] Filter state changed, processing filtered items');
               processFilteredItems();
             }
           }, delay);
@@ -1965,8 +1888,6 @@ function initFinsweetListAPI() {
 
         // Hook into the afterRender phase - runs after items are rendered
         listInstance.addHook('afterRender', (items) => {
-          console.log('✅ [FINSWEET API] AfterRender hook triggered, items:', items.length);
-
           // Re-process tabs, reporters, and dropdowns after rendering
           setTimeout(() => {
             reprocessTabsForFilteredItems();
@@ -1979,8 +1900,6 @@ function initFinsweetListAPI() {
 
         // Hook into the pagination phase - runs when pagination changes
         listInstance.addHook('pagination', (items) => {
-          console.log('📄 [FINSWEET API] Pagination hook triggered, items:', items.length);
-
           // Process new paginated items
           setTimeout(() => {
             processNewlyAddedItems();
@@ -1991,8 +1910,6 @@ function initFinsweetListAPI() {
 
           return items; // Must return items to continue the lifecycle
         });
-
-        console.log(`✅ [FINSWEET API] Hooks registered for list instance ${index + 1}`);
       });
     },
   ]);
