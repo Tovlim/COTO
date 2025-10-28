@@ -311,9 +311,19 @@ function processTabsForNewItems() {
       const hasTabs = item.querySelector('[data-tab]');
       if (hasTabs) {
         console.log(`✅ [TAB DEBUG] Processing item ${index + 1}: has tabs`);
+        console.log(`   Item slug: ${item.getAttribute('data-item-slug')}`);
         initializeTabs(item);
         processedCount++;
       } else {
+        // Debug: Check if this is the problematic item
+        const slug = item.getAttribute('data-item-slug');
+        if (slug === 'armed-settler-seizes-palestinian-familys-backyard-and-cemetery-with-israeli-military-support') {
+          console.log(`❌ [TAB DEBUG] PROBLEM ITEM FOUND at index ${index + 1}`);
+          console.log(`   querySelector('[data-tab]') result:`, item.querySelector('[data-tab]'));
+          console.log(`   Item structure:`, item);
+          console.log(`   .stickytabs found:`, item.querySelector('.stickytabs'));
+          console.log(`   All [data-tab] in document:`, document.querySelectorAll('[data-tab]').length);
+        }
         noTabsCount++;
       }
     } else {
