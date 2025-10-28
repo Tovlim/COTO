@@ -301,6 +301,18 @@ function processTabsForNewItems() {
   const cmsItems = document.querySelectorAll('.cms-item, [data-item-slug], .w-dyn-item');
   console.log(`📊 [TAB DEBUG] Found ${cmsItems.length} potential CMS items`);
 
+  // Check if the problematic item is in this list
+  const problematicItem = document.querySelector('[data-item-slug="armed-settler-seizes-palestinian-familys-backyard-and-cemetery-with-israeli-military-support"]');
+  if (problematicItem) {
+    console.log('🔍 [TAB DEBUG] Problematic item EXISTS in DOM');
+    console.log('   Has .stickytabs?', !!problematicItem.querySelector('.stickytabs'));
+    console.log('   Has [data-tab]?', !!problematicItem.querySelector('[data-tab]'));
+    console.log('   All [data-tab] elements:', problematicItem.querySelectorAll('[data-tab]'));
+    console.log('   In cmsItems list?', Array.from(cmsItems).includes(problematicItem));
+  } else {
+    console.log('❌ [TAB DEBUG] Problematic item NOT in DOM yet');
+  }
+
   let processedCount = 0;
   let skippedCount = 0;
   let noTabsCount = 0;
@@ -1890,20 +1902,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial setup with mobile-optimized timing
     const initialDelay = getIsMobileDevice() ? 800 : 500;
-    
+
     setTimeout(() => {
       // Check initial filtering state
       lastFilteringState = detectFiltering();
-      
+
       // Process only critical lightbox functionality immediately
       processInitialVisibleItems();
       observeLoadMoreButton();
       updateLazyLoad();
-      
+
       // Defer tab and reporter processing until first user interaction or idle time
       deferNonCriticalProcessing();
+
+      // Initialize Finsweet List API integration
+      initFinsweetListAPI();
     }, initialDelay);
-    
+
     // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
       observer.disconnect();
@@ -1914,6 +1929,71 @@ document.addEventListener('DOMContentLoaded', function() {
       if (reInitTimeout) clearTimeout(reInitTimeout);
     });
   };
-  
+
   initWhenReady();
 });
+
+// FINSWEET LIST API INTEGRATION
+function initFinsweetListAPI() {
+  // Ensure the FinsweetAttributes array exists
+  window.FinsweetAttributes = window.FinsweetAttributes || [];
+
+  // Register callback for when Finsweet List instances are ready
+  window.FinsweetAttributes.push([
+    'list',
+    (listInstances) => {
+      console.log('🔗 [FINSWEET API] List instances detected:', listInstances.length);
+
+      listInstances.forEach((listInstance, index) => {
+        console.log(`🔗 [FINSWEET API] Integrating with list instance ${index + 1}`);
+
+        // Hook into the filter phase - runs whenever filtering changes
+        listInstance.addHook('filter', (items) => {
+          console.log('🔍 [FINSWEET API] Filter hook triggered, items:', items.length);
+
+          // Trigger re-processing of filtered items
+          const delay = getIsMobileDevice() ? 150 : 100;
+          setTimeout(() => {
+            if (checkFilteringStateChange()) {
+              console.log('🔄 [FINSWEET API] Filter state changed, processing filtered items');
+              processFilteredItems();
+            }
+          }, delay);
+
+          return items; // Must return items to continue the lifecycle
+        });
+
+        // Hook into the afterRender phase - runs after items are rendered
+        listInstance.addHook('afterRender', (items) => {
+          console.log('✅ [FINSWEET API] AfterRender hook triggered, items:', items.length);
+
+          // Re-process tabs, reporters, and dropdowns after rendering
+          setTimeout(() => {
+            reprocessTabsForFilteredItems();
+            reprocessReportersForFilteredItems();
+            reprocessDropdownsForFilteredItems();
+          }, 100);
+
+          return items; // Must return items to continue the lifecycle
+        });
+
+        // Hook into the pagination phase - runs when pagination changes
+        listInstance.addHook('pagination', (items) => {
+          console.log('📄 [FINSWEET API] Pagination hook triggered, items:', items.length);
+
+          // Process new paginated items
+          setTimeout(() => {
+            processNewlyAddedItems();
+            processTabsForNewItems();
+            processReportersForNewItems();
+            processDropdownsForNewItems();
+          }, 200);
+
+          return items; // Must return items to continue the lifecycle
+        });
+
+        console.log(`✅ [FINSWEET API] Hooks registered for list instance ${index + 1}`);
+      });
+    },
+  ]);
+}
