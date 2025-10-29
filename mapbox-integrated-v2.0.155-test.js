@@ -5465,19 +5465,45 @@ class OptimizedEventManager {
   // Global click handler with delegation
   handleGlobalClick(event) {
     const target = event.target;
-    
+
+    // Handle cloudflare search result clicks for localities and settlements
+    const searchResultItem = target.closest('[cloudflare-search="localities"] .w-dyn-item, [cloudflare-search="settlements"] .w-dyn-item');
+    if (searchResultItem) {
+      // Check if we're clicking on a checkbox - if so, don't interfere
+      if (target.matches('input[type="checkbox"]') || target.closest('label')) {
+        return;
+      }
+
+      // Get the coordinates from data attributes
+      const longitude = parseFloat(searchResultItem.dataset.longitude);
+      const latitude = parseFloat(searchResultItem.dataset.latitude);
+
+      if (!isNaN(longitude) && !isNaN(latitude) && window.map) {
+        event.preventDefault();
+
+        // Fly to the location
+        window.map.flyTo({
+          center: [longitude, latitude],
+          zoom: 12,
+          speed: 1.2,
+          curve: 1.4,
+          essential: true
+        });
+      }
+    }
+
     // Handle filter application buttons
     if (target.matches('[apply-map-filter="true"], .filterrefresh, #filter-button')) {
       if (event.type === 'keypress' && event.key !== 'Enter') return;
       if (window.isMarkerClick) return;
-      
+
       event.preventDefault();
-      
+
       if (window.mapUtilities?.state) {
         const state = window.mapUtilities.state;
         state.flags.forceFilteredReframe = true;
         state.flags.isRefreshButtonAction = true;
-        
+
         this.debounce('applyFilter', () => {
           if (window.applyFilterToMarkers) {
             window.applyFilterToMarkers(true);
