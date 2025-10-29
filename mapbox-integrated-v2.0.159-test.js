@@ -2507,13 +2507,14 @@ window.addEventListener('beforeunload', () => {
                 this.elements = {
                     input: document.getElementById(this.config.inputId),
                     wrapper: document.getElementById(this.config.wrapperId),
-                    clear: document.getElementById(this.config.clearId)
+                    clear: document.getElementById(this.config.clearId),
+                    indicator: document.querySelector('[map-search="indicator"]')
                 };
-                
+
                 if (!this.elements.input || !this.elements.wrapper) {
                     return;
                 }
-                
+
                 // Create optimized dropdown structure
                 this.setupDropdownStructure();
                 
@@ -2677,6 +2678,11 @@ window.addEventListener('beforeunload', () => {
                 this.apiState.currentRequest = controller;
                 this.apiState.isLoading = true;
 
+                // Show loading indicator
+                if (this.elements.indicator) {
+                    this.elements.indicator.style.display = 'flex';
+                }
+
                 try {
                     const url = `${this.config.apiUrl}/search?q=${encodeURIComponent(searchText)}&limit=${this.config.maxResults}`;
 
@@ -2715,6 +2721,11 @@ window.addEventListener('beforeunload', () => {
                 } finally {
                     this.apiState.isLoading = false;
                     this.apiState.currentRequest = null;
+
+                    // Hide loading indicator
+                    if (this.elements.indicator) {
+                        this.elements.indicator.style.display = 'none';
+                    }
                 }
             }
             
