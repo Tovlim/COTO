@@ -6899,12 +6899,12 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            8, 4,
-            12, 6,
-            16, 8
+            8, 3,
+            12, 4,
+            16, 6
           ],
-          'circle-color': '#ffffff',
-          'circle-stroke-color': '#0038b8',
+          'circle-color': '#0038b8',
+          'circle-stroke-color': '#000000',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -6954,7 +6954,7 @@ function addSettlementMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 1.2],
+          'text-offset': [0, 0.6],
           'text-anchor': 'top',
           'symbol-sort-key': 2,
           'visibility': 'visible' // Always visible, opacity handles fade
@@ -7085,10 +7085,11 @@ function setupSettlementMarkerClicks() {
   
   // Add event listeners
   map.on('click', 'settlement-points', settlementClickHandler);
+  map.on('click', 'settlement-circles', settlementClickHandler);
   map.on('click', 'settlement-clusters', settlementClusterClickHandler);
-  
+
   // Cursor management
-  ['settlement-clusters', 'settlement-points'].forEach(layerId => {
+  ['settlement-clusters', 'settlement-points', 'settlement-circles'].forEach(layerId => {
     map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
     map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
   });
@@ -7276,12 +7277,12 @@ function addNativeMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            8, 4,
-            12, 6,
-            16, 8
+            8, 3,
+            12, 4,
+            16, 6
           ],
-          'circle-color': '#ffffff',
-          'circle-stroke-color': '#007a3d',
+          'circle-color': '#007a3d',
+          'circle-stroke-color': '#000000',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -7325,7 +7326,7 @@ function addNativeMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 1.2],
+          'text-offset': [0, 0.6],
           'text-anchor': 'top',
           'symbol-sort-key': 10, // Higher values render last (on top)
           'visibility': 'visible' // Always visible, opacity handles fade
@@ -7657,10 +7658,11 @@ function setupNativeMarkerClicks() {
   
   // Use map event listeners (these are automatically managed by Mapbox)
   map.on('click', 'locality-points', localityClickHandler);
+  map.on('click', 'locality-circles', localityClickHandler);
   map.on('click', 'locality-clusters', clusterClickHandler);
-  
+
   // Cursor management
-  ['locality-clusters', 'locality-points'].forEach(layerId => {
+  ['locality-clusters', 'locality-points', 'locality-circles'].forEach(layerId => {
     map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
     map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
   });
