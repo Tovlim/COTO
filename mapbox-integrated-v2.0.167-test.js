@@ -6903,8 +6903,19 @@ function addSettlementMarkers() {
             12, 6,
             16, 8
           ],
-          'circle-color': '#0038b8',
+          'circle-color': '#ffffff',
+          'circle-stroke-color': '#0038b8',
+          'circle-stroke-width': 2,
           'circle-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7.5, 0,
+            8.5, 0,
+            9.5, 1,
+            10.5, 1
+          ],
+          'circle-stroke-opacity': [
             'interpolate',
             ['linear'],
             ['zoom'],
@@ -6943,15 +6954,15 @@ function addSettlementMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 1.5],
+          'text-offset': [0, 1.2],
           'text-anchor': 'top',
           'symbol-sort-key': 2,
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#000000',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.5,
+          'text-color': '#ffffff',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
             ['linear'],
@@ -7269,8 +7280,19 @@ function addNativeMarkers() {
             12, 6,
             16, 8
           ],
-          'circle-color': '#007a3d',
+          'circle-color': '#ffffff',
+          'circle-stroke-color': '#007a3d',
+          'circle-stroke-width': 2,
           'circle-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7.5, 0,
+            8.5, 0,
+            9.5, 1,
+            10.5, 1
+          ],
+          'circle-stroke-opacity': [
             'interpolate',
             ['linear'],
             ['zoom'],
@@ -7303,15 +7325,15 @@ function addNativeMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 1.5],
+          'text-offset': [0, 1.2],
           'text-anchor': 'top',
           'symbol-sort-key': 10, // Higher values render last (on top)
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#000000',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.5,
+          'text-color': '#ffffff',
+          'text-halo-color': '#000000',
+          'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
             ['linear'],
