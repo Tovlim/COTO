@@ -7088,10 +7088,17 @@ function setupSettlementMarkerClicks() {
   map.on('click', 'settlement-circles', settlementClickHandler);
   map.on('click', 'settlement-clusters', settlementClusterClickHandler);
 
-  // Cursor management
-  ['settlement-clusters', 'settlement-points', 'settlement-circles'].forEach(layerId => {
+  // Cursor management - shared across all settlement layers
+  const settlementLayers = ['settlement-clusters', 'settlement-points', 'settlement-circles'];
+  settlementLayers.forEach(layerId => {
     map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
-    map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
+    map.on('mouseleave', layerId, (e) => {
+      // Only reset cursor if not hovering over another settlement layer
+      const features = map.queryRenderedFeatures(e.point, { layers: settlementLayers });
+      if (features.length === 0) {
+        map.getCanvas().style.cursor = '';
+      }
+    });
   });
 }
 
@@ -7661,10 +7668,17 @@ function setupNativeMarkerClicks() {
   map.on('click', 'locality-circles', localityClickHandler);
   map.on('click', 'locality-clusters', clusterClickHandler);
 
-  // Cursor management
-  ['locality-clusters', 'locality-points', 'locality-circles'].forEach(layerId => {
+  // Cursor management - shared across all locality layers
+  const localityLayers = ['locality-clusters', 'locality-points', 'locality-circles'];
+  localityLayers.forEach(layerId => {
     map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
-    map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
+    map.on('mouseleave', layerId, (e) => {
+      // Only reset cursor if not hovering over another locality layer
+      const features = map.queryRenderedFeatures(e.point, { layers: localityLayers });
+      if (features.length === 0) {
+        map.getCanvas().style.cursor = '';
+      }
+    });
   });
 }
 
