@@ -6867,8 +6867,8 @@ function addSettlementMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#0038b8',
+          'text-color': '#0038b8',
+          'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7023,7 +7023,8 @@ function setupSettlementMarkerClicks() {
     
     // Prevent rapid clicks
     const currentTime = Date.now();
-    const markerKey = `settlement-${settlementName}`;
+    const layerType = e.features[0].layer.id.includes('circle') ? 'circle' : 'text';
+    const markerKey = `settlement-${layerType}-${settlementName}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
@@ -7258,8 +7259,8 @@ function addNativeMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#007a3d',
+          'text-color': '#007a3d',
+          'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7603,7 +7604,8 @@ function setupNativeMarkerClicks() {
     
     // Prevent rapid clicks
     const currentTime = Date.now();
-    const markerKey = `locality-${locality}`;
+    const layerType = e.features[0].layer.id.includes('circle') ? 'circle' : 'text';
+    const markerKey = `locality-${layerType}-${locality}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
       return;
     }
