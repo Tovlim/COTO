@@ -1172,72 +1172,17 @@ async function addAreaOverlayToMap(name, areaFeature) {
   // Add layer with special handling for Firing Zones
   let layerConfig;
 
-  if (name === 'Firing Zones') {
-    // Create striped pattern for Firing Zones if not already loaded
-    if (!map.hasImage('firing-zones-stripe')) {
-      const firingZoneColor = '#c51d3c'; // Firing zone red
-      const areaCColor = '#889c9b'; // Area C color
-
-      // Create a canvas for the stripe pattern
-      const width = 8;
-      const height = 8;
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-
-      // Draw diagonal stripes - simple alternating bands
-      // Fill with Area C color first
-      ctx.fillStyle = areaCColor;
-      ctx.fillRect(0, 0, width, height);
-
-      // Draw diagonal Firing Zone stripes on top
-      ctx.fillStyle = firingZoneColor;
-
-      // Draw diagonal bands at 45-degree angle
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(4, 0);
-      ctx.lineTo(0, 4);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(4, 4);
-      ctx.lineTo(8, 4);
-      ctx.lineTo(8, 8);
-      ctx.lineTo(4, 8);
-      ctx.closePath();
-      ctx.fill();
-
-      // Add the pattern as an image
-      map.addImage('firing-zones-stripe', ctx.getImageData(0, 0, width, height));
+  layerConfig = {
+    id: config.layerId,
+    type: 'fill',
+    source: config.sourceId,
+    layout: { 'visibility': 'visible' },
+    paint: {
+      'fill-color': config.color,
+      'fill-opacity': 0.25,
+      'fill-outline-color': config.color
     }
-
-    layerConfig = {
-      id: config.layerId,
-      type: 'fill',
-      source: config.sourceId,
-      layout: { 'visibility': 'visible' },
-      paint: {
-        'fill-pattern': 'firing-zones-stripe',
-        'fill-opacity': 0.5,
-        'fill-outline-color': config.color
-      }
-    };
-  } else {
-    layerConfig = {
-      id: config.layerId,
-      type: 'fill',
-      source: config.sourceId,
-      layout: { 'visibility': 'visible' },
-      paint: {
-        'fill-color': config.color,
-        'fill-opacity': 0.25,
-        'fill-outline-color': config.color
-      }
-    };
-  }
+  };
   
   // Only add beforeId if the layer exists - check settlement layers first, then locality
   if (mapLayers.hasLayer('settlement-clusters')) {
