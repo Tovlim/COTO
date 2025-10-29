@@ -2918,7 +2918,7 @@ window.addEventListener('beforeunload', () => {
                 if (item.type === 'territory') {
                     a.innerHTML = `
                         <div class="locality-info">
-                            <span style="color: #2d1810;">${item.name}</span>
+                            <div class="locality-name">${item.name}</div>
                         </div>
                         <span class="term-label">Territory</span>
                     `;
@@ -2930,7 +2930,7 @@ window.addEventListener('beforeunload', () => {
                         location = [item.subRegion, item.region, item.territory].filter(Boolean).join(', ');
                     }
                     const typeLabel = item.type === 'locality' ? 'Locality' : 'Settlement';
-                    
+
                     a.innerHTML = `
                         <div class="locality-info">
                             <div class="locality-name">${item.name}</div>
@@ -2942,11 +2942,6 @@ window.addEventListener('beforeunload', () => {
                     // Determine the correct type label based on territory and nonGovernmentRegion
                     let typeLabel = 'Region';
                     if (item.type === 'region') {
-                        console.log('Determining label for region:', {
-                            name: item.name,
-                            territory: item.territory,
-                            nonGovernmentRegion: item.nonGovernmentRegion
-                        });
                         if (item.nonGovernmentRegion) {
                             typeLabel = 'Region';
                         } else if (item.territory === 'Israel') {
@@ -2956,13 +2951,12 @@ window.addEventListener('beforeunload', () => {
                         } else {
                             typeLabel = 'Region';
                         }
-                        console.log('Selected label:', typeLabel);
                     }
 
                     if (item.territory) {
                         a.innerHTML = `
                             <div class="locality-info">
-                                <span style="color: #6e3500;">${item.name}</span>
+                                <div class="locality-name">${item.name}</div>
                                 <div class="locality-region">${item.territory}</div>
                             </div>
                             <span class="term-label">${typeLabel}</span>
