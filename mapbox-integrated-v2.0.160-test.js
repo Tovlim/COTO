@@ -2708,7 +2708,8 @@ window.addEventListener('beforeunload', () => {
                         score: parseFloat(item.score) / 100, // Normalize score to 0-1
                         collection: item.collection,
                         lat: item.coordinates?.latitude,
-                        lng: item.coordinates?.longitude
+                        lng: item.coordinates?.longitude,
+                        nonGovernmentRegion: item.nonGovernmentRegion || false
                     }));
 
                 } catch (error) {
@@ -2928,7 +2929,20 @@ window.addEventListener('beforeunload', () => {
                         <span class="term-label">${typeLabel}</span>
                     `;
                 } else {
-                    const typeLabel = item.type === 'region' ? 'Governorate' : 'Region';
+                    // Determine the correct type label based on territory and nonGovernmentRegion
+                    let typeLabel = 'Region';
+                    if (item.type === 'region') {
+                        if (item.nonGovernmentRegion) {
+                            typeLabel = 'Region';
+                        } else if (item.territory === 'Israel') {
+                            typeLabel = 'District';
+                        } else if (item.territory === 'West Bank' || item.territory === 'Gaza') {
+                            typeLabel = 'Governorate';
+                        } else {
+                            typeLabel = 'Region';
+                        }
+                    }
+
                     if (item.territory) {
                         a.innerHTML = `
                             <div class="locality-info">
