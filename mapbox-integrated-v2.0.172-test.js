@@ -1186,24 +1186,24 @@ async function addAreaOverlayToMap(name, areaFeature) {
       canvas.height = height;
       const ctx = canvas.getContext('2d');
 
-      // Draw diagonal stripes
+      // Draw diagonal stripes at 45-degree angle
       ctx.fillStyle = firingZoneColor;
       ctx.fillRect(0, 0, width, height);
 
       ctx.fillStyle = areaCColor;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = areaCColor;
+
+      // Draw diagonal lines to create stripe pattern
       ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(width / 2, 0);
-      ctx.lineTo(0, width / 2);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(0, 4);
+      ctx.lineTo(4, 0);
+      ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(width / 2, height);
-      ctx.lineTo(width, height);
-      ctx.lineTo(width, height / 2);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(4, 8);
+      ctx.lineTo(8, 4);
+      ctx.stroke();
 
       // Add the pattern as an image
       map.addImage('firing-zones-stripe', ctx.getImageData(0, 0, width, height));
