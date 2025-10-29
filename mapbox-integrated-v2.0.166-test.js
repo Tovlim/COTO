@@ -6888,6 +6888,40 @@ function addSettlementMarkers() {
         map.addLayer(layerConfig);
       }
 
+      // Add circle layer for individual settlements
+      const circleLayerConfig = {
+        id: 'settlement-circles',
+        type: 'circle',
+        source: 'settlements-source',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 4,
+            12, 6,
+            16, 8
+          ],
+          'circle-color': '#0038b8',
+          'circle-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7.5, 0,
+            8.5, 0,
+            9.5, 1,
+            10.5, 1
+          ]
+        }
+      };
+
+      if (beforeId) {
+        map.addLayer(circleLayerConfig, beforeId);
+      } else {
+        map.addLayer(circleLayerConfig);
+      }
+
       // Add individual settlement points layer with proper positioning
       const pointsLayerConfig = {
         id: 'settlement-points',
@@ -6909,15 +6943,15 @@ function addSettlementMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 0],
-          'text-anchor': 'center',
+          'text-offset': [0, 1.5],
+          'text-anchor': 'top',
           'symbol-sort-key': 2,
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#0038b8',
-          'text-halo-width': 2,
+          'text-color': '#000000',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
           'text-opacity': [
             'interpolate',
             ['linear'],
@@ -6929,7 +6963,7 @@ function addSettlementMarkers() {
           ]
         }
       };
-      
+
       if (beforeId) {
         map.addLayer(pointsLayerConfig, beforeId);
       } else {
@@ -7220,6 +7254,34 @@ function addNativeMarkers() {
         }
       });
 
+      // Add circle layer for individual localities
+      map.addLayer({
+        id: 'locality-circles',
+        type: 'circle',
+        source: 'localities-source',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 4,
+            12, 6,
+            16, 8
+          ],
+          'circle-color': '#007a3d',
+          'circle-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7.5, 0,
+            8.5, 0,
+            9.5, 1,
+            10.5, 1
+          ]
+        }
+      });
+
       // Add individual locality points layer WITHOUT highlighting (FIX #2)
       map.addLayer({
         id: 'locality-points',
@@ -7241,15 +7303,15 @@ function addNativeMarkers() {
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
-          'text-offset': [0, 0],
-          'text-anchor': 'center',
+          'text-offset': [0, 1.5],
+          'text-anchor': 'top',
           'symbol-sort-key': 10, // Higher values render last (on top)
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#007a3d', // Green halo
-          'text-halo-width': 2,
+          'text-color': '#000000',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
           'text-opacity': [
             'interpolate',
             ['linear'],
