@@ -2545,11 +2545,13 @@ window.addEventListener('beforeunload', () => {
             
             saveRecentSearch(searchTerm, selectedItem) {
                 if (!APP_CONFIG.features.enableRecentSearches || !searchTerm.trim()) return;
-                
+
                 const search = {
                     term: searchTerm.trim(),
                     name: selectedItem.name,
                     type: selectedItem.type,
+                    lat: selectedItem.lat,
+                    lng: selectedItem.lng,
                     timestamp: Date.now()
                 };
                 
