@@ -2697,20 +2697,30 @@ window.addEventListener('beforeunload', () => {
                     const data = await response.json();
 
                     // Transform API results to match expected format
-                    this.data.filteredResults = data.results.map(item => ({
-                        name: item.name,
-                        nameLower: item.name.toLowerCase(),
-                        type: item.type,
-                        region: item.region,
-                        subRegion: item.subRegion,
-                        territory: item.territory,
-                        slug: item.slug,
-                        score: parseFloat(item.score) / 100, // Normalize score to 0-1
-                        collection: item.collection,
-                        lat: item.coordinates?.latitude,
-                        lng: item.coordinates?.longitude,
-                        nonGovernmentRegion: item.nonGovernmentRegion || false
-                    }));
+                    this.data.filteredResults = data.results.map(item => {
+                        // Debug logging for regions
+                        if (item.type === 'region') {
+                            console.log('Region item:', {
+                                name: item.name,
+                                territory: item.territory,
+                                nonGovernmentRegion: item.nonGovernmentRegion
+                            });
+                        }
+                        return {
+                            name: item.name,
+                            nameLower: item.name.toLowerCase(),
+                            type: item.type,
+                            region: item.region,
+                            subRegion: item.subRegion,
+                            territory: item.territory,
+                            slug: item.slug,
+                            score: parseFloat(item.score) / 100, // Normalize score to 0-1
+                            collection: item.collection,
+                            lat: item.coordinates?.latitude,
+                            lng: item.coordinates?.longitude,
+                            nonGovernmentRegion: item.nonGovernmentRegion || false
+                        };
+                    });
 
                 } catch (error) {
                     if (error.name === 'AbortError') {
@@ -2932,6 +2942,11 @@ window.addEventListener('beforeunload', () => {
                     // Determine the correct type label based on territory and nonGovernmentRegion
                     let typeLabel = 'Region';
                     if (item.type === 'region') {
+                        console.log('Determining label for region:', {
+                            name: item.name,
+                            territory: item.territory,
+                            nonGovernmentRegion: item.nonGovernmentRegion
+                        });
                         if (item.nonGovernmentRegion) {
                             typeLabel = 'Region';
                         } else if (item.territory === 'Israel') {
@@ -2941,6 +2956,7 @@ window.addEventListener('beforeunload', () => {
                         } else {
                             typeLabel = 'Region';
                         }
+                        console.log('Selected label:', typeLabel);
                     }
 
                     if (item.territory) {
