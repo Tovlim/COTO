@@ -2676,7 +2676,7 @@ window.addEventListener('beforeunload', () => {
                 this.apiState.isLoading = true;
 
                 try {
-                    const url = `${this.config.apiUrl}/search/all?q=${encodeURIComponent(searchText)}&limit=${this.config.maxResults}`;
+                    const url = `${this.config.apiUrl}/search?q=${encodeURIComponent(searchText)}&limit=${this.config.maxResults}`;
 
                     const response = await fetch(url, {
                         signal: controller.signal
