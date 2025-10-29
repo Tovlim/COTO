@@ -1146,10 +1146,10 @@ async function addAreaOverlayToMap(name, areaFeature) {
     'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
     'Firing Zones': { color: '#c51d3c', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
   };
-  
+
   const config = areaConfig[name];
   if (!config) return;
-  
+
   // Remove existing layers/sources if they exist
   if (mapLayers.hasLayer(config.layerId)) {
     map.removeLayer(config.layerId);
@@ -1159,7 +1159,7 @@ async function addAreaOverlayToMap(name, areaFeature) {
     map.removeSource(config.sourceId);
     mapLayers.sourceCache.delete(config.sourceId);
   }
-  
+
   // Add source
   map.addSource(config.sourceId, {
     type: 'geojson',
@@ -1168,19 +1168,71 @@ async function addAreaOverlayToMap(name, areaFeature) {
       features: [areaFeature]
     }
   });
-  
-  // Add layer
-  const layerConfig = {
-    id: config.layerId,
-    type: 'fill',
-    source: config.sourceId,
-    layout: { 'visibility': 'visible' },
-    paint: {
-      'fill-color': config.color,
-      'fill-opacity': 0.25,
-      'fill-outline-color': config.color
+
+  // Add layer with special handling for Firing Zones
+  let layerConfig;
+
+  if (name === 'Firing Zones') {
+    // Create striped pattern for Firing Zones if not already loaded
+    if (!map.hasImage('firing-zones-stripe')) {
+      const firingZoneColor = '#c51d3c'; // Firing zone red
+      const areaCColor = '#889c9b'; // Area C color
+
+      // Create a canvas for the stripe pattern
+      const width = 8;
+      const height = 8;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // Draw diagonal stripes
+      ctx.fillStyle = firingZoneColor;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = areaCColor;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(width / 2, 0);
+      ctx.lineTo(0, width / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(width / 2, height);
+      ctx.lineTo(width, height);
+      ctx.lineTo(width, height / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Add the pattern as an image
+      map.addImage('firing-zones-stripe', ctx.getImageData(0, 0, width, height));
     }
-  };
+
+    layerConfig = {
+      id: config.layerId,
+      type: 'fill',
+      source: config.sourceId,
+      layout: { 'visibility': 'visible' },
+      paint: {
+        'fill-pattern': 'firing-zones-stripe',
+        'fill-opacity': 0.5,
+        'fill-outline-color': config.color
+      }
+    };
+  } else {
+    layerConfig = {
+      id: config.layerId,
+      type: 'fill',
+      source: config.sourceId,
+      layout: { 'visibility': 'visible' },
+      paint: {
+        'fill-color': config.color,
+        'fill-opacity': 0.25,
+        'fill-outline-color': config.color
+      }
+    };
+  }
   
   // Only add beforeId if the layer exists - check settlement layers first, then locality
   if (mapLayers.hasLayer('settlement-clusters')) {
