@@ -2930,8 +2930,10 @@ window.addEventListener('beforeunload', () => {
                         location = [item.subRegion, item.region, item.territory].filter(Boolean).join(', ');
                     }
                     const typeLabel = item.type === 'locality' ? 'Locality' : 'Settlement';
+                    const circleClass = item.type === 'locality' ? 'locality-circle' : 'settlement-circle';
 
                     a.innerHTML = `
+                        <div class="${circleClass}"></div>
                         <div class="locality-info">
                             <div class="locality-name">${item.name}</div>
                             ${location ? `<div class="locality-region">${location}</div>` : ''}
