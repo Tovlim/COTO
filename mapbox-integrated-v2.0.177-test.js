@@ -6870,7 +6870,7 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#0038b8',
-          'text-halo-color': '#ffffff',
+          'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -6906,7 +6906,7 @@ function addSettlementMarkers() {
             16, 6
           ],
           'circle-color': '#0038b8',
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': '#000000',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -7262,7 +7262,7 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#007a3d',
-          'text-halo-color': '#ffffff',
+          'text-halo-color': '#000000',
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7292,7 +7292,7 @@ function addNativeMarkers() {
             16, 6
           ],
           'circle-color': '#007a3d',
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': '#000000',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
