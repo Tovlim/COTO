@@ -1085,7 +1085,7 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'fill-color': '#000000',
+      'fill-color': '##131313',
       'fill-opacity': 0
     }
   };
@@ -1110,7 +1110,7 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
     source: boundary.sourceId,
     layout: { 'visibility': 'visible' },
     paint: {
-      'line-color': '#000000',
+      'line-color': '##131313',
       'line-width': 1,
       'line-opacity': 0.8
     }
@@ -1409,7 +1409,7 @@ function setupDeferredAreaControls() {
         const mouseLeaveHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#000000');
+              map.setPaintProperty('territory-points', 'text-halo-color', '##131313');
             }
             // Unhighlight all districts
             if (state.districtTerritoryMap) {
@@ -1418,32 +1418,32 @@ function setupDeferredAreaControls() {
                 const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
-                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
+                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '##131313';
                   map.setPaintProperty(fillId, 'fill-color', currentColor);
                   map.setPaintProperty(fillId, 'fill-opacity', 0.5);
-                  map.setPaintProperty(borderId, 'line-color', '#000000');
+                  map.setPaintProperty(borderId, 'line-color', '##131313');
                   map.setPaintProperty(borderId, 'line-opacity', 0.8);
                 }
               });
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#000000');
+              map.setPaintProperty('region-points', 'text-halo-color', '##131313');
             }
             if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#000000');
+              map.setPaintProperty('subregion-points', 'text-halo-color', '##131313');
             }
 
             // Remove region highlights
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-fill')) {
-                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
+                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '##131313';
                 map.setPaintProperty(layer.id, 'fill-color', currentColor);
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.5);
               }
               if (layer.id.includes('-border')) {
-                map.setPaintProperty(layer.id, 'line-color', '#000000');
+                map.setPaintProperty(layer.id, 'line-color', '##131313');
                 map.setPaintProperty(layer.id, 'line-opacity', 0.8);
               }
             });
@@ -6286,7 +6286,7 @@ function frameRegionBoundary(regionName) {
 // Reset a layer to neutral state and clear ownership
 function resetLayerToNeutral(fillId, borderId) {
   if (mapLayers.hasLayer(fillId)) {
-    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
+    const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '##131313';
     try {
       map.setPaintProperty(fillId, 'fill-color', currentColor);
       map.setPaintProperty(fillId, 'fill-opacity', 0);
@@ -6297,7 +6297,7 @@ function resetLayerToNeutral(fillId, borderId) {
 
   if (mapLayers.hasLayer(borderId)) {
     try {
-      map.setPaintProperty(borderId, 'line-color', '#000000');
+      map.setPaintProperty(borderId, 'line-color', '##131313');
       map.setPaintProperty(borderId, 'line-opacity', 0.8);
     } catch (error) {
       // Silent fail - layer might not exist
@@ -7195,7 +7195,7 @@ async function addNativeTerritoryMarkers() {
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#6a6a6a',
-            '#000000'
+            '##131313'
           ],
           'text-halo-width': 2
         }
@@ -7496,7 +7496,7 @@ function addNativeRegionMarkers() {
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#8f4500',
-            '#000000'
+            '##131313'
           ],
           'text-halo-width': 2,
           'text-opacity': [
@@ -7573,7 +7573,7 @@ function addNativeDistrictMarkers() {
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#8f4500',
-            '#000000'
+            '##131313'
           ],
           'text-halo-width': 2,
           'text-opacity': [
@@ -7998,7 +7998,7 @@ function addNativeSubregionMarkers() {
             'case',
             ['boolean', ['feature-state', 'hover'], false],
             '#8f4500',
-            '#000000'
+            '##131313'
           ],
           'text-halo-width': 2,
           'text-opacity': [
