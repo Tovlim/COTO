@@ -2030,12 +2030,19 @@ function setupZoomBasedMarkerLoading() {
   map.on('zoom', checkZoomAndLoadMarkers);
   map.on('zoomend', checkZoomAndLoadMarkers);
 
-  // Initial check when map is ready
+  // ALWAYS load markers on initial map load, regardless of zoom level
+  // This ensures localities are visible from the start
   if (map.isStyleLoaded()) {
-    checkZoomAndLoadMarkers();
+    // Force load immediately
+    loadLocalitiesIfNeeded('initial-load').catch(() => {});
+    loadSettlementsIfNeeded('initial-load').catch(() => {});
+    markersLoaded = true;
   } else {
     map.on('style.load', () => {
-      checkZoomAndLoadMarkers();
+      // Force load immediately
+      loadLocalitiesIfNeeded('initial-load').catch(() => {});
+      loadSettlementsIfNeeded('initial-load').catch(() => {});
+      markersLoaded = true;
     });
   }
 
