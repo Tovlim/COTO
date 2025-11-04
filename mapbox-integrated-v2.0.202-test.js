@@ -1093,12 +1093,10 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
   // Only add beforeId if the layer exists - check settlement layers first
   if (firstAreaLayer) {
     map.addLayer(layerConfig, firstAreaLayer);
-  } else if (mapLayers.hasLayer('settlement-clusters')) {
-    map.addLayer(layerConfig, 'settlement-clusters');
   } else if (mapLayers.hasLayer('settlement-points')) {
     map.addLayer(layerConfig, 'settlement-points');
-  } else if (mapLayers.hasLayer('locality-clusters')) {
-    map.addLayer(layerConfig, 'locality-clusters');
+  } else if (mapLayers.hasLayer('locality-points')) {
+    map.addLayer(layerConfig, 'locality-points');
   } else {
     map.addLayer(layerConfig);
   }
@@ -1119,12 +1117,10 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
   // Only add beforeId if the layer exists - check settlement layers first
   if (firstAreaLayer) {
     map.addLayer(borderConfig, firstAreaLayer);
-  } else if (mapLayers.hasLayer('settlement-clusters')) {
-    map.addLayer(borderConfig, 'settlement-clusters');
   } else if (mapLayers.hasLayer('settlement-points')) {
     map.addLayer(borderConfig, 'settlement-points');
-  } else if (mapLayers.hasLayer('locality-clusters')) {
-    map.addLayer(borderConfig, 'locality-clusters');
+  } else if (mapLayers.hasLayer('locality-points')) {
+    map.addLayer(borderConfig, 'locality-points');
   } else {
     map.addLayer(borderConfig);
   }
@@ -1185,12 +1181,10 @@ async function addAreaOverlayToMap(name, areaFeature) {
   };
   
   // Only add beforeId if the layer exists - check settlement layers first, then locality
-  if (mapLayers.hasLayer('settlement-clusters')) {
-    map.addLayer(layerConfig, 'settlement-clusters');
-  } else if (mapLayers.hasLayer('settlement-points')) {
+  if (mapLayers.hasLayer('settlement-points')) {
     map.addLayer(layerConfig, 'settlement-points');
-  } else if (mapLayers.hasLayer('locality-clusters')) {
-    map.addLayer(layerConfig, 'locality-clusters');
+  } else if (mapLayers.hasLayer('locality-points')) {
+    map.addLayer(layerConfig, 'locality-points');
   } else {
     map.addLayer(layerConfig);
   }
@@ -1235,17 +1229,17 @@ function setupDeferredAreaControls() {
         label: 'Region Markers & Boundaries'
       },
       {
-        keyId: 'locality-toggle-key', 
+        keyId: 'locality-toggle-key',
         wrapId: 'locality-toggle-key-wrap',
         type: 'locality',
-        layers: ['locality-clusters', 'locality-points'],
+        layers: ['locality-points'],
         label: 'Locality Markers'
       },
       {
-        keyId: 'settlement-toggle-key', 
+        keyId: 'settlement-toggle-key',
         wrapId: 'settlement-toggle-key-wrap',
         type: 'settlement',
-        layers: ['settlement-clusters', 'settlement-points'],
+        layers: ['settlement-points'],
         label: 'Settlement Markers'
       }
     ];
@@ -1391,16 +1385,10 @@ function setupDeferredAreaControls() {
               }
             });
           } else if (control.type === 'locality') {
-            if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#00a350');
-            }
             if (mapLayers.hasLayer('locality-points')) {
               map.setPaintProperty('locality-points', 'text-halo-color', '#00a350');
             }
           } else if (control.type === 'settlement') {
-            if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#0050ff');
-            }
             if (mapLayers.hasLayer('settlement-points')) {
               map.setPaintProperty('settlement-points', 'text-halo-color', '#0050ff');
             }
@@ -1468,15 +1456,6 @@ function setupDeferredAreaControls() {
               }
             });
           } else if (control.type === 'locality') {
-            if (mapLayers.hasLayer('locality-clusters')) {
-              // Restore the data-driven expression for hover state
-              map.setPaintProperty('locality-clusters', 'text-halo-color', [
-                'case',
-                ['boolean', ['feature-state', 'hover'], false],
-                '#00a350',
-                '#007a3d'
-              ]);
-            }
             if (mapLayers.hasLayer('locality-points')) {
               // Restore the data-driven expression for hover state
               map.setPaintProperty('locality-points', 'text-halo-color', [
@@ -1487,15 +1466,6 @@ function setupDeferredAreaControls() {
               ]);
             }
           } else if (control.type === 'settlement') {
-            if (mapLayers.hasLayer('settlement-clusters')) {
-              // Restore the data-driven expression for hover state
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', [
-                'case',
-                ['boolean', ['feature-state', 'hover'], false],
-                '#0050ff',
-                '#0038b8'
-              ]);
-            }
             if (mapLayers.hasLayer('settlement-points')) {
               // Restore the data-driven expression for hover state
               map.setPaintProperty('settlement-points', 'text-halo-color', [
@@ -3746,7 +3716,7 @@ const loadingTracker = {
     
     // With deferred loading optimization, only check for initially loaded layers
     // Settlement layers are deferred until zoom/search, so don't require them for initial load
-    const initialMarkerLayers = ['locality-clusters', 'locality-points'];
+    const initialMarkerLayers = ['locality-points'];
     const initialLayersExist = initialMarkerLayers.some(layerId => {
       return map.getLayer(layerId);
     });
@@ -5932,6 +5902,9 @@ map.on("load", () => {
           // Add territory markers and wait for completion
           await addNativeTerritoryMarkers();
 
+          // Load localities on initial page load (so they're visible from the start)
+          await loadLocalitiesIfNeeded('initial-load');
+
           // Mark visual content as ready immediately for faster loading
           loadingTracker.markComplete('visualContentReady');
 
@@ -6149,7 +6122,7 @@ class OptimizedMapLayers {
   
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
-    const markerLayers = ['settlement-clusters', 'settlement-points', 'locality-clusters', 'locality-points', 'region-points'];
+    const markerLayers = ['settlement-points', 'locality-points', 'region-points'];
     
     // Check if all expected layers exist first
     const existingLayers = markerLayers.filter(id => this.hasLayer(id));
@@ -6974,7 +6947,7 @@ function addSettlementMarkers() {
   
   // Find proper insertion point - before locality layers but after areas
   const getBeforeLayerId = () => {
-    const markerLayers = ['locality-clusters', 'locality-points', 'region-points'];
+    const markerLayers = ['locality-points', 'region-points'];
     const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
     
     if (existingMarkerLayer) {
@@ -6992,62 +6965,16 @@ function addSettlementMarkers() {
       map.addSource('settlements-source', {
         type: 'geojson',
         data: state.settlementData,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 40,
         promoteId: 'name'
       });
       
       const beforeId = getBeforeLayerId();
-      
-      // Add clustered settlements layer with proper positioning
-      const layerConfig = {
-        id: 'settlement-clusters',
-        type: 'symbol',
-        source: 'settlements-source',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-font': ['Open Sans Regular'],
-          'text-size': 16,
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'symbol-sort-key': 12, // Lower priority than districts/regions (renders below)
-          'visibility': 'visible' // Always visible, opacity handles fade
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            '#0050ff',
-            '#3153c2'
-          ],
-          'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,    // Completely transparent below 7.5
-            8.5, 0,    // Still transparent at 8.5
-            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
-            10.5, 1    // Fully visible at desktop threshold and beyond
-          ]
-        }
-      };
-
-      if (beforeId) {
-        map.addLayer(layerConfig, beforeId);
-      } else {
-        map.addLayer(layerConfig);
-      }
 
       // Add circle layer for individual settlements
       const circleLayerConfig = {
         id: 'settlement-circles',
         type: 'circle',
         source: 'settlements-source',
-        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': [
             'interpolate',
@@ -7092,7 +7019,6 @@ function addSettlementMarkers() {
         id: 'settlement-points',
         type: 'symbol',
         source: 'settlements-source',
-        filter: ['!', ['has', 'point_count']],
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7210,46 +7136,13 @@ function setupSettlementMarkerClicks() {
       state.clickPriority = 999;
     }, 50);
   };
-  
-  // Cluster clicks
-  const settlementClusterClickHandler = (e) => {
-    // Settlement cluster has priority 5 (same as settlement points)
-    const myPriority = 5;
-    
-    // Only handle if no one has claimed priority yet, or if we have higher priority
-    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
-      state.clickPriority = myPriority;
-    } else {
-      return; // Someone with equal or higher priority already claimed it
-    }
-    removeBoundaryHighlight();
-    
-    const features = map.queryRenderedFeatures(e.point, {
-      layers: ['settlement-clusters']
-    });
-    
-    // Re-check priority before flying
-    if (state.clickPriority < myPriority) return;
-    
-    map.flyTo({
-      center: features[0].geometry.coordinates,
-      zoom: map.getZoom() + 2.5,
-      duration: 800
-    });
-    
-    // Reset priority quickly for next click
-    state.setTimer('resetClickPriority', () => {
-      state.clickPriority = 999;
-    }, 50);
-  };
-  
+
   // Add event listeners
   map.on('click', 'settlement-points', settlementClickHandler);
   map.on('click', 'settlement-circles', settlementClickHandler);
-  map.on('click', 'settlement-clusters', settlementClusterClickHandler);
 
   // Cursor management and hover effects - shared across all settlement layers
-  const settlementLayers = ['settlement-clusters', 'settlement-points', 'settlement-circles'];
+  const settlementLayers = ['settlement-points', 'settlement-circles'];
   let hoveredSettlementId = null;
   settlementLayers.forEach(layerId => {
     map.on('mousemove', layerId, (e) => {
@@ -7456,46 +7349,7 @@ function addNativeMarkers() {
       map.addSource('localities-source', {
         type: 'geojson',
         data: state.locationData,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
         promoteId: 'name'
-      });
-      
-      // Add clustered points layer
-      map.addLayer({
-        id: 'locality-clusters',
-        type: 'symbol',
-        source: 'localities-source',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-font': ['Open Sans Regular'],
-          'text-size': 16,
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'symbol-sort-key': 15, // Lower priority than districts/regions (renders below)
-          'visibility': 'visible' // Always visible, opacity handles fade
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            '#00a350',
-            '#377e00'
-          ],
-          'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,    // Completely transparent below 7.5
-            8.5, 0,    // Still transparent at 8.5
-            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
-            10.5, 1    // Fully visible at desktop threshold and beyond
-          ]
-        }
       });
 
       // Add circle layer for individual localities
@@ -7503,7 +7357,6 @@ function addNativeMarkers() {
         id: 'locality-circles',
         type: 'circle',
         source: 'localities-source',
-        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': [
             'interpolate',
@@ -7542,7 +7395,6 @@ function addNativeMarkers() {
         id: 'locality-points',
         type: 'symbol',
         source: 'localities-source',
-        filter: ['!', ['has', 'point_count']],
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7904,46 +7756,13 @@ function setupNativeMarkerClicks() {
       state.clickPriority = 999;
     }, 50);
   };
-  
-  // Cluster clicks
-  const clusterClickHandler = (e) => {
-    // Locality cluster has priority 4 (same as locality points)
-    const myPriority = 4;
-    
-    // Only handle if no one has claimed priority yet, or if we have higher priority
-    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
-      state.clickPriority = myPriority;
-    } else {
-      return; // Someone with equal or higher priority already claimed it
-    }
-    removeBoundaryHighlight();
-    
-    const features = map.queryRenderedFeatures(e.point, {
-      layers: ['locality-clusters']
-    });
-    
-    // Re-check priority before flying
-    if (state.clickPriority < myPriority) return;
-    
-    map.flyTo({
-      center: features[0].geometry.coordinates,
-      zoom: map.getZoom() + 2.5,
-      duration: 800
-    });
-    
-    // Reset priority quickly for next click
-    state.setTimer('resetClickPriority', () => {
-      state.clickPriority = 999;
-    }, 50);
-  };
-  
+
   // Use map event listeners (these are automatically managed by Mapbox)
   map.on('click', 'locality-points', localityClickHandler);
   map.on('click', 'locality-circles', localityClickHandler);
-  map.on('click', 'locality-clusters', clusterClickHandler);
 
   // Cursor management and hover effects - shared across all locality layers
-  const localityLayers = ['locality-clusters', 'locality-points', 'locality-circles'];
+  const localityLayers = ['locality-points', 'locality-circles'];
   let hoveredLocalityId = null;
   localityLayers.forEach(layerId => {
     map.on('mousemove', layerId, (e) => {
