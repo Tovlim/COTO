@@ -7460,9 +7460,14 @@ function addNativeMarkers() {
   // Batch add source and layers
   mapLayers.addToBatch(() => {
     console.log('[ADD MARKERS] Inside batch operation');
-    if (mapLayers.hasSource('localities-source')) {
+    console.log('[ADD MARKERS] Checking source existence...');
+    const actualSource = map.getSource('localities-source');
+    console.log('[ADD MARKERS] Actual source from map:', !!actualSource);
+    console.log('[ADD MARKERS] Cache says source exists:', mapLayers.hasSource('localities-source'));
+
+    if (actualSource) {
       console.log('[ADD MARKERS] Source exists, updating data');
-      map.getSource('localities-source').setData(state.locationData);
+      actualSource.setData(state.locationData);
     } else {
       console.log('[ADD MARKERS] Creating new source and layers');
       map.addSource('localities-source', {
