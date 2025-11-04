@@ -6988,66 +6988,21 @@ function addSettlementMarkers() {
     if (mapLayers.hasSource('settlements-source')) {
       map.getSource('settlements-source').setData(state.settlementData);
     } else {
-      // Add source first
+      // Add source first (no clustering)
       map.addSource('settlements-source', {
         type: 'geojson',
         data: state.settlementData,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 40,
+        cluster: false,  // Disable clustering
         promoteId: 'name'
       });
-      
+
       const beforeId = getBeforeLayerId();
-      
-      // Add clustered settlements layer with proper positioning
-      const layerConfig = {
-        id: 'settlement-clusters',
-        type: 'symbol',
-        source: 'settlements-source',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-font': ['Open Sans Regular'],
-          'text-size': 16,
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'symbol-sort-key': 12, // Lower priority than districts/regions (renders below)
-          'visibility': 'visible' // Always visible, opacity handles fade
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            '#0050ff',
-            '#3153c2'
-          ],
-          'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,    // Completely transparent below 7.5
-            8.5, 0,    // Still transparent at 8.5
-            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
-            10.5, 1    // Fully visible at desktop threshold and beyond
-          ]
-        }
-      };
 
-      if (beforeId) {
-        map.addLayer(layerConfig, beforeId);
-      } else {
-        map.addLayer(layerConfig);
-      }
-
-      // Add circle layer for individual settlements
+      // Add circle layer for all settlements (no clustering)
       const circleLayerConfig = {
         id: 'settlement-circles',
         type: 'circle',
         source: 'settlements-source',
-        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': [
             'interpolate',
@@ -7066,8 +7021,8 @@ function addSettlementMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,  // 0.5 opacity
+            10.5, 0.5
           ],
           'circle-stroke-opacity': [
             'interpolate',
@@ -7075,8 +7030,8 @@ function addSettlementMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,  // 0.5 opacity
+            10.5, 0.5
           ]
         }
       };
@@ -7087,12 +7042,11 @@ function addSettlementMarkers() {
         map.addLayer(circleLayerConfig);
       }
 
-      // Add individual settlement points layer with proper positioning
+      // Add settlement text labels that show/hide based on zoom (proximity)
       const pointsLayerConfig = {
         id: 'settlement-points',
         type: 'symbol',
         source: 'settlements-source',
-        filter: ['!', ['has', 'point_count']],
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7104,14 +7058,14 @@ function addSettlementMarkers() {
             12, 14,
             16, 16
           ],
-          'text-allow-overlap': false,
+          'text-allow-overlap': false,  // Don't overlap - this creates the proximity effect
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
           'text-offset': [0, 0.6],
           'text-anchor': 'top',
-          'symbol-sort-key': 13, // Lower priority than districts/regions (renders below)
-          'visibility': 'visible' // Always visible, opacity handles fade
+          'symbol-sort-key': 13,
+          'visibility': 'visible'
         },
         paint: {
           'text-color': '#ffffff',
@@ -7126,10 +7080,8 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            7.5, 0,    // Completely transparent below 7.5
-            8.5, 0,    // Still transparent at 8.5
-            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
-            10.5, 1    // Fully visible at desktop threshold and beyond
+            11, 0,     // Start showing text at zoom 11
+            12, 1      // Fully visible at zoom 12+
           ]
         }
       };
@@ -7456,54 +7408,15 @@ function addNativeMarkers() {
       map.addSource('localities-source', {
         type: 'geojson',
         data: state.locationData,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
+        cluster: false,  // Disable clustering
         promoteId: 'name'
       });
-      
-      // Add clustered points layer
-      map.addLayer({
-        id: 'locality-clusters',
-        type: 'symbol',
-        source: 'localities-source',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-font': ['Open Sans Regular'],
-          'text-size': 16,
-          'text-allow-overlap': true,
-          'text-ignore-placement': true,
-          'symbol-sort-key': 15, // Lower priority than districts/regions (renders below)
-          'visibility': 'visible' // Always visible, opacity handles fade
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            '#00a350',
-            '#377e00'
-          ],
-          'text-halo-width': 2,
-          'text-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,    // Completely transparent below 7.5
-            8.5, 0,    // Still transparent at 8.5
-            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
-            10.5, 1    // Fully visible at desktop threshold and beyond
-          ]
-        }
-      });
 
-      // Add circle layer for individual localities
+      // Add circle layer for all localities (no clustering)
       map.addLayer({
         id: 'locality-circles',
         type: 'circle',
         source: 'localities-source',
-        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': [
             'interpolate',
@@ -7522,8 +7435,8 @@ function addNativeMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,  // 0.5 opacity
+            10.5, 0.5
           ],
           'circle-stroke-opacity': [
             'interpolate',
@@ -7531,18 +7444,17 @@ function addNativeMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,  // 0.5 opacity
+            10.5, 0.5
           ]
         }
       });
 
-      // Add individual locality points layer WITHOUT highlighting (FIX #2)
+      // Add locality text labels that show/hide based on zoom (proximity)
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
         source: 'localities-source',
-        filter: ['!', ['has', 'point_count']],
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7554,14 +7466,14 @@ function addNativeMarkers() {
             12, 14,
             16, 16
           ],
-          'text-allow-overlap': false,
+          'text-allow-overlap': false,  // Don't overlap - this creates the proximity effect
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
           'text-offset': [0, 0.6],
           'text-anchor': 'top',
-          'symbol-sort-key': 14, // Lower priority than districts/regions (renders below)
-          'visibility': 'visible' // Always visible, opacity handles fade
+          'symbol-sort-key': 14,
+          'visibility': 'visible'
         },
         paint: {
           'text-color': '#ffffff',
@@ -7576,10 +7488,8 @@ function addNativeMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            7.5, 0,    // Completely transparent below 7.5
-            8.5, 0,    // Still transparent at 8.5
-            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
-            10.5, 1    // Fully visible at desktop threshold and beyond
+            11, 0,     // Start showing text at zoom 11
+            12, 1      // Fully visible at zoom 12+
           ]
         }
       });
@@ -7905,45 +7815,12 @@ function setupNativeMarkerClicks() {
     }, 50);
   };
   
-  // Cluster clicks
-  const clusterClickHandler = (e) => {
-    // Locality cluster has priority 4 (same as locality points)
-    const myPriority = 4;
-    
-    // Only handle if no one has claimed priority yet, or if we have higher priority
-    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
-      state.clickPriority = myPriority;
-    } else {
-      return; // Someone with equal or higher priority already claimed it
-    }
-    removeBoundaryHighlight();
-    
-    const features = map.queryRenderedFeatures(e.point, {
-      layers: ['locality-clusters']
-    });
-    
-    // Re-check priority before flying
-    if (state.clickPriority < myPriority) return;
-    
-    map.flyTo({
-      center: features[0].geometry.coordinates,
-      zoom: map.getZoom() + 2.5,
-      duration: 800
-    });
-    
-    // Reset priority quickly for next click
-    state.setTimer('resetClickPriority', () => {
-      state.clickPriority = 999;
-    }, 50);
-  };
-  
   // Use map event listeners (these are automatically managed by Mapbox)
   map.on('click', 'locality-points', localityClickHandler);
   map.on('click', 'locality-circles', localityClickHandler);
-  map.on('click', 'locality-clusters', clusterClickHandler);
 
   // Cursor management and hover effects - shared across all locality layers
-  const localityLayers = ['locality-clusters', 'locality-points', 'locality-circles'];
+  const localityLayers = ['locality-points', 'locality-circles'];
   let hoveredLocalityId = null;
   localityLayers.forEach(layerId => {
     map.on('mousemove', layerId, (e) => {
