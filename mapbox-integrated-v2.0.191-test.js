@@ -6579,18 +6579,6 @@ function highlightTerritoryBoundaries(territoryName) {
             map.moveLayer(district.fillId);
             map.moveLayer(district.borderId);
           }
-
-          // Also highlight the corresponding district marker
-          try {
-            if (mapLayers.hasLayer('district-points')) {
-              map.setFeatureState(
-                { source: 'districts-source', id: district.districtName },
-                { hover: true }
-              );
-            }
-          } catch (error) {
-            // Silent fail if marker doesn't exist
-          }
         } catch (error) {
           // Silent fail - layer might not exist
         }
@@ -7665,12 +7653,12 @@ function addNativeRegionMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            7, 0,
-            8, 1
+            7.5, 0,
+            8.5, 1
           ]
         }
       });
-      
+
       mapLayers.invalidateCache(); // Invalidate cache after adding layers
     }
   });
@@ -7742,8 +7730,8 @@ function addNativeDistrictMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            7, 0,
-            8, 1
+            7.5, 0,    // Completely transparent below 7.5
+            8.5, 1     // Fully visible at 8.5
           ]
         }
       });
@@ -8171,16 +8159,16 @@ function addNativeSubregionMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            7, 0,
-            8, 1
+            7.5, 0,
+            8.5, 1
           ]
         }
       });
-      
+
       mapLayers.invalidateCache();
     }
   });
-  
+
   setupSubregionMarkerClicks();
 }
 
