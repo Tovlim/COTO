@@ -6397,9 +6397,9 @@ function highlightBoundary(regionName) {
 
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(districtFillId, 'fill-color', '#333333');
+      map.setPaintProperty(districtFillId, 'fill-color', '#4a4a4a');
       map.setPaintProperty(districtFillId, 'fill-opacity', 0.6);
-      map.setPaintProperty(districtBorderId, 'line-color', '#666666');
+      map.setPaintProperty(districtBorderId, 'line-color', '#AAAAAA');
       map.setPaintProperty(districtBorderId, 'line-opacity', 1);
     });
   }
@@ -6413,9 +6413,9 @@ function highlightBoundary(regionName) {
 
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(territoryFillId, 'fill-color', '#333333');
+      map.setPaintProperty(territoryFillId, 'fill-color', '#4a4a4a');
       map.setPaintProperty(territoryFillId, 'fill-opacity', 0.6);
-      map.setPaintProperty(territoryBorderId, 'line-color', '#666666');
+      map.setPaintProperty(territoryBorderId, 'line-color', '#AAAAAA');
       map.setPaintProperty(territoryBorderId, 'line-opacity', 1);
     });
   }
@@ -6487,9 +6487,9 @@ function highlightTerritoryBoundaries(territoryName) {
     mapLayers.addToBatch(() => {
       districtsToHighlight.forEach((district) => {
         try {
-          map.setPaintProperty(district.fillId, 'fill-color', '#333333');
+          map.setPaintProperty(district.fillId, 'fill-color', '#4a4a4a');
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.6);
-          map.setPaintProperty(district.borderId, 'line-color', '#666666');
+          map.setPaintProperty(district.borderId, 'line-color', '#AAAAAA');
           map.setPaintProperty(district.borderId, 'line-opacity', 1);
         } catch (error) {
           // Silent fail - layer might not exist
