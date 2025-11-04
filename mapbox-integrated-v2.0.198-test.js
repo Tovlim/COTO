@@ -1942,25 +1942,22 @@ const monitorTags = (() => {
 function init() {
   // Core initialization - NO marker loading on initial page load
   setupEvents();
-  
-  // Only load overlays and regions initially (lightweight)
+
+  // Setup zoom-based marker loading ONCE
   setupZoomBasedMarkerLoading();
-  
+
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
-  
+
   const handleMapEvents = () => {
     state.clearTimer('mapEventHandler');
     state.setTimer('mapEventHandler', () => {
       // Map events handled by optimized layer management
     }, 10);
   };
-  
+
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
-  
-  // Setup zoom-based marker loading
-  setupZoomBasedMarkerLoading();
   
   // Staggered setup with smart timing
   [300, 800].forEach(delay => 
