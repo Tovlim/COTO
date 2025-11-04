@@ -5889,6 +5889,28 @@ map.on("load", () => {
         // Initialize territory data immediately (should always be visible)
         initializeTerritoryData();
 
+        // Load localities immediately on map load for better user experience
+        // This ensures locality markers are visible right away
+        try {
+          console.log('Loading localities on initial map load...');
+          await loadLocalitiesIfNeeded('initial-map-load');
+          console.log('Localities loaded successfully');
+        } catch (error) {
+          console.error('Error loading localities on initial load:', error);
+        }
+
+        // Load settlements too if we're at a reasonable zoom level
+        const currentZoom = map.getZoom();
+        if (currentZoom >= 9) {  // Use mobile threshold as minimum
+          try {
+            console.log('Loading settlements on initial map load (zoom:', currentZoom, ')...');
+            await loadSettlementsIfNeeded('initial-map-load');
+            console.log('Settlements loaded successfully');
+          } catch (error) {
+            console.error('Error loading settlements on initial load:', error);
+          }
+        }
+
         // Mark data as loaded for loading screen
         loadingTracker.markComplete('dataLoaded');
 
@@ -5917,6 +5939,7 @@ map.on("load", () => {
         loadingTracker.markComplete('mapReady');
 
       }).catch(error => {
+        console.error('Error in map load sequence:', error);
         // Mark as complete anyway to prevent infinite loading
         loadingTracker.markComplete('dataLoaded');
         loadingTracker.markComplete('visualContentReady');
@@ -6732,8 +6755,12 @@ async function loadLocalitiesFromGeoJSON() {
     const processedData = await loadLocalitiesWithCache();
     
     // Store the data in state (maintaining compatibility)
-    state.locationData = { features: processedData.features };
-    state.allLocalityFeatures = processedData.features;
+    // Ensure locationData is a proper GeoJSON FeatureCollection
+    state.locationData = {
+      type: "FeatureCollection",
+      features: processedData.features || []
+    };
+    state.allLocalityFeatures = processedData.features || [];
       
     // The worker already processed regions and subregions for us
     // Extract unique regions from localities with their coordinates
@@ -7337,9 +7364,14 @@ function setupTerritoryMarkerClicks() {
 
 // Native markers with batched operations
 function addNativeMarkers() {
-  if (!state.locationData.features.length) {
+  console.log('addNativeMarkers called, locationData:', state.locationData);
+
+  if (!state.locationData || !state.locationData.features || !state.locationData.features.length) {
+    console.warn('addNativeMarkers: No locality features to display', state.locationData);
     return;
   }
+
+  console.log('Adding', state.locationData.features.length, 'locality markers to map');
   
   // Batch add source and layers
   mapLayers.addToBatch(() => {
