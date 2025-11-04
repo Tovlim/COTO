@@ -1086,7 +1086,7 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
     layout: { 'visibility': 'visible' },
     paint: {
       'fill-color': '#000000',
-      'fill-opacity': 0.5
+      'fill-opacity': 0
     }
   };
   
@@ -6848,7 +6848,8 @@ function addSettlementMarkers() {
         data: state.settlementData,
         cluster: true,
         clusterMaxZoom: 14,
-        clusterRadius: 40
+        clusterRadius: 40,
+        promoteId: 'name'
       });
       
       const beforeId = getBeforeLayerId();
@@ -6869,8 +6870,13 @@ function addSettlementMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#0038b8',
-          'text-halo-color': '#000000',
+          'text-color': '#3153c2',
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#0050ff',
+            '#3153c2'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -6905,7 +6911,7 @@ function addSettlementMarkers() {
             12, 4,
             16, 6
           ],
-          'circle-color': '#0038b8',
+          'circle-color': '#3153c2',
           'circle-stroke-color': '#000000',
           'circle-stroke-width': 2,
           'circle-opacity': [
@@ -6963,7 +6969,12 @@ function addSettlementMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#000000',
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#0050ff',
+            '#3153c2'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7093,12 +7104,22 @@ function setupSettlementMarkerClicks() {
 
   // Cursor management and hover effects - shared across all settlement layers
   const settlementLayers = ['settlement-clusters', 'settlement-points', 'settlement-circles'];
+  let hoveredSettlementId = null;
   settlementLayers.forEach(layerId => {
-    map.on('mouseenter', layerId, () => {
+    map.on('mousemove', layerId, (e) => {
       map.getCanvas().style.cursor = 'pointer';
-      // Light up text halo on hover
-      if (mapLayers.hasLayer(layerId)) {
-        map.setPaintProperty(layerId, 'text-halo-color', '#0050ff');
+      if (e.features.length > 0) {
+        if (hoveredSettlementId !== null) {
+          map.setFeatureState(
+            { source: 'settlements-source', id: hoveredSettlementId },
+            { hover: false }
+          );
+        }
+        hoveredSettlementId = e.features[0].id;
+        map.setFeatureState(
+          { source: 'settlements-source', id: hoveredSettlementId },
+          { hover: true }
+        );
       }
     });
     map.on('mouseleave', layerId, (e) => {
@@ -7107,10 +7128,13 @@ function setupSettlementMarkerClicks() {
       if (features.length === 0) {
         map.getCanvas().style.cursor = '';
       }
-      // Reset text halo to default
-      if (mapLayers.hasLayer(layerId)) {
-        map.setPaintProperty(layerId, 'text-halo-color', '#0038b8');
+      if (hoveredSettlementId !== null) {
+        map.setFeatureState(
+          { source: 'settlements-source', id: hoveredSettlementId },
+          { hover: false }
+        );
       }
+      hoveredSettlementId = null;
     });
   });
 }
@@ -7133,7 +7157,8 @@ async function addNativeTerritoryMarkers() {
       // Add source
       map.addSource('territories-source', {
         type: 'geojson',
-        data: territoryGeoJSON
+        data: territoryGeoJSON,
+        promoteId: 'name'
       });
       
       // Add territory points layer - on top of everything
@@ -7166,7 +7191,12 @@ async function addNativeTerritoryMarkers() {
         },
         paint: {
           'text-color': '#ffffff', // White text inside
-          'text-halo-color': '#000000', // Black halo outside
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#6a6a6a',
+            '#000000'
+          ],
           'text-halo-width': 2
         }
       });
@@ -7233,19 +7263,32 @@ function setupTerritoryMarkerClicks() {
   map.on('click', 'territory-points', territoryClickHandler);
 
   // Cursor management and hover effects
-  map.on('mouseenter', 'territory-points', () => {
+  let hoveredTerritoryId = null;
+  map.on('mousemove', 'territory-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
-    // Light up text halo on hover
-    if (mapLayers.hasLayer('territory-points')) {
-      map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
+    if (e.features.length > 0) {
+      if (hoveredTerritoryId !== null) {
+        map.setFeatureState(
+          { source: 'territories-source', id: hoveredTerritoryId },
+          { hover: false }
+        );
+      }
+      hoveredTerritoryId = e.features[0].id;
+      map.setFeatureState(
+        { source: 'territories-source', id: hoveredTerritoryId },
+        { hover: true }
+      );
     }
   });
   map.on('mouseleave', 'territory-points', () => {
     map.getCanvas().style.cursor = '';
-    // Reset text halo to default
-    if (mapLayers.hasLayer('territory-points')) {
-      map.setPaintProperty('territory-points', 'text-halo-color', '#000000');
+    if (hoveredTerritoryId !== null) {
+      map.setFeatureState(
+        { source: 'territories-source', id: hoveredTerritoryId },
+        { hover: false }
+      );
     }
+    hoveredTerritoryId = null;
   });
 }
 
@@ -7265,7 +7308,8 @@ function addNativeMarkers() {
         data: state.locationData,
         cluster: true,
         clusterMaxZoom: 14,
-        clusterRadius: 50
+        clusterRadius: 50,
+        promoteId: 'name'
       });
       
       // Add clustered points layer
@@ -7284,8 +7328,13 @@ function addNativeMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#007a3d',
-          'text-halo-color': '#000000',
+          'text-color': '#377e00',
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#00a350',
+            '#377e00'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7314,7 +7363,7 @@ function addNativeMarkers() {
             12, 4,
             16, 6
           ],
-          'circle-color': '#007a3d',
+          'circle-color': '#377e00',
           'circle-stroke-color': '#000000',
           'circle-stroke-width': 2,
           'circle-opacity': [
@@ -7366,7 +7415,12 @@ function addNativeMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#000000',
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#00a350',
+            '#377e00'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7409,7 +7463,8 @@ function addNativeRegionMarkers() {
         data: {
           type: "FeatureCollection",
           features: state.allRegionFeatures
-        }
+        },
+        promoteId: 'name'
       });
       
       map.addLayer({
@@ -7437,7 +7492,12 @@ function addNativeRegionMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#000000',  // Match district halo color
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#8f4500',
+            '#000000'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7479,7 +7539,8 @@ function addNativeDistrictMarkers() {
         data: {
           type: "FeatureCollection",
           features: state.allDistrictFeatures
-        }
+        },
+        promoteId: 'name'
       });
 
       // Add district points layer with styling similar to regions but slightly different
@@ -7508,7 +7569,12 @@ function addNativeDistrictMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#000000', // Black halo
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#8f4500',
+            '#000000'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7593,19 +7659,32 @@ function setupDistrictMarkerClicks() {
   map.on('click', 'district-points', districtClickHandler);
 
   // Cursor management and hover effects
-  map.on('mouseenter', 'district-points', () => {
+  let hoveredDistrictId = null;
+  map.on('mousemove', 'district-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
-    // Light up text halo on hover
-    if (mapLayers.hasLayer('district-points')) {
-      map.setPaintProperty('district-points', 'text-halo-color', '#8f4500');
+    if (e.features.length > 0) {
+      if (hoveredDistrictId !== null) {
+        map.setFeatureState(
+          { source: 'districts-source', id: hoveredDistrictId },
+          { hover: false }
+        );
+      }
+      hoveredDistrictId = e.features[0].id;
+      map.setFeatureState(
+        { source: 'districts-source', id: hoveredDistrictId },
+        { hover: true }
+      );
     }
   });
   map.on('mouseleave', 'district-points', () => {
     map.getCanvas().style.cursor = '';
-    // Reset text halo to default
-    if (mapLayers.hasLayer('district-points')) {
-      map.setPaintProperty('district-points', 'text-halo-color', '#000000');
+    if (hoveredDistrictId !== null) {
+      map.setFeatureState(
+        { source: 'districts-source', id: hoveredDistrictId },
+        { hover: false }
+      );
     }
+    hoveredDistrictId = null;
   });
 }
 
@@ -7711,12 +7790,22 @@ function setupNativeMarkerClicks() {
 
   // Cursor management and hover effects - shared across all locality layers
   const localityLayers = ['locality-clusters', 'locality-points', 'locality-circles'];
+  let hoveredLocalityId = null;
   localityLayers.forEach(layerId => {
-    map.on('mouseenter', layerId, () => {
+    map.on('mousemove', layerId, (e) => {
       map.getCanvas().style.cursor = 'pointer';
-      // Light up text halo on hover
-      if (mapLayers.hasLayer(layerId)) {
-        map.setPaintProperty(layerId, 'text-halo-color', '#00a350');
+      if (e.features.length > 0) {
+        if (hoveredLocalityId !== null) {
+          map.setFeatureState(
+            { source: 'localities-source', id: hoveredLocalityId },
+            { hover: false }
+          );
+        }
+        hoveredLocalityId = e.features[0].id;
+        map.setFeatureState(
+          { source: 'localities-source', id: hoveredLocalityId },
+          { hover: true }
+        );
       }
     });
     map.on('mouseleave', layerId, (e) => {
@@ -7725,10 +7814,13 @@ function setupNativeMarkerClicks() {
       if (features.length === 0) {
         map.getCanvas().style.cursor = '';
       }
-      // Reset text halo to default
-      if (mapLayers.hasLayer(layerId)) {
-        map.setPaintProperty(layerId, 'text-halo-color', '#007a3d');
+      if (hoveredLocalityId !== null) {
+        map.setFeatureState(
+          { source: 'localities-source', id: hoveredLocalityId },
+          { hover: false }
+        );
       }
+      hoveredLocalityId = null;
     });
   });
 }
@@ -7828,19 +7920,32 @@ function setupRegionMarkerClicks() {
   map.on('click', 'region-points', regionClickHandler);
 
   // Cursor management and hover effects
-  map.on('mouseenter', 'region-points', () => {
+  let hoveredRegionId = null;
+  map.on('mousemove', 'region-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
-    // Light up text halo on hover
-    if (mapLayers.hasLayer('region-points')) {
-      map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
+    if (e.features.length > 0) {
+      if (hoveredRegionId !== null) {
+        map.setFeatureState(
+          { source: 'regions-source', id: hoveredRegionId },
+          { hover: false }
+        );
+      }
+      hoveredRegionId = e.features[0].id;
+      map.setFeatureState(
+        { source: 'regions-source', id: hoveredRegionId },
+        { hover: true }
+      );
     }
   });
   map.on('mouseleave', 'region-points', () => {
     map.getCanvas().style.cursor = '';
-    // Reset text halo to default
-    if (mapLayers.hasLayer('region-points')) {
-      map.setPaintProperty('region-points', 'text-halo-color', '#000000');
+    if (hoveredRegionId !== null) {
+      map.setFeatureState(
+        { source: 'regions-source', id: hoveredRegionId },
+        { hover: false }
+      );
     }
+    hoveredRegionId = null;
   });
 }
 
@@ -7860,7 +7965,8 @@ function addNativeSubregionMarkers() {
         data: {
           type: "FeatureCollection",
           features: state.allSubregionFeatures
-        }
+        },
+        promoteId: 'name'
       });
       
       map.addLayer({
@@ -7888,7 +7994,12 @@ function addNativeSubregionMarkers() {
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#000000',  // Match district/region halo color (black)
+          'text-halo-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#8f4500',
+            '#000000'
+          ],
           'text-halo-width': 2,
           'text-opacity': [
             'interpolate',
@@ -7969,19 +8080,32 @@ function setupSubregionMarkerClicks() {
   map.on('click', 'subregion-points', subregionClickHandler);
 
   // Cursor management and hover effects
-  map.on('mouseenter', 'subregion-points', () => {
+  let hoveredSubregionId = null;
+  map.on('mousemove', 'subregion-points', (e) => {
     map.getCanvas().style.cursor = 'pointer';
-    // Light up text halo on hover
-    if (mapLayers.hasLayer('subregion-points')) {
-      map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
+    if (e.features.length > 0) {
+      if (hoveredSubregionId !== null) {
+        map.setFeatureState(
+          { source: 'subregions-source', id: hoveredSubregionId },
+          { hover: false }
+        );
+      }
+      hoveredSubregionId = e.features[0].id;
+      map.setFeatureState(
+        { source: 'subregions-source', id: hoveredSubregionId },
+        { hover: true }
+      );
     }
   });
   map.on('mouseleave', 'subregion-points', () => {
     map.getCanvas().style.cursor = '';
-    // Reset text halo to default
-    if (mapLayers.hasLayer('subregion-points')) {
-      map.setPaintProperty('subregion-points', 'text-halo-color', '#000000');
+    if (hoveredSubregionId !== null) {
+      map.setFeatureState(
+        { source: 'subregions-source', id: hoveredSubregionId },
+        { hover: false }
+      );
     }
+    hoveredSubregionId = null;
   });
 }
 
