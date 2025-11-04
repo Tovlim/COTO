@@ -1989,29 +1989,34 @@ function init() {
 
 // Zoom-based marker loading implementation
 function setupZoomBasedMarkerLoading() {
+  console.log('[ZOOM LOAD] ===== Setting up zoom-based marker loading =====');
   // Mobile users get markers at lower zoom level for better experience
   const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 9 : 10;
   let markersLoaded = false;
-
+  console.log('[ZOOM LOAD] Threshold:', MARKER_ZOOM_THRESHOLD, 'Mobile:', window.innerWidth <= APP_CONFIG.breakpoints.mobile);
 
   async function checkZoomAndLoadMarkers() {
     const currentZoom = map.getZoom();
+    console.log('[ZOOM LOAD] Current zoom:', currentZoom, 'Threshold:', MARKER_ZOOM_THRESHOLD, 'Loaded:', markersLoaded);
 
     if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
+      console.log('[ZOOM LOAD] Zoom threshold reached, loading markers...');
       markersLoaded = true;
 
       const startTime = performance.now();
 
       try {
         // Load both locality and settlement data together
-
+        console.log('[ZOOM LOAD] Loading localities and settlements in parallel...');
         await Promise.all([
           loadLocalitiesIfNeeded('zoom-threshold'),
           loadSettlementsIfNeeded('zoom-threshold')
         ]);
 
         const loadTime = performance.now() - startTime;
+        console.log('[ZOOM LOAD] Markers loaded successfully in', loadTime.toFixed(2), 'ms');
       } catch (error) {
+        console.error('[ZOOM LOAD] Error loading markers:', error);
         markersLoaded = false; // Reset flag on error so we can retry
       }
 
@@ -2032,16 +2037,20 @@ function setupZoomBasedMarkerLoading() {
 
   // ALWAYS load markers on initial map load, regardless of zoom level
   // This ensures localities are visible from the start
+  console.log('[ZOOM LOAD] Checking if style is loaded:', map.isStyleLoaded());
   if (map.isStyleLoaded()) {
     // Force load immediately
-    loadLocalitiesIfNeeded('initial-load').catch(() => {});
-    loadSettlementsIfNeeded('initial-load').catch(() => {});
+    console.log('[ZOOM LOAD] Style loaded, forcing immediate load');
+    loadLocalitiesIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial locality load failed:', e));
+    loadSettlementsIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial settlement load failed:', e));
     markersLoaded = true;
   } else {
+    console.log('[ZOOM LOAD] Style not loaded, waiting for style.load event');
     map.on('style.load', () => {
       // Force load immediately
-      loadLocalitiesIfNeeded('initial-load').catch(() => {});
-      loadSettlementsIfNeeded('initial-load').catch(() => {});
+      console.log('[ZOOM LOAD] Style loaded event fired, forcing load');
+      loadLocalitiesIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial locality load failed:', e));
+      loadSettlementsIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial settlement load failed:', e));
       markersLoaded = true;
     });
   }
@@ -2090,21 +2099,30 @@ function initializeTerritoryData() {
 
 // Locality loading helper - can be called from zoom or autocomplete interaction
 async function loadLocalitiesIfNeeded(trigger = 'unknown') {
+  console.log('[LOCALITIES NEEDED] Called with trigger:', trigger);
+  console.log('[LOCALITIES NEEDED] Current state:', {
+    hasAllLocalityFeatures: !!state.allLocalityFeatures,
+    featureCount: state.allLocalityFeatures?.length || 0
+  });
 
   // Only load if not already loaded
   if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
+    console.log('[LOCALITIES NEEDED] Not loaded yet, calling loadLocalitiesFromGeoJSON...');
     const startTime = performance.now();
 
     try {
       await loadLocalitiesFromGeoJSON();
 
       const loadTime = performance.now() - startTime;
+      console.log('[LOCALITIES NEEDED] Load complete in', loadTime.toFixed(2), 'ms');
 
       EventBus.emit('data:locality-loaded', { trigger });
     } catch (error) {
+      console.error('[LOCALITIES NEEDED] Load failed:', error);
       EventBus.emit('data:locality-error', { error, trigger });
     }
   } else {
+    console.log('[LOCALITIES NEEDED] Already loaded, skipping');
   }
 }
 
@@ -5916,11 +5934,15 @@ const map = new mapboxgl.Map({
 
 // Map load event handler with SEQUENTIAL loading to prevent duplicates
 map.on("load", () => {
+  console.log('[MAP LOAD] ===== Map load event fired =====');
   try {
+    console.log('[MAP LOAD] Calling init()...');
     init();
+    console.log('[MAP LOAD] init() complete');
 
     // Load data in SEQUENCE to ensure districts load before localities
     // This prevents duplicate markers for district names that also appear as regions
+    console.log('[MAP LOAD] Calling loadCombinedGeoData()...');
     loadCombinedGeoData()
       .then(async () => {
         // Initialize territory data immediately (should always be visible)
@@ -6764,14 +6786,25 @@ function selectTerritoryCheckbox(territoryName) {
 }
 // Load localities with conditional caching
 async function loadLocalitiesFromGeoJSON() {
+  console.log('[LOCALITY LOAD] ===== Starting loadLocalitiesFromGeoJSON =====');
   try {
     // Use optimized loader with conditional caching
+    console.log('[LOCALITY LOAD] Calling loadLocalitiesWithCache...');
     const processedData = await loadLocalitiesWithCache();
+    console.log('[LOCALITY LOAD] Data received:', {
+      hasFeatures: !!processedData?.features,
+      featureCount: processedData?.features?.length || 0,
+      sampleFeature: processedData?.features?.[0]
+    });
     
     // Store the data in state (maintaining compatibility)
     state.locationData = { features: processedData.features };
     state.allLocalityFeatures = processedData.features;
-      
+    console.log('[LOCALITY LOAD] State updated:', {
+      locationDataFeatures: state.locationData.features.length,
+      allLocalityFeatures: state.allLocalityFeatures.length
+    });
+
     // The worker already processed regions and subregions for us
     // Extract unique regions from localities with their coordinates
     const regionMap = new Map();
@@ -6855,13 +6888,19 @@ async function loadLocalitiesFromGeoJSON() {
       });
       
       // Add localities to map
+      console.log('[LOCALITY LOAD] Calling addNativeMarkers...');
       addNativeMarkers();
-      
+      console.log('[LOCALITY LOAD] addNativeMarkers complete');
+
       // Add region markers to map
+      console.log('[LOCALITY LOAD] Calling addNativeRegionMarkers...');
       addNativeRegionMarkers();
+      console.log('[LOCALITY LOAD] addNativeRegionMarkers complete');
 
       // Add subregion markers to map
+      console.log('[LOCALITY LOAD] Calling addNativeSubregionMarkers...');
       addNativeSubregionMarkers();
+      console.log('[LOCALITY LOAD] addNativeSubregionMarkers complete');
       
       // Generate checkboxes
       // Checkbox generation now handled by Cloudflare CMS Search script
@@ -6876,8 +6915,12 @@ async function loadLocalitiesFromGeoJSON() {
       }
       
       // Mark data as loaded
+      console.log('[LOCALITY LOAD] Marking dataLoaded as complete');
       loadingTracker.markComplete('dataLoaded');
+      console.log('[LOCALITY LOAD] ===== loadLocalitiesFromGeoJSON COMPLETE =====');
   } catch (error) {
+    console.error('[LOCALITY LOAD] ERROR:', error);
+    console.error('[LOCALITY LOAD] Error stack:', error.stack);
     // Mark as loaded even on error to prevent infinite loading
     loadingTracker.markComplete('dataLoaded');
   }
@@ -7403,15 +7446,28 @@ function setupTerritoryMarkerClicks() {
 
 // Native markers with batched operations
 function addNativeMarkers() {
+  console.log('[ADD MARKERS] ===== addNativeMarkers called =====');
+  console.log('[ADD MARKERS] state.locationData:', {
+    exists: !!state.locationData,
+    hasFeatures: !!state.locationData?.features,
+    featureCount: state.locationData?.features?.length || 0
+  });
+
   if (!state.locationData.features.length) {
+    console.warn('[ADD MARKERS] No locality features found, returning early');
     return;
   }
-  
+
+  console.log('[ADD MARKERS] Adding localities to map batch...');
+
   // Batch add source and layers
   mapLayers.addToBatch(() => {
+    console.log('[ADD MARKERS] Inside batch operation');
     if (mapLayers.hasSource('localities-source')) {
+      console.log('[ADD MARKERS] Source exists, updating data');
       map.getSource('localities-source').setData(state.locationData);
     } else {
+      console.log('[ADD MARKERS] Creating new source and layers');
       map.addSource('localities-source', {
         type: 'geojson',
         data: state.locationData,
@@ -7419,7 +7475,10 @@ function addNativeMarkers() {
         promoteId: 'name'
       });
 
+      console.log('[ADD MARKERS] Source added successfully');
+
       // Add circle layer for all localities (no clustering)
+      console.log('[ADD MARKERS] Adding locality-circles layer');
       map.addLayer({
         id: 'locality-circles',
         type: 'circle',
@@ -7456,8 +7515,10 @@ function addNativeMarkers() {
           ]
         }
       });
+      console.log('[ADD MARKERS] locality-circles layer added successfully');
 
       // Add locality text labels that show/hide based on zoom (proximity)
+      console.log('[ADD MARKERS] Adding locality-points layer');
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
@@ -7500,15 +7561,19 @@ function addNativeMarkers() {
           ]
         }
       });
-      
+      console.log('[ADD MARKERS] locality-points layer added successfully');
+
       logLayerOrder('After adding locality layers');
-      
+
       mapLayers.invalidateCache(); // Invalidate cache after adding layers
+      console.log('[ADD MARKERS] Cache invalidated');
     }
   });
-  
+
+  console.log('[ADD MARKERS] Batch added, calling setupNativeMarkerClicks...');
   setupNativeMarkerClicks();
-  
+  console.log('[ADD MARKERS] ===== addNativeMarkers COMPLETE =====');
+
   // Markers have been added - the map 'idle' event will handle render detection
 }
 
