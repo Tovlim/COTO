@@ -6912,7 +6912,7 @@ function addSettlementMarkers() {
             16, 6
           ],
           'circle-color': '#3153c2',
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': '#131313',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -7364,7 +7364,7 @@ function addNativeMarkers() {
             16, 6
           ],
           'circle-color': '#377e00',
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-color': '#131313',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
