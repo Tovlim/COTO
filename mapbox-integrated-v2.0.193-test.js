@@ -2084,12 +2084,24 @@ function initializeTerritoryData() {
 // Locality loading helper - can be called from zoom or autocomplete interaction
 async function loadLocalitiesIfNeeded(trigger = 'unknown') {
 
-  // Only load if not already loaded
-  if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
+  // Check if data is loaded AND if map layers exist
+  const hasData = state.allLocalityFeatures && state.allLocalityFeatures.length > 0;
+  const hasLayers = mapLayers.hasSource('localities-source') && mapLayers.hasLayer('locality-circles');
+
+  // Only load if data doesn't exist OR layers aren't on the map yet
+  if (!hasData || !hasLayers) {
     const startTime = performance.now();
 
     try {
-      await loadLocalitiesFromGeoJSON();
+      // If we have data but no layers, just add the layers
+      if (hasData && !hasLayers) {
+        addNativeMarkers();
+        addNativeRegionMarkers();
+        addNativeSubregionMarkers();
+      } else {
+        // Otherwise load everything from scratch
+        await loadLocalitiesFromGeoJSON();
+      }
 
       const loadTime = performance.now() - startTime;
 
