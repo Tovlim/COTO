@@ -6289,7 +6289,7 @@ function resetLayerToNeutral(fillId, borderId) {
     const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#000000';
     try {
       map.setPaintProperty(fillId, 'fill-color', currentColor);
-      map.setPaintProperty(fillId, 'fill-opacity', 0.5);
+      map.setPaintProperty(fillId, 'fill-opacity', 0);
     } catch (error) {
       // Silent fail - layer might not exist
     }
@@ -6870,7 +6870,7 @@ function addSettlementMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#3153c2',
+          'text-color': '#ffffff',
           'text-halo-color': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
@@ -6912,7 +6912,7 @@ function addSettlementMarkers() {
             16, 6
           ],
           'circle-color': '#3153c2',
-          'circle-stroke-color': '#000000',
+          'circle-stroke-color': '#ffffff',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -7328,7 +7328,7 @@ function addNativeMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#377e00',
+          'text-color': '#ffffff',
           'text-halo-color': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
@@ -7364,7 +7364,7 @@ function addNativeMarkers() {
             16, 6
           ],
           'circle-color': '#377e00',
-          'circle-stroke-color': '#000000',
+          'circle-stroke-color': '#ffffff',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
