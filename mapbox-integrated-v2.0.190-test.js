@@ -6365,6 +6365,36 @@ function forceResetAllHighlights() {
     }
   });
   
+  // Clear marker highlights if any
+  if (state.highlightedBoundary) {
+    try {
+      if (mapLayers.hasLayer('district-points')) {
+        map.setFeatureState(
+          { source: 'districts-source', id: state.highlightedBoundary },
+          { hover: false }
+        );
+      }
+    } catch (error) {
+      // Silent fail
+    }
+  }
+
+  // Clear all district markers if territory was highlighted
+  if (state.highlightedTerritoryDistricts) {
+    state.highlightedTerritoryDistricts.forEach(district => {
+      try {
+        if (mapLayers.hasLayer('district-points')) {
+          map.setFeatureState(
+            { source: 'districts-source', id: district.districtName },
+            { hover: false }
+          );
+        }
+      } catch (error) {
+        // Silent fail
+      }
+    });
+  }
+
   // Clear all state
   state.highlightedBoundary = null;
   state.highlightedBoundaryType = null;
@@ -6413,6 +6443,32 @@ function highlightBoundary(regionName) {
       } catch (error) {
         // Silent fail if layers can't be moved
       }
+
+      // Also highlight the corresponding district marker
+      try {
+        if (mapLayers.hasLayer('district-points')) {
+          map.setFeatureState(
+            { source: 'districts-source', id: regionName },
+            { hover: true }
+          );
+        }
+      } catch (error) {
+        // Silent fail if marker doesn't exist
+      }
+
+      // Move all marker layers above the highlighted polygons
+      const markerLayers = ['settlement-circles', 'settlement-points', 'locality-circles',
+                           'locality-points', 'region-points', 'district-points',
+                           'territory-points', 'subregion-points'];
+      markerLayers.forEach(layerId => {
+        try {
+          if (mapLayers.hasLayer(layerId)) {
+            map.moveLayer(layerId);
+          }
+        } catch (error) {
+          // Silent fail
+        }
+      });
     });
   }
   // Fallback to territory-level layers if district layers don't exist
@@ -6523,8 +6579,34 @@ function highlightTerritoryBoundaries(territoryName) {
             map.moveLayer(district.fillId);
             map.moveLayer(district.borderId);
           }
+
+          // Also highlight the corresponding district marker
+          try {
+            if (mapLayers.hasLayer('district-points')) {
+              map.setFeatureState(
+                { source: 'districts-source', id: district.districtName },
+                { hover: true }
+              );
+            }
+          } catch (error) {
+            // Silent fail if marker doesn't exist
+          }
         } catch (error) {
           // Silent fail - layer might not exist
+        }
+      });
+
+      // Move all marker layers above all highlighted polygons
+      const markerLayers = ['settlement-circles', 'settlement-points', 'locality-circles',
+                           'locality-points', 'region-points', 'district-points',
+                           'territory-points', 'subregion-points'];
+      markerLayers.forEach(layerId => {
+        try {
+          if (mapLayers.hasLayer(layerId)) {
+            map.moveLayer(layerId);
+          }
+        } catch (error) {
+          // Silent fail
         }
       });
     });
@@ -7695,6 +7777,10 @@ function setupDistrictMarkerClicks() {
     const currentTime = Date.now();
     const markerKey = `district-${districtName}`;
     if (state.lastClickedMarker === markerKey && currentTime - state.lastClickTime < 1000) {
+      // Reset priority even on early return to prevent getting stuck
+      state.setTimer('resetClickPriority', () => {
+        state.clickPriority = 999;
+      }, 50);
       return;
     }
 
