@@ -1229,17 +1229,17 @@ function setupDeferredAreaControls() {
         label: 'Region Markers & Boundaries'
       },
       {
-        keyId: 'locality-toggle-key',
+        keyId: 'locality-toggle-key', 
         wrapId: 'locality-toggle-key-wrap',
         type: 'locality',
-        layers: ['locality-points'],
+        layers: ['locality-points', 'locality-circles'],
         label: 'Locality Markers'
       },
       {
-        keyId: 'settlement-toggle-key',
+        keyId: 'settlement-toggle-key', 
         wrapId: 'settlement-toggle-key-wrap',
         type: 'settlement',
-        layers: ['settlement-points'],
+        layers: ['settlement-points', 'settlement-circles'],
         label: 'Settlement Markers'
       }
     ];
@@ -3716,7 +3716,7 @@ const loadingTracker = {
     
     // With deferred loading optimization, only check for initially loaded layers
     // Settlement layers are deferred until zoom/search, so don't require them for initial load
-    const initialMarkerLayers = ['locality-points'];
+    const initialMarkerLayers = ['locality-points', 'locality-circles'];
     const initialLayersExist = initialMarkerLayers.some(layerId => {
       return map.getLayer(layerId);
     });
@@ -5902,9 +5902,6 @@ map.on("load", () => {
           // Add territory markers and wait for completion
           await addNativeTerritoryMarkers();
 
-          // Load localities on initial page load (so they're visible from the start)
-          await loadLocalitiesIfNeeded('initial-load');
-
           // Mark visual content as ready immediately for faster loading
           loadingTracker.markComplete('visualContentReady');
 
@@ -6947,7 +6944,7 @@ function addSettlementMarkers() {
   
   // Find proper insertion point - before locality layers but after areas
   const getBeforeLayerId = () => {
-    const markerLayers = ['locality-points', 'region-points'];
+    const markerLayers = ['locality-points', 'locality-circles', 'region-points'];
     const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
     
     if (existingMarkerLayer) {
@@ -6961,20 +6958,22 @@ function addSettlementMarkers() {
     if (mapLayers.hasSource('settlements-source')) {
       map.getSource('settlements-source').setData(state.settlementData);
     } else {
-      // Add source first
+      // Add source first - WITHOUT clustering
       map.addSource('settlements-source', {
         type: 'geojson',
         data: state.settlementData,
+        cluster: false,  // Disabled clustering
         promoteId: 'name'
       });
-      
+
       const beforeId = getBeforeLayerId();
 
-      // Add circle layer for individual settlements
+      // Add circle layer for all settlements (no longer filtered by point_count)
       const circleLayerConfig = {
         id: 'settlement-circles',
         type: 'circle',
         source: 'settlements-source',
+        // Removed filter: ['!', ['has', 'point_count']], - show all settlements
         paint: {
           'circle-radius': [
             'interpolate',
@@ -7014,11 +7013,12 @@ function addSettlementMarkers() {
         map.addLayer(circleLayerConfig);
       }
 
-      // Add individual settlement points layer with proper positioning
+      // Add settlement points layer with proper positioning (all settlements, no clustering)
       const pointsLayerConfig = {
         id: 'settlement-points',
         type: 'symbol',
         source: 'settlements-source',
+        // Removed filter: ['!', ['has', 'point_count']] - show all settlements
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7137,11 +7137,11 @@ function setupSettlementMarkerClicks() {
     }, 50);
   };
 
-  // Add event listeners
+  // Add event listeners (no cluster handlers needed)
   map.on('click', 'settlement-points', settlementClickHandler);
   map.on('click', 'settlement-circles', settlementClickHandler);
 
-  // Cursor management and hover effects - shared across all settlement layers
+  // Cursor management and hover effects - shared across all settlement layers (no clusters)
   const settlementLayers = ['settlement-points', 'settlement-circles'];
   let hoveredSettlementId = null;
   settlementLayers.forEach(layerId => {
@@ -7349,14 +7349,16 @@ function addNativeMarkers() {
       map.addSource('localities-source', {
         type: 'geojson',
         data: state.locationData,
+        cluster: false,  // Disabled clustering
         promoteId: 'name'
       });
 
-      // Add circle layer for individual localities
+      // Add circle layer for all localities (no clustering)
       map.addLayer({
         id: 'locality-circles',
         type: 'circle',
         source: 'localities-source',
+        // Removed filter: ['!', ['has', 'point_count']] - show all localities
         paint: {
           'circle-radius': [
             'interpolate',
@@ -7390,11 +7392,12 @@ function addNativeMarkers() {
         }
       });
 
-      // Add individual locality points layer WITHOUT highlighting (FIX #2)
+      // Add locality points layer WITHOUT highlighting (all localities, no clustering)
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
         source: 'localities-source',
+        // Removed filter: ['!', ['has', 'point_count']] - show all localities
         layout: {
           'text-field': ['get', 'name'],
           'text-font': ['Open Sans Regular'],
@@ -7761,7 +7764,7 @@ function setupNativeMarkerClicks() {
   map.on('click', 'locality-points', localityClickHandler);
   map.on('click', 'locality-circles', localityClickHandler);
 
-  // Cursor management and hover effects - shared across all locality layers
+  // Cursor management and hover effects - shared across all locality layers (no clusters)
   const localityLayers = ['locality-points', 'locality-circles'];
   let hoveredLocalityId = null;
   localityLayers.forEach(layerId => {
