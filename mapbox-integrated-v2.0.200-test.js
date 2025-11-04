@@ -1093,12 +1093,10 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
   // Only add beforeId if the layer exists - check settlement layers first
   if (firstAreaLayer) {
     map.addLayer(layerConfig, firstAreaLayer);
-  } else if (mapLayers.hasLayer('settlement-clusters')) {
-    map.addLayer(layerConfig, 'settlement-clusters');
   } else if (mapLayers.hasLayer('settlement-points')) {
     map.addLayer(layerConfig, 'settlement-points');
-  } else if (mapLayers.hasLayer('locality-clusters')) {
-    map.addLayer(layerConfig, 'locality-clusters');
+  } else if (mapLayers.hasLayer('locality-points')) {
+    map.addLayer(layerConfig, 'locality-points');
   } else {
     map.addLayer(layerConfig);
   }
@@ -1119,12 +1117,10 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
   // Only add beforeId if the layer exists - check settlement layers first
   if (firstAreaLayer) {
     map.addLayer(borderConfig, firstAreaLayer);
-  } else if (mapLayers.hasLayer('settlement-clusters')) {
-    map.addLayer(borderConfig, 'settlement-clusters');
   } else if (mapLayers.hasLayer('settlement-points')) {
     map.addLayer(borderConfig, 'settlement-points');
-  } else if (mapLayers.hasLayer('locality-clusters')) {
-    map.addLayer(borderConfig, 'locality-clusters');
+  } else if (mapLayers.hasLayer('locality-points')) {
+    map.addLayer(borderConfig, 'locality-points');
   } else {
     map.addLayer(borderConfig);
   }
@@ -1185,12 +1181,10 @@ async function addAreaOverlayToMap(name, areaFeature) {
   };
   
   // Only add beforeId if the layer exists - check settlement layers first, then locality
-  if (mapLayers.hasLayer('settlement-clusters')) {
-    map.addLayer(layerConfig, 'settlement-clusters');
-  } else if (mapLayers.hasLayer('settlement-points')) {
+  if (mapLayers.hasLayer('settlement-points')) {
     map.addLayer(layerConfig, 'settlement-points');
-  } else if (mapLayers.hasLayer('locality-clusters')) {
-    map.addLayer(layerConfig, 'locality-clusters');
+  } else if (mapLayers.hasLayer('locality-points')) {
+    map.addLayer(layerConfig, 'locality-points');
   } else {
     map.addLayer(layerConfig);
   }
@@ -1235,17 +1229,17 @@ function setupDeferredAreaControls() {
         label: 'Region Markers & Boundaries'
       },
       {
-        keyId: 'locality-toggle-key', 
+        keyId: 'locality-toggle-key',
         wrapId: 'locality-toggle-key-wrap',
         type: 'locality',
-        layers: ['locality-clusters', 'locality-points'],
+        layers: ['locality-points'],
         label: 'Locality Markers'
       },
       {
-        keyId: 'settlement-toggle-key', 
+        keyId: 'settlement-toggle-key',
         wrapId: 'settlement-toggle-key-wrap',
         type: 'settlement',
-        layers: ['settlement-clusters', 'settlement-points'],
+        layers: ['settlement-points'],
         label: 'Settlement Markers'
       }
     ];
@@ -1391,16 +1385,10 @@ function setupDeferredAreaControls() {
               }
             });
           } else if (control.type === 'locality') {
-            if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#00a350');
-            }
             if (mapLayers.hasLayer('locality-points')) {
               map.setPaintProperty('locality-points', 'text-halo-color', '#00a350');
             }
           } else if (control.type === 'settlement') {
-            if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#0050ff');
-            }
             if (mapLayers.hasLayer('settlement-points')) {
               map.setPaintProperty('settlement-points', 'text-halo-color', '#0050ff');
             }
@@ -1468,15 +1456,6 @@ function setupDeferredAreaControls() {
               }
             });
           } else if (control.type === 'locality') {
-            if (mapLayers.hasLayer('locality-clusters')) {
-              // Restore the data-driven expression for hover state
-              map.setPaintProperty('locality-clusters', 'text-halo-color', [
-                'case',
-                ['boolean', ['feature-state', 'hover'], false],
-                '#00a350',
-                '#007a3d'
-              ]);
-            }
             if (mapLayers.hasLayer('locality-points')) {
               // Restore the data-driven expression for hover state
               map.setPaintProperty('locality-points', 'text-halo-color', [
@@ -1487,15 +1466,6 @@ function setupDeferredAreaControls() {
               ]);
             }
           } else if (control.type === 'settlement') {
-            if (mapLayers.hasLayer('settlement-clusters')) {
-              // Restore the data-driven expression for hover state
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', [
-                'case',
-                ['boolean', ['feature-state', 'hover'], false],
-                '#0050ff',
-                '#0038b8'
-              ]);
-            }
             if (mapLayers.hasLayer('settlement-points')) {
               // Restore the data-driven expression for hover state
               map.setPaintProperty('settlement-points', 'text-halo-color', [
@@ -1942,22 +1912,25 @@ const monitorTags = (() => {
 function init() {
   // Core initialization - NO marker loading on initial page load
   setupEvents();
-
-  // Setup zoom-based marker loading ONCE
+  
+  // Only load overlays and regions initially (lightweight)
   setupZoomBasedMarkerLoading();
-
+  
   // Layer optimization
   state.setTimer('initialLayerOrder', () => mapLayers.optimizeLayerOrder(), 100);
-
+  
   const handleMapEvents = () => {
     state.clearTimer('mapEventHandler');
     state.setTimer('mapEventHandler', () => {
       // Map events handled by optimized layer management
     }, 10);
   };
-
+  
   map.on('moveend', handleMapEvents);
   map.on('zoomend', handleMapEvents);
+  
+  // Setup zoom-based marker loading
+  setupZoomBasedMarkerLoading();
   
   // Staggered setup with smart timing
   [300, 800].forEach(delay => 
@@ -1986,34 +1959,29 @@ function init() {
 
 // Zoom-based marker loading implementation
 function setupZoomBasedMarkerLoading() {
-  console.log('[ZOOM LOAD] ===== Setting up zoom-based marker loading =====');
   // Mobile users get markers at lower zoom level for better experience
   const MARKER_ZOOM_THRESHOLD = window.innerWidth <= APP_CONFIG.breakpoints.mobile ? 9 : 10;
   let markersLoaded = false;
-  console.log('[ZOOM LOAD] Threshold:', MARKER_ZOOM_THRESHOLD, 'Mobile:', window.innerWidth <= APP_CONFIG.breakpoints.mobile);
+
 
   async function checkZoomAndLoadMarkers() {
     const currentZoom = map.getZoom();
-    console.log('[ZOOM LOAD] Current zoom:', currentZoom, 'Threshold:', MARKER_ZOOM_THRESHOLD, 'Loaded:', markersLoaded);
 
     if (currentZoom >= MARKER_ZOOM_THRESHOLD && !markersLoaded) {
-      console.log('[ZOOM LOAD] Zoom threshold reached, loading markers...');
       markersLoaded = true;
 
       const startTime = performance.now();
 
       try {
         // Load both locality and settlement data together
-        console.log('[ZOOM LOAD] Loading localities and settlements in parallel...');
+
         await Promise.all([
           loadLocalitiesIfNeeded('zoom-threshold'),
           loadSettlementsIfNeeded('zoom-threshold')
         ]);
 
         const loadTime = performance.now() - startTime;
-        console.log('[ZOOM LOAD] Markers loaded successfully in', loadTime.toFixed(2), 'ms');
       } catch (error) {
-        console.error('[ZOOM LOAD] Error loading markers:', error);
         markersLoaded = false; // Reset flag on error so we can retry
       }
 
@@ -2032,23 +2000,12 @@ function setupZoomBasedMarkerLoading() {
   map.on('zoom', checkZoomAndLoadMarkers);
   map.on('zoomend', checkZoomAndLoadMarkers);
 
-  // ALWAYS load markers on initial map load, regardless of zoom level
-  // This ensures localities are visible from the start
-  console.log('[ZOOM LOAD] Checking if style is loaded:', map.isStyleLoaded());
+  // Initial check when map is ready
   if (map.isStyleLoaded()) {
-    // Force load immediately
-    console.log('[ZOOM LOAD] Style loaded, forcing immediate load');
-    loadLocalitiesIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial locality load failed:', e));
-    loadSettlementsIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial settlement load failed:', e));
-    markersLoaded = true;
+    checkZoomAndLoadMarkers();
   } else {
-    console.log('[ZOOM LOAD] Style not loaded, waiting for style.load event');
     map.on('style.load', () => {
-      // Force load immediately
-      console.log('[ZOOM LOAD] Style loaded event fired, forcing load');
-      loadLocalitiesIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial locality load failed:', e));
-      loadSettlementsIfNeeded('initial-load').catch((e) => console.error('[ZOOM LOAD] Initial settlement load failed:', e));
-      markersLoaded = true;
+      checkZoomAndLoadMarkers();
     });
   }
 
@@ -2096,30 +2053,21 @@ function initializeTerritoryData() {
 
 // Locality loading helper - can be called from zoom or autocomplete interaction
 async function loadLocalitiesIfNeeded(trigger = 'unknown') {
-  console.log('[LOCALITIES NEEDED] Called with trigger:', trigger);
-  console.log('[LOCALITIES NEEDED] Current state:', {
-    hasAllLocalityFeatures: !!state.allLocalityFeatures,
-    featureCount: state.allLocalityFeatures?.length || 0
-  });
 
   // Only load if not already loaded
   if (!state.allLocalityFeatures || state.allLocalityFeatures.length === 0) {
-    console.log('[LOCALITIES NEEDED] Not loaded yet, calling loadLocalitiesFromGeoJSON...');
     const startTime = performance.now();
 
     try {
       await loadLocalitiesFromGeoJSON();
 
       const loadTime = performance.now() - startTime;
-      console.log('[LOCALITIES NEEDED] Load complete in', loadTime.toFixed(2), 'ms');
 
       EventBus.emit('data:locality-loaded', { trigger });
     } catch (error) {
-      console.error('[LOCALITIES NEEDED] Load failed:', error);
       EventBus.emit('data:locality-error', { error, trigger });
     }
   } else {
-    console.log('[LOCALITIES NEEDED] Already loaded, skipping');
   }
 }
 
@@ -3768,7 +3716,7 @@ const loadingTracker = {
     
     // With deferred loading optimization, only check for initially loaded layers
     // Settlement layers are deferred until zoom/search, so don't require them for initial load
-    const initialMarkerLayers = ['locality-clusters', 'locality-points'];
+    const initialMarkerLayers = ['locality-points'];
     const initialLayersExist = initialMarkerLayers.some(layerId => {
       return map.getLayer(layerId);
     });
@@ -5931,15 +5879,11 @@ const map = new mapboxgl.Map({
 
 // Map load event handler with SEQUENTIAL loading to prevent duplicates
 map.on("load", () => {
-  console.log('[MAP LOAD] ===== Map load event fired =====');
   try {
-    console.log('[MAP LOAD] Calling init()...');
     init();
-    console.log('[MAP LOAD] init() complete');
 
     // Load data in SEQUENCE to ensure districts load before localities
     // This prevents duplicate markers for district names that also appear as regions
-    console.log('[MAP LOAD] Calling loadCombinedGeoData()...');
     loadCombinedGeoData()
       .then(async () => {
         // Initialize territory data immediately (should always be visible)
@@ -6175,7 +6119,7 @@ class OptimizedMapLayers {
   
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
-    const markerLayers = ['settlement-clusters', 'settlement-points', 'locality-clusters', 'locality-points', 'region-points'];
+    const markerLayers = ['settlement-points', 'locality-points', 'region-points'];
     
     // Check if all expected layers exist first
     const existingLayers = markerLayers.filter(id => this.hasLayer(id));
@@ -6783,25 +6727,14 @@ function selectTerritoryCheckbox(territoryName) {
 }
 // Load localities with conditional caching
 async function loadLocalitiesFromGeoJSON() {
-  console.log('[LOCALITY LOAD] ===== Starting loadLocalitiesFromGeoJSON =====');
   try {
     // Use optimized loader with conditional caching
-    console.log('[LOCALITY LOAD] Calling loadLocalitiesWithCache...');
     const processedData = await loadLocalitiesWithCache();
-    console.log('[LOCALITY LOAD] Data received:', {
-      hasFeatures: !!processedData?.features,
-      featureCount: processedData?.features?.length || 0,
-      sampleFeature: processedData?.features?.[0]
-    });
     
     // Store the data in state (maintaining compatibility)
     state.locationData = { features: processedData.features };
     state.allLocalityFeatures = processedData.features;
-    console.log('[LOCALITY LOAD] State updated:', {
-      locationDataFeatures: state.locationData.features.length,
-      allLocalityFeatures: state.allLocalityFeatures.length
-    });
-
+      
     // The worker already processed regions and subregions for us
     // Extract unique regions from localities with their coordinates
     const regionMap = new Map();
@@ -6885,19 +6818,13 @@ async function loadLocalitiesFromGeoJSON() {
       });
       
       // Add localities to map
-      console.log('[LOCALITY LOAD] Calling addNativeMarkers...');
       addNativeMarkers();
-      console.log('[LOCALITY LOAD] addNativeMarkers complete');
-
+      
       // Add region markers to map
-      console.log('[LOCALITY LOAD] Calling addNativeRegionMarkers...');
       addNativeRegionMarkers();
-      console.log('[LOCALITY LOAD] addNativeRegionMarkers complete');
 
       // Add subregion markers to map
-      console.log('[LOCALITY LOAD] Calling addNativeSubregionMarkers...');
       addNativeSubregionMarkers();
-      console.log('[LOCALITY LOAD] addNativeSubregionMarkers complete');
       
       // Generate checkboxes
       // Checkbox generation now handled by Cloudflare CMS Search script
@@ -6912,12 +6839,8 @@ async function loadLocalitiesFromGeoJSON() {
       }
       
       // Mark data as loaded
-      console.log('[LOCALITY LOAD] Marking dataLoaded as complete');
       loadingTracker.markComplete('dataLoaded');
-      console.log('[LOCALITY LOAD] ===== loadLocalitiesFromGeoJSON COMPLETE =====');
   } catch (error) {
-    console.error('[LOCALITY LOAD] ERROR:', error);
-    console.error('[LOCALITY LOAD] Error stack:', error.stack);
     // Mark as loaded even on error to prevent infinite loading
     loadingTracker.markComplete('dataLoaded');
   }
@@ -7021,7 +6944,7 @@ function addSettlementMarkers() {
   
   // Find proper insertion point - before locality layers but after areas
   const getBeforeLayerId = () => {
-    const markerLayers = ['locality-clusters', 'locality-points', 'region-points'];
+    const markerLayers = ['locality-points', 'region-points'];
     const existingMarkerLayer = markerLayers.find(layerId => map.getLayer(layerId));
     
     if (existingMarkerLayer) {
@@ -7035,17 +6958,16 @@ function addSettlementMarkers() {
     if (mapLayers.hasSource('settlements-source')) {
       map.getSource('settlements-source').setData(state.settlementData);
     } else {
-      // Add source first (no clustering)
+      // Add source first
       map.addSource('settlements-source', {
         type: 'geojson',
         data: state.settlementData,
-        cluster: false,  // Disable clustering
         promoteId: 'name'
       });
-
+      
       const beforeId = getBeforeLayerId();
 
-      // Add circle layer for all settlements (no clustering)
+      // Add circle layer for individual settlements
       const circleLayerConfig = {
         id: 'settlement-circles',
         type: 'circle',
@@ -7068,8 +6990,8 @@ function addSettlementMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 0.5,  // 0.5 opacity
-            10.5, 0.5
+            9.5, 1,
+            10.5, 1
           ],
           'circle-stroke-opacity': [
             'interpolate',
@@ -7077,8 +6999,8 @@ function addSettlementMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 0.5,  // 0.5 opacity
-            10.5, 0.5
+            9.5, 1,
+            10.5, 1
           ]
         }
       };
@@ -7089,7 +7011,7 @@ function addSettlementMarkers() {
         map.addLayer(circleLayerConfig);
       }
 
-      // Add settlement text labels that show/hide based on zoom (proximity)
+      // Add individual settlement points layer with proper positioning
       const pointsLayerConfig = {
         id: 'settlement-points',
         type: 'symbol',
@@ -7105,14 +7027,14 @@ function addSettlementMarkers() {
             12, 14,
             16, 16
           ],
-          'text-allow-overlap': false,  // Don't overlap - this creates the proximity effect
+          'text-allow-overlap': false,
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
           'text-offset': [0, 0.6],
           'text-anchor': 'top',
-          'symbol-sort-key': 13,
-          'visibility': 'visible'
+          'symbol-sort-key': 13, // Lower priority than districts/regions (renders below)
+          'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
           'text-color': '#ffffff',
@@ -7127,8 +7049,10 @@ function addSettlementMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            11, 0,     // Start showing text at zoom 11
-            12, 1      // Fully visible at zoom 12+
+            7.5, 0,    // Completely transparent below 7.5
+            8.5, 0,    // Still transparent at 8.5
+            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
+            10.5, 1    // Fully visible at desktop threshold and beyond
           ]
         }
       };
@@ -7209,46 +7133,13 @@ function setupSettlementMarkerClicks() {
       state.clickPriority = 999;
     }, 50);
   };
-  
-  // Cluster clicks
-  const settlementClusterClickHandler = (e) => {
-    // Settlement cluster has priority 5 (same as settlement points)
-    const myPriority = 5;
-    
-    // Only handle if no one has claimed priority yet, or if we have higher priority
-    if (state.clickPriority === 999 || state.clickPriority > myPriority) {
-      state.clickPriority = myPriority;
-    } else {
-      return; // Someone with equal or higher priority already claimed it
-    }
-    removeBoundaryHighlight();
-    
-    const features = map.queryRenderedFeatures(e.point, {
-      layers: ['settlement-clusters']
-    });
-    
-    // Re-check priority before flying
-    if (state.clickPriority < myPriority) return;
-    
-    map.flyTo({
-      center: features[0].geometry.coordinates,
-      zoom: map.getZoom() + 2.5,
-      duration: 800
-    });
-    
-    // Reset priority quickly for next click
-    state.setTimer('resetClickPriority', () => {
-      state.clickPriority = 999;
-    }, 50);
-  };
-  
+
   // Add event listeners
   map.on('click', 'settlement-points', settlementClickHandler);
   map.on('click', 'settlement-circles', settlementClickHandler);
-  map.on('click', 'settlement-clusters', settlementClusterClickHandler);
 
   // Cursor management and hover effects - shared across all settlement layers
-  const settlementLayers = ['settlement-clusters', 'settlement-points', 'settlement-circles'];
+  const settlementLayers = ['settlement-points', 'settlement-circles'];
   let hoveredSettlementId = null;
   settlementLayers.forEach(layerId => {
     map.on('mousemove', layerId, (e) => {
@@ -7443,44 +7334,22 @@ function setupTerritoryMarkerClicks() {
 
 // Native markers with batched operations
 function addNativeMarkers() {
-  console.log('[ADD MARKERS] ===== addNativeMarkers called =====');
-  console.log('[ADD MARKERS] state.locationData:', {
-    exists: !!state.locationData,
-    hasFeatures: !!state.locationData?.features,
-    featureCount: state.locationData?.features?.length || 0
-  });
-
   if (!state.locationData.features.length) {
-    console.warn('[ADD MARKERS] No locality features found, returning early');
     return;
   }
-
-  console.log('[ADD MARKERS] Adding localities to map batch...');
-
+  
   // Batch add source and layers
   mapLayers.addToBatch(() => {
-    console.log('[ADD MARKERS] Inside batch operation');
-    console.log('[ADD MARKERS] Checking source existence...');
-    const actualSource = map.getSource('localities-source');
-    console.log('[ADD MARKERS] Actual source from map:', !!actualSource);
-    console.log('[ADD MARKERS] Cache says source exists:', mapLayers.hasSource('localities-source'));
-
-    if (actualSource) {
-      console.log('[ADD MARKERS] Source exists, updating data');
-      actualSource.setData(state.locationData);
+    if (mapLayers.hasSource('localities-source')) {
+      map.getSource('localities-source').setData(state.locationData);
     } else {
-      console.log('[ADD MARKERS] Creating new source and layers');
       map.addSource('localities-source', {
         type: 'geojson',
         data: state.locationData,
-        cluster: false,  // Disable clustering
         promoteId: 'name'
       });
 
-      console.log('[ADD MARKERS] Source added successfully');
-
-      // Add circle layer for all localities (no clustering)
-      console.log('[ADD MARKERS] Adding locality-circles layer');
+      // Add circle layer for individual localities
       map.addLayer({
         id: 'locality-circles',
         type: 'circle',
@@ -7503,8 +7372,8 @@ function addNativeMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 0.5,  // 0.5 opacity
-            10.5, 0.5
+            9.5, 1,
+            10.5, 1
           ],
           'circle-stroke-opacity': [
             'interpolate',
@@ -7512,15 +7381,13 @@ function addNativeMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 0.5,  // 0.5 opacity
-            10.5, 0.5
+            9.5, 1,
+            10.5, 1
           ]
         }
       });
-      console.log('[ADD MARKERS] locality-circles layer added successfully');
 
-      // Add locality text labels that show/hide based on zoom (proximity)
-      console.log('[ADD MARKERS] Adding locality-points layer');
+      // Add individual locality points layer WITHOUT highlighting (FIX #2)
       map.addLayer({
         id: 'locality-points',
         type: 'symbol',
@@ -7536,14 +7403,14 @@ function addNativeMarkers() {
             12, 14,
             16, 16
           ],
-          'text-allow-overlap': false,  // Don't overlap - this creates the proximity effect
+          'text-allow-overlap': false,
           'text-ignore-placement': false,
           'text-optional': true,
           'text-padding': 4,
           'text-offset': [0, 0.6],
           'text-anchor': 'top',
-          'symbol-sort-key': 14,
-          'visibility': 'visible'
+          'symbol-sort-key': 14, // Lower priority than districts/regions (renders below)
+          'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
           'text-color': '#ffffff',
@@ -7558,24 +7425,22 @@ function addNativeMarkers() {
             'interpolate',
             ['linear'],
             ['zoom'],
-            11, 0,     // Start showing text at zoom 11
-            12, 1      // Fully visible at zoom 12+
+            7.5, 0,    // Completely transparent below 7.5
+            8.5, 0,    // Still transparent at 8.5
+            9.5, 1,    // Fade in between 8.5 and 9.5 (mobile threshold)
+            10.5, 1    // Fully visible at desktop threshold and beyond
           ]
         }
       });
-      console.log('[ADD MARKERS] locality-points layer added successfully');
-
+      
       logLayerOrder('After adding locality layers');
-
+      
       mapLayers.invalidateCache(); // Invalidate cache after adding layers
-      console.log('[ADD MARKERS] Cache invalidated');
     }
   });
-
-  console.log('[ADD MARKERS] Batch added, calling setupNativeMarkerClicks...');
+  
   setupNativeMarkerClicks();
-  console.log('[ADD MARKERS] ===== addNativeMarkers COMPLETE =====');
-
+  
   // Markers have been added - the map 'idle' event will handle render detection
 }
 
@@ -7888,7 +7753,7 @@ function setupNativeMarkerClicks() {
       state.clickPriority = 999;
     }, 50);
   };
-  
+
   // Use map event listeners (these are automatically managed by Mapbox)
   map.on('click', 'locality-points', localityClickHandler);
   map.on('click', 'locality-circles', localityClickHandler);
