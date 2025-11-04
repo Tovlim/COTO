@@ -1410,7 +1410,13 @@ function setupDeferredAreaControls() {
         const mouseLeaveHandler = () => {
           if (control.type === 'territory') {
             if (mapLayers.hasLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#131313');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('territory-points', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#6a6a6a',
+                '#131313'
+              ]);
             }
             // Unhighlight all districts
             if (state.districtTerritoryMap) {
@@ -1429,10 +1435,22 @@ function setupDeferredAreaControls() {
             }
           } else if (control.type === 'region') {
             if (mapLayers.hasLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#131313');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('region-points', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#8f4500',
+                '#131313'
+              ]);
             }
             if (mapLayers.hasLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#131313');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('subregion-points', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#8f4500',
+                '#131313'
+              ]);
             }
 
             // Remove region highlights - only target boundary layers, not marker layers
@@ -1451,17 +1469,41 @@ function setupDeferredAreaControls() {
             });
           } else if (control.type === 'locality') {
             if (mapLayers.hasLayer('locality-clusters')) {
-              map.setPaintProperty('locality-clusters', 'text-halo-color', '#007a3d');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('locality-clusters', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#00a350',
+                '#007a3d'
+              ]);
             }
             if (mapLayers.hasLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#007a3d');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('locality-points', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#00a350',
+                '#007a3d'
+              ]);
             }
           } else if (control.type === 'settlement') {
             if (mapLayers.hasLayer('settlement-clusters')) {
-              map.setPaintProperty('settlement-clusters', 'text-halo-color', '#0038b8');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('settlement-clusters', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#0050ff',
+                '#0038b8'
+              ]);
             }
             if (mapLayers.hasLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#0038b8');
+              // Restore the data-driven expression for hover state
+              map.setPaintProperty('settlement-points', 'text-halo-color', [
+                'case',
+                ['boolean', ['feature-state', 'hover'], false],
+                '#0050ff',
+                '#0038b8'
+              ]);
             }
           }
         };
