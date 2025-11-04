@@ -6401,6 +6401,18 @@ function highlightBoundary(regionName) {
       map.setPaintProperty(districtFillId, 'fill-opacity', 0.6);
       map.setPaintProperty(districtBorderId, 'line-color', '#AAAAAA');
       map.setPaintProperty(districtBorderId, 'line-opacity', 1);
+
+      // Move highlighted layers to top so borders aren't obscured
+      try {
+        const fillLayer = map.getLayer(districtFillId);
+        const borderLayer = map.getLayer(districtBorderId);
+        if (fillLayer && borderLayer) {
+          map.moveLayer(districtFillId);
+          map.moveLayer(districtBorderId);
+        }
+      } catch (error) {
+        // Silent fail if layers can't be moved
+      }
     });
   }
   // Fallback to territory-level layers if district layers don't exist
@@ -6417,6 +6429,18 @@ function highlightBoundary(regionName) {
       map.setPaintProperty(territoryFillId, 'fill-opacity', 0.6);
       map.setPaintProperty(territoryBorderId, 'line-color', '#AAAAAA');
       map.setPaintProperty(territoryBorderId, 'line-opacity', 1);
+
+      // Move highlighted layers to top so borders aren't obscured
+      try {
+        const fillLayer = map.getLayer(territoryFillId);
+        const borderLayer = map.getLayer(territoryBorderId);
+        if (fillLayer && borderLayer) {
+          map.moveLayer(territoryFillId);
+          map.moveLayer(territoryBorderId);
+        }
+      } catch (error) {
+        // Silent fail if layers can't be moved
+      }
     });
   }
   
@@ -6491,6 +6515,14 @@ function highlightTerritoryBoundaries(territoryName) {
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.6);
           map.setPaintProperty(district.borderId, 'line-color', '#AAAAAA');
           map.setPaintProperty(district.borderId, 'line-opacity', 1);
+
+          // Move highlighted layers to top so borders aren't obscured
+          const fillLayer = map.getLayer(district.fillId);
+          const borderLayer = map.getLayer(district.borderId);
+          if (fillLayer && borderLayer) {
+            map.moveLayer(district.fillId);
+            map.moveLayer(district.borderId);
+          }
         } catch (error) {
           // Silent fail - layer might not exist
         }
