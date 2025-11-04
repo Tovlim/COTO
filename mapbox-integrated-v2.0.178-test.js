@@ -6865,7 +6865,7 @@ function addSettlementMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
-          'symbol-sort-key': 1,
+          'symbol-sort-key': 12, // Lower priority than districts/regions (renders below)
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
@@ -6958,7 +6958,7 @@ function addSettlementMarkers() {
           'text-padding': 4,
           'text-offset': [0, 0.6],
           'text-anchor': 'top',
-          'symbol-sort-key': 2,
+          'symbol-sort-key': 13, // Lower priority than districts/regions (renders below)
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
@@ -7091,15 +7091,25 @@ function setupSettlementMarkerClicks() {
   map.on('click', 'settlement-circles', settlementClickHandler);
   map.on('click', 'settlement-clusters', settlementClusterClickHandler);
 
-  // Cursor management - shared across all settlement layers
+  // Cursor management and hover effects - shared across all settlement layers
   const settlementLayers = ['settlement-clusters', 'settlement-points', 'settlement-circles'];
   settlementLayers.forEach(layerId => {
-    map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseenter', layerId, () => {
+      map.getCanvas().style.cursor = 'pointer';
+      // Light up text halo on hover
+      if (mapLayers.hasLayer(layerId)) {
+        map.setPaintProperty(layerId, 'text-halo-color', '#0050ff');
+      }
+    });
     map.on('mouseleave', layerId, (e) => {
       // Only reset cursor if not hovering over another settlement layer
       const features = map.queryRenderedFeatures(e.point, { layers: settlementLayers });
       if (features.length === 0) {
         map.getCanvas().style.cursor = '';
+      }
+      // Reset text halo to default
+      if (mapLayers.hasLayer(layerId)) {
+        map.setPaintProperty(layerId, 'text-halo-color', '#0038b8');
       }
     });
   });
@@ -7221,10 +7231,22 @@ function setupTerritoryMarkerClicks() {
   
   // Add event listeners
   map.on('click', 'territory-points', territoryClickHandler);
-  
-  // Cursor management
-  map.on('mouseenter', 'territory-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'territory-points', () => map.getCanvas().style.cursor = '');
+
+  // Cursor management and hover effects
+  map.on('mouseenter', 'territory-points', () => {
+    map.getCanvas().style.cursor = 'pointer';
+    // Light up text halo on hover
+    if (mapLayers.hasLayer('territory-points')) {
+      map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
+    }
+  });
+  map.on('mouseleave', 'territory-points', () => {
+    map.getCanvas().style.cursor = '';
+    // Reset text halo to default
+    if (mapLayers.hasLayer('territory-points')) {
+      map.setPaintProperty('territory-points', 'text-halo-color', '#000000');
+    }
+  });
 }
 
 // Native markers with batched operations
@@ -7258,6 +7280,7 @@ function addNativeMarkers() {
           'text-size': 16,
           'text-allow-overlap': true,
           'text-ignore-placement': true,
+          'symbol-sort-key': 15, // Lower priority than districts/regions (renders below)
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
@@ -7338,7 +7361,7 @@ function addNativeMarkers() {
           'text-padding': 4,
           'text-offset': [0, 0.6],
           'text-anchor': 'top',
-          'symbol-sort-key': 10, // Higher values render last (on top)
+          'symbol-sort-key': 14, // Lower priority than districts/regions (renders below)
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
@@ -7568,8 +7591,22 @@ function setupDistrictMarkerClicks() {
   };
 
   map.on('click', 'district-points', districtClickHandler);
-  map.on('mouseenter', 'district-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'district-points', () => map.getCanvas().style.cursor = '');
+
+  // Cursor management and hover effects
+  map.on('mouseenter', 'district-points', () => {
+    map.getCanvas().style.cursor = 'pointer';
+    // Light up text halo on hover
+    if (mapLayers.hasLayer('district-points')) {
+      map.setPaintProperty('district-points', 'text-halo-color', '#8f4500');
+    }
+  });
+  map.on('mouseleave', 'district-points', () => {
+    map.getCanvas().style.cursor = '';
+    // Reset text halo to default
+    if (mapLayers.hasLayer('district-points')) {
+      map.setPaintProperty('district-points', 'text-halo-color', '#000000');
+    }
+  });
 }
 
 // Event setup with proper management and delegation
@@ -7672,15 +7709,25 @@ function setupNativeMarkerClicks() {
   map.on('click', 'locality-circles', localityClickHandler);
   map.on('click', 'locality-clusters', clusterClickHandler);
 
-  // Cursor management - shared across all locality layers
+  // Cursor management and hover effects - shared across all locality layers
   const localityLayers = ['locality-clusters', 'locality-points', 'locality-circles'];
   localityLayers.forEach(layerId => {
-    map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseenter', layerId, () => {
+      map.getCanvas().style.cursor = 'pointer';
+      // Light up text halo on hover
+      if (mapLayers.hasLayer(layerId)) {
+        map.setPaintProperty(layerId, 'text-halo-color', '#00a350');
+      }
+    });
     map.on('mouseleave', layerId, (e) => {
       // Only reset cursor if not hovering over another locality layer
       const features = map.queryRenderedFeatures(e.point, { layers: localityLayers });
       if (features.length === 0) {
         map.getCanvas().style.cursor = '';
+      }
+      // Reset text halo to default
+      if (mapLayers.hasLayer(layerId)) {
+        map.setPaintProperty(layerId, 'text-halo-color', '#007a3d');
       }
     });
   });
@@ -7779,8 +7826,22 @@ function setupRegionMarkerClicks() {
   };
   
   map.on('click', 'region-points', regionClickHandler);
-  map.on('mouseenter', 'region-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'region-points', () => map.getCanvas().style.cursor = '');
+
+  // Cursor management and hover effects
+  map.on('mouseenter', 'region-points', () => {
+    map.getCanvas().style.cursor = 'pointer';
+    // Light up text halo on hover
+    if (mapLayers.hasLayer('region-points')) {
+      map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
+    }
+  });
+  map.on('mouseleave', 'region-points', () => {
+    map.getCanvas().style.cursor = '';
+    // Reset text halo to default
+    if (mapLayers.hasLayer('region-points')) {
+      map.setPaintProperty('region-points', 'text-halo-color', '#000000');
+    }
+  });
 }
 
 // Add this new function to display subregion markers on the map
@@ -7906,8 +7967,22 @@ function setupSubregionMarkerClicks() {
   };
   
   map.on('click', 'subregion-points', subregionClickHandler);
-  map.on('mouseenter', 'subregion-points', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'subregion-points', () => map.getCanvas().style.cursor = '');
+
+  // Cursor management and hover effects
+  map.on('mouseenter', 'subregion-points', () => {
+    map.getCanvas().style.cursor = 'pointer';
+    // Light up text halo on hover
+    if (mapLayers.hasLayer('subregion-points')) {
+      map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
+    }
+  });
+  map.on('mouseleave', 'subregion-points', () => {
+    map.getCanvas().style.cursor = '';
+    // Reset text halo to default
+    if (mapLayers.hasLayer('subregion-points')) {
+      map.setPaintProperty('subregion-points', 'text-halo-color', '#000000');
+    }
+  });
 }
 
 
