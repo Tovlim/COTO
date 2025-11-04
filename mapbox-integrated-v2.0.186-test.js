@@ -1141,10 +1141,10 @@ async function addRegionBoundaryToMap(name, regionFeature, adminType = 'district
 // Area overlay addition with batching
 async function addAreaOverlayToMap(name, areaFeature) {
   const areaConfig = {
-    'Area A': { color: '#b7ff00', layerId: 'area-a-layer', sourceId: 'area-a-source' },
-    'Area B': { color: '#ffb485', layerId: 'area-b-layer', sourceId: 'area-b-source' },
-    'Area C': { color: '#b4d3ff', layerId: 'area-c-layer', sourceId: 'area-c-source' },
-    'Firing Zones': { color: '#ce0000', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
+    'Area A': { color: '#adc278', layerId: 'area-a-layer', sourceId: 'area-a-source' },
+    'Area B': { color: '#ffdcc6', layerId: 'area-b-layer', sourceId: 'area-b-source' },
+    'Area C': { color: '#889c9b', layerId: 'area-c-layer', sourceId: 'area-c-source' },
+    'Firing Zones': { color: '#c51d3c', layerId: 'firing-zones-layer', sourceId: 'firing-zones-source' }
   };
 
   const config = areaConfig[name];
@@ -1357,9 +1357,9 @@ function setupDeferredAreaControls() {
                 const borderId = `${districtName.toLowerCase().replace(/\s+/g, '-')}-district-border`;
                 
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
-                  map.setPaintProperty(fillId, 'fill-color', '#f40');
+                  map.setPaintProperty(fillId, 'fill-color', '#2d1810');
                   map.setPaintProperty(fillId, 'fill-opacity', 0.4);
-                  map.setPaintProperty(borderId, 'line-color', '#f40');
+                  map.setPaintProperty(borderId, 'line-color', '#2d1810');
                   map.setPaintProperty(borderId, 'line-opacity', 0.9);
                 }
               });
@@ -1371,27 +1371,23 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('subregion-points')) {
               map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
             }
-            if (mapLayers.hasLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-color', '#8f4500');
-            }
 
             // Clear territory highlighting and highlight regions
             if (state.territoryHighlightActive) {
               removeBoundaryHighlight();
             }
 
-            // Apply region highlights to all districts/regions/governorates
+            // Apply region highlights - only target boundary layers, not marker layers
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
-              if (layer.id.includes('-district-') || layer.id.includes('-boundary')) {
-                if (layer.id.includes('-fill')) {
-                  map.setPaintProperty(layer.id, 'fill-color', '#f40');
-                  map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
-                }
-                if (layer.id.includes('-border')) {
-                  map.setPaintProperty(layer.id, 'line-color', '#f40');
-                  map.setPaintProperty(layer.id, 'line-opacity', 0.9);
-                }
+              // Only modify boundary layers (district/territory fill/border), not marker layers
+              if ((layer.id.includes('-district-fill') || layer.id.includes('-territory-fill')) && layer.type === 'fill') {
+                map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.4);
+              }
+              if ((layer.id.includes('-district-border') || layer.id.includes('-territory-border')) && layer.type === 'line') {
+                map.setPaintProperty(layer.id, 'line-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.9);
               }
             });
           } else if (control.type === 'locality') {
@@ -1425,7 +1421,7 @@ function setupDeferredAreaControls() {
                 if (mapLayers.hasLayer(fillId) && mapLayers.hasLayer(borderId)) {
                   const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#131313';
                   map.setPaintProperty(fillId, 'fill-color', currentColor);
-                  map.setPaintProperty(fillId, 'fill-opacity', 0.5);
+                  map.setPaintProperty(fillId, 'fill-opacity', 0);
                   map.setPaintProperty(borderId, 'line-color', '#131313');
                   map.setPaintProperty(borderId, 'line-opacity', 0.8);
                 }
@@ -1438,23 +1434,19 @@ function setupDeferredAreaControls() {
             if (mapLayers.hasLayer('subregion-points')) {
               map.setPaintProperty('subregion-points', 'text-halo-color', '#131313');
             }
-            if (mapLayers.hasLayer('district-points')) {
-              map.setPaintProperty('district-points', 'text-halo-color', '#131313');
-            }
 
-            // Remove region highlights
+            // Remove region highlights - only target boundary layers, not marker layers
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
-              if (layer.id.includes('-district-') || layer.id.includes('-boundary')) {
-                if (layer.id.includes('-fill')) {
-                  const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#131313';
-                  map.setPaintProperty(layer.id, 'fill-color', currentColor);
-                  map.setPaintProperty(layer.id, 'fill-opacity', 0.5);
-                }
-                if (layer.id.includes('-border')) {
-                  map.setPaintProperty(layer.id, 'line-color', '#131313');
-                  map.setPaintProperty(layer.id, 'line-opacity', 0.8);
-                }
+              // Only modify boundary layers (district/territory fill/border), not marker layers
+              if ((layer.id.includes('-district-fill') || layer.id.includes('-territory-fill')) && layer.type === 'fill') {
+                const currentColor = document.getElementById('region-color') ? document.getElementById('region-color').value : '#131313';
+                map.setPaintProperty(layer.id, 'fill-color', currentColor);
+                map.setPaintProperty(layer.id, 'fill-opacity', 0);
+              }
+              if ((layer.id.includes('-district-border') || layer.id.includes('-territory-border')) && layer.type === 'line') {
+                map.setPaintProperty(layer.id, 'line-color', '#131313');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.8);
               }
             });
           } else if (control.type === 'locality') {
@@ -6363,9 +6355,9 @@ function highlightBoundary(regionName) {
 
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(districtFillId, 'fill-color', '#f40');
+      map.setPaintProperty(districtFillId, 'fill-color', '#333333');
       map.setPaintProperty(districtFillId, 'fill-opacity', 0.6);
-      map.setPaintProperty(districtBorderId, 'line-color', '#f40');
+      map.setPaintProperty(districtBorderId, 'line-color', '#666666');
       map.setPaintProperty(districtBorderId, 'line-opacity', 1);
     });
   }
@@ -6379,9 +6371,9 @@ function highlightBoundary(regionName) {
 
     // Then batch boundary highlighting operations (asynchronous)
     mapLayers.addToBatch(() => {
-      map.setPaintProperty(territoryFillId, 'fill-color', '#f40');
+      map.setPaintProperty(territoryFillId, 'fill-color', '#333333');
       map.setPaintProperty(territoryFillId, 'fill-opacity', 0.6);
-      map.setPaintProperty(territoryBorderId, 'line-color', '#f40');
+      map.setPaintProperty(territoryBorderId, 'line-color', '#666666');
       map.setPaintProperty(territoryBorderId, 'line-opacity', 1);
     });
   }
@@ -6453,9 +6445,9 @@ function highlightTerritoryBoundaries(territoryName) {
     mapLayers.addToBatch(() => {
       districtsToHighlight.forEach((district) => {
         try {
-          map.setPaintProperty(district.fillId, 'fill-color', '#f40');
+          map.setPaintProperty(district.fillId, 'fill-color', '#333333');
           map.setPaintProperty(district.fillId, 'fill-opacity', 0.6);
-          map.setPaintProperty(district.borderId, 'line-color', '#f40');
+          map.setPaintProperty(district.borderId, 'line-color', '#666666');
           map.setPaintProperty(district.borderId, 'line-opacity', 1);
         } catch (error) {
           // Silent fail - layer might not exist
