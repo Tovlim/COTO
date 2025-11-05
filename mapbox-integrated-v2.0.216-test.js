@@ -6269,22 +6269,76 @@ const closeSidebar = (side) => {
             const currentBearing = map.getBearing();
             const currentPitch = map.getPitch();
 
-            // Set up a one-time listener to prevent the automatic recentering
-            // This will fire immediately after the resize occurs
-            map.once('resize', () => {
-              // Immediately restore the position without any animation
-              // This happens so fast that no jump is visible
-              map.jumpTo({
-                center: currentCenter,
-                zoom: currentZoom,
-                bearing: currentBearing,
-                pitch: currentPitch
-              });
+            // Debug logging
+            console.log('[Map Resize Debug] Before resize:', {
+              center: currentCenter.toArray(),
+              zoom: currentZoom,
+              bearing: currentBearing,
+              pitch: currentPitch,
+              timestamp: Date.now()
             });
 
-            // Now trigger the resize
-            // The listener above will immediately restore the position
+            // Method 1: Try to prevent the resize from auto-centering by temporarily disabling it
+            const originalTrackResize = map._trackResize;
+            map._trackResize = false;
+
+            // Method 2: Override the _onWindowResize handler temporarily
+            const originalOnWindowResize = map._onWindowResize;
+            map._onWindowResize = function() {
+              console.log('[Map Resize Debug] _onWindowResize intercepted');
+            };
+
+            // Method 3: Store and override the transform
+            const transform = map.transform;
+            const originalCenterPoint = transform.centerPoint;
+
+            // Trigger the resize
             map.resize();
+
+            // Immediately restore position (synchronous, no delay)
+            map.jumpTo({
+              center: currentCenter,
+              zoom: currentZoom,
+              bearing: currentBearing,
+              pitch: currentPitch
+            });
+
+            // Check if position changed
+            const afterCenter = map.getCenter();
+            console.log('[Map Resize Debug] After immediate jumpTo:', {
+              center: afterCenter.toArray(),
+              centerDiff: [
+                afterCenter.lng - currentCenter.lng,
+                afterCenter.lat - currentCenter.lat
+              ],
+              timestamp: Date.now()
+            });
+
+            // Restore original handlers
+            map._trackResize = originalTrackResize;
+            map._onWindowResize = originalOnWindowResize;
+
+            // Additional safety: Check position after next frame
+            requestAnimationFrame(() => {
+              const frameCenter = map.getCenter();
+
+              if (Math.abs(frameCenter.lng - currentCenter.lng) > 0.0001 ||
+                  Math.abs(frameCenter.lat - currentCenter.lat) > 0.0001) {
+                console.log('[Map Resize Debug] Position drifted after frame, correcting...', {
+                  drift: [
+                    frameCenter.lng - currentCenter.lng,
+                    frameCenter.lat - currentCenter.lat
+                  ]
+                });
+
+                map.jumpTo({
+                  center: currentCenter,
+                  zoom: currentZoom,
+                  bearing: currentBearing,
+                  pitch: currentPitch
+                });
+              }
+            });
           }
         }, 260); // Slightly after transition completes (250ms)
       }
@@ -6374,22 +6428,76 @@ const enhancedToggleSidebar = (side, show = null) => {
             const currentBearing = map.getBearing();
             const currentPitch = map.getPitch();
 
-            // Set up a one-time listener to prevent the automatic recentering
-            // This will fire immediately after the resize occurs
-            map.once('resize', () => {
-              // Immediately restore the position without any animation
-              // This happens so fast that no jump is visible
-              map.jumpTo({
-                center: currentCenter,
-                zoom: currentZoom,
-                bearing: currentBearing,
-                pitch: currentPitch
-              });
+            // Debug logging
+            console.log('[Map Resize Debug] Before resize:', {
+              center: currentCenter.toArray(),
+              zoom: currentZoom,
+              bearing: currentBearing,
+              pitch: currentPitch,
+              timestamp: Date.now()
             });
 
-            // Now trigger the resize
-            // The listener above will immediately restore the position
+            // Method 1: Try to prevent the resize from auto-centering by temporarily disabling it
+            const originalTrackResize = map._trackResize;
+            map._trackResize = false;
+
+            // Method 2: Override the _onWindowResize handler temporarily
+            const originalOnWindowResize = map._onWindowResize;
+            map._onWindowResize = function() {
+              console.log('[Map Resize Debug] _onWindowResize intercepted');
+            };
+
+            // Method 3: Store and override the transform
+            const transform = map.transform;
+            const originalCenterPoint = transform.centerPoint;
+
+            // Trigger the resize
             map.resize();
+
+            // Immediately restore position (synchronous, no delay)
+            map.jumpTo({
+              center: currentCenter,
+              zoom: currentZoom,
+              bearing: currentBearing,
+              pitch: currentPitch
+            });
+
+            // Check if position changed
+            const afterCenter = map.getCenter();
+            console.log('[Map Resize Debug] After immediate jumpTo:', {
+              center: afterCenter.toArray(),
+              centerDiff: [
+                afterCenter.lng - currentCenter.lng,
+                afterCenter.lat - currentCenter.lat
+              ],
+              timestamp: Date.now()
+            });
+
+            // Restore original handlers
+            map._trackResize = originalTrackResize;
+            map._onWindowResize = originalOnWindowResize;
+
+            // Additional safety: Check position after next frame
+            requestAnimationFrame(() => {
+              const frameCenter = map.getCenter();
+
+              if (Math.abs(frameCenter.lng - currentCenter.lng) > 0.0001 ||
+                  Math.abs(frameCenter.lat - currentCenter.lat) > 0.0001) {
+                console.log('[Map Resize Debug] Position drifted after frame, correcting...', {
+                  drift: [
+                    frameCenter.lng - currentCenter.lng,
+                    frameCenter.lat - currentCenter.lat
+                  ]
+                });
+
+                map.jumpTo({
+                  center: currentCenter,
+                  zoom: currentZoom,
+                  bearing: currentBearing,
+                  pitch: currentPitch
+                });
+              }
+            });
           }
         }, 260); // Slightly after transition completes (250ms)
       }
