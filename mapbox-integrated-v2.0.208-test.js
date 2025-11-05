@@ -6996,22 +6996,48 @@ function addSettlementMarkers() {
           'circle-stroke-color': '#6b8cff',
           'circle-stroke-width': 2,
           'circle-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,
-            8.5, 0,
-            9.5, 0.5,
-            10.5, 0.5
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 1,
+              10.5, 1
+            ],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 0.5,
+              10.5, 0.5
+            ]
           ],
           'circle-stroke-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,
-            8.5, 0,
-            9.5, 0.5,
-            10.5, 0.5
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 1,
+              10.5, 1
+            ],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 0.5,
+              10.5, 0.5
+            ]
           ]
         }
       };
@@ -7049,7 +7075,7 @@ function addSettlementMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#ffffff',
+          'text-color': '#131313',
           'text-halo-color': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
@@ -7386,22 +7412,48 @@ function addNativeMarkers() {
           'circle-stroke-color': '#5fb300',
           'circle-stroke-width': 2,
           'circle-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,
-            8.5, 0,
-            9.5, 0.5,
-            10.5, 0.5
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 1,
+              10.5, 1
+            ],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 0.5,
+              10.5, 0.5
+            ]
           ],
           'circle-stroke-opacity': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7.5, 0,
-            8.5, 0,
-            9.5, 0.5,
-            10.5, 0.5
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 1,
+              10.5, 1
+            ],
+            [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              7.5, 0,
+              8.5, 0,
+              9.5, 0.5,
+              10.5, 0.5
+            ]
           ]
         }
       });
@@ -7433,7 +7485,7 @@ function addNativeMarkers() {
           'visibility': 'visible' // Always visible, opacity handles fade
         },
         paint: {
-          'text-color': '#ffffff',
+          'text-color': '#131313',
           'text-halo-color': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
