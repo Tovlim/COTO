@@ -7011,7 +7011,7 @@ function addSettlementMarkers() {
             16, 6
           ],
           'circle-color': '#3153c2',
-          'circle-stroke-color': '#131313',
+          'circle-stroke-color': '#6b8cff',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -7019,8 +7019,8 @@ function addSettlementMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,
+            10.5, 0.5
           ],
           'circle-stroke-opacity': [
             'interpolate',
@@ -7028,8 +7028,8 @@ function addSettlementMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,
+            10.5, 0.5
           ]
         }
       };
@@ -7401,7 +7401,7 @@ function addNativeMarkers() {
             16, 6
           ],
           'circle-color': '#377e00',
-          'circle-stroke-color': '#131313',
+          'circle-stroke-color': '#5fb300',
           'circle-stroke-width': 2,
           'circle-opacity': [
             'interpolate',
@@ -7409,8 +7409,8 @@ function addNativeMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,
+            10.5, 0.5
           ],
           'circle-stroke-opacity': [
             'interpolate',
@@ -7418,8 +7418,8 @@ function addNativeMarkers() {
             ['zoom'],
             7.5, 0,
             8.5, 0,
-            9.5, 1,
-            10.5, 1
+            9.5, 0.5,
+            10.5, 0.5
           ]
         }
       });
