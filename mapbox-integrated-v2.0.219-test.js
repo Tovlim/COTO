@@ -6213,61 +6213,23 @@ const sidebarCache = {
 const closeSidebar = (side) => {
   const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar || !sidebar.classList.contains('is-show')) return;
-
+  
   // Remove the show class
   sidebar.classList.remove('is-show');
-
+  
   // Reset arrow icon
   const arrowIcon = sidebarCache.getArrow(side);
   if (arrowIcon) arrowIcon.style.transform = 'rotateY(0deg)';
-
+  
   // Handle margin based on screen size
   const jsMarginProperty = sidebarCache.getMarginProperty(side);
   if (window.innerWidth > APP_CONFIG.breakpoints.mobile) {
     const width = sidebarCache.getWidth(side);
     sidebar.style[jsMarginProperty] = `-${width + 1}px`;
-
-    // Adjust map margins on desktop (991px+)
-    if (window.innerWidth > 991) {
-      const mapWrapElement = document.getElementById('map-wrap');
-      if (mapWrapElement) {
-        // Add transition for smooth animation
-        if (!mapWrapElement.style.transition || !mapWrapElement.style.transition.includes('margin')) {
-          mapWrapElement.style.transition = 'margin 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
-        }
-
-        if (side === 'Left' || side === 'SecondLeft') {
-          // Recalculate left margin
-          const leftSidebar = sidebarCache.getSidebar('Left');
-          const secondLeftSidebar = sidebarCache.getSidebar('SecondLeft');
-
-          let totalLeftMargin = 0;
-          // Check if the OTHER left sidebar is still showing (not the one we're closing)
-          if (side === 'Left') {
-            // We're closing Left, check if SecondLeft is showing
-            if (secondLeftSidebar && secondLeftSidebar.classList.contains('is-show')) {
-              totalLeftMargin += sidebarCache.getWidth('SecondLeft');
-            }
-          } else if (side === 'SecondLeft') {
-            // We're closing SecondLeft, check if Left is showing
-            if (leftSidebar && leftSidebar.classList.contains('is-show')) {
-              totalLeftMargin += sidebarCache.getWidth('Left');
-            }
-          }
-
-          mapWrapElement.style.marginLeft = `${totalLeftMargin}px`;
-        } else if (side === 'Right') {
-          mapWrapElement.style.marginRight = '0px';
-        }
-
-        // No longer triggering Mapbox resize - just let the margins handle the layout
-        // The map container will naturally adjust to the new available space
-      }
-    }
   } else {
     sidebar.style[jsMarginProperty] = '';
   }
-
+  
   // Reset pointer events
   sidebar.style.pointerEvents = '';
 };
@@ -6276,75 +6238,17 @@ const closeSidebar = (side) => {
 const enhancedToggleSidebar = (side, show = null) => {
   const sidebar = sidebarCache.getSidebar(side);
   if (!sidebar) return;
-
+  
   const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
   sidebar.classList.toggle('is-show', isShowing);
-
+  
   const jsMarginProperty = sidebarCache.getMarginProperty(side);
   const arrowIcon = sidebarCache.getArrow(side);
-
-  // Only adjust map margins on desktop (991px+)
-  const isDesktop = window.innerWidth > 991;
-
+  
   if (window.innerWidth > APP_CONFIG.breakpoints.mobile) {
     const width = sidebarCache.getWidth(side);
     sidebar.style[jsMarginProperty] = isShowing ? '0' : `-${width + 1}px`;
-
-    // Adjust map margins on desktop
-    if (isDesktop) {
-      const mapWrapElement = document.getElementById('map-wrap');
-      if (mapWrapElement) {
-        // Add transition for smooth animation
-        if (!mapWrapElement.style.transition || !mapWrapElement.style.transition.includes('margin')) {
-          mapWrapElement.style.transition = 'margin 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
-        }
-
-        if (side === 'Left' || side === 'SecondLeft') {
-          // Calculate total left margin based on what WILL be showing after this action
-          let totalLeftMargin = 0;
-
-          // Check Left sidebar
-          if (side === 'Left') {
-            // If we're toggling Left sidebar
-            if (isShowing) {
-              totalLeftMargin += width;
-            }
-            // Check SecondLeft (it might be closed by the logic below)
-            const secondLeftSidebar = sidebarCache.getSidebar('SecondLeft');
-            if (secondLeftSidebar && secondLeftSidebar.classList.contains('is-show')) {
-              // Only count it if we're not going to close it
-              if (!(isDesktop && isShowing)) {
-                totalLeftMargin += sidebarCache.getWidth('SecondLeft');
-              }
-            }
-          } else if (side === 'SecondLeft') {
-            // If we're toggling SecondLeft sidebar
-            if (isShowing) {
-              totalLeftMargin += width;
-            }
-            // Check Left (it might be closed by the logic below)
-            const leftSidebar = sidebarCache.getSidebar('Left');
-            if (leftSidebar && leftSidebar.classList.contains('is-show')) {
-              // Only count it if we're not going to close it
-              if (!(isDesktop && isShowing)) {
-                totalLeftMargin += sidebarCache.getWidth('Left');
-              }
-            }
-          }
-
-          mapWrapElement.style.marginLeft = `${totalLeftMargin}px`;
-
-        } else if (side === 'Right') {
-          // Right sidebar affects right margin
-          const rightWidth = isShowing ? width : 0;
-          mapWrapElement.style.marginRight = `${rightWidth}px`;
-        }
-
-        // No longer triggering Mapbox resize - just let the margins handle the layout
-        // The map container will naturally adjust to the new available space
-      }
-    }
-
+    
     // Close other sidebars based on screen size
     if (isShowing) {
       if (window.innerWidth <= 991) {
@@ -6367,7 +6271,7 @@ const enhancedToggleSidebar = (side, show = null) => {
       });
     }
   }
-
+  
   // Set pointer events and arrow icon for the current sidebar
   utils.setStyles(sidebar, {pointerEvents: isShowing ? 'auto' : ''});
   if (arrowIcon) arrowIcon.style.transform = isShowing ? 'rotateY(180deg)' : 'rotateY(0deg)';
