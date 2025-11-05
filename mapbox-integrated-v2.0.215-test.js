@@ -6260,28 +6260,31 @@ const closeSidebar = (side) => {
           mapWrapElement.style.marginRight = '0px';
         }
 
-        // Trigger Mapbox resize after margin change with smooth recentering
+        // Trigger Mapbox resize after margin change without recentering
         setTimeout(() => {
           if (window.map) {
-            // Store current center and zoom before resize
+            // Store the current map state before resize
             const currentCenter = map.getCenter();
             const currentZoom = map.getZoom();
             const currentBearing = map.getBearing();
             const currentPitch = map.getPitch();
 
-            // Resize the map (this may cause a jump)
-            map.resize();
-
-            // Smoothly ease back to the stored position to prevent jarring recentering
-            map.easeTo({
-              center: currentCenter,
-              zoom: currentZoom,
-              bearing: currentBearing,
-              pitch: currentPitch,
-              duration: 300, // Smooth 300ms transition
-              easing: (t) => t * (2 - t), // Ease-out quad for smooth deceleration
-              essential: true // Ensures this animation completes even if user interacts
+            // Set up a one-time listener to prevent the automatic recentering
+            // This will fire immediately after the resize occurs
+            map.once('resize', () => {
+              // Immediately restore the position without any animation
+              // This happens so fast that no jump is visible
+              map.jumpTo({
+                center: currentCenter,
+                zoom: currentZoom,
+                bearing: currentBearing,
+                pitch: currentPitch
+              });
             });
+
+            // Now trigger the resize
+            // The listener above will immediately restore the position
+            map.resize();
           }
         }, 260); // Slightly after transition completes (250ms)
       }
@@ -6362,28 +6365,31 @@ const enhancedToggleSidebar = (side, show = null) => {
           mapWrapElement.style.marginRight = `${rightWidth}px`;
         }
 
-        // Trigger Mapbox resize after margin change with smooth recentering
+        // Trigger Mapbox resize after margin change without recentering
         setTimeout(() => {
           if (window.map) {
-            // Store current center and zoom before resize
+            // Store the current map state before resize
             const currentCenter = map.getCenter();
             const currentZoom = map.getZoom();
             const currentBearing = map.getBearing();
             const currentPitch = map.getPitch();
 
-            // Resize the map (this may cause a jump)
-            map.resize();
-
-            // Smoothly ease back to the stored position to prevent jarring recentering
-            map.easeTo({
-              center: currentCenter,
-              zoom: currentZoom,
-              bearing: currentBearing,
-              pitch: currentPitch,
-              duration: 300, // Smooth 300ms transition
-              easing: (t) => t * (2 - t), // Ease-out quad for smooth deceleration
-              essential: true // Ensures this animation completes even if user interacts
+            // Set up a one-time listener to prevent the automatic recentering
+            // This will fire immediately after the resize occurs
+            map.once('resize', () => {
+              // Immediately restore the position without any animation
+              // This happens so fast that no jump is visible
+              map.jumpTo({
+                center: currentCenter,
+                zoom: currentZoom,
+                bearing: currentBearing,
+                pitch: currentPitch
+              });
             });
+
+            // Now trigger the resize
+            // The listener above will immediately restore the position
+            map.resize();
           }
         }, 260); // Slightly after transition completes (250ms)
       }
