@@ -5877,10 +5877,193 @@ const map = new mapboxgl.Map({
   language: ['en','es','fr','de','zh','ja','ru','ar','he','fa','ur'].includes(lang) ? lang : 'en'
 });
 
+// ========================
+// MINIMAP IMPLEMENTATION
+// ========================
+let minimap;
+let minimapContainer;
+let viewportIndicator;
+
+function initializeMinimap() {
+  // Create minimap container
+  minimapContainer = document.createElement('div');
+  minimapContainer.id = 'minimap-container';
+  minimapContainer.style.cssText = `
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 200px;
+    height: 150px;
+    border: 2px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    z-index: 100;
+    background: #fff;
+    cursor: pointer;
+  `;
+
+  // Add minimap toggle button
+  const toggleBtn = document.createElement('button');
+  toggleBtn.innerHTML = '−';
+  toggleBtn.style.cssText = `
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid #333;
+    border-radius: 2px;
+    cursor: pointer;
+    z-index: 2;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+  `;
+  toggleBtn.onclick = (e) => {
+    e.stopPropagation();
+    const isHidden = minimapContainer.style.height === '30px';
+    if (isHidden) {
+      minimapContainer.style.height = '150px';
+      toggleBtn.innerHTML = '−';
+      minimap.resize();
+    } else {
+      minimapContainer.style.height = '30px';
+      toggleBtn.innerHTML = '□';
+    }
+  };
+  minimapContainer.appendChild(toggleBtn);
+
+  // Create inner container for the actual map
+  const mapDiv = document.createElement('div');
+  mapDiv.id = 'minimap';
+  mapDiv.style.cssText = 'width: 100%; height: 100%;';
+  minimapContainer.appendChild(mapDiv);
+
+  // Add to main map container
+  document.getElementById('map').appendChild(minimapContainer);
+
+  // Initialize minimap
+  minimap = new mapboxgl.Map({
+    container: 'minimap',
+    style: map.getStyle(),
+    center: map.getCenter(),
+    zoom: Math.max(0, map.getZoom() - 4), // 4 zoom levels out
+    interactive: false,
+    attributionControl: false
+  });
+
+  // Create viewport indicator
+  minimap.on('load', () => {
+    // Add viewport rectangle source
+    minimap.addSource('viewport', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[]]
+        }
+      }
+    });
+
+    // Add viewport rectangle layer
+    minimap.addLayer({
+      id: 'viewport-fill',
+      type: 'fill',
+      source: 'viewport',
+      paint: {
+        'fill-color': '#007cbf',
+        'fill-opacity': 0.1
+      }
+    });
+
+    minimap.addLayer({
+      id: 'viewport-outline',
+      type: 'line',
+      source: 'viewport',
+      paint: {
+        'line-color': '#007cbf',
+        'line-width': 2,
+        'line-opacity': 0.8
+      }
+    });
+
+    // Initial viewport update
+    updateViewport();
+  });
+
+  // Update viewport rectangle
+  function updateViewport() {
+    const bounds = map.getBounds();
+    const coords = [
+      [bounds.getWest(), bounds.getNorth()],
+      [bounds.getEast(), bounds.getNorth()],
+      [bounds.getEast(), bounds.getSouth()],
+      [bounds.getWest(), bounds.getSouth()],
+      [bounds.getWest(), bounds.getNorth()]
+    ];
+
+    if (minimap.getSource('viewport')) {
+      minimap.getSource('viewport').setData({
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [coords]
+        }
+      });
+    }
+  }
+
+  // Sync minimap with main map
+  let updateTimeout;
+  map.on('move', () => {
+    clearTimeout(updateTimeout);
+    updateTimeout = setTimeout(() => {
+      if (minimap) {
+        minimap.setCenter(map.getCenter());
+        const targetZoom = Math.max(0, map.getZoom() - 4);
+        if (Math.abs(minimap.getZoom() - targetZoom) > 0.5) {
+          minimap.setZoom(targetZoom);
+        }
+        updateViewport();
+      }
+    }, 100);
+  });
+
+  // Click to navigate
+  minimapContainer.addEventListener('click', (e) => {
+    if (e.target === toggleBtn) return;
+
+    const rect = mapDiv.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Convert pixel coordinates to lat/lng
+    const point = new mapboxgl.Point(x, y);
+    const lngLat = minimap.unproject(point);
+
+    // Navigate main map to clicked location
+    map.flyTo({
+      center: lngLat,
+      duration: 1000
+    });
+  });
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    if (minimap) minimap.resize();
+  });
+}
+
 // Map load event handler with SEQUENTIAL loading to prevent duplicates
 map.on("load", () => {
   try {
     init();
+
+    // Initialize minimap after main map loads
+    initializeMinimap();
 
     // Load data in SEQUENCE to ensure districts load before localities
     // This prevents duplicate markers for district names that also appear as regions
