@@ -5889,27 +5889,9 @@ map.on("load", () => {
         // Initialize territory data immediately (should always be visible)
         initializeTerritoryData();
 
-        // Load localities immediately on map load for better user experience
-        // This ensures locality markers are visible right away
-        try {
-          console.log('Loading localities on initial map load...');
-          await loadLocalitiesIfNeeded('initial-map-load');
-          console.log('Localities loaded successfully');
-        } catch (error) {
-          console.error('Error loading localities on initial load:', error);
-        }
-
-        // Load settlements too if we're at a reasonable zoom level
-        const currentZoom = map.getZoom();
-        if (currentZoom >= 9) {  // Use mobile threshold as minimum
-          try {
-            console.log('Loading settlements on initial map load (zoom:', currentZoom, ')...');
-            await loadSettlementsIfNeeded('initial-map-load');
-            console.log('Settlements loaded successfully');
-          } catch (error) {
-            console.error('Error loading settlements on initial load:', error);
-          }
-        }
+        // Both localities and settlements are now loaded via zoom-based loading
+        // This improves initial page load performance
+        // They will load when zoom >= 9 (mobile) or >= 10 (desktop)
 
         // Mark data as loaded for loading screen
         loadingTracker.markComplete('dataLoaded');
