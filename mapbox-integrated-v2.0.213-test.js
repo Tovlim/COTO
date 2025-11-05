@@ -6260,10 +6260,28 @@ const closeSidebar = (side) => {
           mapWrapElement.style.marginRight = '0px';
         }
 
-        // Trigger Mapbox resize after margin change
+        // Trigger Mapbox resize after margin change with smooth recentering
         setTimeout(() => {
           if (window.map) {
+            // Store current center and zoom before resize
+            const currentCenter = map.getCenter();
+            const currentZoom = map.getZoom();
+            const currentBearing = map.getBearing();
+            const currentPitch = map.getPitch();
+
+            // Resize the map (this may cause a jump)
             map.resize();
+
+            // Smoothly ease back to the stored position to prevent jarring recentering
+            map.easeTo({
+              center: currentCenter,
+              zoom: currentZoom,
+              bearing: currentBearing,
+              pitch: currentPitch,
+              duration: 300, // Smooth 300ms transition
+              easing: (t) => t * (2 - t), // Ease-out quad for smooth deceleration
+              essential: true // Ensures this animation completes even if user interacts
+            });
           }
         }, 260); // Slightly after transition completes (250ms)
       }
@@ -6344,10 +6362,28 @@ const enhancedToggleSidebar = (side, show = null) => {
           mapWrapElement.style.marginRight = `${rightWidth}px`;
         }
 
-        // Trigger Mapbox resize after margin change
+        // Trigger Mapbox resize after margin change with smooth recentering
         setTimeout(() => {
           if (window.map) {
+            // Store current center and zoom before resize
+            const currentCenter = map.getCenter();
+            const currentZoom = map.getZoom();
+            const currentBearing = map.getBearing();
+            const currentPitch = map.getPitch();
+
+            // Resize the map (this may cause a jump)
             map.resize();
+
+            // Smoothly ease back to the stored position to prevent jarring recentering
+            map.easeTo({
+              center: currentCenter,
+              zoom: currentZoom,
+              bearing: currentBearing,
+              pitch: currentPitch,
+              duration: 300, // Smooth 300ms transition
+              easing: (t) => t * (2 - t), // Ease-out quad for smooth deceleration
+              essential: true // Ensures this animation completes even if user interacts
+            });
           }
         }, 260); // Slightly after transition completes (250ms)
       }
