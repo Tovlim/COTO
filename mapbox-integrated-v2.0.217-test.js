@@ -6295,17 +6295,19 @@ const closeSidebar = (side) => {
             // Trigger the resize
             map.resize();
 
-            // Immediately restore position (synchronous, no delay)
-            map.jumpTo({
+            // Smoothly restore position with animation
+            map.flyTo({
               center: currentCenter,
               zoom: currentZoom,
               bearing: currentBearing,
-              pitch: currentPitch
+              pitch: currentPitch,
+              duration: 250, // Match the sidebar transition duration
+              essential: true
             });
 
             // Check if position changed
             const afterCenter = map.getCenter();
-            console.log('[Map Resize Debug] After immediate jumpTo:', {
+            console.log('[Map Resize Debug] After flyTo animation:', {
               center: afterCenter.toArray(),
               centerDiff: [
                 afterCenter.lng - currentCenter.lng,
@@ -6331,11 +6333,13 @@ const closeSidebar = (side) => {
                   ]
                 });
 
-                map.jumpTo({
+                map.flyTo({
                   center: currentCenter,
                   zoom: currentZoom,
                   bearing: currentBearing,
-                  pitch: currentPitch
+                  pitch: currentPitch,
+                  duration: 150, // Shorter duration for correction
+                  essential: true
                 });
               }
             });
@@ -6454,17 +6458,19 @@ const enhancedToggleSidebar = (side, show = null) => {
             // Trigger the resize
             map.resize();
 
-            // Immediately restore position (synchronous, no delay)
-            map.jumpTo({
+            // Smoothly restore position with animation
+            map.flyTo({
               center: currentCenter,
               zoom: currentZoom,
               bearing: currentBearing,
-              pitch: currentPitch
+              pitch: currentPitch,
+              duration: 250, // Match the sidebar transition duration
+              essential: true
             });
 
             // Check if position changed
             const afterCenter = map.getCenter();
-            console.log('[Map Resize Debug] After immediate jumpTo:', {
+            console.log('[Map Resize Debug] After flyTo animation:', {
               center: afterCenter.toArray(),
               centerDiff: [
                 afterCenter.lng - currentCenter.lng,
@@ -6490,11 +6496,13 @@ const enhancedToggleSidebar = (side, show = null) => {
                   ]
                 });
 
-                map.jumpTo({
+                map.flyTo({
                   center: currentCenter,
                   zoom: currentZoom,
                   bearing: currentBearing,
-                  pitch: currentPitch
+                  pitch: currentPitch,
+                  duration: 150, // Shorter duration for correction
+                  essential: true
                 });
               }
             });
