@@ -416,10 +416,27 @@ class SiteSearch {
       // Update result elements
       const titleEl = resultEl.querySelector('[site-search="result-title"]');
       const typeEls = resultEl.querySelectorAll('[site-search="result-type"]');
-      // Use report-specific picture element for reports, fallback to regular picture element
-      const pictureEl = item.type === 'report'
-        ? resultEl.querySelector('[site-search="result-picture-report"]') || resultEl.querySelector('[site-search="result-picture"]')
-        : resultEl.querySelector('[site-search="result-picture"]');
+
+      // Get both picture elements
+      const regularPictureEl = resultEl.querySelector('[site-search="result-picture"]');
+      const reportPictureEl = resultEl.querySelector('[site-search="result-picture-report"]');
+
+      // Determine which picture element to use based on type
+      let pictureEl = null;
+      if (item.type === 'report') {
+        pictureEl = reportPictureEl || regularPictureEl;
+        // Hide the unused picture element
+        if (regularPictureEl && reportPictureEl) {
+          regularPictureEl.style.display = 'none';
+        }
+      } else {
+        pictureEl = regularPictureEl;
+        // Hide report picture element if it exists
+        if (reportPictureEl) {
+          reportPictureEl.style.display = 'none';
+        }
+      }
+
       const infoEl = resultEl.querySelector('[site-search="result-info"]');
 
       if (titleEl) {
@@ -453,8 +470,9 @@ class SiteSearch {
         if (item.photoUrl) {
           pictureEl.src = item.photoUrl;
           pictureEl.alt = item.name;
+          pictureEl.style.display = ''; // Ensure it's visible when we have an image
         } else {
-          // Use a default placeholder or hide the image
+          // Hide the image when there's no URL
           pictureEl.style.display = 'none';
         }
       }
