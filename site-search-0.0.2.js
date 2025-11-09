@@ -416,7 +416,10 @@ class SiteSearch {
       // Update result elements
       const titleEl = resultEl.querySelector('[site-search="result-title"]');
       const typeEls = resultEl.querySelectorAll('[site-search="result-type"]');
-      const pictureEl = resultEl.querySelector('[site-search="result-picture"]');
+      // Use report-specific picture element for reports, fallback to regular picture element
+      const pictureEl = item.type === 'report'
+        ? resultEl.querySelector('[site-search="result-picture-report"]') || resultEl.querySelector('[site-search="result-picture"]')
+        : resultEl.querySelector('[site-search="result-picture"]');
       const infoEl = resultEl.querySelector('[site-search="result-info"]');
 
       if (titleEl) {
