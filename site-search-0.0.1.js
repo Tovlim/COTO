@@ -301,7 +301,11 @@ class SiteSearch {
         region: item.region,
         subRegion: item.subRegion,
         territory: item.territory,
-        photoUrl: item.photoUrl
+        photoUrl: item.photoUrl,
+        // Report-specific fields
+        categoryName: item.categoryName,
+        reporterNames: item.reporterNames,
+        urgent: item.urgent
       }));
 
       // Apply filter and sort
@@ -417,6 +421,11 @@ class SiteSearch {
 
       if (titleEl) {
         titleEl.textContent = item.name;
+
+        // Add urgent indicator for reports if urgent
+        if (item.type === 'report' && item.urgent) {
+          titleEl.innerHTML = '🔴 ' + titleEl.textContent;
+        }
       }
 
       // Format type display
@@ -475,6 +484,35 @@ class SiteSearch {
   }
 
   getLocationInfo(item) {
+    // For reports, show date, topic, and reporters
+    if (item.type === 'report') {
+      const infoParts = [];
+
+      // Add date if available
+      if (item.date) {
+        const date = new Date(item.date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+        infoParts.push(formattedDate);
+      }
+
+      // Add topic/category if available
+      if (item.categoryName) {
+        infoParts.push(item.categoryName);
+      }
+
+      // Add reporters (bylines) if available
+      if (item.reporterNames && item.reporterNames.length > 0) {
+        const byline = item.reporterNames.join(', ');
+        infoParts.push(`By: ${byline}`);
+      }
+
+      return infoParts.length > 0 ? infoParts.join(' • ') : null;
+    }
+
     // Only show location info for specific types
     if (!['locality', 'settlement', 'region', 'territory'].includes(item.type)) {
       return null;
