@@ -6124,36 +6124,44 @@ class OptimizedMapLayers {
   
   // Smart layer ordering - only reorder when necessary
   optimizeLayerOrder() {
-    const markerLayers = ['settlement-points', 'locality-points', 'region-points'];
-    
-    // Check if all expected layers exist first
-    const existingLayers = markerLayers.filter(id => this.hasLayer(id));
+    // Define the correct layer order (bottom to top)
+    // Settlement and locality layers should be at the bottom
+    // Administrative layers should be on top
+    const correctOrder = [
+      'settlement-circles',
+      'settlement-points',
+      'locality-circles',
+      'locality-points',
+      'subregion-points',
+      'district-points',
+      'region-points',
+      'territory-points'
+    ];
+
+    // Filter to only existing layers
+    const existingLayers = correctOrder.filter(id => this.hasLayer(id));
     if (existingLayers.length === 0) return;
-    
-    const currentOrder = this.map.getStyle().layers.map(l => l.id);
-    
-    // Check if reordering is needed
-    const markerIndices = existingLayers
-      .map(id => currentOrder.indexOf(id));
-      
-    const needsReorder = markerIndices.some((index, i) => {
-      return i > 0 && index < markerIndices[i - 1];
-    });
-    
-    if (needsReorder) {
-      existingLayers.forEach(layerId => {
+
+    // Reorder layers by removing and re-adding in correct order
+    existingLayers.forEach(layerId => {
+      try {
+        // Move layer to top (since we're iterating bottom to top)
+        this.map.moveLayer(layerId);
+        this.layerCache.delete(layerId); // Invalidate cache
+      } catch (e) {
+        // If moveLayer fails, try remove and re-add
         try {
           const layer = this.map.getStyle().layers.find(l => l.id === layerId);
           if (layer) {
             this.map.removeLayer(layerId);
             this.map.addLayer(layer);
-            this.layerCache.delete(layerId); // Invalidate cache
+            this.layerCache.delete(layerId);
           }
-        } catch (e) {
+        } catch (e2) {
           // Silent error handling in production
         }
-      });
-    }
+      }
+    });
   }
   
   // Clear caches when layers change significantly
