@@ -7501,13 +7501,13 @@ function addNativeRegionMarkers() {
             10, 15,   // Match district sizing
             14, 17    // Match district sizing
           ],
-          'text-allow-overlap': false,
-          'text-ignore-placement': false,
-          'text-optional': true,
+          'text-allow-overlap': true,  // Never disappear due to collisions
+          'text-ignore-placement': true,  // Don't affect other labels' placement
+          'text-optional': false,  // Always show these important markers
           'text-padding': 5,    // Match district padding
           'text-offset': [0, 0],
           'text-anchor': 'center',
-          'symbol-sort-key': 8  // Match district priority
+          'symbol-sort-key': 1  // Higher priority than settlements (13) and localities (14)
         },
         paint: {
           'text-color': '#ffffff',
@@ -7578,13 +7578,13 @@ function addNativeDistrictMarkers() {
             10, 15,   // Slightly smaller than regions at mid zoom
             14, 17    // Slightly smaller than regions at high zoom
           ],
-          'text-allow-overlap': false,
-          'text-ignore-placement': false,
-          'text-optional': true,
+          'text-allow-overlap': true,  // Never disappear due to collisions
+          'text-ignore-placement': true,  // Don't affect other labels' placement
+          'text-optional': false,  // Always show these important markers
           'text-padding': 5,
           'text-offset': [0, 0],
           'text-anchor': 'center',
-          'symbol-sort-key': 8 // Lower priority than regions (10) but higher than localities
+          'symbol-sort-key': 2  // Higher priority than settlements (13) and localities (14)
         },
         paint: {
           'text-color': '#ffffff',
@@ -7974,13 +7974,13 @@ function addNativeSubregionMarkers() {
             10, 15,   // Match district sizing
             14, 17    // Match district sizing
           ],
-          'text-allow-overlap': false,
-          'text-ignore-placement': false,
-          'text-optional': true,
+          'text-allow-overlap': true,  // Never disappear due to collisions
+          'text-ignore-placement': true,  // Don't affect other labels' placement
+          'text-optional': false,  // Always show these important markers
           'text-padding': 5,    // Match district padding
           'text-offset': [0, 0],
           'text-anchor': 'center',
-          'symbol-sort-key': 8  // Match district priority
+          'symbol-sort-key': 3  // Higher priority than settlements (13) and localities (14)
         },
         paint: {
           'text-color': '#ffffff',
