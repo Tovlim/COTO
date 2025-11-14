@@ -168,10 +168,32 @@ class SiteSearch {
       this.elements.resultTemplate.style.display = 'none';
     }
 
+    // Initialize sidebar state (hidden by default)
+    this.initializeSidebarState();
+
     console.log('[Site Search] Setting up event listeners...');
     this.setupEventListeners();
 
     console.log('[Site Search] Initialization complete!');
+  }
+
+  initializeSidebarState() {
+    const sidebar = this.elements.sidebar;
+    if (!sidebar) return;
+
+    // Set initial state - sidebar is hidden
+    sidebar.classList.remove('is-show');
+
+    // Set initial margin for desktop to hide sidebar
+    if (window.innerWidth > 478) {
+      const sidebarWidth = parseInt(getComputedStyle(sidebar).width) || 300;
+      sidebar.style.marginRight = `-${sidebarWidth + 1}px`;
+      // Add transition for smooth animation
+      sidebar.style.transition = 'margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    } else {
+      // Mobile: clear any inline styles
+      sidebar.style.marginRight = '';
+    }
   }
 
   setupEventListeners() {
@@ -237,6 +259,9 @@ class SiteSearch {
     if (form) {
       form.addEventListener('submit', (e) => e.preventDefault());
     }
+
+    // Handle window resize for responsive sidebar
+    window.addEventListener('resize', () => this.handleResize());
 
     // Enter key to select first result
     this.elements.input.addEventListener('keydown', (e) => {
@@ -617,24 +642,66 @@ class SiteSearch {
   }
 
   openSidebar() {
-    if (this.elements.sidebar) {
-      this.elements.sidebar.style.display = 'flex';
+    const sidebar = this.elements.sidebar;
+    if (!sidebar) return;
 
-      // Focus the search input when sidebar opens
-      if (this.elements.input) {
-        setTimeout(() => {
-          this.elements.input.focus();
-        }, 100);
-      }
+    // Add is-show class for visibility
+    sidebar.classList.add('is-show');
+
+    // Handle margin based on screen size for slide animation
+    if (window.innerWidth > 478) {
+      // Desktop: animate with margin
+      sidebar.style.marginRight = '0';
+    } else {
+      // Mobile: just use the class, no margin needed
+      sidebar.style.marginRight = '';
+    }
+
+    // Focus the search input when sidebar opens
+    if (this.elements.input) {
+      setTimeout(() => {
+        this.elements.input.focus();
+      }, 100);
     }
   }
 
   closeSidebar() {
-    if (this.elements.sidebar) {
-      this.elements.sidebar.style.display = 'none';
+    const sidebar = this.elements.sidebar;
+    if (!sidebar) return;
 
-      // Clear search when closing sidebar (optional - remove if not desired)
-      this.handleClear();
+    // Remove is-show class
+    sidebar.classList.remove('is-show');
+
+    // Handle margin based on screen size
+    if (window.innerWidth > 478) {
+      // Desktop: slide out with negative margin
+      // Assuming sidebar width is 300px (you may need to adjust this)
+      const sidebarWidth = parseInt(getComputedStyle(sidebar).width) || 300;
+      sidebar.style.marginRight = `-${sidebarWidth + 1}px`;
+    } else {
+      // Mobile: clear margin
+      sidebar.style.marginRight = '';
+    }
+
+    // Clear search when closing sidebar (optional - remove if not desired)
+    this.handleClear();
+  }
+
+  handleResize() {
+    const sidebar = this.elements.sidebar;
+    if (!sidebar) return;
+
+    const isShowing = sidebar.classList.contains('is-show');
+
+    if (window.innerWidth > 478) {
+      // Desktop view
+      const sidebarWidth = parseInt(getComputedStyle(sidebar).width) || 300;
+      sidebar.style.marginRight = isShowing ? '0' : `-${sidebarWidth + 1}px`;
+      sidebar.style.transition = 'margin-right 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    } else {
+      // Mobile view
+      sidebar.style.marginRight = isShowing ? '0' : '';
+      sidebar.style.transition = '';
     }
   }
 
