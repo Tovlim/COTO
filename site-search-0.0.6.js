@@ -182,7 +182,7 @@ class SiteSearch {
     if (!sidebar) return;
 
     // Set initial state - sidebar is hidden
-    sidebar.classList.remove('is-show');
+    sidebar.classList.remove('is--show');
 
     // Set initial margin for desktop to hide sidebar
     if (window.innerWidth > 478) {
@@ -646,7 +646,7 @@ class SiteSearch {
     if (!sidebar) return;
 
     // Add is-show class for visibility
-    sidebar.classList.add('is-show');
+    sidebar.classList.add('is--show');
 
     // Handle margin based on screen size for slide animation
     if (window.innerWidth > 478) {
@@ -670,7 +670,7 @@ class SiteSearch {
     if (!sidebar) return;
 
     // Remove is-show class
-    sidebar.classList.remove('is-show');
+    sidebar.classList.remove('is--show');
 
     // Handle margin based on screen size
     if (window.innerWidth > 478) {
@@ -691,7 +691,7 @@ class SiteSearch {
     const sidebar = this.elements.sidebar;
     if (!sidebar) return;
 
-    const isShowing = sidebar.classList.contains('is-show');
+    const isShowing = sidebar.classList.contains('is--show');
 
     if (window.innerWidth > 478) {
       // Desktop view
