@@ -133,6 +133,12 @@
 
         // 1. Title in the main section
         const titleElement = itemElement.querySelector('.text-block-829806-1');
+        if (!titleElement) {
+            console.error('[CMS Client] Title element not found for report:', reportData.name);
+            // Debug: log what elements ARE available
+            const availableClasses = Array.from(itemElement.querySelectorAll('[class*="text-block"]')).map(el => el.className);
+            console.log('[CMS Client] Available text-block classes:', availableClasses);
+        }
         if (setText(titleElement, reportData.name)) {
             successCount++;
         } else {
@@ -629,6 +635,11 @@
         // Remove any loading states
         itemElement.classList.remove('is--loading');
         itemElement.classList.add('is--loaded');
+
+        // Debug logging for success/fail counts
+        if (reportData.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank' || failCount > 0) {
+            console.log(`[CMS Client] Report "${reportData.name}" - Success: ${successCount}, Fail: ${failCount}`);
+        }
 
         return successCount > 0;
     }
