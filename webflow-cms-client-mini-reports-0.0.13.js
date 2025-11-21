@@ -513,6 +513,16 @@
 
         // Show the images-wrap
         imagesWrap.style.display = '';
+
+        // Initialize Fancybox for this gallery
+        if (typeof Fancybox !== 'undefined') {
+            Fancybox.bind(`[data-fancybox="${galleryId}"]`, {
+                // Optional Fancybox configuration
+                Thumbs: {
+                    autoStart: true,
+                },
+            });
+        }
     }
 
     // Main function to populate a report item
