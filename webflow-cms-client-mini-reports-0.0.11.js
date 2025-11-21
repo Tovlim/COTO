@@ -446,6 +446,69 @@
             videoElements[0].setAttribute('data-src', embedUrl);
             videoElements[0].src = embedUrl;
         }
+
+        // Populate report images gallery
+        populateImagesGallery(itemElement, reportData.reportImages);
+    }
+
+    // Populate images gallery in images-wrap
+    function populateImagesGallery(itemElement, reportImages) {
+        const imagesWrap = itemElement.querySelector('[cms-deliver="images-wrap"]');
+        if (!imagesWrap || !reportImages || reportImages.length === 0) {
+            if (imagesWrap) imagesWrap.style.display = 'none';
+            return;
+        }
+
+        // Find the template .picturelightbox element
+        const templateLightbox = imagesWrap.querySelector('.picturelightbox');
+        if (!templateLightbox) {
+            console.warn('[CMS Client] No .picturelightbox template found in images-wrap');
+            return;
+        }
+
+        // Clear existing lightboxes except the template
+        const existingLightboxes = imagesWrap.querySelectorAll('.picturelightbox');
+        existingLightboxes.forEach((lb, index) => {
+            if (index > 0) lb.remove();
+        });
+
+        // Clone and populate for each image
+        reportImages.forEach((image, index) => {
+            const lightbox = templateLightbox.cloneNode(true);
+
+            const anchor = lightbox.querySelector('a[lightbox-image]');
+            const img = lightbox.querySelector('img');
+
+            if (anchor && img && image.url) {
+                // Set anchor attributes for Fancybox
+                anchor.href = image.url;
+                anchor.setAttribute('data-thumb', image.url);
+                anchor.setAttribute('data-caption', image.alt || '');
+
+                // Set image attributes
+                img.src = image.url;
+                img.alt = image.alt || '';
+
+                // Remove lazy loading classes
+                img.classList.remove('lazy', 'loading');
+                img.removeAttribute('data-ll-status');
+                img.loading = 'lazy';
+
+                // Show the lightbox
+                lightbox.style.display = '';
+
+                // Append to images-wrap
+                if (index === 0) {
+                    // Replace the first template
+                    templateLightbox.replaceWith(lightbox);
+                } else {
+                    imagesWrap.appendChild(lightbox);
+                }
+            }
+        });
+
+        // Show the images-wrap
+        imagesWrap.style.display = '';
     }
 
     // Main function to populate a report item
