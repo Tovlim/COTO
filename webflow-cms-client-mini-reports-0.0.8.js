@@ -778,6 +778,9 @@
                 url += `&search=${encodeURIComponent(currentFilters.search)}`;
             }
 
+            // Add cache buster to ensure fresh data
+            url += `&_t=${Date.now()}`;
+
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -847,8 +850,8 @@
                 return;
             }
 
-            // Fetch reports
-            const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}`);
+            // Fetch reports with cache buster
+            const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
