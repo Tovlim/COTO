@@ -447,12 +447,12 @@
             videoElements[0].src = embedUrl;
         }
 
-        // Populate report images gallery
-        populateImagesGallery(itemElement, reportData.reportImages);
+        // Populate report images gallery with unique gallery ID
+        populateImagesGallery(itemElement, reportData.reportImages, reportData.id);
     }
 
     // Populate images gallery in images-wrap
-    function populateImagesGallery(itemElement, reportImages) {
+    function populateImagesGallery(itemElement, reportImages, reportId) {
         const imagesWrap = itemElement.querySelector('[cms-deliver="images-wrap"]');
         if (!imagesWrap || !reportImages || reportImages.length === 0) {
             if (imagesWrap) imagesWrap.style.display = 'none';
@@ -472,6 +472,9 @@
             if (index > 0) lb.remove();
         });
 
+        // Create unique gallery ID for this report
+        const galleryId = 'gallery-' + reportId;
+
         // Clone and populate for each image
         reportImages.forEach((image, index) => {
             const lightbox = templateLightbox.cloneNode(true);
@@ -480,8 +483,9 @@
             const img = lightbox.querySelector('img');
 
             if (anchor && img && image.url) {
-                // Set anchor attributes for Fancybox
+                // Set anchor attributes for Fancybox with unique gallery ID
                 anchor.href = image.url;
+                anchor.setAttribute('data-fancybox', galleryId);
                 anchor.setAttribute('data-thumb', image.url);
                 anchor.setAttribute('data-caption', image.alt || '');
 
