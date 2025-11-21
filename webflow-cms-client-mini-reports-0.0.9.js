@@ -11,7 +11,7 @@
     // Configuration
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
-        REPORTS_LIMIT: 10,  // Initial load
+        REPORTS_LIMIT: 15,  // Initial load - increased to ensure problematic report is included
         REPORTS_PER_PAGE: 10,  // Load 10 more each scroll
         DEBUG: false // Set to true for detailed logging
     };
@@ -881,6 +881,16 @@
 
             console.log(`[CMS Client] Loaded ${successCount} reports. Total: ${totalReports}, Has more: ${hasMoreReports}`);
 
+            // If total reports is small (<=40), load all immediately to avoid pagination issues
+            if (totalReports <= 40 && hasMoreReports) {
+                console.log(`[CMS Client] Total reports is ${totalReports}, loading all immediately`);
+                setTimeout(() => {
+                    if (hasMoreReports && !isLoading) {
+                        loadMoreReports();
+                    }
+                }, 500);
+            }
+
             // Initialize UI interactions only on first load
             if (initializeUI) {
                 initializeInteractions();
@@ -1062,11 +1072,11 @@
         // Auto-load remaining reports if they're few
         setTimeout(() => {
             const remaining = totalReports - currentOffset;
-            if (remaining > 0 && remaining <= 20 && hasMoreReports) {
+            if (remaining > 0 && remaining <= 25 && hasMoreReports) {
                 console.log(`[CMS Client] Auto-loading remaining ${remaining} reports`);
                 loadMoreReports();
             }
-        }, 2000);
+        }, 1000);  // Reduced delay from 2000ms to 1000ms
 
         // Also trigger immediate load for next batch if viewport is tall enough
         setTimeout(() => {
@@ -1075,7 +1085,7 @@
                 const documentHeight = document.documentElement.scrollHeight;
 
                 // If viewport is tall enough that we can see most of the content, load more
-                if (viewportHeight > documentHeight * 0.6) {
+                if (viewportHeight > documentHeight * 0.5) {  // Changed from 0.6 to 0.5 for more aggressive loading
                     console.log(`[CMS Client] Viewport tall enough, loading more reports immediately`);
                     loadMoreReports();
                 }
