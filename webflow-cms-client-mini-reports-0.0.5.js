@@ -1025,7 +1025,7 @@
             return;
         }
 
-        // Create IntersectionObserver
+        // Create IntersectionObserver with more aggressive settings
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting && hasMoreReports && !isLoading) {
@@ -1035,13 +1035,22 @@
             });
         }, {
             root: null,  // viewport
-            rootMargin: '200px',  // Trigger 200px before reaching sentinel
+            rootMargin: '500px',  // Trigger 500px before reaching sentinel (more aggressive)
             threshold: 0.1
         });
 
         observer.observe(sentinel);
 
-        console.log('[CMS Client] Infinite scroll initialized with existing sentinel');
+        console.log('[CMS Client] Infinite scroll initialized with 500px margin');
+
+        // Auto-load remaining reports if they're few
+        setTimeout(() => {
+            const remaining = totalReports - currentOffset;
+            if (remaining > 0 && remaining <= 20 && hasMoreReports) {
+                console.log(`[CMS Client] Auto-loading remaining ${remaining} reports`);
+                loadMoreReports();
+            }
+        }, 2000);
     }
 
     // Initialize search/filter functionality with server-side search
@@ -1230,6 +1239,87 @@
                 hasList: !!list,
                 hasItem: !!item,
                 hasTitle: !!title
+            };
+        },
+        // Debug function to find specific report across all pages
+        findReport: async function(slug) {
+            const searchSlug = slug || 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank';
+            console.log(`[CMS Debug] Searching for report with slug: ${searchSlug}`);
+
+            let offset = 0;
+            const limit = 50; // Fetch more at once for searching
+            let found = false;
+
+            while (!found && offset < 100) { // Safety limit
+                try {
+                    const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${limit}&offset=${offset}`);
+                    const data = await response.json();
+                    const items = data.data || [];
+
+                    const report = items.find(r => r.slug === searchSlug);
+                    if (report) {
+                        console.log(`[CMS Debug] FOUND report at offset ${offset}:`, report);
+                        found = true;
+                        return report;
+                    }
+
+                    console.log(`[CMS Debug] Not found in batch at offset ${offset}, checked ${items.length} reports`);
+
+                    if (items.length < limit) {
+                        console.log(`[CMS Debug] Reached end of reports at offset ${offset}`);
+                        break;
+                    }
+
+                    offset += limit;
+                } catch (error) {
+                    console.error('[CMS Debug] Error searching:', error);
+                    break;
+                }
+            }
+
+            if (!found) {
+                console.log(`[CMS Debug] Report with slug "${searchSlug}" NOT FOUND in API`);
+            }
+            return null;
+        },
+        // Load all remaining reports manually
+        loadAllRemaining: async function() {
+            console.log(`[CMS Debug] Loading all remaining reports...`);
+            console.log(`[CMS Debug] Current: offset=${currentOffset}, total=${totalReports}, hasMore=${hasMoreReports}`);
+
+            let loadCount = 0;
+            while (hasMoreReports && !isLoading) {
+                await loadMoreReports();
+                loadCount++;
+
+                // Wait for loading to complete
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (!isLoading) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                });
+
+                // Safety check to prevent infinite loop
+                if (loadCount > 10) {
+                    console.warn('[CMS Debug] Safety limit reached, stopping load');
+                    break;
+                }
+            }
+
+            console.log(`[CMS Debug] Finished loading all. Total loaded: ${currentOffset}`);
+            return currentOffset;
+        },
+        // Get current loading state
+        getState: function() {
+            return {
+                currentOffset,
+                totalReports,
+                hasMoreReports,
+                isLoading,
+                remaining: totalReports - currentOffset
             };
         }
     };
