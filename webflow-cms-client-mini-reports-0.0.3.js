@@ -787,6 +787,12 @@
             const response_data = await response.json();
             const items = response_data.data || [];
 
+            // Debug: Check if specific report is in this batch
+            const problematicReport = items.find(r => r.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank');
+            if (problematicReport) {
+                console.log('[CMS Client] Found problematic report in batch at offset', currentOffset, ':', problematicReport);
+            }
+
             // Append new reports (don't clear existing)
             const successCount = await populateReports(items, listContainer, templateItem, true);
 
@@ -839,6 +845,16 @@
 
             // Populate the reports (API returns { data: [...] } now)
             const items = response_data.data || [];
+
+            // Debug: Check if specific report is in the response
+            const problematicReport = items.find(r => r.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank');
+            if (problematicReport) {
+                console.log('[CMS Client] Found problematic report in initial load:', problematicReport);
+            } else {
+                console.log('[CMS Client] Problematic report NOT in initial response. Checking slugs:');
+                console.log('[CMS Client] All slugs:', items.map(r => r.slug));
+            }
+
             const successCount = await populateReports(items, listContainer, templateItem);
 
             // Initialize pagination state
