@@ -124,6 +124,13 @@
         let successCount = 0;
         let failCount = 0;
 
+        // Debug logging for problematic reports
+        if (reportData.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank') {
+            console.log('[CMS Client] Debug - Problematic report data:', reportData);
+            console.log('[CMS Client] Debug - Reporters:', reportData.reporters);
+            console.log('[CMS Client] Debug - First reporter slug check:', reportData.reporters?.[0]?.slug);
+        }
+
         // 1. Title in the main section
         const titleElement = itemElement.querySelector('.text-block-829806-1');
         if (setText(titleElement, reportData.name)) {
@@ -673,7 +680,11 @@
                 fragment.appendChild(newItem);
                 successCount++;
             } else {
-                console.warn(`[CMS Client] Failed to populate report ${index + 1}`);
+                console.warn(`[CMS Client] Failed to populate report ${index + 1}:`, report.name || 'Unknown', 'ID:', report.id);
+                // Debug log the failed report
+                if (report.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank') {
+                    console.error('[CMS Client] Specific problematic report failed to populate:', report);
+                }
             }
         });
 
