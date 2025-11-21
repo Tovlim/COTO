@@ -788,12 +788,22 @@
             const items = response_data.data || [];
 
             // Debug: Check if specific report is in this batch
+            console.log('[CMS Client] Checking batch at offset', currentOffset - CONFIG.REPORTS_PER_PAGE, ', items received:', items.length);
+            console.log('[CMS Client] First 3 slugs in batch:', items.slice(0, 3).map(r => r.slug));
+
             const problematicReport = items.find(r => r.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank');
             if (problematicReport) {
-                console.log('[CMS Client] FOUND problematic report in batch at offset', currentOffset - CONFIG.REPORTS_PER_PAGE, ':', problematicReport);
+                console.log('[CMS Client] ✅ FOUND problematic report in batch at offset', currentOffset - CONFIG.REPORTS_PER_PAGE, ':', problematicReport);
                 console.log('[CMS Client] Report will be at DOM position:', currentOffset - CONFIG.REPORTS_PER_PAGE + items.indexOf(problematicReport) + 1);
+                console.log('[CMS Client] Report has reporters:', problematicReport.reporters?.length || 0);
             } else {
-                console.log('[CMS Client] Problematic report NOT in this batch (offset', currentOffset - CONFIG.REPORTS_PER_PAGE, 'limit', CONFIG.REPORTS_PER_PAGE, ')');
+                console.log('[CMS Client] ❌ Problematic report NOT in this batch (offset', currentOffset - CONFIG.REPORTS_PER_PAGE, 'limit', CONFIG.REPORTS_PER_PAGE, ')');
+
+                // Check if any slug contains the text we're looking for
+                const similarSlugs = items.filter(r => r.slug && r.slug.includes('masked'));
+                if (similarSlugs.length > 0) {
+                    console.log('[CMS Client] Found similar slugs:', similarSlugs.map(r => r.slug));
+                }
             }
 
             // Append new reports (don't clear existing)
@@ -1054,6 +1064,20 @@
                 loadMoreReports();
             }
         }, 2000);
+
+        // Also trigger immediate load for next batch if viewport is tall enough
+        setTimeout(() => {
+            if (hasMoreReports && !isLoading) {
+                const viewportHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+
+                // If viewport is tall enough that we can see most of the content, load more
+                if (viewportHeight > documentHeight * 0.6) {
+                    console.log(`[CMS Client] Viewport tall enough, loading more reports immediately`);
+                    loadMoreReports();
+                }
+            }
+        }, 100);
     }
 
     // Initialize search/filter functionality with server-side search
