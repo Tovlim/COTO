@@ -790,7 +790,10 @@
             // Debug: Check if specific report is in this batch
             const problematicReport = items.find(r => r.slug === 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank');
             if (problematicReport) {
-                console.log('[CMS Client] Found problematic report in batch at offset', currentOffset, ':', problematicReport);
+                console.log('[CMS Client] FOUND problematic report in batch at offset', currentOffset - CONFIG.REPORTS_PER_PAGE, ':', problematicReport);
+                console.log('[CMS Client] Report will be at DOM position:', currentOffset - CONFIG.REPORTS_PER_PAGE + items.indexOf(problematicReport) + 1);
+            } else {
+                console.log('[CMS Client] Problematic report NOT in this batch (offset', currentOffset - CONFIG.REPORTS_PER_PAGE, 'limit', CONFIG.REPORTS_PER_PAGE, ')');
             }
 
             // Append new reports (don't clear existing)
@@ -1321,6 +1324,43 @@
                 isLoading,
                 remaining: totalReports - currentOffset
             };
+        },
+        // Find report in DOM
+        findInDOM: function(slug) {
+            const searchSlug = slug || 'masked-israeli-settlers-attack-palestinian-village-injuring-residents-and-activists-in-west-bank';
+            console.log(`[CMS Debug] Searching DOM for report with slug: ${searchSlug}`);
+
+            const allReports = document.querySelectorAll('[cms-deliver="item"][data-report-slug]');
+            let found = false;
+
+            allReports.forEach((item, index) => {
+                const itemSlug = item.getAttribute('data-report-slug');
+                if (itemSlug === searchSlug) {
+                    console.log(`[CMS Debug] FOUND in DOM at position ${index + 1}`);
+                    console.log(`[CMS Debug] Element:`, item);
+                    console.log(`[CMS Debug] Title:`, item.querySelector('.text-block-829806-1')?.textContent);
+                    console.log(`[CMS Debug] Display style:`, item.style.display);
+                    console.log(`[CMS Debug] Visibility:`, window.getComputedStyle(item).visibility);
+                    console.log(`[CMS Debug] Is visible:`, item.offsetParent !== null);
+
+                    // Highlight the element temporarily
+                    const originalBorder = item.style.border;
+                    item.style.border = '3px solid red';
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => {
+                        item.style.border = originalBorder;
+                    }, 3000);
+
+                    found = true;
+                }
+            });
+
+            if (!found) {
+                console.log(`[CMS Debug] Report NOT FOUND in DOM`);
+                console.log(`[CMS Debug] Total reports in DOM:`, allReports.length);
+            }
+
+            return found;
         }
     };
 
