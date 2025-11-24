@@ -11,7 +11,7 @@
     // Configuration
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
-        REPORTS_LIMIT: 10,
+        REPORTS_LIMIT: 15,
         REPORTS_PER_PAGE: 10,
         DEBUG: false
     };
@@ -433,19 +433,8 @@
             setRichText(descriptionContent, reportData.description);
         }
 
-        const videoElements = itemElement.querySelectorAll('.embedvideo iframe');
-        if (reportData.videoLink && videoElements.length > 0) {
-            let embedUrl = reportData.videoLink;
-            if (embedUrl.includes('youtube.com/watch?v=')) {
-                const videoId = embedUrl.split('v=')[1].split('&')[0];
-                embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            } else if (embedUrl.includes('youtu.be/')) {
-                const videoId = embedUrl.split('youtu.be/')[1].split('?')[0];
-                embedUrl = `https://www.youtube.com/embed/${videoId}`;
-            }
-            videoElements[0].setAttribute('data-src', embedUrl);
-            videoElements[0].src = embedUrl;
-        }
+        // Populate videos
+        populateVideos(itemElement, reportData.videos);
 
         // Populate report images gallery with unique gallery ID
         populateImagesGallery(itemElement, reportData.reportImages, reportData.id);
@@ -459,6 +448,89 @@
                 imagesTab.style.display = '';
             }
         }
+
+        // Hide videos tab if no videos
+        const videosTab = itemElement.querySelector('[data-tab="3"]');
+        if (videosTab) {
+            if (!reportData.videos || reportData.videos.length === 0) {
+                videosTab.style.display = 'none';
+            } else {
+                videosTab.style.display = '';
+            }
+        }
+    }
+
+    // Populate videos in videos-wrap
+    function populateVideos(itemElement, videos) {
+        const videosWrap = itemElement.querySelector('[cms-deliver="videos-wrap"]');
+        if (!videosWrap || !videos || videos.length === 0) {
+            if (videosWrap) videosWrap.style.display = 'none';
+            return;
+        }
+
+        // Find the template video-wrap element
+        const templateVideoWrap = videosWrap.querySelector('[cms-deliver="video-wrap"]');
+        if (!templateVideoWrap) {
+            console.warn('[CMS Client] No [cms-deliver="video-wrap"] template found in videos-wrap');
+            return;
+        }
+
+        // Clear existing video-wrap elements except the template
+        const existingVideoWraps = videosWrap.querySelectorAll('[cms-deliver="video-wrap"]');
+        existingVideoWraps.forEach((vw, index) => {
+            if (index > 0) vw.remove();
+        });
+
+        // Clone and populate for each video
+        videos.forEach((video, index) => {
+            const videoWrap = templateVideoWrap.cloneNode(true);
+
+            const richTextElement = videoWrap.querySelector('[cms-field="video-rich-text"]');
+            const videoLinkElement = videoWrap.querySelector('[cms-field="video-link"]');
+            const iframe = videoLinkElement?.querySelector('iframe');
+
+            // Set rich text content
+            if (richTextElement && video.text) {
+                setRichText(richTextElement, video.text);
+            }
+
+            // Set video iframe src
+            if (iframe && video.url) {
+                let embedUrl = video.url;
+
+                // Convert YouTube watch URLs to embed URLs
+                if (embedUrl.includes('youtube.com/watch?v=')) {
+                    const videoId = embedUrl.split('v=')[1].split('&')[0];
+                    embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                } else if (embedUrl.includes('youtu.be/')) {
+                    const videoId = embedUrl.split('youtu.be/')[1].split('?')[0];
+                    embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                }
+
+                iframe.setAttribute('data-src', embedUrl);
+                iframe.src = embedUrl;
+
+                // Remove lazy loading status classes if present
+                iframe.classList.remove('loading', 'exited');
+                if (!iframe.classList.contains('entered')) {
+                    iframe.classList.add('entered');
+                }
+            }
+
+            // Show the video-wrap
+            videoWrap.style.display = '';
+
+            // Append to videos-wrap
+            if (index === 0) {
+                // Replace the first template
+                templateVideoWrap.replaceWith(videoWrap);
+            } else {
+                videosWrap.appendChild(videoWrap);
+            }
+        });
+
+        // Show the videos-wrap
+        videosWrap.style.display = '';
     }
 
     // Populate images gallery in images-wrap
