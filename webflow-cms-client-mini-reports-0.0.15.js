@@ -11,7 +11,7 @@
     // Configuration
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
-        REPORTS_LIMIT: 15,
+        REPORTS_LIMIT: 10,
         REPORTS_PER_PAGE: 10,
         DEBUG: false
     };
@@ -449,6 +449,16 @@
 
         // Populate report images gallery with unique gallery ID
         populateImagesGallery(itemElement, reportData.reportImages, reportData.id);
+
+        // Hide images tab if no report images
+        const imagesTab = itemElement.querySelector('[data-tab="2"]');
+        if (imagesTab) {
+            if (!reportData.reportImages || reportData.reportImages.length === 0) {
+                imagesTab.style.display = 'none';
+            } else {
+                imagesTab.style.display = '';
+            }
+        }
     }
 
     // Populate images gallery in images-wrap
