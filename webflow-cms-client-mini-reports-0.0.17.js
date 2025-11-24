@@ -441,8 +441,9 @@
 
         // Hide images tab if no report images
         const imagesTab = itemElement.querySelector('[data-tab="2"]');
+        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
         if (imagesTab) {
-            if (!reportData.reportImages || reportData.reportImages.length === 0) {
+            if (!hasImages) {
                 imagesTab.style.display = 'none';
             } else {
                 imagesTab.style.display = '';
@@ -451,11 +452,22 @@
 
         // Hide videos tab if no videos
         const videosTab = itemElement.querySelector('[data-tab="3"]');
+        const hasVideos = reportData.videos && reportData.videos.length > 0;
         if (videosTab) {
-            if (!reportData.videos || reportData.videos.length === 0) {
+            if (!hasVideos) {
                 videosTab.style.display = 'none';
             } else {
                 videosTab.style.display = '';
+            }
+        }
+
+        // Hide tabs wrap if no images and no videos
+        const tabsWrap = itemElement.querySelector('[data-tab="wrap"]');
+        if (tabsWrap) {
+            if (!hasImages && !hasVideos) {
+                tabsWrap.style.display = 'none';
+            } else {
+                tabsWrap.style.display = '';
             }
         }
     }
