@@ -250,6 +250,53 @@
         }
     }
 
+    // Populate reporter byline links (duplicating the template for each reporter)
+    function populateReporterBylineLinks(itemElement, reporters) {
+        const templateLink = itemElement.querySelector('a[cms-link="reporter"]');
+        if (!templateLink || !reporters || reporters.length === 0) {
+            if (templateLink) templateLink.style.display = 'none';
+            return;
+        }
+
+        // Get parent container
+        const parentContainer = templateLink.parentElement;
+        if (!parentContainer) return;
+
+        // Remove any previously cloned reporter links (except the template)
+        const existingLinks = parentContainer.querySelectorAll('a[cms-link="reporter"]');
+        existingLinks.forEach((link, index) => {
+            if (index > 0) link.remove();
+        });
+
+        // Clone and populate for each reporter
+        reporters.forEach((reporter, index) => {
+            if (!reporter.slug) return; // Skip reporters without slugs
+
+            let reporterLink;
+            if (index === 0) {
+                // Use the template for the first reporter
+                reporterLink = templateLink;
+            } else {
+                // Clone for additional reporters
+                reporterLink = templateLink.cloneNode(true);
+                parentContainer.insertBefore(reporterLink, templateLink.nextSibling);
+            }
+
+            // Update the link and text
+            reporterLink.href = `/reporter/${reporter.slug}`;
+            const reporterField = reporterLink.querySelector('[cms-field="reporters"]');
+            if (reporterField) {
+                reporterField.textContent = reporter.name;
+            }
+            reporterLink.style.display = '';
+        });
+
+        // Hide template if no reporters
+        if (reporters.filter(r => r.slug).length === 0) {
+            templateLink.style.display = 'none';
+        }
+    }
+
     // Populate basic report fields (title, image, date, byline, topic)
     function populateBasicFields(itemElement, reportData) {
         let successCount = 0;
@@ -276,6 +323,9 @@
         } else {
             if (topicLinkElement) topicLinkElement.style.display = 'none';
         }
+
+        // Populate reporter byline links
+        populateReporterBylineLinks(itemElement, reportData.reporters);
 
         return successCount;
     }
