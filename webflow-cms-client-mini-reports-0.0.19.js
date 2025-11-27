@@ -262,15 +262,30 @@
         const parentContainer = templateLink.parentElement;
         if (!parentContainer) return;
 
-        // Remove any previously cloned reporter links (except the template)
+        // Remove any previously cloned reporter links and separators
         const existingLinks = parentContainer.querySelectorAll('a[cms-link="reporter"]');
+        const existingSeparators = parentContainer.querySelectorAll('.reporter-separator');
         existingLinks.forEach((link, index) => {
             if (index > 0) link.remove();
         });
+        existingSeparators.forEach(sep => sep.remove());
+
+        // Find or create separator template
+        const separatorTemplate = document.createElement('div');
+        separatorTemplate.className = 'sub-text-block reporter-separator';
+        separatorTemplate.textContent = '·';
 
         // Clone and populate for each reporter
+        let lastElement = templateLink;
         reporters.forEach((reporter, index) => {
             if (!reporter.slug) return; // Skip reporters without slugs
+
+            // Add separator before reporter (except for first one)
+            if (index > 0) {
+                const separator = separatorTemplate.cloneNode(true);
+                parentContainer.insertBefore(separator, lastElement.nextSibling);
+                lastElement = separator;
+            }
 
             let reporterLink;
             if (index === 0) {
@@ -279,7 +294,7 @@
             } else {
                 // Clone for additional reporters
                 reporterLink = templateLink.cloneNode(true);
-                parentContainer.insertBefore(reporterLink, templateLink.nextSibling);
+                parentContainer.insertBefore(reporterLink, lastElement.nextSibling);
             }
 
             // Update the link and text
@@ -289,6 +304,7 @@
                 reporterField.textContent = reporter.name;
             }
             reporterLink.style.display = '';
+            lastElement = reporterLink;
         });
 
         // Hide template if no reporters
@@ -310,6 +326,12 @@
         const dateValue = reportData.date || reportData.createdOn;
         const dateElement = itemElement.querySelector('.mini-report-info-wrap .text-block-829818:first-child');
         if (setText(dateElement, formatDate(dateValue))) successCount++;
+
+        // Also populate [cms-field="date"] if it exists
+        const cmsDateElement = itemElement.querySelector('[cms-field="date"]');
+        if (cmsDateElement) {
+            setText(cmsDateElement, formatDate(dateValue));
+        }
 
         const bylineElement = itemElement.querySelector('.mini-report-info-wrap .text-block-829818:last-child');
         setText(bylineElement, formatReporterNames(reportData.reporters));
