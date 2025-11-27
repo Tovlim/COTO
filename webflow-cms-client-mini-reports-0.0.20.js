@@ -1019,10 +1019,56 @@
         });
     }
 
+    // Initialize scroll-to-top button
+    function initializeScrollToTop() {
+        const scrollWrap = document.querySelector('[cms-reports="scroll-wrap"]');
+        const jumpButton = document.querySelector('[cms-reports="jump-to-top"]');
+
+        if (!scrollWrap || !jumpButton) {
+            console.warn('[CMS Client] Scroll-to-top elements not found');
+            return;
+        }
+
+        // Set initial state
+        jumpButton.style.opacity = '0';
+        jumpButton.style.pointerEvents = 'none';
+        jumpButton.style.transition = 'opacity 300ms ease';
+
+        // Handle scroll events
+        scrollWrap.addEventListener('scroll', function() {
+            const scrollTop = scrollWrap.scrollTop;
+
+            // Calculate opacity based on scroll position (0 at top, 1 after 300px)
+            const opacity = Math.min(scrollTop / 300, 1);
+
+            jumpButton.style.opacity = opacity.toString();
+
+            // Make clickable only when opacity is greater than 0
+            if (opacity > 0) {
+                jumpButton.style.pointerEvents = 'auto';
+            } else {
+                jumpButton.style.pointerEvents = 'none';
+            }
+        });
+
+        // Handle click to scroll to top
+        jumpButton.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            scrollWrap.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        console.log('[CMS Client] Scroll-to-top initialized');
+    }
+
     // Initialize all interactions (tabs, accordion, search) - only called once
     function initializeInteractions() {
         initializeTabsAndAccordion();
         initializeSearch();
+        initializeScrollToTop();
     }
 
     // Initialize infinite scroll with IntersectionObserver
