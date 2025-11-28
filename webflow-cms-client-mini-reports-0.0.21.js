@@ -578,7 +578,7 @@
                 setRichText(richTextElement, video.text);
             }
 
-            // Set video iframe src
+            // Set video iframe src with lazy loading
             if (iframe && video.url) {
                 let embedUrl = video.url;
 
@@ -591,8 +591,10 @@
                     embedUrl = `https://www.youtube.com/embed/${videoId}`;
                 }
 
+                // Use native lazy loading for iframes
                 iframe.setAttribute('data-src', embedUrl);
                 iframe.src = embedUrl;
+                iframe.loading = 'lazy';
 
                 // Remove lazy loading status classes if present
                 iframe.classList.remove('loading', 'exited');
@@ -691,12 +693,44 @@
         }
     }
 
+    // Lazy load content for a report item (called when accordion opens)
+    function lazyLoadReportContent(itemElement) {
+        // Check if already loaded
+        if (itemElement.getAttribute('data-content-loaded') === 'true') {
+            return;
+        }
+
+        // Get stored report data
+        const reportDataJson = itemElement.getAttribute('data-report-data');
+        if (!reportDataJson) {
+            console.warn('[CMS Client] No report data found for lazy loading');
+            return;
+        }
+
+        try {
+            const reportData = JSON.parse(reportDataJson);
+            populateContent(itemElement, reportData);
+            itemElement.setAttribute('data-content-loaded', 'true');
+            log('Lazy loaded content for report:', reportData.name);
+        } catch (error) {
+            console.error('[CMS Client] Error lazy loading content:', error);
+        }
+    }
+
     // Main function to populate a report item
-    function populateReportItem(itemElement, reportData) {
+    function populateReportItem(itemElement, reportData, lazyLoadContent = true) {
         const successCount = populateBasicFields(itemElement, reportData);
         populateLocationFields(itemElement, reportData);
         populateReporterInfo(itemElement, reportData.reporters || []);
-        populateContent(itemElement, reportData);
+
+        // Only populate content if lazyLoadContent is false (e.g., search results)
+        if (!lazyLoadContent) {
+            populateContent(itemElement, reportData);
+        } else {
+            // Store report data for lazy loading later
+            itemElement.setAttribute('data-report-data', JSON.stringify(reportData));
+            itemElement.setAttribute('data-content-loaded', 'false');
+        }
 
         itemElement.setAttribute('data-report-id', reportData.id);
         itemElement.setAttribute('data-report-slug', reportData.slug || '');
@@ -1010,8 +1044,15 @@
             const isClosed = target.style.height === '0px' || target.style.height === '0';
 
             if (isClosed || !target.style.height) {
-                target.style.height = target.scrollHeight + 'px';
-                if (arrow) arrow.style.transform = 'rotate(180deg)';
+                // Lazy load content before opening
+                const reportItem = container.querySelector('[cms-deliver="item"]') || container;
+                lazyLoadReportContent(reportItem);
+
+                // Small delay to ensure content is rendered before measuring height
+                setTimeout(() => {
+                    target.style.height = target.scrollHeight + 'px';
+                    if (arrow) arrow.style.transform = 'rotate(180deg)';
+                }, 10);
             } else {
                 target.style.height = '0px';
                 if (arrow) arrow.style.transform = 'rotate(0deg)';
