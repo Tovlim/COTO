@@ -1,12 +1,12 @@
 /**
- * Webflow CMS Client Script - Mini Reports Version
- * Works with the new mini-report HTML structure
+ * Webflow CMS Client Script - Mini Reports Version with Advanced Filtering
+ * Works with the new mini-report HTML structure and comprehensive filtering system
  */
 
 (function() {
     'use strict';
 
-    console.log('[CMS Client] Mini Reports script loading...');
+    console.log('[CMS Client] Mini Reports with Filters script loading...');
 
     // Configuration
     const CONFIG = {
@@ -21,7 +21,19 @@
     let totalReports = 0;
     let isLoading = false;
     let hasMoreReports = true;
-    let currentFilters = {};
+
+    // Filter state management
+    let currentFilters = {
+        search: '',
+        dateFrom: '',
+        dateUntil: '',
+        topic: [],
+        region: [],
+        locality: [],
+        territory: [],
+        reporter: [],
+        urgent: null
+    };
 
     // Helper function for safe console logging
     function log(...args) {
@@ -73,6 +85,22 @@
         } catch (e) {
             log('Date format error:', e);
             return '';
+        }
+    }
+
+    // Format date for display in tags (short format)
+    function formatDateForTag(dateString) {
+        if (!dateString) return '';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '';
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (e) {
+            return dateString;
         }
     }
 
@@ -744,7 +772,7 @@
     async function populateReports(items, listContainer, templateItem, appendMode = false) {
         if (!items || items.length === 0) {
             if (!appendMode) {
-                listContainer.innerHTML = '<div style="padding: 20px; text-align: center;">No reports available</div>';
+                listContainer.innerHTML = '<div class="no-search-results" style="padding: 40px 20px; text-align: center; color: #666;">No reports match your filters</div>';
             }
             return 0;
         }
@@ -824,6 +852,405 @@
         listContainer.appendChild(message);
     }
 
+    // ===== FILTER SYSTEM START =====
+
+    // Build URL with current filters
+    function buildFilterUrl(offset = 0, limit = CONFIG.REPORTS_LIMIT) {
+        let url = `${CONFIG.WORKER_URL}/reports?limit=${limit}&offset=${offset}`;
+
+        // Add search filter
+        if (currentFilters.search) {
+            url += `&search=${encodeURIComponent(currentFilters.search)}`;
+        }
+
+        // Add date filters
+        if (currentFilters.dateFrom) {
+            url += `&dateFrom=${currentFilters.dateFrom}`;
+        }
+        if (currentFilters.dateUntil) {
+            url += `&dateUntil=${currentFilters.dateUntil}`;
+        }
+
+        // Add array filters (checkboxes)
+        ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
+            if (currentFilters[filterKey] && currentFilters[filterKey].length > 0) {
+                url += `&${filterKey}=${currentFilters[filterKey].join(',')}`;
+            }
+        });
+
+        // Add boolean filters
+        if (currentFilters.urgent !== null) {
+            url += `&urgent=${currentFilters.urgent}`;
+        }
+
+        // Add timestamp to prevent caching
+        url += `&_t=${Date.now()}`;
+
+        return url;
+    }
+
+    // Tag Management System
+    const TagManager = {
+        tagParent: null,
+        tagTemplate: null,
+
+        init() {
+            this.tagParent = document.querySelector('#tagparent');
+            const hiddenParent = document.querySelector('[cms-filter-element="tag-wrap"]');
+            if (hiddenParent) {
+                this.tagTemplate = hiddenParent.querySelector('[cms-filter-element="tag"]');
+                // Hide the template wrapper
+                if (hiddenParent) hiddenParent.style.display = 'none';
+            }
+
+            if (!this.tagParent || !this.tagTemplate) {
+                console.warn('[CMS Client] Tag elements not found');
+            }
+        },
+
+        clearAllTags() {
+            if (!this.tagParent) return;
+            // Remove all tags except hidden template
+            const tags = this.tagParent.querySelectorAll('[cms-filter-element="tag"]');
+            tags.forEach(tag => tag.remove());
+        },
+
+        addTag(field, value, filterKey) {
+            if (!this.tagParent || !this.tagTemplate) return;
+
+            const tag = this.tagTemplate.cloneNode(true);
+            tag.style.display = '';
+            tag.setAttribute('data-filter-key', filterKey);
+            tag.setAttribute('data-filter-value', value);
+
+            // Set field and value text
+            const fieldElements = tag.querySelectorAll('[cms-filter-element="tag-field"]');
+            fieldElements[0]?.setAttribute('textContent', field);
+            fieldElements[0] && (fieldElements[0].textContent = field);
+
+            const valueElement = tag.querySelector('[cms-filter-element="tag-value"]');
+            if (valueElement) valueElement.textContent = value;
+
+            // Add remove handler
+            const removeBtn = tag.querySelector('[cms-filter-element="tag-remove"]');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.removeTag(filterKey, value);
+                });
+            }
+
+            this.tagParent.appendChild(tag);
+        },
+
+        removeTag(filterKey, value) {
+            // Clear the filter
+            if (filterKey === 'search') {
+                currentFilters.search = '';
+                const searchInput = document.querySelector('[filter-reports="search"]');
+                if (searchInput) searchInput.value = '';
+            } else if (filterKey === 'dateFrom') {
+                currentFilters.dateFrom = '';
+                const dateInput = document.querySelector('[cms-filter="From"]');
+                if (dateInput) {
+                    dateInput.value = '';
+                    if (dateInput._flatpickr) {
+                        dateInput._flatpickr.clear();
+                    }
+                }
+            } else if (filterKey === 'dateUntil') {
+                currentFilters.dateUntil = '';
+                const dateInput = document.querySelector('[cms-filter="Until"]');
+                if (dateInput) {
+                    dateInput.value = '';
+                    if (dateInput._flatpickr) {
+                        dateInput._flatpickr.clear();
+                    }
+                }
+            } else if (Array.isArray(currentFilters[filterKey])) {
+                // Remove from array
+                const index = currentFilters[filterKey].indexOf(value);
+                if (index > -1) {
+                    currentFilters[filterKey].splice(index, 1);
+                }
+                // Uncheck the checkbox
+                const checkbox = document.querySelector(`[cms-filter="${filterKey}"][cms-filter-value="${value}"]`);
+                if (checkbox) checkbox.checked = false;
+            } else {
+                currentFilters[filterKey] = null;
+            }
+
+            // Apply filters
+            applyFilters();
+        },
+
+        updateTags() {
+            this.clearAllTags();
+
+            // Add search tag
+            if (currentFilters.search) {
+                this.addTag('Search', currentFilters.search, 'search');
+            }
+
+            // Add date range tags
+            if (currentFilters.dateFrom) {
+                this.addTag('From', formatDateForTag(currentFilters.dateFrom), 'dateFrom');
+            }
+            if (currentFilters.dateUntil) {
+                this.addTag('Until', formatDateForTag(currentFilters.dateUntil), 'dateUntil');
+            }
+
+            // Add checkbox filter tags
+            ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
+                if (currentFilters[filterKey] && currentFilters[filterKey].length > 0) {
+                    // Group values by field name for combined tags
+                    const fieldName = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+                    const values = currentFilters[filterKey];
+
+                    if (values.length === 1) {
+                        this.addTag(fieldName, values[0], filterKey);
+                    } else {
+                        // Create combined tag
+                        this.addTag(fieldName, values.join(', '), filterKey);
+                    }
+                }
+            });
+
+            // Add urgent tag if active
+            if (currentFilters.urgent !== null) {
+                this.addTag('Urgent', currentFilters.urgent ? 'Yes' : 'No', 'urgent');
+            }
+        }
+    };
+
+    // Apply current filters and reload reports
+    async function applyFilters() {
+        // Reset pagination
+        currentOffset = 0;
+        hasMoreReports = true;
+
+        // Update tags
+        TagManager.updateTags();
+
+        // Hide no more message
+        const noMoreMsg = document.getElementById('no-more-reports');
+        if (noMoreMsg) noMoreMsg.remove();
+
+        const listContainer = document.querySelector('[cms-deliver="list"]');
+        const templateItem = listContainer?.querySelector('[cms-deliver="item"]');
+
+        if (!listContainer || !templateItem) {
+            console.error('[CMS Client] List container or template not found');
+            return;
+        }
+
+        try {
+            const url = buildFilterUrl(0, CONFIG.REPORTS_LIMIT);
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const response_data = await response.json();
+            const items = response_data.data || [];
+
+            currentOffset = CONFIG.REPORTS_LIMIT;
+            totalReports = response_data.metadata?.total || items.length;
+            hasMoreReports = (currentOffset < totalReports);
+
+            await populateReports(items, listContainer, templateItem, false);
+
+            // Update results count
+            updateResultsCount(totalReports);
+
+            console.log(`[CMS Client] Filters applied: ${items.length} results (Total: ${totalReports})`);
+
+        } catch (error) {
+            console.error('[CMS Client] Filter error:', error);
+
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'search-error';
+            errorMsg.style.cssText = 'padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00; margin: 20px;';
+            errorMsg.innerHTML = `
+                <strong>Filter error:</strong> ${error.message}<br>
+                <small>Please try again</small>
+            `;
+            listContainer.appendChild(errorMsg);
+        }
+    }
+
+    // Update results count display
+    function updateResultsCount(count) {
+        const countElements = document.querySelectorAll('[cms-filter-element="results-count"]');
+        countElements.forEach(el => {
+            el.textContent = count.toString();
+        });
+    }
+
+    // Initialize date pickers with Flatpickr
+    function initializeDatePickers() {
+        // Initialize "From" date picker
+        const fromInput = document.querySelector('[cms-filter="From"]');
+        if (fromInput && typeof flatpickr !== 'undefined') {
+            flatpickr(fromInput, {
+                dateFormat: 'Y-m-d',
+                onChange: function(selectedDates, dateStr) {
+                    currentFilters.dateFrom = dateStr;
+                    applyFilters();
+                }
+            });
+        }
+
+        // Initialize "Until" date picker
+        const untilInput = document.querySelector('[cms-filter="Until"]');
+        if (untilInput && typeof flatpickr !== 'undefined') {
+            flatpickr(untilInput, {
+                dateFormat: 'Y-m-d',
+                onChange: function(selectedDates, dateStr) {
+                    currentFilters.dateUntil = dateStr;
+                    applyFilters();
+                }
+            });
+        }
+    }
+
+    // Initialize checkbox filters
+    function initializeCheckboxFilters() {
+        const filterForm = document.querySelector('[cms-filter="form-block"]');
+        if (!filterForm) return;
+
+        // Find all checkboxes with cms-filter attribute
+        const checkboxes = filterForm.querySelectorAll('input[type="checkbox"][cms-filter]');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const filterKey = this.getAttribute('cms-filter');
+                const filterValue = this.getAttribute('cms-filter-value') || this.value;
+
+                if (!currentFilters[filterKey]) {
+                    currentFilters[filterKey] = [];
+                }
+
+                if (this.checked) {
+                    // Add to filter array if not already present
+                    if (!currentFilters[filterKey].includes(filterValue)) {
+                        currentFilters[filterKey].push(filterValue);
+                    }
+                } else {
+                    // Remove from filter array
+                    const index = currentFilters[filterKey].indexOf(filterValue);
+                    if (index > -1) {
+                        currentFilters[filterKey].splice(index, 1);
+                    }
+                }
+
+                applyFilters();
+            });
+        });
+    }
+
+    // Initialize clear buttons
+    function initializeClearButtons() {
+        // Clear all button
+        const clearAllButtons = document.querySelectorAll('[cms-clear-element="all"]');
+        clearAllButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                clearAllFilters();
+            });
+        });
+
+        // Individual clear buttons
+        const clearButtons = document.querySelectorAll('[cms-clear-element]');
+        clearButtons.forEach(btn => {
+            const clearTargets = btn.getAttribute('cms-clear-element');
+            if (clearTargets === 'all') return; // Skip "all" buttons
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targets = clearTargets.split(',').map(t => t.trim());
+
+                targets.forEach(target => {
+                    clearSpecificFilter(target);
+                });
+
+                applyFilters();
+            });
+        });
+    }
+
+    // Clear all filters
+    function clearAllFilters() {
+        // Clear search
+        currentFilters.search = '';
+        const searchInput = document.querySelector('[filter-reports="search"]');
+        if (searchInput) searchInput.value = '';
+
+        // Clear dates
+        currentFilters.dateFrom = '';
+        currentFilters.dateUntil = '';
+        const fromInput = document.querySelector('[cms-filter="From"]');
+        const untilInput = document.querySelector('[cms-filter="Until"]');
+        if (fromInput) {
+            fromInput.value = '';
+            if (fromInput._flatpickr) fromInput._flatpickr.clear();
+        }
+        if (untilInput) {
+            untilInput.value = '';
+            if (untilInput._flatpickr) untilInput._flatpickr.clear();
+        }
+
+        // Clear all checkboxes
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][cms-filter]:checked');
+        checkboxes.forEach(cb => cb.checked = false);
+
+        // Clear arrays
+        ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(key => {
+            currentFilters[key] = [];
+        });
+
+        // Clear other filters
+        currentFilters.urgent = null;
+
+        // Apply filters
+        applyFilters();
+    }
+
+    // Clear specific filter
+    function clearSpecificFilter(filterName) {
+        if (filterName === 'From') {
+            currentFilters.dateFrom = '';
+            const input = document.querySelector('[cms-filter="From"]');
+            if (input) {
+                input.value = '';
+                if (input._flatpickr) input._flatpickr.clear();
+            }
+        } else if (filterName === 'Until') {
+            currentFilters.dateUntil = '';
+            const input = document.querySelector('[cms-filter="Until"]');
+            if (input) {
+                input.value = '';
+                if (input._flatpickr) input._flatpickr.clear();
+            }
+        } else if (filterName === 'search') {
+            currentFilters.search = '';
+            const input = document.querySelector('[filter-reports="search"]');
+            if (input) input.value = '';
+        } else {
+            // Handle checkbox filters
+            if (Array.isArray(currentFilters[filterName])) {
+                currentFilters[filterName] = [];
+                const checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${filterName}"]:checked`);
+                checkboxes.forEach(cb => cb.checked = false);
+            } else {
+                currentFilters[filterName] = null;
+            }
+        }
+    }
+
+    // ===== FILTER SYSTEM END =====
+
     // Load more reports (infinite scroll)
     async function loadMoreReports() {
         if (isLoading || !hasMoreReports) {
@@ -847,15 +1274,7 @@
 
         try {
             currentOffset += CONFIG.REPORTS_PER_PAGE;
-
-            let url = `${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_PER_PAGE}&offset=${currentOffset}`;
-
-            if (currentFilters.search) {
-                url += `&search=${encodeURIComponent(currentFilters.search)}`;
-            }
-
-            url += `&_t=${Date.now()}`;
-
+            const url = buildFilterUrl(currentOffset, CONFIG.REPORTS_PER_PAGE);
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -916,7 +1335,22 @@
             currentOffset = CONFIG.REPORTS_LIMIT;
             totalReports = response_data.metadata?.total || items.length;
             hasMoreReports = (currentOffset < totalReports);
-            currentFilters = {};
+
+            // Reset filters on initial load
+            currentFilters = {
+                search: '',
+                dateFrom: '',
+                dateUntil: '',
+                topic: [],
+                region: [],
+                locality: [],
+                territory: [],
+                reporter: [],
+                urgent: null
+            };
+
+            // Update results count
+            updateResultsCount(totalReports);
 
             console.log(`[CMS Client] Loaded ${successCount} reports. Total: ${totalReports}, Has more: ${hasMoreReports}`);
 
@@ -932,6 +1366,7 @@
             if (initializeUI) {
                 initializeInteractions();
                 initializeInfiniteScroll(listContainer);
+                initializeFilters();
             }
 
             window.dispatchEvent(new CustomEvent('cmsDataLoaded', {
@@ -955,6 +1390,14 @@
                 `;
             }
         }
+    }
+
+    // Initialize all filter components
+    function initializeFilters() {
+        TagManager.init();
+        initializeDatePickers();
+        initializeCheckboxFilters();
+        initializeClearButtons();
     }
 
     // Track if interactions have been initialized
@@ -1168,96 +1611,14 @@
 
         let debounceTimer;
 
-        async function performSearch(query) {
-            const trimmedQuery = query.trim();
-
-            const listContainer = document.querySelector('[cms-deliver="list"]');
-            const templateItem = listContainer.querySelector('[cms-deliver="item"]');
-
-            if (!listContainer || !templateItem) {
-                console.error('[CMS Client] Search error: List container or template not found');
-                return;
-            }
-
-            if (!trimmedQuery) {
-                currentOffset = 0;
-                hasMoreReports = true;
-                currentFilters = {};
-
-                await loadReports(false);
-                return;
-            }
-
-            try {
-                currentOffset = 0;
-                hasMoreReports = true;
-                currentFilters = { search: trimmedQuery };
-
-                const noMoreMsg = document.getElementById('no-more-reports');
-                if (noMoreMsg) noMoreMsg.remove();
-
-                const searchUrl = `${CONFIG.WORKER_URL}/reports?search=${encodeURIComponent(trimmedQuery)}&limit=${CONFIG.REPORTS_LIMIT}&offset=0`;
-                const response = await fetch(searchUrl);
-
-                if (!response.ok) {
-                    throw new Error(`Search failed: ${response.status} ${response.statusText}`);
-                }
-
-                const response_data = await response.json();
-                const items = response_data.data || [];
-
-                currentOffset = CONFIG.REPORTS_LIMIT;
-                totalReports = response_data.metadata?.total || items.length;
-                hasMoreReports = (currentOffset < totalReports);
-
-                if (items.length === 0) {
-                    const clones = listContainer.querySelectorAll('[cms-deliver="item"]:not(:first-child)');
-                    clones.forEach(item => item.remove());
-
-                    const existingMsg = listContainer.querySelector('.no-search-results, .search-error');
-                    if (existingMsg) existingMsg.remove();
-
-                    const noResultsMsg = document.createElement('div');
-                    noResultsMsg.className = 'no-search-results';
-                    noResultsMsg.style.cssText = 'padding: 40px 20px; text-align: center; color: #666;';
-                    noResultsMsg.innerHTML = `
-                        <div style="font-size: 18px; margin-bottom: 10px;">No reports found for "${trimmedQuery}"</div>
-                        <div style="font-size: 14px;">Try different search terms</div>
-                    `;
-                    listContainer.appendChild(noResultsMsg);
-
-                    templateItem.style.display = 'none';
-
-                    hasMoreReports = false;
-                } else {
-                    await populateReports(items, listContainer, templateItem, false);
-                }
-
-                console.log(`[CMS Client] Search complete: ${items.length} results (Total: ${totalReports}, Has more: ${hasMoreReports})`);
-
-            } catch (error) {
-                console.error('Search error:', error);
-
-                const errorMsg = document.createElement('div');
-                errorMsg.className = 'search-error';
-                errorMsg.style.cssText = 'padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00; margin: 20px;';
-                errorMsg.innerHTML = `
-                    <strong>Search error:</strong> ${error.message}<br>
-                    <small>Please try again</small>
-                `;
-                listContainer.appendChild(errorMsg);
-
-                setTimeout(() => errorMsg.remove(), 5000);
-            }
-        }
-
         searchInput.addEventListener('input', function(e) {
-            const query = e.target.value;
+            const query = e.target.value.trim();
 
             clearTimeout(debounceTimer);
 
             debounceTimer = setTimeout(() => {
-                performSearch(query);
+                currentFilters.search = query;
+                applyFilters();
             }, 500);
         });
 
@@ -1265,7 +1626,8 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 clearTimeout(debounceTimer);
-                performSearch(e.target.value);
+                currentFilters.search = e.target.value.trim();
+                applyFilters();
             }
         });
 
@@ -1273,7 +1635,8 @@
             if (e.key === 'Escape') {
                 e.target.value = '';
                 clearTimeout(debounceTimer);
-                performSearch('');
+                currentFilters.search = '';
+                applyFilters();
             }
         });
 
@@ -1307,6 +1670,10 @@
     window.cmsDebug = {
         config: CONFIG,
         loadReports: loadReports,
+        currentFilters: currentFilters,
+        applyFilters: applyFilters,
+        clearAllFilters: clearAllFilters,
+        TagManager: TagManager,
         checkElements: function() {
             const list = document.querySelector('[cms-deliver="list"]');
             const item = document.querySelector('[cms-deliver="item"]');
@@ -1328,11 +1695,12 @@
                 totalReports,
                 hasMoreReports,
                 isLoading,
-                remaining: totalReports - currentOffset
+                remaining: totalReports - currentOffset,
+                filters: currentFilters
             };
         }
     };
 
-    console.log('[CMS Client] Mini Reports script loaded. Debug available at window.cmsDebug');
+    console.log('[CMS Client] Mini Reports with Filters script loaded. Debug available at window.cmsDebug');
 
 })();
