@@ -891,41 +891,45 @@
 
     // Tag Management System
     const TagManager = {
-        tagParent: null,
+        tagWrap: null,
         tagTemplate: null,
 
         init() {
-            this.tagParent = document.querySelector('#tagparent');
-            const hiddenParent = document.querySelector('[cms-filter-element="tag-wrap"]');
-            if (hiddenParent) {
-                this.tagTemplate = hiddenParent.querySelector('[cms-filter-element="tag"]');
-                // Hide the template wrapper
-                if (hiddenParent) hiddenParent.style.display = 'none';
+            // Find the tag-wrap element
+            this.tagWrap = document.querySelector('[cms-filter-element="tag-wrap"]');
+            if (this.tagWrap) {
+                // Find the template tag inside tag-wrap
+                this.tagTemplate = this.tagWrap.querySelector('[cms-filter-element="tag"]');
+                // Hide the template tag
+                if (this.tagTemplate) {
+                    this.tagTemplate.style.display = 'none';
+                    this.tagTemplate.classList.add('tag-template');
+                }
             }
 
-            if (!this.tagParent || !this.tagTemplate) {
+            if (!this.tagWrap || !this.tagTemplate) {
                 console.warn('[CMS Client] Tag elements not found');
             }
         },
 
         clearAllTags() {
-            if (!this.tagParent) return;
-            // Remove all tags except hidden template
-            const tags = this.tagParent.querySelectorAll('[cms-filter-element="tag"]');
+            if (!this.tagWrap) return;
+            // Remove all tags except the template
+            const tags = this.tagWrap.querySelectorAll('[cms-filter-element="tag"]:not(.tag-template)');
             tags.forEach(tag => tag.remove());
         },
 
         addTag(field, value, filterKey) {
-            if (!this.tagParent || !this.tagTemplate) return;
+            if (!this.tagWrap || !this.tagTemplate) return;
 
             const tag = this.tagTemplate.cloneNode(true);
             tag.style.display = '';
+            tag.classList.remove('tag-template');
             tag.setAttribute('data-filter-key', filterKey);
             tag.setAttribute('data-filter-value', value);
 
             // Set field and value text
             const fieldElements = tag.querySelectorAll('[cms-filter-element="tag-field"]');
-            fieldElements[0]?.setAttribute('textContent', field);
             fieldElements[0] && (fieldElements[0].textContent = field);
 
             const valueElement = tag.querySelector('[cms-filter-element="tag-value"]');
@@ -940,7 +944,8 @@
                 });
             }
 
-            this.tagParent.appendChild(tag);
+            // Append the cloned tag to the wrap
+            this.tagWrap.appendChild(tag);
         },
 
         removeTag(filterKey, value) {
@@ -1093,24 +1098,54 @@
         // Initialize "From" date picker
         const fromInput = document.querySelector('[cms-filter="From"]');
         if (fromInput && typeof flatpickr !== 'undefined') {
-            flatpickr(fromInput, {
-                dateFormat: 'Y-m-d',
-                onChange: function(selectedDates, dateStr) {
+            // Check if already initialized
+            if (!fromInput._flatpickr) {
+                flatpickr(fromInput, {
+                    dateFormat: 'Y-m-d',
+                    onChange: function(selectedDates, dateStr) {
+                        currentFilters.dateFrom = dateStr;
+                        applyFilters();
+                    }
+                });
+            } else {
+                // If already initialized, just add our event listener
+                fromInput._flatpickr.config.onChange.push(function(selectedDates, dateStr) {
                     currentFilters.dateFrom = dateStr;
                     applyFilters();
-                }
+                });
+            }
+        } else if (fromInput) {
+            // Fallback: Listen for value changes if Flatpickr not available
+            fromInput.addEventListener('change', function(e) {
+                currentFilters.dateFrom = e.target.value;
+                applyFilters();
             });
         }
 
         // Initialize "Until" date picker
         const untilInput = document.querySelector('[cms-filter="Until"]');
         if (untilInput && typeof flatpickr !== 'undefined') {
-            flatpickr(untilInput, {
-                dateFormat: 'Y-m-d',
-                onChange: function(selectedDates, dateStr) {
+            // Check if already initialized
+            if (!untilInput._flatpickr) {
+                flatpickr(untilInput, {
+                    dateFormat: 'Y-m-d',
+                    onChange: function(selectedDates, dateStr) {
+                        currentFilters.dateUntil = dateStr;
+                        applyFilters();
+                    }
+                });
+            } else {
+                // If already initialized, just add our event listener
+                untilInput._flatpickr.config.onChange.push(function(selectedDates, dateStr) {
                     currentFilters.dateUntil = dateStr;
                     applyFilters();
-                }
+                });
+            }
+        } else if (untilInput) {
+            // Fallback: Listen for value changes if Flatpickr not available
+            untilInput.addEventListener('change', function(e) {
+                currentFilters.dateUntil = e.target.value;
+                applyFilters();
             });
         }
     }
