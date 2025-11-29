@@ -1012,8 +1012,13 @@
                 if (index > -1) {
                     currentFilters[filterKey].splice(index, 1);
                 }
-                // Uncheck the checkbox
-                const checkbox = document.querySelector(`[cms-filter="${filterKey}"][cms-filter-value="${value}"]`);
+                // Uncheck the checkbox (try both lowercase and original case)
+                let checkbox = document.querySelector(`[cms-filter="${filterKey}"][cms-filter-value="${value}"]`);
+                if (!checkbox) {
+                    // Try with capitalized version (e.g., "Topic" instead of "topic")
+                    const capitalizedKey = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+                    checkbox = document.querySelector(`[cms-filter="${capitalizedKey}"][cms-filter-value="${value}"]`);
+                }
                 if (checkbox) checkbox.checked = false;
             } else {
                 currentFilters[filterKey] = null;
@@ -1194,7 +1199,7 @@
 
         checkboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function() {
-                const filterKey = this.getAttribute('cms-filter');
+                const filterKey = this.getAttribute('cms-filter').toLowerCase();
                 const filterValue = this.getAttribute('cms-filter-value') || this.value;
 
                 if (!currentFilters[filterKey]) {
@@ -1310,7 +1315,13 @@
             // Handle checkbox filters
             if (Array.isArray(currentFilters[filterName])) {
                 currentFilters[filterName] = [];
-                const checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${filterName}"]:checked`);
+                // Try both lowercase and capitalized versions
+                let checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${filterName}"]:checked`);
+                if (checkboxes.length === 0) {
+                    // Try with capitalized version
+                    const capitalizedName = filterName.charAt(0).toUpperCase() + filterName.slice(1);
+                    checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${capitalizedName}"]:checked`);
+                }
                 checkboxes.forEach(cb => cb.checked = false);
             } else {
                 currentFilters[filterName] = null;
