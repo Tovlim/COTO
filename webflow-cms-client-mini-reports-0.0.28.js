@@ -939,6 +939,29 @@
                     this.tagTemplate.style.display = 'none';
                     this.tagTemplate.classList.add('tag-template');
                 }
+
+                // Use event delegation for tag removal to avoid issues with recreated elements
+                this.tagWrap.addEventListener('click', (e) => {
+                    const removeBtn = e.target.closest('[cms-filter-element="tag-remove"]');
+                    if (removeBtn) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const tag = removeBtn.closest('[cms-filter-element="tag"]');
+                        if (tag && !tag.classList.contains('tag-template')) {
+                            const filterKey = tag.getAttribute('data-filter-key');
+                            const filterValue = tag.getAttribute('data-filter-value');
+                            const isMultiValue = tag.hasAttribute('data-multi-value');
+
+                            if (filterKey) {
+                                if (isMultiValue) {
+                                    this.removeAllValuesForKey(filterKey);
+                                } else {
+                                    this.removeTag(filterKey, filterValue);
+                                }
+                            }
+                        }
+                    }
+                });
             }
 
             if (!this.tagWrap || !this.tagTemplate) {
@@ -953,7 +976,7 @@
             tags.forEach(tag => tag.remove());
         },
 
-        addTag(field, value, filterKey) {
+        addTag(field, value, filterKey, individualValues = null) {
             if (!this.tagWrap || !this.tagTemplate) return;
 
             const tag = this.tagTemplate.cloneNode(true);
@@ -962,6 +985,11 @@
             tag.setAttribute('data-filter-key', filterKey);
             tag.setAttribute('data-filter-value', value);
 
+            // Mark if this is a multi-value tag
+            if (individualValues && individualValues.length > 1) {
+                tag.setAttribute('data-multi-value', 'true');
+            }
+
             // Set field and value text
             const fieldElements = tag.querySelectorAll('[cms-filter-element="tag-field"]');
             fieldElements[0] && (fieldElements[0].textContent = field);
@@ -969,17 +997,43 @@
             const valueElement = tag.querySelector('[cms-filter-element="tag-value"]');
             if (valueElement) valueElement.textContent = value;
 
-            // Add remove handler
-            const removeBtn = tag.querySelector('[cms-filter-element="tag-remove"]');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    this.removeTag(filterKey, value);
-                });
-            }
+            // Note: Click handler is now handled by event delegation in init()
 
             // Append the cloned tag to the wrap
             this.tagWrap.appendChild(tag);
+        },
+
+        removeAllValuesForKey(filterKey) {
+            // This handles removing all values for a multi-value tag
+            if (Array.isArray(currentFilters[filterKey])) {
+                // Clear the entire array
+                currentFilters[filterKey] = [];
+
+                // Uncheck all checkboxes for this filter
+                const capitalizedKey = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+                const checkboxes = document.querySelectorAll(
+                    `[cms-filter="${filterKey}"], [cms-filter="${capitalizedKey}"]`
+                );
+
+                checkboxes.forEach(checkbox => {
+                    if (isCheckboxChecked(checkbox)) {
+                        checkbox.checked = false;
+                        // Update Webflow checkbox styling
+                        const checkboxDiv = checkbox.previousElementSibling ||
+                                         checkbox.closest('.w-checkbox-input');
+                        if (checkboxDiv) {
+                            checkboxDiv.classList.remove('w--redirected-checked');
+                        }
+                        // Trigger change event
+                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
+
+            // Small delay to ensure DOM updates are complete
+            setTimeout(() => {
+                applyFilters();
+            }, 10);
         },
 
         removeTag(filterKey, value) {
@@ -1007,29 +1061,43 @@
                     }
                 }
             } else if (Array.isArray(currentFilters[filterKey])) {
-                // Remove from array
-                const index = currentFilters[filterKey].indexOf(value);
-                if (index > -1) {
-                    currentFilters[filterKey].splice(index, 1);
-                }
-                // Uncheck the checkbox (try both lowercase and original case)
-                let checkbox = document.querySelector(`[cms-filter="${filterKey}"][cms-filter-value="${value}"]`);
-                if (!checkbox) {
-                    // Try with capitalized version (e.g., "Topic" instead of "topic")
-                    const capitalizedKey = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
-                    checkbox = document.querySelector(`[cms-filter="${capitalizedKey}"][cms-filter-value="${value}"]`);
-                }
-                if (checkbox) {
-                    checkbox.checked = false;
-                    // Trigger change event to update Webflow styles
-                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+                // Handle comma-separated values (in case of combined tags)
+                const valuesToRemove = value.includes(',')
+                    ? value.split(',').map(v => v.trim())
+                    : [value];
+
+                valuesToRemove.forEach(val => {
+                    const index = currentFilters[filterKey].indexOf(val);
+                    if (index > -1) {
+                        currentFilters[filterKey].splice(index, 1);
+                    }
+
+                    // Uncheck the checkbox
+                    let checkbox = document.querySelector(`[cms-filter="${filterKey}"][cms-filter-value="${val}"]`);
+                    if (!checkbox) {
+                        const capitalizedKey = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+                        checkbox = document.querySelector(`[cms-filter="${capitalizedKey}"][cms-filter-value="${val}"]`);
+                    }
+                    if (checkbox) {
+                        checkbox.checked = false;
+                        // Update Webflow checkbox styling
+                        const checkboxDiv = checkbox.previousElementSibling ||
+                                         checkbox.closest('.w-checkbox-input');
+                        if (checkboxDiv) {
+                            checkboxDiv.classList.remove('w--redirected-checked');
+                        }
+                        // Trigger change event
+                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
             } else {
                 currentFilters[filterKey] = null;
             }
 
-            // Apply filters
-            applyFilters();
+            // Small delay to ensure DOM updates are complete
+            setTimeout(() => {
+                applyFilters();
+            }, 10);
         },
 
         updateTags() {
@@ -1048,18 +1116,18 @@
                 this.addTag('Until', formatDateForTag(currentFilters.dateUntil), 'dateUntil');
             }
 
-            // Add checkbox filter tags
+            // Add checkbox filter tags - create individual tags for each value
             ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
                 if (currentFilters[filterKey] && currentFilters[filterKey].length > 0) {
-                    // Group values by field name for combined tags
                     const fieldName = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
                     const values = currentFilters[filterKey];
 
                     if (values.length === 1) {
+                        // Single value - create normal tag
                         this.addTag(fieldName, values[0], filterKey);
                     } else {
-                        // Create combined tag
-                        this.addTag(fieldName, values.join(', '), filterKey);
+                        // Multiple values - create combined display but store individual values
+                        this.addTag(fieldName, values.join(', '), filterKey, values);
                     }
                 }
             });
@@ -1307,6 +1375,7 @@
         clearAllButtons.forEach(btn => {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 clearAllFilters();
             });
         });
@@ -1319,13 +1388,17 @@
 
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
                 const targets = clearTargets.split(',').map(t => t.trim());
 
                 targets.forEach(target => {
                     clearSpecificFilter(target);
                 });
 
-                applyFilters();
+                // Small delay to ensure all DOM updates complete before applying filters
+                setTimeout(() => {
+                    applyFilters();
+                }, 10);
             });
         });
     }
@@ -1356,6 +1429,11 @@
         checkboxes.forEach(cb => {
             if (isCheckboxChecked(cb)) {
                 cb.checked = false;
+                // Update Webflow checkbox styling directly
+                const checkboxDiv = cb.previousElementSibling || cb.closest('.w-checkbox-input');
+                if (checkboxDiv) {
+                    checkboxDiv.classList.remove('w--redirected-checked');
+                }
                 // Trigger change event to update Webflow styles
                 cb.dispatchEvent(new Event('change', { bubbles: true }));
             }
@@ -1369,8 +1447,10 @@
         // Clear other filters
         currentFilters.urgent = null;
 
-        // Apply filters
-        applyFilters();
+        // Apply filters with small delay to ensure DOM updates complete
+        setTimeout(() => {
+            applyFilters();
+        }, 10);
     }
 
     // Clear specific filter
@@ -1407,6 +1487,11 @@
                 checkboxes.forEach(cb => {
                     if (isCheckboxChecked(cb)) {
                         cb.checked = false;
+                        // Update Webflow checkbox styling directly
+                        const checkboxDiv = cb.previousElementSibling || cb.closest('.w-checkbox-input');
+                        if (checkboxDiv) {
+                            checkboxDiv.classList.remove('w--redirected-checked');
+                        }
                         // Trigger change event to update Webflow styles
                         cb.dispatchEvent(new Event('change', { bubbles: true }));
                     }
