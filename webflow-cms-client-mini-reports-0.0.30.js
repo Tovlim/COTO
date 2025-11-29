@@ -1344,30 +1344,33 @@
         if (checkbox.hasAttribute('data-processing')) return;
         checkbox.setAttribute('data-processing', 'true');
 
+        // Small delay to let Webflow update the DOM
         setTimeout(() => {
             checkbox.removeAttribute('data-processing');
-        }, 50);
 
-        const filterKey = checkbox.getAttribute('cms-filter').toLowerCase();
-        const filterValue = checkbox.getAttribute('cms-filter-value') || checkbox.value;
+            const filterKey = checkbox.getAttribute('cms-filter').toLowerCase();
+            const filterValue = checkbox.getAttribute('cms-filter-value') || checkbox.value;
 
-        if (!currentFilters[filterKey]) {
-            currentFilters[filterKey] = [];
-        }
+            if (!currentFilters[filterKey]) {
+                currentFilters[filterKey] = [];
+            }
 
-        const isChecked = isCheckboxChecked(checkbox);
-        const currentIndex = currentFilters[filterKey].indexOf(filterValue);
+            // Use the native checked property as primary source of truth
+            // since this is called from the change event
+            const isChecked = checkbox.checked;
+            const currentIndex = currentFilters[filterKey].indexOf(filterValue);
 
-        // Only process if state actually changed
-        if (isChecked && currentIndex === -1) {
-            // Add to filter array
-            currentFilters[filterKey].push(filterValue);
-            applyFilters();
-        } else if (!isChecked && currentIndex > -1) {
-            // Remove from filter array
-            currentFilters[filterKey].splice(currentIndex, 1);
-            applyFilters();
-        }
+            // Only process if state actually changed
+            if (isChecked && currentIndex === -1) {
+                // Add to filter array
+                currentFilters[filterKey].push(filterValue);
+                applyFilters();
+            } else if (!isChecked && currentIndex > -1) {
+                // Remove from filter array
+                currentFilters[filterKey].splice(currentIndex, 1);
+                applyFilters();
+            }
+        }, 10);
     }
 
     // Initialize clear buttons
