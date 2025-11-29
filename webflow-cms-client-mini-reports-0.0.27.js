@@ -1019,7 +1019,11 @@
                     const capitalizedKey = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
                     checkbox = document.querySelector(`[cms-filter="${capitalizedKey}"][cms-filter-value="${value}"]`);
                 }
-                if (checkbox) checkbox.checked = false;
+                if (checkbox) {
+                    checkbox.checked = false;
+                    // Trigger change event to update Webflow styles
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
             } else {
                 currentFilters[filterKey] = null;
             }
@@ -1198,30 +1202,102 @@
         const checkboxes = filterForm.querySelectorAll('input[type="checkbox"][cms-filter]');
 
         checkboxes.forEach(checkbox => {
+            // Track initial state
+            const filterKey = checkbox.getAttribute('cms-filter').toLowerCase();
+            const filterValue = checkbox.getAttribute('cms-filter-value') || checkbox.value;
+
+            // Initialize filter array if needed
+            if (!currentFilters[filterKey]) {
+                currentFilters[filterKey] = [];
+            }
+
+            // Check initial state using multiple methods
+            if (isCheckboxChecked(checkbox)) {
+                if (!currentFilters[filterKey].includes(filterValue)) {
+                    currentFilters[filterKey].push(filterValue);
+                }
+            }
+
+            // Listen for both change and click events for better detection
             checkbox.addEventListener('change', function() {
-                const filterKey = this.getAttribute('cms-filter').toLowerCase();
-                const filterValue = this.getAttribute('cms-filter-value') || this.value;
-
-                if (!currentFilters[filterKey]) {
-                    currentFilters[filterKey] = [];
-                }
-
-                if (this.checked) {
-                    // Add to filter array if not already present
-                    if (!currentFilters[filterKey].includes(filterValue)) {
-                        currentFilters[filterKey].push(filterValue);
-                    }
-                } else {
-                    // Remove from filter array
-                    const index = currentFilters[filterKey].indexOf(filterValue);
-                    if (index > -1) {
-                        currentFilters[filterKey].splice(index, 1);
-                    }
-                }
-
-                applyFilters();
+                handleCheckboxChange(this);
             });
+
+            // Also monitor parent label for class changes (Finsweet/Webflow style)
+            const parentLabel = checkbox.closest('label');
+            if (parentLabel) {
+                // Use MutationObserver to detect class changes
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                            handleCheckboxChange(checkbox);
+                        }
+                    });
+                });
+
+                observer.observe(parentLabel, {
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+            }
+
+            // Also listen for clicks on the parent wrapper for Webflow-style checkboxes
+            const checkboxWrapper = checkbox.closest('[checkbox-filter]');
+            if (checkboxWrapper) {
+                checkboxWrapper.addEventListener('click', function(e) {
+                    // Small delay to let Webflow update the state
+                    setTimeout(() => {
+                        handleCheckboxChange(checkbox);
+                    }, 10);
+                });
+            }
         });
+    }
+
+    // Helper function to determine if checkbox is checked
+    function isCheckboxChecked(checkbox) {
+        // Method 1: Check actual input state
+        if (checkbox.checked) {
+            return true;
+        }
+
+        // Method 2: Check for Webflow's redirected class
+        const wrapper = checkbox.closest('.w-checkbox-input');
+        if (wrapper && wrapper.classList.contains('w--redirected-checked')) {
+            return true;
+        }
+
+        // Method 3: Check for custom checkbox wrapper state
+        const checkboxDiv = checkbox.previousElementSibling;
+        if (checkboxDiv && checkboxDiv.classList.contains('w-checkbox-input') &&
+            checkboxDiv.classList.contains('w--redirected-checked')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Handle checkbox state changes
+    function handleCheckboxChange(checkbox) {
+        const filterKey = checkbox.getAttribute('cms-filter').toLowerCase();
+        const filterValue = checkbox.getAttribute('cms-filter-value') || checkbox.value;
+
+        if (!currentFilters[filterKey]) {
+            currentFilters[filterKey] = [];
+        }
+
+        const isChecked = isCheckboxChecked(checkbox);
+        const currentIndex = currentFilters[filterKey].indexOf(filterValue);
+
+        if (isChecked && currentIndex === -1) {
+            // Add to filter array
+            currentFilters[filterKey].push(filterValue);
+            applyFilters();
+        } else if (!isChecked && currentIndex > -1) {
+            // Remove from filter array
+            currentFilters[filterKey].splice(currentIndex, 1);
+            applyFilters();
+        }
     }
 
     // Initialize clear buttons
@@ -1275,9 +1351,15 @@
             if (untilInput._flatpickr) untilInput._flatpickr.clear();
         }
 
-        // Clear all checkboxes
-        const checkboxes = document.querySelectorAll('input[type="checkbox"][cms-filter]:checked');
-        checkboxes.forEach(cb => cb.checked = false);
+        // Clear all checkboxes (using the improved detection)
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][cms-filter]');
+        checkboxes.forEach(cb => {
+            if (isCheckboxChecked(cb)) {
+                cb.checked = false;
+                // Trigger change event to update Webflow styles
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
 
         // Clear arrays
         ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(key => {
@@ -1316,13 +1398,19 @@
             if (Array.isArray(currentFilters[filterName])) {
                 currentFilters[filterName] = [];
                 // Try both lowercase and capitalized versions
-                let checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${filterName}"]:checked`);
+                let checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${filterName}"]`);
                 if (checkboxes.length === 0) {
                     // Try with capitalized version
                     const capitalizedName = filterName.charAt(0).toUpperCase() + filterName.slice(1);
-                    checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${capitalizedName}"]:checked`);
+                    checkboxes = document.querySelectorAll(`input[type="checkbox"][cms-filter="${capitalizedName}"]`);
                 }
-                checkboxes.forEach(cb => cb.checked = false);
+                checkboxes.forEach(cb => {
+                    if (isCheckboxChecked(cb)) {
+                        cb.checked = false;
+                        // Trigger change event to update Webflow styles
+                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
             } else {
                 currentFilters[filterName] = null;
             }
