@@ -770,15 +770,42 @@
 
     // Populate reports in the DOM (used by both initial load and search)
     async function populateReports(items, listContainer, templateItem, appendMode = false) {
+        // Always preserve the template item
+        if (!templateItem) {
+            console.error('[CMS Client] Template item not found!');
+            return 0;
+        }
+
         if (!items || items.length === 0) {
             if (!appendMode) {
-                listContainer.innerHTML = '<div class="no-search-results" style="padding: 40px 20px; text-align: center; color: #666;">No reports match your filters</div>';
+                // Remove all cloned items but keep the template
+                const existingClones = listContainer.querySelectorAll('[cms-deliver="item"]:not(.cms-template-original)');
+                existingClones.forEach(item => item.remove());
+
+                // Remove any existing messages
+                const existingMsg = listContainer.querySelector('.no-search-results, .search-error');
+                if (existingMsg) existingMsg.remove();
+
+                // Create and insert the no results message
+                const noResultsMsg = document.createElement('div');
+                noResultsMsg.className = 'no-search-results';
+                noResultsMsg.style.cssText = 'padding: 40px 20px; text-align: center; color: #666;';
+                noResultsMsg.innerHTML = 'No reports match your filters';
+
+                // Insert after the template or at the end
+                const sentinel = listContainer.querySelector('[scroll-sentinel="true"]');
+                if (sentinel) {
+                    listContainer.insertBefore(noResultsMsg, sentinel);
+                } else {
+                    listContainer.appendChild(noResultsMsg);
+                }
             }
             return 0;
         }
 
         if (!appendMode) {
-            const existingClones = listContainer.querySelectorAll('[cms-deliver="item"]:not(:first-child)');
+            // Remove all cloned items but keep the template
+            const existingClones = listContainer.querySelectorAll('[cms-deliver="item"]:not(.cms-template-original)');
             existingClones.forEach(item => item.remove());
 
             const existingMsg = listContainer.querySelector('.no-search-results, .search-error');
