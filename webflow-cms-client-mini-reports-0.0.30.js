@@ -1777,7 +1777,7 @@
         // Set initial state
         jumpButton.style.opacity = '0';
         jumpButton.style.pointerEvents = 'none';
-        jumpButton.style.transition = 'opacity 300ms ease';
+        // No transition - opacity directly follows scroll position
 
         // Handle scroll events
         scrollWrap.addEventListener('scroll', function() {
