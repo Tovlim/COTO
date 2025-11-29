@@ -35,6 +35,9 @@
         urgent: null
     };
 
+    // Flag to prevent processing checkbox changes during clear operations
+    let isClearing = false;
+
     // Helper function for safe console logging
     function log(...args) {
         if (CONFIG.DEBUG) {
@@ -1004,6 +1007,9 @@
         },
 
         removeAllValuesForKey(filterKey) {
+            // Set clearing flag
+            isClearing = true;
+
             // This handles removing all values for a multi-value tag
             if (Array.isArray(currentFilters[filterKey])) {
                 // Clear the entire array
@@ -1016,7 +1022,7 @@
                 );
 
                 checkboxes.forEach(checkbox => {
-                    if (isCheckboxChecked(checkbox)) {
+                    if (checkbox.checked || isCheckboxChecked(checkbox)) {
                         checkbox.checked = false;
                         // Update Webflow checkbox styling
                         const checkboxDiv = checkbox.previousElementSibling ||
@@ -1024,16 +1030,16 @@
                         if (checkboxDiv) {
                             checkboxDiv.classList.remove('w--redirected-checked');
                         }
-                        // Trigger change event
-                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                        // Don't trigger change event to avoid conflicts
                     }
                 });
             }
 
             // Small delay to ensure DOM updates are complete
             setTimeout(() => {
+                isClearing = false;  // Reset flag
                 applyFilters();
-            }, 10);
+            }, 20);
         },
 
         removeTag(filterKey, value) {
@@ -1061,6 +1067,9 @@
                     }
                 }
             } else if (Array.isArray(currentFilters[filterKey])) {
+                // Set clearing flag for individual removals
+                isClearing = true;
+
                 // Handle comma-separated values (in case of combined tags)
                 const valuesToRemove = value.includes(',')
                     ? value.split(',').map(v => v.trim())
@@ -1086,8 +1095,7 @@
                         if (checkboxDiv) {
                             checkboxDiv.classList.remove('w--redirected-checked');
                         }
-                        // Trigger change event
-                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                        // Don't trigger change event during clearing
                     }
                 });
             } else {
@@ -1096,8 +1104,9 @@
 
             // Small delay to ensure DOM updates are complete
             setTimeout(() => {
+                isClearing = false;  // Reset flag
                 applyFilters();
-            }, 10);
+            }, 20);
         },
 
         updateTags() {
@@ -1270,6 +1279,10 @@
         const checkboxes = filterForm.querySelectorAll('input[type="checkbox"][cms-filter]');
 
         checkboxes.forEach(checkbox => {
+            // Skip if already initialized
+            if (checkbox.hasAttribute('data-filter-initialized')) return;
+            checkbox.setAttribute('data-filter-initialized', 'true');
+
             // Track initial state
             const filterKey = checkbox.getAttribute('cms-filter').toLowerCase();
             const filterValue = checkbox.getAttribute('cms-filter-value') || checkbox.value;
@@ -1286,39 +1299,16 @@
                 }
             }
 
-            // Listen for both change and click events for better detection
-            checkbox.addEventListener('change', function() {
-                handleCheckboxChange(this);
+            // Single change event listener (primary handler)
+            checkbox.addEventListener('change', function(e) {
+                // Don't handle if clearing is in progress
+                if (!isClearing) {
+                    handleCheckboxChange(this);
+                }
             });
 
-            // Also monitor parent label for class changes (Finsweet/Webflow style)
-            const parentLabel = checkbox.closest('label');
-            if (parentLabel) {
-                // Use MutationObserver to detect class changes
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach((mutation) => {
-                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                            handleCheckboxChange(checkbox);
-                        }
-                    });
-                });
-
-                observer.observe(parentLabel, {
-                    attributes: true,
-                    attributeFilter: ['class']
-                });
-            }
-
-            // Also listen for clicks on the parent wrapper for Webflow-style checkboxes
-            const checkboxWrapper = checkbox.closest('[checkbox-filter]');
-            if (checkboxWrapper) {
-                checkboxWrapper.addEventListener('click', function(e) {
-                    // Small delay to let Webflow update the state
-                    setTimeout(() => {
-                        handleCheckboxChange(checkbox);
-                    }, 10);
-                });
-            }
+            // Skip MutationObserver and wrapper clicks as they cause duplicate handling
+            // The change event should be sufficient for Webflow checkboxes
         });
     }
 
@@ -1347,6 +1337,17 @@
 
     // Handle checkbox state changes
     function handleCheckboxChange(checkbox) {
+        // Skip if we're in the middle of clearing
+        if (isClearing) return;
+
+        // Prevent duplicate processing
+        if (checkbox.hasAttribute('data-processing')) return;
+        checkbox.setAttribute('data-processing', 'true');
+
+        setTimeout(() => {
+            checkbox.removeAttribute('data-processing');
+        }, 50);
+
         const filterKey = checkbox.getAttribute('cms-filter').toLowerCase();
         const filterValue = checkbox.getAttribute('cms-filter-value') || checkbox.value;
 
@@ -1357,6 +1358,7 @@
         const isChecked = isCheckboxChecked(checkbox);
         const currentIndex = currentFilters[filterKey].indexOf(filterValue);
 
+        // Only process if state actually changed
         if (isChecked && currentIndex === -1) {
             // Add to filter array
             currentFilters[filterKey].push(filterValue);
@@ -1405,6 +1407,9 @@
 
     // Clear all filters
     function clearAllFilters() {
+        // Set clearing flag to prevent checkbox change handlers from firing
+        isClearing = true;
+
         // Clear search
         currentFilters.search = '';
         const searchInput = document.querySelector('[filter-reports="search"]');
@@ -1424,24 +1429,23 @@
             if (untilInput._flatpickr) untilInput._flatpickr.clear();
         }
 
+        // Clear arrays first
+        ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(key => {
+            currentFilters[key] = [];
+        });
+
         // Clear all checkboxes (using the improved detection)
         const checkboxes = document.querySelectorAll('input[type="checkbox"][cms-filter]');
         checkboxes.forEach(cb => {
-            if (isCheckboxChecked(cb)) {
+            if (cb.checked || isCheckboxChecked(cb)) {
                 cb.checked = false;
                 // Update Webflow checkbox styling directly
                 const checkboxDiv = cb.previousElementSibling || cb.closest('.w-checkbox-input');
                 if (checkboxDiv) {
                     checkboxDiv.classList.remove('w--redirected-checked');
                 }
-                // Trigger change event to update Webflow styles
-                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                // Don't trigger change event to avoid handler conflicts
             }
-        });
-
-        // Clear arrays
-        ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(key => {
-            currentFilters[key] = [];
         });
 
         // Clear other filters
@@ -1449,8 +1453,9 @@
 
         // Apply filters with small delay to ensure DOM updates complete
         setTimeout(() => {
+            isClearing = false;  // Reset flag
             applyFilters();
-        }, 10);
+        }, 20);
     }
 
     // Clear specific filter
