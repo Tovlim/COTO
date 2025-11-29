@@ -776,9 +776,15 @@
             return 0;
         }
 
+        // Mark template as original on first use if not already marked
+        if (!templateItem.classList.contains('cms-template-original')) {
+            templateItem.classList.add('cms-template-original');
+            templateItem.style.display = 'none';
+        }
+
         if (!items || items.length === 0) {
             if (!appendMode) {
-                // Remove all cloned items but keep the template
+                // Remove all cloned items but keep the template (with cms-template-original class)
                 const existingClones = listContainer.querySelectorAll('[cms-deliver="item"]:not(.cms-template-original)');
                 existingClones.forEach(item => item.remove());
 
@@ -823,6 +829,7 @@
         let successCount = 0;
         items.forEach((report, index) => {
             const newItem = templateItem.cloneNode(true);
+            // Remove all template-related classes from the clone
             newItem.classList.remove('cms-template', 'is--loading', 'cms-template-original');
             newItem.style.display = '';
 
@@ -842,8 +849,8 @@
             listContainer.appendChild(fragment);
         }
 
+        // Ensure template stays hidden
         templateItem.style.display = 'none';
-        templateItem.classList.add('cms-template-original');
 
         console.log(`[CMS Client] Populated ${successCount} items in DOM`);
 
