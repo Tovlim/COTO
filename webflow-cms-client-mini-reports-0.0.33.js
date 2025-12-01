@@ -1774,10 +1774,55 @@
             return;
         }
 
+        // Add custom scrollbar styling
+        const styleId = 'cms-scrollbar-styles';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                /* Hide scrollbar by default */
+                [cms-reports="scroll-wrap"]::-webkit-scrollbar {
+                    width: 8px;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                }
+
+                [cms-reports="scroll-wrap"]::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+
+                [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
+                    background: rgba(100, 100, 100, 0);
+                    border-radius: 4px;
+                    transition: background 0.3s ease;
+                }
+
+                /* Show scrollbar on hover with dark grey colors */
+                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb {
+                    background: rgba(100, 100, 100, 0.7);
+                }
+
+                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb:hover {
+                    background: rgba(120, 120, 120, 0.9);
+                }
+
+                /* Firefox scrollbar styling */
+                [cms-reports="scroll-wrap"] {
+                    scrollbar-width: thin;
+                    scrollbar-color: transparent transparent;
+                    transition: scrollbar-color 0.3s ease;
+                }
+
+                [cms-reports="scroll-wrap"]:hover {
+                    scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         // Set initial state
         jumpButton.style.opacity = '0';
         jumpButton.style.pointerEvents = 'none';
-        jumpButton.style.visibility = 'hidden';
         // No transition - opacity directly follows scroll position
 
         // Handle scroll events
@@ -1792,10 +1837,8 @@
             // Make clickable only when visible, don't block clicks when invisible
             if (opacity > 0) {
                 jumpButton.style.pointerEvents = 'auto';
-                jumpButton.style.visibility = 'visible';
             } else {
                 jumpButton.style.pointerEvents = 'none';
-                jumpButton.style.visibility = 'hidden';
             }
         });
 
