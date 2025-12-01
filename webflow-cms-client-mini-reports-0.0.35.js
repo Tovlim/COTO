@@ -1780,11 +1780,15 @@
             const style = document.createElement('style');
             style.id = styleId;
             style.textContent = `
-                /* Hide scrollbar by default */
+                /* Hide scrollbar completely by default (no space) */
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar {
+                    width: 0;
+                    transition: width 0.3s ease;
+                }
+
+                /* Show scrollbar on hover */
+                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar {
                     width: 8px;
-                    opacity: 0;
-                    transition: opacity 0.3s ease;
                 }
 
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar-track {
@@ -1792,28 +1796,23 @@
                 }
 
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
-                    background: rgba(100, 100, 100, 0);
+                    background: rgba(100, 100, 100, 0.7);
                     border-radius: 4px;
                     transition: background 0.3s ease;
                 }
 
-                /* Show scrollbar on hover with dark grey colors */
-                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb {
-                    background: rgba(100, 100, 100, 0.7);
-                }
-
-                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb:hover {
+                [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb:hover {
                     background: rgba(120, 120, 120, 0.9);
                 }
 
                 /* Firefox scrollbar styling */
                 [cms-reports="scroll-wrap"] {
-                    scrollbar-width: thin;
-                    scrollbar-color: transparent transparent;
-                    transition: scrollbar-color 0.3s ease;
+                    scrollbar-width: none;
+                    transition: scrollbar-width 0.3s ease;
                 }
 
                 [cms-reports="scroll-wrap"]:hover {
+                    scrollbar-width: thin;
                     scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
                 }
             `;
