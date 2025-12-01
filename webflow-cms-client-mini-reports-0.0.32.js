@@ -1777,6 +1777,7 @@
         // Set initial state
         jumpButton.style.opacity = '0';
         jumpButton.style.pointerEvents = 'none';
+        jumpButton.style.visibility = 'hidden';
         // No transition - opacity directly follows scroll position
 
         // Handle scroll events
@@ -1788,11 +1789,13 @@
 
             jumpButton.style.opacity = opacity.toString();
 
-            // Make clickable only when opacity is greater than 0
+            // Make clickable only when visible, don't block clicks when invisible
             if (opacity > 0) {
                 jumpButton.style.pointerEvents = 'auto';
+                jumpButton.style.visibility = 'visible';
             } else {
                 jumpButton.style.pointerEvents = 'none';
+                jumpButton.style.visibility = 'hidden';
             }
         });
 
