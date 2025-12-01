@@ -1752,32 +1752,15 @@
                 const reportItem = container.querySelector('[cms-deliver="item"]') || container;
                 lazyLoadReportContent(reportItem);
 
-                // Make the item sticky when opening
-                if (reportItem) {
-                    reportItem.style.position = 'sticky';
-                    reportItem.style.top = '0';
-                    reportItem.style.zIndex = '10';
-                }
-
                 // Small delay to ensure content is rendered before measuring height
                 setTimeout(() => {
                     target.style.height = target.scrollHeight + 'px';
                     if (arrow) arrow.style.transform = 'rotateZ(180deg)';
                 }, 10);
             } else {
-                // Start closing animation
+                // Close the accordion
                 target.style.height = '0px';
                 if (arrow) arrow.style.transform = 'rotateZ(0deg)';
-
-                // Wait for animation to complete before changing position
-                setTimeout(() => {
-                    const reportItem = container.querySelector('[cms-deliver="item"]') || container;
-                    if (reportItem) {
-                        reportItem.style.position = 'relative';
-                        reportItem.style.top = '';
-                        reportItem.style.zIndex = '';
-                    }
-                }, 300); // Match the transition duration
             }
         });
     }
