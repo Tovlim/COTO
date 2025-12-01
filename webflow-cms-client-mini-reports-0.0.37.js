@@ -1691,7 +1691,7 @@
                         target.style.transition = 'height 300ms ease';
                     }
                     target.style.height = '0px';
-                    if (arrow) arrow.style.transform = 'rotate(0deg)';
+                    if (arrow) arrow.style.transform = 'rotateZ(0deg)';
                 }
                 return;
             }
@@ -1755,11 +1755,11 @@
                 // Small delay to ensure content is rendered before measuring height
                 setTimeout(() => {
                     target.style.height = target.scrollHeight + 'px';
-                    if (arrow) arrow.style.transform = 'rotate(180deg)';
+                    if (arrow) arrow.style.transform = 'rotateZ(180deg)';
                 }, 10);
             } else {
                 target.style.height = '0px';
-                if (arrow) arrow.style.transform = 'rotate(0deg)';
+                if (arrow) arrow.style.transform = 'rotateZ(0deg)';
             }
         });
     }
