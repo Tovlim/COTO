@@ -1691,6 +1691,7 @@
                         target.style.transition = 'height 300ms ease';
                     }
                     target.style.height = '0px';
+                    target.style.overflow = 'hidden'; // Set overflow hidden when closing via tab
                     if (arrow) arrow.style.transform = 'rotateZ(0deg)';
                 }
                 return;
@@ -1755,11 +1756,13 @@
                 // Small delay to ensure content is rendered before measuring height
                 setTimeout(() => {
                     target.style.height = target.scrollHeight + 'px';
+                    target.style.overflow = 'visible'; // Set overflow visible when opened
                     if (arrow) arrow.style.transform = 'rotateZ(180deg)';
                 }, 10);
             } else {
                 // Close the accordion
                 target.style.height = '0px';
+                target.style.overflow = 'hidden'; // Set overflow hidden when closed
                 if (arrow) arrow.style.transform = 'rotateZ(0deg)';
             }
         });
