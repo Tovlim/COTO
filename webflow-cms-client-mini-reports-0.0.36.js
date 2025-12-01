@@ -1780,14 +1780,8 @@
             const style = document.createElement('style');
             style.id = styleId;
             style.textContent = `
-                /* Hide scrollbar completely by default (no space) */
+                /* Keep scrollbar space but make it transparent */
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar {
-                    width: 0;
-                    transition: width 0.3s ease;
-                }
-
-                /* Show scrollbar on hover */
-                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar {
                     width: 8px;
                 }
 
@@ -1796,9 +1790,14 @@
                 }
 
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
-                    background: rgba(100, 100, 100, 0.7);
+                    background: transparent;
                     border-radius: 4px;
                     transition: background 0.3s ease;
+                }
+
+                /* Show scrollbar on hover */
+                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb {
+                    background: rgba(100, 100, 100, 0.7);
                 }
 
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb:hover {
@@ -1807,12 +1806,12 @@
 
                 /* Firefox scrollbar styling */
                 [cms-reports="scroll-wrap"] {
-                    scrollbar-width: none;
-                    transition: scrollbar-width 0.3s ease;
+                    scrollbar-width: thin;
+                    scrollbar-color: transparent transparent;
+                    transition: scrollbar-color 0.3s ease;
                 }
 
                 [cms-reports="scroll-wrap"]:hover {
-                    scrollbar-width: thin;
                     scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
                 }
             `;
