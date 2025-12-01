@@ -13,7 +13,7 @@
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         REPORTS_LIMIT: 15,
         REPORTS_PER_PAGE: 10,
-        DEBUG: true  // Enable debugging for sticky tabs development
+        DEBUG: false
     };
 
     // Pagination state
@@ -1748,201 +1748,38 @@
             const isClosed = target.style.height === '0px' || target.style.height === '0';
 
             if (isClosed || !target.style.height) {
-                // Opening - lazy load and setup sticky
+                // Lazy load content before opening
                 const reportItem = container.querySelector('[cms-deliver="item"]') || container;
                 lazyLoadReportContent(reportItem);
 
-                // Setup sticky tabs behavior
-                setupStickyTabs(container, target, arrow);
+                // Make the item sticky when opening
+                if (reportItem) {
+                    reportItem.style.position = 'sticky';
+                    reportItem.style.top = '0';
+                    reportItem.style.zIndex = '10';
+                }
+
+                // Small delay to ensure content is rendered before measuring height
+                setTimeout(() => {
+                    target.style.height = target.scrollHeight + 'px';
+                    if (arrow) arrow.style.transform = 'rotateZ(180deg)';
+                }, 10);
             } else {
-                // Closing - clean up sticky
-                closeWithAnimation(container, target, arrow);
-            }
-        });
-    }
+                // Start closing animation
+                target.style.height = '0px';
+                if (arrow) arrow.style.transform = 'rotateZ(0deg)';
 
-    // Setup sticky tabs when opening
-    function setupStickyTabs(container, target, arrow) {
-        const scrollWrap = document.querySelector('[cms-reports="scroll-wrap"]');
-        const openTrigger = container.querySelector('[open-trigger]');
-        const tabWrap = target.querySelector('[data-tab="wrap"]');
-        const contentWrap = target.querySelector('[data-tab-content="wrap"]');
-
-        // Debug logging
-        log('Setting up sticky tabs:', {
-            hasScrollWrap: !!scrollWrap,
-            hasOpenTrigger: !!openTrigger,
-            hasTabWrap: !!tabWrap,
-            hasContentWrap: !!contentWrap,
-            containerClasses: container.className
-        });
-
-        // Close any other open reports first
-        document.querySelectorAll('.mini-report-wrap').forEach(otherContainer => {
-            if (otherContainer !== container) {
-                const otherTarget = otherContainer.querySelector('[open-target]');
-                if (otherTarget && otherTarget.style.height && otherTarget.style.height !== '0px') {
-                    // Close other open reports
-                    closeWithAnimation(otherContainer, otherTarget, otherContainer.querySelector('[dropdown-icon]'));
-                }
-            }
-        });
-
-        // Create sticky wrapper for header elements
-        let stickyHeader = container.querySelector('.cms-sticky-header');
-        if (!stickyHeader && openTrigger && tabWrap) {
-            stickyHeader = document.createElement('div');
-            stickyHeader.className = 'cms-sticky-header';
-            stickyHeader.style.cssText = `
-                position: sticky;
-                top: 0;
-                z-index: 50;
-                background: white;
-                will-change: transform;
-            `;
-
-            // Move open trigger and tabs into sticky header
-            openTrigger.parentNode.insertBefore(stickyHeader, openTrigger);
-            stickyHeader.appendChild(openTrigger);
-
-            // Store original parent of tabWrap for restoration
-            tabWrap.setAttribute('data-original-parent', 'open-target');
-            stickyHeader.appendChild(tabWrap);
-
-            log('Created sticky header with trigger and tabs');
-        }
-
-        // Open the accordion
-        setTimeout(() => {
-            target.style.height = target.scrollHeight + 'px';
-            if (arrow) arrow.style.transform = 'rotateZ(180deg)';
-
-            // Setup scroll monitoring after content is visible
-            setTimeout(() => {
-                setupScrollMonitoring(container, scrollWrap);
-            }, 310);
-        }, 10);
-    }
-
-    // Setup scroll monitoring for sticky behavior
-    function setupScrollMonitoring(container, scrollWrap) {
-        if (!scrollWrap) return;
-
-        const stickyHeader = container.querySelector('.cms-sticky-header');
-        const contentWrap = container.querySelector('[data-tab-content="wrap"]');
-
-        if (!stickyHeader || !contentWrap) {
-            log('Missing elements for scroll monitoring');
-            return;
-        }
-
-        // Remove any existing scroll listener
-        if (container._scrollHandler) {
-            scrollWrap.removeEventListener('scroll', container._scrollHandler);
-        }
-
-        // Create scroll handler
-        const scrollHandler = () => {
-            const scrollRect = scrollWrap.getBoundingClientRect();
-            const contentRect = contentWrap.getBoundingClientRect();
-            const headerRect = stickyHeader.getBoundingClientRect();
-
-            // Calculate if content is fully scrolled
-            const contentBottom = contentRect.bottom;
-            const headerBottom = headerRect.bottom;
-            const scrollTop = scrollWrap.scrollTop;
-
-            // When content bottom reaches the header bottom, unstick
-            if (contentBottom <= headerBottom + 5) {
-                // Content is fully scrolled - unstick
-                if (stickyHeader.style.position !== 'relative') {
-                    stickyHeader.style.position = 'relative';
-                    stickyHeader.style.top = 'auto';
-                    log('Unsticking header - content fully scrolled');
-                }
-            } else {
-                // Keep sticky
-                if (stickyHeader.style.position !== 'sticky') {
-                    stickyHeader.style.position = 'sticky';
-                    stickyHeader.style.top = '0';
-                    log('Re-sticking header');
-                }
-            }
-
-            // Debug every 20th scroll event
-            if (Math.random() < 0.05) {
-                log('Scroll metrics:', {
-                    scrollTop,
-                    contentBottom: contentBottom - scrollRect.top,
-                    headerBottom: headerBottom - scrollRect.top,
-                    shouldUnstick: contentBottom <= headerBottom + 5
-                });
-            }
-        };
-
-        // Store handler and add listener
-        container._scrollHandler = scrollHandler;
-        scrollWrap.addEventListener('scroll', scrollHandler);
-
-        // Initial check
-        scrollHandler();
-
-        log('Scroll monitoring active');
-    }
-
-    // Close accordion with animation
-    function closeWithAnimation(container, target, arrow) {
-        const stickyHeader = container.querySelector('.cms-sticky-header');
-        const scrollWrap = document.querySelector('[cms-reports="scroll-wrap"]');
-
-        // Start closing animation
-        target.style.height = '0px';
-        if (arrow) arrow.style.transform = 'rotateZ(0deg)';
-
-        // Remove scroll listener immediately
-        if (scrollWrap && container._scrollHandler) {
-            scrollWrap.removeEventListener('scroll', container._scrollHandler);
-            delete container._scrollHandler;
-        }
-
-        // Wait for animation to complete before cleaning up
-        setTimeout(() => {
-            if (stickyHeader) {
-                // Move elements back to original positions
-                const openTrigger = stickyHeader.querySelector('[open-trigger]');
-                const tabWrap = stickyHeader.querySelector('[data-tab="wrap"]');
-
-                if (openTrigger && stickyHeader.parentNode) {
-                    stickyHeader.parentNode.insertBefore(openTrigger, stickyHeader);
-                }
-
-                if (tabWrap) {
-                    const originalParent = tabWrap.getAttribute('data-original-parent');
-                    if (originalParent === 'open-target' && target) {
-                        // Find the content wrap and insert tabs before it
-                        const contentWrap = target.querySelector('[data-tab-content="wrap"]');
-                        if (contentWrap) {
-                            target.insertBefore(tabWrap, contentWrap);
-                        } else {
-                            target.appendChild(tabWrap);
-                        }
+                // Wait for animation to complete before changing position
+                setTimeout(() => {
+                    const reportItem = container.querySelector('[cms-deliver="item"]') || container;
+                    if (reportItem) {
+                        reportItem.style.position = 'relative';
+                        reportItem.style.top = '';
+                        reportItem.style.zIndex = '';
                     }
-                    tabWrap.removeAttribute('data-original-parent');
-                }
-
-                // Remove sticky header
-                stickyHeader.remove();
-                log('Cleaned up sticky header after animation');
+                }, 300); // Match the transition duration
             }
-
-            // Reset container to relative
-            const reportItem = container.querySelector('[cms-deliver="item"]') || container;
-            if (reportItem) {
-                reportItem.style.position = 'relative';
-                reportItem.style.top = '';
-                reportItem.style.zIndex = '';
-            }
-        }, 300); // Match the transition duration
+        });
     }
 
     // Initialize scroll-to-top button
