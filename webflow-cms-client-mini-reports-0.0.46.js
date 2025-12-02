@@ -567,40 +567,34 @@
         const itemType = itemElement.getAttribute('cms-item-type');
         const isFullType = itemType === 'full';
 
-        // Hide images tab if no report images
-        const imagesTab = itemElement.querySelector('[data-tab="2"]');
+        // Check content availability
         const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
-        if (imagesTab) {
-            if (!hasImages) {
-                imagesTab.style.display = 'none';
-            } else {
-                imagesTab.style.display = '';
-            }
-        }
-
-        // Hide videos tab if no videos
-        const videosTab = itemElement.querySelector('[data-tab="3"]');
         const hasVideos = reportData.videos && reportData.videos.length > 0;
-        if (videosTab) {
-            if (!hasVideos) {
-                videosTab.style.display = 'none';
-            } else {
-                videosTab.style.display = '';
-            }
-        }
 
-        // Hide tabs wrap if no images and no videos
+        // Get tabs
+        const infoTab = itemElement.querySelector('[data-tab="1"]');
+        const imagesTab = itemElement.querySelector('[data-tab="2"]');
+        const videosTab = itemElement.querySelector('[data-tab="3"]');
         const tabsWrap = itemElement.querySelector('[data-tab="wrap"]');
-        if (tabsWrap) {
-            if (!hasImages && !hasVideos) {
-                tabsWrap.style.display = 'none';
-            } else {
+
+        // For mini type reports: hide tabs wrap entirely if no images and no videos
+        // For full type reports: always show the tabs wrap, but hide individual tabs based on content
+        if (isFullType) {
+            // Full type: Show info tab, hide/show images and videos tabs based on content
+            if (infoTab) {
+                infoTab.style.display = '';
+            }
+            if (imagesTab) {
+                imagesTab.style.display = hasImages ? '' : 'none';
+            }
+            if (videosTab) {
+                videosTab.style.display = hasVideos ? '' : 'none';
+            }
+            // Keep tabs wrap visible for full type
+            if (tabsWrap) {
                 tabsWrap.style.display = '';
             }
-        }
 
-        // For full type reports, ensure no tab content is shown by default
-        if (isFullType) {
             // Hide all tab content initially
             itemElement.querySelectorAll('[data-tab-content]').forEach(content => {
                 content.style.display = 'none';
@@ -616,6 +610,22 @@
             if (target) {
                 target.style.height = '0px';
                 target.style.overflow = 'hidden';
+            }
+        } else {
+            // Mini type: Original behavior - hide entire tabs wrap if no media
+            if (imagesTab) {
+                imagesTab.style.display = hasImages ? '' : 'none';
+            }
+            if (videosTab) {
+                videosTab.style.display = hasVideos ? '' : 'none';
+            }
+            if (tabsWrap) {
+                // Hide entire tabs wrap if no images AND no videos
+                if (!hasImages && !hasVideos) {
+                    tabsWrap.style.display = 'none';
+                } else {
+                    tabsWrap.style.display = '';
+                }
             }
         }
     }
@@ -1722,11 +1732,8 @@
             e.preventDefault();
             const tabId = tab.getAttribute('data-tab');
 
-            // Support both old (.mini-report-wrap) and new ([cms-deliver="item"]) containers
-            let container = tab.closest('.mini-report-wrap');
-            if (!container) {
-                container = tab.closest('[cms-deliver="item"]');
-            }
+            // Support only [cms-deliver="item"] containers
+            const container = tab.closest('[cms-deliver="item"]');
 
             if (!container) return;
 
@@ -1739,8 +1746,27 @@
 
             // For full type: clicking tab opens accordion if closed and switches content
             if (isFullType) {
+                // Check if clicking the current tab
+                const isCurrentTab = tab.classList.contains('current');
+
                 // Check if accordion is closed
                 const isClosed = !target || target.style.height === '0px' || target.style.height === '0' || !target.style.height;
+
+                // If clicking current tab and accordion is open, close it
+                if (isCurrentTab && !isClosed && target) {
+                    // Remove current class
+                    tab.classList.remove('current');
+
+                    // Close the accordion
+                    if (!target.style.transition) {
+                        target.style.transition = 'height 300ms ease';
+                    }
+                    target.style.height = '0px';
+                    target.style.overflow = 'hidden';
+                    if (arrow) arrow.style.transform = 'rotateZ(0deg)';
+
+                    return; // Exit here
+                }
 
                 // Switch to the selected tab
                 container.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('current'));
@@ -1852,11 +1878,8 @@
 
             e.preventDefault();
 
-            // Support both old (.mini-report-wrap) and new ([cms-deliver="item"]) containers
-            let container = trigger.closest('.mini-report-wrap');
-            if (!container) {
-                container = trigger.closest('[cms-deliver="item"]');
-            }
+            // Support only [cms-deliver="item"] containers
+            const container = trigger.closest('[cms-deliver="item"]');
 
             const target = container?.querySelector('[open-target]');
             const arrow = container?.querySelector('[dropdown-icon]');
