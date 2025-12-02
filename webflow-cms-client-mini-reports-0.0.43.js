@@ -1756,13 +1756,17 @@
                 // Small delay to ensure content is rendered before measuring height
                 setTimeout(() => {
                     target.style.height = target.scrollHeight + 'px';
-                    target.style.overflow = 'visible'; // Set overflow visible when opened
                     if (arrow) arrow.style.transform = 'rotateZ(180deg)';
+
+                    // Set overflow visible after transition completes (300ms)
+                    setTimeout(() => {
+                        target.style.overflow = 'visible';
+                    }, 300);
                 }, 10);
             } else {
                 // Close the accordion
                 target.style.height = '0px';
-                target.style.overflow = 'hidden'; // Set overflow hidden when closed
+                target.style.overflow = 'hidden'; // Set overflow hidden immediately when closing
                 if (arrow) arrow.style.transform = 'rotateZ(0deg)';
             }
         });
