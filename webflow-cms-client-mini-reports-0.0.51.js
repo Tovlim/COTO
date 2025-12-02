@@ -281,6 +281,39 @@
         }
     }
 
+    // Populate header thumbnail with first image from gallery
+    function populateHeaderThumbnail(itemElement, reportData) {
+        const thumbnailElement = itemElement.querySelector('[cms-content="header-thumbnail"]');
+        if (!thumbnailElement) return;
+
+        // Check if report has images
+        if (!reportData.reportImages || reportData.reportImages.length === 0) {
+            thumbnailElement.style.display = 'none';
+            return;
+        }
+
+        const firstImage = reportData.reportImages[0];
+        const galleryId = 'gallery-' + reportData.id;
+
+        // Set the thumbnail link attributes
+        thumbnailElement.href = firstImage.url;
+        thumbnailElement.setAttribute('data-fancybox', galleryId);
+        thumbnailElement.setAttribute('data-caption', firstImage.alt || '');
+        thumbnailElement.setAttribute('data-thumb', firstImage.url);
+
+        // Set the thumbnail image
+        const thumbnailImg = thumbnailElement.querySelector('img');
+        if (thumbnailImg) {
+            thumbnailImg.src = firstImage.url;
+            thumbnailImg.alt = firstImage.alt || '';
+            thumbnailImg.classList.remove('lazy', 'loading');
+            thumbnailImg.removeAttribute('data-ll-status');
+        }
+
+        // Show the thumbnail
+        thumbnailElement.style.display = '';
+    }
+
     // Populate reporter byline links (duplicating the template for each reporter)
     function populateReporterBylineLinks(itemElement, reporters) {
         const templateLink = itemElement.querySelector('a[cms-link="reporter"]');
@@ -373,6 +406,9 @@
 
         // Populate reporter byline links
         populateReporterBylineLinks(itemElement, reportData.reporters);
+
+        // Populate header thumbnail if first image exists
+        populateHeaderThumbnail(itemElement, reportData);
 
         return successCount;
     }
