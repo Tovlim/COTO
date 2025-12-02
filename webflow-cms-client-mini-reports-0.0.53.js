@@ -295,9 +295,10 @@
         const galleryId = 'gallery-' + reportData.id;
         const hasGalleryImages = reportData.reportImages && reportData.reportImages.length > 0;
 
-        // Set the thumbnail link attributes
+        // Set the thumbnail link attributes (but NOT data-fancybox to exclude from gallery)
         thumbnailElement.href = reportData.photo.url;
-        thumbnailElement.setAttribute('data-fancybox', galleryId);
+        // Remove data-fancybox to exclude from automatic gallery
+        thumbnailElement.removeAttribute('data-fancybox');
         thumbnailElement.setAttribute('data-caption', reportData.name || '');
         thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
 
@@ -310,40 +311,47 @@
             thumbnailImg.removeAttribute('data-ll-status');
         }
 
-        // Add click handler to ensure images are loaded when opening gallery
+        // Add click handler to manually open gallery
         if (!thumbnailElement.hasAttribute('data-thumbnail-initialized')) {
             thumbnailElement.setAttribute('data-thumbnail-initialized', 'true');
 
             thumbnailElement.addEventListener('click', function(e) {
+                e.preventDefault();
+
                 // If there are gallery images and they haven't been loaded yet
                 if (hasGalleryImages && itemElement.getAttribute('data-content-loaded') !== 'true') {
-                    e.preventDefault();
-
                     // Load the report content (including images)
                     lazyLoadReportContent(itemElement);
 
                     // Wait a moment for images to be populated, then trigger Fancybox
                     setTimeout(() => {
-                        // Reinitialize Fancybox for this gallery if needed
                         if (typeof Fancybox !== 'undefined') {
-                            // Close any open Fancybox first
-                            Fancybox.close();
+                            // Get all gallery images (excluding header thumbnail)
+                            const galleryElements = document.querySelectorAll(`[data-fancybox="${galleryId}"]`);
+                            const galleryImages = [...galleryElements].map(el => ({
+                                src: el.href,
+                                caption: el.getAttribute('data-caption') || '',
+                                thumb: el.getAttribute('data-thumb') || el.href
+                            }));
 
-                            // Open the gallery starting with the main image
-                            Fancybox.show(
-                                [...document.querySelectorAll(`[data-fancybox="${galleryId}"]`)].map(el => ({
-                                    src: el.href,
-                                    caption: el.getAttribute('data-caption') || '',
-                                    thumb: el.getAttribute('data-thumb') || el.href
-                                })),
-                                { startIndex: 0 }
-                            );
+                            // Open gallery starting from the first image
+                            Fancybox.show(galleryImages, { startIndex: 0 });
                         }
                     }, 100);
                 }
-                // If no gallery images, just open the main image
+                // If gallery images exist and are already loaded
+                else if (hasGalleryImages && typeof Fancybox !== 'undefined') {
+                    const galleryElements = document.querySelectorAll(`[data-fancybox="${galleryId}"]`);
+                    const galleryImages = [...galleryElements].map(el => ({
+                        src: el.href,
+                        caption: el.getAttribute('data-caption') || '',
+                        thumb: el.getAttribute('data-thumb') || el.href
+                    }));
+
+                    Fancybox.show(galleryImages, { startIndex: 0 });
+                }
+                // If no gallery images, just open the main image alone
                 else if (!hasGalleryImages && typeof Fancybox !== 'undefined') {
-                    e.preventDefault();
                     Fancybox.show([{
                         src: reportData.photo.url,
                         caption: reportData.name || '',
@@ -651,8 +659,8 @@
         const itemType = itemElement.getAttribute('cms-item-type');
         const isFullType = itemType === 'full';
 
-        // Check content availability
-        const hasImages = (reportData.reportImages && reportData.reportImages.length > 0) || reportData.photo?.url;
+        // Check content availability - only count reportImages, not main image
+        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
         const hasVideos = reportData.videos && reportData.videos.length > 0;
 
         // Get tabs
@@ -795,23 +803,28 @@
         const reportImages = reportData.reportImages;
         const mainImage = reportData.photo?.url;
 
-        // Build combined image list: main image first (if exists), then gallery images
+        // Only show gallery if there are reportImages (not just main image)
+        if (!imagesWrap || !reportImages || reportImages.length === 0) {
+            if (imagesWrap) imagesWrap.style.display = 'none';
+            return;
+        }
+
+        // Build image list - check if main image is already in reportImages
         const allImages = [];
-        if (mainImage) {
+
+        // Check if the main image is already the first item in reportImages
+        const mainImageIsFirst = reportImages[0] && reportImages[0].url === mainImage;
+
+        // Only add main image if it's not already in reportImages
+        if (mainImage && !mainImageIsFirst && !reportImages.some(img => img.url === mainImage)) {
             allImages.push({
                 url: mainImage,
                 alt: reportData.name || 'Main image'
             });
         }
-        if (reportImages && reportImages.length > 0) {
-            allImages.push(...reportImages);
-        }
 
-        // Hide images wrap if no images at all
-        if (!imagesWrap || allImages.length === 0) {
-            if (imagesWrap) imagesWrap.style.display = 'none';
-            return;
-        }
+        // Add all report images
+        allImages.push(...reportImages);
 
         // Find the template .picturelightbox element
         const templateLightbox = imagesWrap.querySelector('.picturelightbox');
@@ -887,9 +900,9 @@
 
         if (!isFullType) return;
 
-        // Check content availability
+        // Check content availability - only count reportImages, not main image
         const hasDescription = reportData.description && reportData.description.trim() !== '';
-        const hasImages = (reportData.reportImages && reportData.reportImages.length > 0) || reportData.photo?.url;
+        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
         const hasVideos = reportData.videos && reportData.videos.length > 0;
 
         // Get tabs
