@@ -348,23 +348,17 @@
     function populateBasicFields(itemElement, reportData) {
         let successCount = 0;
 
-        const titleElement = itemElement.querySelector('.text-block-829806-1');
+        const titleElement = itemElement.querySelector('[cms-field="title"]');
         if (setText(titleElement, reportData.name)) successCount++;
 
-        const mainImage = itemElement.querySelector('.image-63-1-copy');
+        const mainImage = itemElement.querySelector('[cms-content="main-image"]');
         if (setImage(mainImage, reportData.photo?.url || '', reportData.name)) successCount++;
 
         const dateValue = reportData.date || reportData.createdOn;
-        const dateElement = itemElement.querySelector('.mini-report-info-wrap .text-block-829818:first-child');
+        const dateElement = itemElement.querySelector('[cms-field="date"]');
         if (setText(dateElement, formatDate(dateValue))) successCount++;
 
-        // Also populate [cms-field="date"] if it exists
-        const cmsDateElement = itemElement.querySelector('[cms-field="date"]');
-        if (cmsDateElement) {
-            setText(cmsDateElement, formatDate(dateValue));
-        }
-
-        const bylineElement = itemElement.querySelector('.mini-report-info-wrap .text-block-829818:last-child');
+        const bylineElement = itemElement.querySelector('[cms-field="reporters"]');
         setText(bylineElement, formatReporterNames(reportData.reporters));
 
         const topicElement = itemElement.querySelector('[cms-field="topic"]');
@@ -419,24 +413,51 @@
 
     // Populate a single reporter item (for modal list)
     function populateReporterItem(reporterItem, reporter) {
-        setText(reporterItem.querySelector('[cms-field="reporter"]'), reporter.name);
-        setText(reporterItem.querySelector('[fs-list-field="Reporter"]'), reporter.name);
+        // Remove any duplicate reporter links and separators first
+        const allReporterLinks = reporterItem.querySelectorAll('[cms-link="reporter"]');
+        const allSeparators = reporterItem.querySelectorAll('.reporter-separator');
 
-        const reporterImageField = reporterItem.querySelector('[cms-field="reporter-image"]');
-        const imgEl = reporterItem.querySelector('[reporter-image="true"]');
-        if (reporter.photo) {
-            const photoUrl = reporter.photo.url || reporter.photo;
-            if (reporterImageField) {
-                reporterImageField.src = photoUrl;
-                reporterImageField.alt = reporter.name;
+        // Keep only the first reporter link, remove the rest
+        allReporterLinks.forEach((link, index) => {
+            if (index > 0) {
+                link.remove();
             }
-            if (imgEl) {
-                imgEl.src = photoUrl;
-                imgEl.alt = reporter.name;
+        });
+
+        // Remove all separators in modal items
+        allSeparators.forEach(sep => sep.remove());
+
+        // Now populate the single reporter link
+        const reporterLink = reporterItem.querySelector('[cms-link="reporter"]');
+        if (reporterLink) {
+            setLink(reporterLink, reporter.slug ? `/reporter/${reporter.slug}` : null);
+
+            // Update name within the link
+            const nameElement = reporterLink.querySelector('[cms-field="reporter"]');
+            if (nameElement) {
+                setText(nameElement, reporter.name);
+            }
+
+            // Update image within the link
+            const imageElement = reporterLink.querySelector('[cms-field="reporter-image"]');
+            if (imageElement && reporter.photo) {
+                const photoUrl = reporter.photo.url || reporter.photo;
+                imageElement.src = photoUrl;
+                imageElement.alt = reporter.name;
             }
         }
 
-        setLink(reporterItem.querySelector('[cms-link="reporter"]'), reporter.slug ? `/reporter/${reporter.slug}` : null);
+        // Also update any standalone fields outside the link
+        setText(reporterItem.querySelector('[fs-list-field="Reporter"]'), reporter.name);
+
+        const imgEl = reporterItem.querySelector('[reporter-image="true"]');
+        if (imgEl && reporter.photo) {
+            const photoUrl = reporter.photo.url || reporter.photo;
+            imgEl.src = photoUrl;
+            imgEl.alt = reporter.name;
+        }
+
+        // Set action links
         setReporterActionLinks(reporterItem, reporter);
     }
 
@@ -1990,16 +2011,25 @@
         checkElements: function() {
             const list = document.querySelector('[cms-deliver="list"]');
             const item = document.querySelector('[cms-deliver="item"]');
-            const title = item ? item.querySelector('.text-block-829806-1') : null;
+            const title = item ? item.querySelector('[cms-field="title"]') : null;
+            const mainImage = item ? item.querySelector('[cms-content="main-image"]') : null;
+            const date = item ? item.querySelector('[cms-field="date"]') : null;
+            const reporters = item ? item.querySelector('[cms-field="reporters"]') : null;
 
             console.log('List container:', list);
             console.log('Template item:', item);
             console.log('Title element:', title);
+            console.log('Main image element:', mainImage);
+            console.log('Date element:', date);
+            console.log('Reporters element:', reporters);
 
             return {
                 hasList: !!list,
                 hasItem: !!item,
-                hasTitle: !!title
+                hasTitle: !!title,
+                hasMainImage: !!mainImage,
+                hasDate: !!date,
+                hasReporters: !!reporters
             };
         },
         getState: function() {
