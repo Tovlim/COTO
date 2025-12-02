@@ -784,6 +784,60 @@
         }
     }
 
+    // Setup tab visibility for full type reports without loading content
+    function setupFullTypeTabsVisibility(itemElement, reportData) {
+        // Check if this is a full type report
+        const itemType = itemElement.getAttribute('cms-item-type');
+        const isFullType = itemType === 'full';
+
+        if (!isFullType) return;
+
+        // Check content availability
+        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
+        const hasVideos = reportData.videos && reportData.videos.length > 0;
+
+        // Get tabs
+        const infoTab = itemElement.querySelector('[data-tab="1"]');
+        const imagesTab = itemElement.querySelector('[data-tab="2"]');
+        const videosTab = itemElement.querySelector('[data-tab="3"]');
+        const tabsWrap = itemElement.querySelector('[data-tab="wrap"]');
+
+        // Full type: Show info tab, hide/show images and videos tabs based on content
+        if (infoTab) {
+            infoTab.style.display = '';
+        }
+        if (imagesTab) {
+            imagesTab.style.display = hasImages ? '' : 'none';
+        }
+        if (videosTab) {
+            videosTab.style.display = hasVideos ? '' : 'none';
+        }
+        // Keep tabs wrap visible for full type
+        if (tabsWrap) {
+            tabsWrap.style.display = '';
+        }
+
+        // Hide all tab content initially
+        itemElement.querySelectorAll('[data-tab-content]').forEach(content => {
+            content.style.display = 'none';
+        });
+
+        // Remove current class from all tabs
+        itemElement.querySelectorAll('[data-tab]').forEach(tab => {
+            tab.classList.remove('current');
+        });
+
+        // Ensure the accordion content area is collapsed initially
+        const target = itemElement.querySelector('[open-target]');
+        if (target) {
+            target.style.height = '0px';
+            target.style.overflow = 'hidden';
+        }
+
+        // Mark that tabs have been initialized
+        itemElement.setAttribute('data-tabs-initialized', 'true');
+    }
+
     // Lazy load content for a report item (called when accordion opens)
     function lazyLoadReportContent(itemElement) {
         // Check if already loaded
@@ -800,12 +854,8 @@
 
         try {
             const reportData = JSON.parse(reportDataJson);
-            // Check if tabs have been initialized (visibility set based on content)
-            const tabsInitialized = itemElement.getAttribute('data-tabs-initialized') === 'true';
-            // Only skip tab visibility logic if tabs have already been initialized
-            populateContent(itemElement, reportData, tabsInitialized);
-            // Mark tabs as initialized after first content load
-            itemElement.setAttribute('data-tabs-initialized', 'true');
+            // Always pass true for isLazyLoad to skip tab visibility logic (already handled)
+            populateContent(itemElement, reportData, true);
             itemElement.setAttribute('data-content-loaded', 'true');
             log('Lazy loaded content for report:', reportData.name);
         } catch (error) {
@@ -819,6 +869,10 @@
         populateLocationFields(itemElement, reportData);
         populateReporterInfo(itemElement, reportData.reporters || []);
 
+        // Check if this is a full type report
+        const itemType = itemElement.getAttribute('cms-item-type');
+        const isFullType = itemType === 'full';
+
         // Only populate content if lazyLoadContent is false (e.g., search results)
         if (!lazyLoadContent) {
             populateContent(itemElement, reportData);
@@ -826,6 +880,11 @@
             // Store report data for lazy loading later
             itemElement.setAttribute('data-report-data', JSON.stringify(reportData));
             itemElement.setAttribute('data-content-loaded', 'false');
+
+            // For full type reports, set up tab visibility immediately based on content availability
+            if (isFullType) {
+                setupFullTypeTabsVisibility(itemElement, reportData);
+            }
         }
 
         itemElement.setAttribute('data-report-id', reportData.id);
