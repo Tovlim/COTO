@@ -563,6 +563,10 @@
         // Populate report images gallery with unique gallery ID
         populateImagesGallery(itemElement, reportData.reportImages, reportData.id);
 
+        // Check if this is a full type report
+        const itemType = itemElement.getAttribute('cms-item-type');
+        const isFullType = itemType === 'full';
+
         // Hide images tab if no report images
         const imagesTab = itemElement.querySelector('[data-tab="2"]');
         const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
@@ -592,6 +596,26 @@
                 tabsWrap.style.display = 'none';
             } else {
                 tabsWrap.style.display = '';
+            }
+        }
+
+        // For full type reports, ensure no tab content is shown by default
+        if (isFullType) {
+            // Hide all tab content initially
+            itemElement.querySelectorAll('[data-tab-content]').forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // Remove current class from all tabs
+            itemElement.querySelectorAll('[data-tab]').forEach(tab => {
+                tab.classList.remove('current');
+            });
+
+            // Ensure the accordion content area is collapsed initially
+            const target = itemElement.querySelector('[open-target]');
+            if (target) {
+                target.style.height = '0px';
+                target.style.overflow = 'hidden';
             }
         }
     }
@@ -1697,13 +1721,84 @@
 
             e.preventDefault();
             const tabId = tab.getAttribute('data-tab');
-            const container = tab.closest('.mini-report-wrap');
+
+            // Support both old (.mini-report-wrap) and new ([cms-deliver="item"]) containers
+            let container = tab.closest('.mini-report-wrap');
+            if (!container) {
+                container = tab.closest('[cms-deliver="item"]');
+            }
 
             if (!container) return;
+
+            // Check if this is a 'full' type report
+            const itemType = container.getAttribute('cms-item-type');
+            const isFullType = itemType === 'full';
 
             const target = container.querySelector('[open-target]');
             const arrow = container.querySelector('[dropdown-icon]');
 
+            // For full type: clicking tab opens accordion if closed and switches content
+            if (isFullType) {
+                // Check if accordion is closed
+                const isClosed = !target || target.style.height === '0px' || target.style.height === '0' || !target.style.height;
+
+                // Switch to the selected tab
+                container.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('current'));
+                tab.classList.add('current');
+
+                // Update tab content visibility
+                container.querySelectorAll('[data-tab-content]').forEach(content => {
+                    if (content.getAttribute('data-tab-content') === tabId) {
+                        content.style.display = 'block';
+                    } else {
+                        content.style.display = 'none';
+                    }
+                });
+
+                // Open accordion if it was closed
+                if (isClosed && target) {
+                    // Lazy load content if needed
+                    const reportItem = container;
+                    if (reportItem.getAttribute('data-content-loaded') !== 'true') {
+                        lazyLoadReportContent(reportItem);
+                    }
+
+                    // Set transition
+                    if (!target.style.transition) {
+                        target.style.transition = 'height 300ms ease';
+                    }
+
+                    // Small delay to ensure content is rendered
+                    setTimeout(() => {
+                        target.style.height = target.scrollHeight + 'px';
+                        if (arrow) arrow.style.transform = 'rotateZ(180deg)';
+
+                        // Set overflow visible after transition
+                        setTimeout(() => {
+                            target.style.overflow = 'visible';
+                        }, 300);
+                    }, 10);
+                }
+                // If already open, just ensure height adjusts to new content
+                else if (target && target.style.height !== '0px' && target.style.height !== '0') {
+                    const currentHeight = target.offsetHeight;
+                    const originalTransition = target.style.transition;
+
+                    target.style.transition = 'none';
+                    target.style.height = 'auto';
+                    const newHeight = target.scrollHeight;
+                    target.style.height = currentHeight + 'px';
+
+                    target.offsetHeight; // Force reflow
+
+                    target.style.transition = originalTransition || 'height 300ms ease';
+                    target.style.height = newHeight + 'px';
+                }
+
+                return; // Exit here for full type
+            }
+
+            // Original behavior for mini type (accordion reports)
             const isCurrentTab = tab.classList.contains('current');
 
             if (isCurrentTab) {
@@ -1712,7 +1807,7 @@
                         target.style.transition = 'height 300ms ease';
                     }
                     target.style.height = '0px';
-                    target.style.overflow = 'hidden'; // Set overflow hidden when closing via tab
+                    target.style.overflow = 'hidden';
                     if (arrow) arrow.style.transform = 'rotateZ(0deg)';
                 }
                 return;
@@ -1731,12 +1826,11 @@
 
             if (target && target.style.height !== '0px' && target.style.height !== '0') {
                 const currentHeight = target.offsetHeight;
-
                 const originalTransition = target.style.transition;
+
                 target.style.transition = 'none';
                 target.style.height = 'auto';
                 const newHeight = target.scrollHeight;
-
                 target.style.height = currentHeight + 'px';
 
                 target.offsetHeight;
@@ -1757,11 +1851,25 @@
             }
 
             e.preventDefault();
-            const container = trigger.closest('.mini-report-wrap');
+
+            // Support both old (.mini-report-wrap) and new ([cms-deliver="item"]) containers
+            let container = trigger.closest('.mini-report-wrap');
+            if (!container) {
+                container = trigger.closest('[cms-deliver="item"]');
+            }
+
             const target = container?.querySelector('[open-target]');
             const arrow = container?.querySelector('[dropdown-icon]');
 
             if (!target) return;
+
+            // Check if this is a 'full' type report (full type doesn't use accordion triggers)
+            const itemType = container?.getAttribute('cms-item-type');
+            if (itemType === 'full') {
+                // Full type reports don't use [open-trigger] for accordion
+                // Their accordion is controlled by tabs
+                return;
+            }
 
             if (!target.style.transition) {
                 target.style.transition = 'height 300ms ease';
@@ -1787,7 +1895,7 @@
             } else {
                 // Close the accordion
                 target.style.height = '0px';
-                target.style.overflow = 'hidden'; // Set overflow hidden immediately when closing
+                target.style.overflow = 'hidden';
                 if (arrow) arrow.style.transform = 'rotateZ(0deg)';
             }
         });
