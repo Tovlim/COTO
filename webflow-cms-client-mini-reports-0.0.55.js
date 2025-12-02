@@ -947,6 +947,45 @@
         itemElement.setAttribute('data-tabs-initialized', 'true');
     }
 
+    // Setup tab visibility for mini type reports without loading content
+    function setupMiniTypeTabsVisibility(itemElement, reportData) {
+        // Check if this is a mini type report (not full)
+        const itemType = itemElement.getAttribute('cms-item-type');
+        const isFullType = itemType === 'full';
+
+        if (isFullType) return; // Skip if full type
+
+        // Check content availability - only count reportImages, not main image
+        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
+        const hasVideos = reportData.videos && reportData.videos.length > 0;
+
+        // Get tabs
+        const infoTab = itemElement.querySelector('[data-tab="1"]');
+        const imagesTab = itemElement.querySelector('[data-tab="2"]');
+        const videosTab = itemElement.querySelector('[data-tab="3"]');
+        const tabsWrap = itemElement.querySelector('[data-tab="wrap"]');
+
+        // Mini type: Hide images/videos tabs based on content
+        if (imagesTab) {
+            imagesTab.style.display = hasImages ? '' : 'none';
+        }
+        if (videosTab) {
+            videosTab.style.display = hasVideos ? '' : 'none';
+        }
+
+        // Mini type behavior: hide entire tabs wrap if no images AND no videos
+        if (tabsWrap) {
+            if (!hasImages && !hasVideos) {
+                tabsWrap.style.display = 'none';
+            } else {
+                tabsWrap.style.display = '';
+            }
+        }
+
+        // Mark that tabs have been initialized
+        itemElement.setAttribute('data-tabs-initialized', 'true');
+    }
+
     // Lazy load content for a report item (called when accordion opens)
     function lazyLoadReportContent(itemElement) {
         // Check if already loaded
@@ -990,9 +1029,11 @@
             itemElement.setAttribute('data-report-data', JSON.stringify(reportData));
             itemElement.setAttribute('data-content-loaded', 'false');
 
-            // For full type reports, set up tab visibility immediately based on content availability
+            // Set up tab visibility immediately based on content availability
             if (isFullType) {
                 setupFullTypeTabsVisibility(itemElement, reportData);
+            } else {
+                setupMiniTypeTabsVisibility(itemElement, reportData);
             }
         }
 
