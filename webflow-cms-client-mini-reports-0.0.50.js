@@ -793,6 +793,7 @@
         if (!isFullType) return;
 
         // Check content availability
+        const hasDescription = reportData.description && reportData.description.trim() !== '';
         const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
         const hasVideos = reportData.videos && reportData.videos.length > 0;
 
@@ -802,9 +803,9 @@
         const videosTab = itemElement.querySelector('[data-tab="3"]');
         const tabsWrap = itemElement.querySelector('[data-tab="wrap"]');
 
-        // Full type: Show info tab, hide/show images and videos tabs based on content
+        // Full type: Show/hide tabs based on content
         if (infoTab) {
-            infoTab.style.display = '';
+            infoTab.style.display = hasDescription ? '' : 'none';
         }
         if (imagesTab) {
             imagesTab.style.display = hasImages ? '' : 'none';
