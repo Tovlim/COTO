@@ -800,8 +800,12 @@
 
         try {
             const reportData = JSON.parse(reportDataJson);
-            // Pass true as second parameter to indicate this is a lazy load
-            populateContent(itemElement, reportData, true);
+            // Check if tabs have been initialized (visibility set based on content)
+            const tabsInitialized = itemElement.getAttribute('data-tabs-initialized') === 'true';
+            // Only skip tab visibility logic if tabs have already been initialized
+            populateContent(itemElement, reportData, tabsInitialized);
+            // Mark tabs as initialized after first content load
+            itemElement.setAttribute('data-tabs-initialized', 'true');
             itemElement.setAttribute('data-content-loaded', 'true');
             log('Lazy loaded content for report:', reportData.name);
         } catch (error) {
