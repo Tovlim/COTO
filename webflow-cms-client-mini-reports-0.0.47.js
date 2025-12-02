@@ -549,7 +549,7 @@
     }
 
     // Populate content tabs (info, description, videos)
-    function populateContent(itemElement, reportData) {
+    function populateContent(itemElement, reportData, isLazyLoad = false) {
         const infoContent = itemElement.querySelector('[cms-content="info"]');
         const descriptionContent = itemElement.querySelector('[cms-content="description"]');
         if (reportData.description) {
@@ -562,6 +562,11 @@
 
         // Populate report images gallery with unique gallery ID
         populateImagesGallery(itemElement, reportData.reportImages, reportData.id);
+
+        // Skip tab visibility logic during lazy load - only apply on initial population
+        if (isLazyLoad) {
+            return;
+        }
 
         // Check if this is a full type report
         const itemType = itemElement.getAttribute('cms-item-type');
@@ -795,7 +800,8 @@
 
         try {
             const reportData = JSON.parse(reportDataJson);
-            populateContent(itemElement, reportData);
+            // Pass true as second parameter to indicate this is a lazy load
+            populateContent(itemElement, reportData, true);
             itemElement.setAttribute('data-content-loaded', 'true');
             log('Lazy loaded content for report:', reportData.name);
         } catch (error) {
@@ -1731,6 +1737,9 @@
 
             e.preventDefault();
             const tabId = tab.getAttribute('data-tab');
+
+            // Skip the wrapper element itself
+            if (tabId === 'wrap') return;
 
             // Support only [cms-deliver="item"] containers
             const container = tab.closest('[cms-deliver="item"]');
