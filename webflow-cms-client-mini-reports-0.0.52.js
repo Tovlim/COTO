@@ -281,33 +281,76 @@
         }
     }
 
-    // Populate header thumbnail with first image from gallery
+    // Populate header thumbnail with main image
     function populateHeaderThumbnail(itemElement, reportData) {
         const thumbnailElement = itemElement.querySelector('[cms-content="header-thumbnail"]');
         if (!thumbnailElement) return;
 
-        // Check if report has images
-        if (!reportData.reportImages || reportData.reportImages.length === 0) {
+        // Check if report has a main image
+        if (!reportData.photo?.url) {
             thumbnailElement.style.display = 'none';
             return;
         }
 
-        const firstImage = reportData.reportImages[0];
         const galleryId = 'gallery-' + reportData.id;
+        const hasGalleryImages = reportData.reportImages && reportData.reportImages.length > 0;
 
         // Set the thumbnail link attributes
-        thumbnailElement.href = firstImage.url;
+        thumbnailElement.href = reportData.photo.url;
         thumbnailElement.setAttribute('data-fancybox', galleryId);
-        thumbnailElement.setAttribute('data-caption', firstImage.alt || '');
-        thumbnailElement.setAttribute('data-thumb', firstImage.url);
+        thumbnailElement.setAttribute('data-caption', reportData.name || '');
+        thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
 
         // Set the thumbnail image
         const thumbnailImg = thumbnailElement.querySelector('img');
         if (thumbnailImg) {
-            thumbnailImg.src = firstImage.url;
-            thumbnailImg.alt = firstImage.alt || '';
+            thumbnailImg.src = reportData.photo.url;
+            thumbnailImg.alt = reportData.name || '';
             thumbnailImg.classList.remove('lazy', 'loading');
             thumbnailImg.removeAttribute('data-ll-status');
+        }
+
+        // Add click handler to ensure images are loaded when opening gallery
+        if (!thumbnailElement.hasAttribute('data-thumbnail-initialized')) {
+            thumbnailElement.setAttribute('data-thumbnail-initialized', 'true');
+
+            thumbnailElement.addEventListener('click', function(e) {
+                // If there are gallery images and they haven't been loaded yet
+                if (hasGalleryImages && itemElement.getAttribute('data-content-loaded') !== 'true') {
+                    e.preventDefault();
+
+                    // Load the report content (including images)
+                    lazyLoadReportContent(itemElement);
+
+                    // Wait a moment for images to be populated, then trigger Fancybox
+                    setTimeout(() => {
+                        // Reinitialize Fancybox for this gallery if needed
+                        if (typeof Fancybox !== 'undefined') {
+                            // Close any open Fancybox first
+                            Fancybox.close();
+
+                            // Open the gallery starting with the main image
+                            Fancybox.show(
+                                [...document.querySelectorAll(`[data-fancybox="${galleryId}"]`)].map(el => ({
+                                    src: el.href,
+                                    caption: el.getAttribute('data-caption') || '',
+                                    thumb: el.getAttribute('data-thumb') || el.href
+                                })),
+                                { startIndex: 0 }
+                            );
+                        }
+                    }, 100);
+                }
+                // If no gallery images, just open the main image
+                else if (!hasGalleryImages && typeof Fancybox !== 'undefined') {
+                    e.preventDefault();
+                    Fancybox.show([{
+                        src: reportData.photo.url,
+                        caption: reportData.name || '',
+                        thumb: reportData.photo.url
+                    }]);
+                }
+            });
         }
 
         // Show the thumbnail
@@ -597,7 +640,7 @@
         populateVideos(itemElement, reportData.videos);
 
         // Populate report images gallery with unique gallery ID
-        populateImagesGallery(itemElement, reportData.reportImages, reportData.id);
+        populateImagesGallery(itemElement, reportData);
 
         // Skip tab visibility logic during lazy load - only apply on initial population
         if (isLazyLoad) {
@@ -609,7 +652,7 @@
         const isFullType = itemType === 'full';
 
         // Check content availability
-        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
+        const hasImages = (reportData.reportImages && reportData.reportImages.length > 0) || reportData.photo?.url;
         const hasVideos = reportData.videos && reportData.videos.length > 0;
 
         // Get tabs
@@ -747,9 +790,25 @@
     }
 
     // Populate images gallery in images-wrap
-    function populateImagesGallery(itemElement, reportImages, reportId) {
+    function populateImagesGallery(itemElement, reportData) {
         const imagesWrap = itemElement.querySelector('[cms-deliver="images-wrap"]');
-        if (!imagesWrap || !reportImages || reportImages.length === 0) {
+        const reportImages = reportData.reportImages;
+        const mainImage = reportData.photo?.url;
+
+        // Build combined image list: main image first (if exists), then gallery images
+        const allImages = [];
+        if (mainImage) {
+            allImages.push({
+                url: mainImage,
+                alt: reportData.name || 'Main image'
+            });
+        }
+        if (reportImages && reportImages.length > 0) {
+            allImages.push(...reportImages);
+        }
+
+        // Hide images wrap if no images at all
+        if (!imagesWrap || allImages.length === 0) {
             if (imagesWrap) imagesWrap.style.display = 'none';
             return;
         }
@@ -768,10 +827,10 @@
         });
 
         // Create unique gallery ID for this report
-        const galleryId = 'gallery-' + reportId;
+        const galleryId = 'gallery-' + reportData.id;
 
         // Clone and populate for each image
-        reportImages.forEach((image, index) => {
+        allImages.forEach((image, index) => {
             const lightbox = templateLightbox.cloneNode(true);
 
             const anchor = lightbox.querySelector('a[lightbox-image]');
@@ -830,7 +889,7 @@
 
         // Check content availability
         const hasDescription = reportData.description && reportData.description.trim() !== '';
-        const hasImages = reportData.reportImages && reportData.reportImages.length > 0;
+        const hasImages = (reportData.reportImages && reportData.reportImages.length > 0) || reportData.photo?.url;
         const hasVideos = reportData.videos && reportData.videos.length > 0;
 
         // Get tabs
