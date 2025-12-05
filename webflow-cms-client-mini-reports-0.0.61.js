@@ -170,28 +170,28 @@
     // Configuration for location fields - data-driven approach
     const LOCATION_FIELDS = [
         {
-            dataKey: 'locality',
+            dataKey: 'locality',  // Now an array
             fieldSelector: '[cms-field="locality"]',
             linkSelector: '[cms-link="locality"]',
             slashAttr: 'locality',
             urlPrefix: '/locality/'
         },
         {
-            dataKey: 'subRegion',
+            dataKey: 'subRegion',  // Now an array (sub-region-2 in data)
             fieldSelector: '[cms-field="region"]',
             linkSelector: '[cms-link="region"]',
             slashAttr: 'region',
             urlPrefix: '/region/'
         },
         {
-            dataKey: 'region',
+            dataKey: 'region',  // Now an array
             fieldSelector: '[cms-field="governorate"]',
             linkSelector: '[cms-link="governorate"]',
             slashAttr: 'governorate',
             urlPrefix: '/region/'
         },
         {
-            dataKey: 'territory',
+            dataKey: 'territory',  // Still single value
             fieldSelector: '[cms-field="territory"]',
             linkSelector: '[cms-link="territory"]',
             slashAttr: null,
@@ -447,7 +447,14 @@
 
         const topicElement = itemElement.querySelector('[cms-field="topic"]');
         const topicLinkElement = itemElement.querySelector('[cms-link="topic"]');
-        if (reportData.topic && reportData.topic.slug) {
+        // Handle topic as array - display first one
+        if (reportData.topic && Array.isArray(reportData.topic) && reportData.topic.length > 0) {
+            const firstTopic = reportData.topic[0];
+            setText(topicElement, firstTopic.name);
+            setLink(topicLinkElement, `/topic/${firstTopic.slug}`);
+            successCount++;
+        } else if (reportData.topic && reportData.topic.slug) {
+            // Legacy single topic format
             setText(topicElement, reportData.topic.name);
             setLink(topicLinkElement, `/topic/${reportData.topic.slug}`);
             successCount++;
@@ -490,7 +497,16 @@
         });
 
         LOCATION_FIELDS.forEach(config => {
-            const data = reportData[config.dataKey];
+            let data = reportData[config.dataKey];
+
+            // Handle arrays - use first item
+            if (Array.isArray(data) && data.length > 0) {
+                data = data[0];
+            } else if (Array.isArray(data)) {
+                // Empty array
+                data = null;
+            }
+
             const fieldElement = itemElement.querySelector(config.fieldSelector);
             const linkElement = itemElement.querySelector(config.linkSelector);
             const slash = config.slashAttr ? slashes[config.slashAttr] : null;
@@ -671,12 +687,18 @@
             backer: reportData.backer
         });
 
-        // Populate perpetrator name and link (handle both singular and plural)
+        // Populate perpetrator name and link (handle array - show first)
         const perpLink = perpInfoWrap.querySelector('a[cms-link="Perp"]');
         const perpField = perpInfoWrap.querySelector('div[cms-field="Perp"]');
 
-        // Check for perpetrators array (plural) or perpetrator (singular)
-        const perpetrator = reportData.perpetrators?.[0] || reportData.perpetrator;
+        // Handle perpetrators as array
+        let perpetrator = null;
+        if (reportData.perpetrators && Array.isArray(reportData.perpetrators) && reportData.perpetrators.length > 0) {
+            perpetrator = reportData.perpetrators[0];
+        } else if (reportData.perpetrator) {
+            // Legacy single format
+            perpetrator = reportData.perpetrator;
+        }
 
         // Find the "Perpetrated by" text element
         const perpetratedByText = Array.from(perpInfoWrap.querySelectorAll('.perpetrator-report-text'))
