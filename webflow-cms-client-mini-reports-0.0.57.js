@@ -1938,6 +1938,9 @@
     // Track if interactions have been initialized
     let interactionsInitialized = false;
 
+    // Store timeout IDs for overflow animation per container
+    const overflowTimeouts = new WeakMap();
+
     // Initialize tabs and accordion interactions only (called once)
     function initializeTabsAndAccordion() {
         if (interactionsInitialized) return;
@@ -1978,6 +1981,12 @@
                 if (isCurrentTab && !isClosed && target) {
                     // Remove current class
                     tab.classList.remove('current');
+
+                    // Clear any pending overflow timeout for this container
+                    if (overflowTimeouts.has(container)) {
+                        clearTimeout(overflowTimeouts.get(container));
+                        overflowTimeouts.delete(container);
+                    }
 
                     // Close the accordion
                     if (!target.style.transition) {
@@ -2021,10 +2030,18 @@
                         target.style.height = target.scrollHeight + 'px';
                         if (arrow) arrow.style.transform = 'rotateZ(180deg)';
 
+                        // Clear any existing timeout for this container
+                        if (overflowTimeouts.has(container)) {
+                            clearTimeout(overflowTimeouts.get(container));
+                        }
+
                         // Set overflow visible after transition
-                        setTimeout(() => {
+                        const timeoutId = setTimeout(() => {
                             target.style.overflow = 'visible';
+                            overflowTimeouts.delete(container);
                         }, 300);
+
+                        overflowTimeouts.set(container, timeoutId);
                     }, 10);
                 }
                 // If already open, just ensure height adjusts to new content
@@ -2132,12 +2149,26 @@
                     target.style.height = target.scrollHeight + 'px';
                     if (arrow) arrow.style.transform = 'rotateZ(180deg)';
 
+                    // Clear any existing timeout for this container
+                    if (overflowTimeouts.has(container)) {
+                        clearTimeout(overflowTimeouts.get(container));
+                    }
+
                     // Set overflow visible after transition completes (300ms)
-                    setTimeout(() => {
+                    const timeoutId = setTimeout(() => {
                         target.style.overflow = 'visible';
+                        overflowTimeouts.delete(container);
                     }, 300);
+
+                    overflowTimeouts.set(container, timeoutId);
                 }, 10);
             } else {
+                // Clear any pending overflow timeout for this container
+                if (overflowTimeouts.has(container)) {
+                    clearTimeout(overflowTimeouts.get(container));
+                    overflowTimeouts.delete(container);
+                }
+
                 // Close the accordion
                 target.style.height = '0px';
                 target.style.overflow = 'hidden';
