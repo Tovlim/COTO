@@ -455,8 +455,26 @@
             if (topicLinkElement) topicLinkElement.style.display = 'none';
         }
 
+        // Handle urgent wrapper visibility
+        const urgentWrap = itemElement.querySelector('[cms-wrap="urgent"]');
+        if (urgentWrap) {
+            // Show if urgent is true, hide if false or not set
+            urgentWrap.style.display = reportData.urgent === true ? '' : 'none';
+        }
+
         // Populate reporter byline links
         populateReporterBylineLinks(itemElement, reportData.reporters);
+
+        // Handle victims donation link
+        const victimsLink = itemElement.querySelector('[cms-link="support-victims"]');
+        if (victimsLink) {
+            if (reportData.victimsDonationLink) {
+                victimsLink.href = reportData.victimsDonationLink;
+                victimsLink.style.display = '';
+            } else {
+                victimsLink.style.display = 'none';
+            }
+        }
 
         // Populate header thumbnail if first image exists
         populateHeaderThumbnail(itemElement, reportData);
@@ -660,6 +678,10 @@
         // Check for perpetrators array (plural) or perpetrator (singular)
         const perpetrator = reportData.perpetrators?.[0] || reportData.perpetrator;
 
+        // Find the "Perpetrated by" text element
+        const perpetratedByText = Array.from(perpInfoWrap.querySelectorAll('.perpetrator-report-text'))
+            .find(el => el.textContent === 'Perpetrated by');
+
         if (perpetrator) {
             if (perpLink && perpetrator.slug) {
                 perpLink.href = `/perpetrator/${perpetrator.slug}`;
@@ -668,9 +690,13 @@
                 perpLink.style.display = 'none';
             }
             setText(perpField, perpetrator.name || perpetrator);
+            // Show "Perpetrated by" text
+            if (perpetratedByText) perpetratedByText.style.display = '';
         } else {
+            // Hide perpetrator link, field, and "Perpetrated by" text
             if (perpLink) perpLink.style.display = 'none';
-            setText(perpField, 'Unknown');
+            if (perpField) perpField.style.display = 'none';
+            if (perpetratedByText) perpetratedByText.style.display = 'none';
         }
 
         // Populate settlement name and link
