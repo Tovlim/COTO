@@ -2156,15 +2156,15 @@
             return;
         }
 
-        // Add custom scrollbar styling
+        // Add custom scrollbar styling (overlay version that doesn't take up layout space)
         const styleId = 'cms-scrollbar-styles';
         if (!document.getElementById(styleId)) {
             const style = document.createElement('style');
             style.id = styleId;
             style.textContent = `
-                /* Keep scrollbar space but make it transparent */
+                /* Overlay scrollbar - no width specified so it doesn't take layout space */
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar {
-                    width: 8px;
+                    /* No width/height specified - allows overlay behavior */
                 }
 
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar-track {
@@ -2175,15 +2175,20 @@
                     background: transparent;
                     border-radius: 4px;
                     transition: background 0.3s ease;
+                    /* Optional: add border for spacing from edge */
+                    border: 2px solid transparent;
+                    background-clip: padding-box;
                 }
 
                 /* Show scrollbar on hover */
                 [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb {
                     background: rgba(100, 100, 100, 0.7);
+                    background-clip: padding-box;
                 }
 
                 [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb:hover {
                     background: rgba(120, 120, 120, 0.9);
+                    background-clip: padding-box;
                 }
 
                 /* Firefox scrollbar styling */
