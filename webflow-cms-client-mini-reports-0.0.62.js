@@ -445,21 +445,74 @@
         const bylineElement = itemElement.querySelector('[cms-field="reporters"]');
         setText(bylineElement, formatReporterNames(reportData.reporters));
 
-        const topicElement = itemElement.querySelector('[cms-field="topic"]');
-        const topicLinkElement = itemElement.querySelector('[cms-link="topic"]');
-        // Handle topic as array - display first one
-        if (reportData.topic && Array.isArray(reportData.topic) && reportData.topic.length > 0) {
-            const firstTopic = reportData.topic[0];
-            setText(topicElement, firstTopic.name);
-            setLink(topicLinkElement, `/topic/${firstTopic.slug}`);
-            successCount++;
-        } else if (reportData.topic && reportData.topic.slug) {
-            // Legacy single topic format
-            setText(topicElement, reportData.topic.name);
-            setLink(topicLinkElement, `/topic/${reportData.topic.slug}`);
-            successCount++;
-        } else {
-            if (topicLinkElement) topicLinkElement.style.display = 'none';
+        // Handle topics - duplicate links for multiple topics
+        const topicsWrap = itemElement.querySelector('[cms-wrap="topics"]');
+        const topicLinkTemplate = itemElement.querySelector('[cms-link="topic"]');
+
+        if (topicsWrap && topicLinkTemplate) {
+            // Clear any existing duplicated topics (keep only the template)
+            const existingTopics = topicsWrap.querySelectorAll('[cms-link="topic"]');
+            existingTopics.forEach((link, index) => {
+                if (index > 0) link.remove();
+            });
+
+            // Handle topic as array - display all topics
+            if (reportData.topic && Array.isArray(reportData.topic) && reportData.topic.length > 0) {
+                reportData.topic.forEach((topic, index) => {
+                    let topicLink;
+                    if (index === 0) {
+                        // Use the template for the first topic
+                        topicLink = topicLinkTemplate;
+                    } else {
+                        // Clone the template for additional topics
+                        topicLink = topicLinkTemplate.cloneNode(true);
+                        topicsWrap.appendChild(topicLink);
+                    }
+
+                    // Set the link and text
+                    topicLink.href = `/topic/${topic.slug}`;
+                    topicLink.style.display = '';
+
+                    // Find the text element within the link
+                    const topicField = topicLink.querySelector('[cms-field="topic"]');
+                    if (topicField) {
+                        setText(topicField, topic.name);
+                    } else {
+                        // If no nested field, set the link text directly
+                        setText(topicLink, topic.name);
+                    }
+                });
+                successCount++;
+            } else if (reportData.topic && reportData.topic.slug) {
+                // Legacy single topic format
+                topicLinkTemplate.href = `/topic/${reportData.topic.slug}`;
+                topicLinkTemplate.style.display = '';
+                const topicField = topicLinkTemplate.querySelector('[cms-field="topic"]');
+                if (topicField) {
+                    setText(topicField, reportData.topic.name);
+                } else {
+                    setText(topicLinkTemplate, reportData.topic.name);
+                }
+                successCount++;
+            } else {
+                // No topics - hide the template
+                if (topicLinkTemplate) topicLinkTemplate.style.display = 'none';
+            }
+        } else if (topicLinkTemplate) {
+            // Fallback: No wrapper found, handle single topic display
+            const topicElement = itemElement.querySelector('[cms-field="topic"]');
+            if (reportData.topic && Array.isArray(reportData.topic) && reportData.topic.length > 0) {
+                const firstTopic = reportData.topic[0];
+                setText(topicElement, firstTopic.name);
+                setLink(topicLinkTemplate, `/topic/${firstTopic.slug}`);
+                successCount++;
+            } else if (reportData.topic && reportData.topic.slug) {
+                setText(topicElement, reportData.topic.name);
+                setLink(topicLinkTemplate, `/topic/${reportData.topic.slug}`);
+                successCount++;
+            } else {
+                if (topicLinkTemplate) topicLinkTemplate.style.display = 'none';
+            }
         }
 
         // Handle urgent wrapper visibility
