@@ -635,6 +635,104 @@
         setLink(joinButton, firstReporter.joinLink);
     }
 
+    // Populate perpetrator info for full reports
+    function populatePerpetratorInfo(itemElement, reportData) {
+        // Check if this is a full type report
+        const itemType = itemElement.getAttribute('cms-item-type');
+        if (itemType !== 'full') return;
+
+        // Find the perpetrator info wrapper
+        const perpInfoWrap = itemElement.querySelector('[cms-info="wrap"]');
+        if (!perpInfoWrap) return;
+
+        // Populate perpetrator name and link
+        const perpLink = perpInfoWrap.querySelector('a[cms-link="Perp"]');
+        const perpField = perpInfoWrap.querySelector('div[cms-field="Perp"]');
+        if (reportData.perpetrator) {
+            if (perpLink && reportData.perpetrator.slug) {
+                perpLink.href = `/perpetrator/${reportData.perpetrator.slug}`;
+                perpLink.style.display = '';
+            } else if (perpLink) {
+                perpLink.style.display = 'none';
+            }
+            setText(perpField, reportData.perpetrator.name || reportData.perpetrator);
+        } else {
+            if (perpLink) perpLink.style.display = 'none';
+            setText(perpField, 'Unknown');
+        }
+
+        // Populate settlement name and link
+        const settlementLink = perpInfoWrap.querySelector('a[cms-link="Settlement"]');
+        const settlementField = perpInfoWrap.querySelector('div[cms-field="Settlement"]');
+        if (reportData.settlement) {
+            if (settlementLink && reportData.settlement.slug) {
+                settlementLink.href = `/settlement/${reportData.settlement.slug}`;
+                settlementLink.style.display = '';
+            } else if (settlementLink) {
+                settlementLink.style.display = 'none';
+            }
+            setText(settlementField, reportData.settlement.name || reportData.settlement);
+        } else {
+            if (settlementLink) settlementLink.style.display = 'none';
+            setText(settlementField, '');
+        }
+
+        // Populate place/location type
+        const placeLink = perpInfoWrap.querySelector('a[cms-link="place"]');
+        const placeField = perpInfoWrap.querySelector('div[cms-field="Place"]');
+        if (reportData.place || reportData.locationType) {
+            const placeName = reportData.place?.name || reportData.locationType?.name ||
+                             reportData.place || reportData.locationType;
+            const placeSlug = reportData.place?.slug || reportData.locationType?.slug;
+
+            if (placeLink && placeSlug) {
+                placeLink.href = `/place/${placeSlug}`;
+                placeLink.style.display = '';
+            } else if (placeLink) {
+                placeLink.style.display = 'none';
+            }
+            setText(placeField, placeName);
+        } else {
+            if (placeLink) placeLink.style.display = 'none';
+            setText(placeField, '');
+        }
+
+        // Populate backer
+        const backerLink = perpInfoWrap.querySelector('a[cms-link="backer"]');
+        const backerField = perpInfoWrap.querySelector('div[cms-field="backer"]');
+        if (reportData.backer) {
+            if (backerLink && reportData.backer.slug) {
+                backerLink.href = `/backer/${reportData.backer.slug}`;
+                backerLink.style.display = '';
+            } else if (backerLink) {
+                backerLink.style.display = 'none';
+            }
+            setText(backerField, reportData.backer.name || reportData.backer);
+        } else {
+            if (backerLink) backerLink.style.display = 'none';
+            setText(backerField, '');
+        }
+
+        // Show/hide the "From" text based on settlement
+        const fromText = Array.from(perpInfoWrap.querySelectorAll('.perpetrator-report-text'))
+            .find(el => el.textContent === 'From');
+        if (fromText) {
+            fromText.style.display = reportData.settlement ? '' : 'none';
+        }
+
+        // Show/hide the "at" text based on place
+        const atText = perpInfoWrap.querySelector('[fs-list-field="Place"]');
+        if (atText) {
+            atText.style.display = (reportData.place || reportData.locationType) ? '' : 'none';
+        }
+
+        // Show/hide the backer section
+        const backerSection = perpInfoWrap.querySelector('.div-block-318671:last-child');
+        if (backerSection) {
+            backerSection.style.display = reportData.backer ? '' : 'none';
+        }
+    }
+
     // Populate content tabs (info, description, videos)
     function populateContent(itemElement, reportData, isLazyLoad = false) {
         const infoContent = itemElement.querySelector('[cms-content="info"]');
@@ -643,6 +741,9 @@
             setRichText(infoContent, reportData.description);
             setRichText(descriptionContent, reportData.description);
         }
+
+        // Populate perpetrator info for full reports
+        populatePerpetratorInfo(itemElement, reportData);
 
         // Populate videos
         populateVideos(itemElement, reportData.videos);
