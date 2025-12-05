@@ -645,17 +645,29 @@
         const perpInfoWrap = itemElement.querySelector('[cms-info="wrap"]');
         if (!perpInfoWrap) return;
 
-        // Populate perpetrator name and link
+        console.log('[CMS Client] Populating perpetrator info:', {
+            perpetrators: reportData.perpetrators,
+            settlement: reportData.settlement,
+            place: reportData.place,
+            locationType: reportData.locationType,
+            backer: reportData.backer
+        });
+
+        // Populate perpetrator name and link (handle both singular and plural)
         const perpLink = perpInfoWrap.querySelector('a[cms-link="Perp"]');
         const perpField = perpInfoWrap.querySelector('div[cms-field="Perp"]');
-        if (reportData.perpetrator) {
-            if (perpLink && reportData.perpetrator.slug) {
-                perpLink.href = `/perpetrator/${reportData.perpetrator.slug}`;
+
+        // Check for perpetrators array (plural) or perpetrator (singular)
+        const perpetrator = reportData.perpetrators?.[0] || reportData.perpetrator;
+
+        if (perpetrator) {
+            if (perpLink && perpetrator.slug) {
+                perpLink.href = `/perpetrator/${perpetrator.slug}`;
                 perpLink.style.display = '';
             } else if (perpLink) {
                 perpLink.style.display = 'none';
             }
-            setText(perpField, reportData.perpetrator.name || reportData.perpetrator);
+            setText(perpField, perpetrator.name || perpetrator);
         } else {
             if (perpLink) perpLink.style.display = 'none';
             setText(perpField, 'Unknown');
@@ -742,8 +754,7 @@
             setRichText(descriptionContent, reportData.description);
         }
 
-        // Populate perpetrator info for full reports
-        populatePerpetratorInfo(itemElement, reportData);
+        // Note: Perpetrator info is now populated immediately in populateReportItem for full reports
 
         // Populate videos
         populateVideos(itemElement, reportData.videos);
@@ -1121,6 +1132,11 @@
         // Check if this is a full type report
         const itemType = itemElement.getAttribute('cms-item-type');
         const isFullType = itemType === 'full';
+
+        // Populate perpetrator info immediately for full reports
+        if (isFullType) {
+            populatePerpetratorInfo(itemElement, reportData);
+        }
 
         // Only populate content if lazyLoadContent is false (e.g., search results)
         if (!lazyLoadContent) {
