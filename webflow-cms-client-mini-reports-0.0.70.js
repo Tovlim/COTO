@@ -1262,7 +1262,6 @@
         if (reportData.reporterEventLink) {
             itemElement.setAttribute('data-reporter-link', reportData.reporterEventLink);
         }
-        itemElement.setAttribute('data-report-title', reportData.name || '');
 
         itemElement.classList.remove('is--loading');
         itemElement.classList.add('is--loaded');
@@ -2497,6 +2496,8 @@
     }
 
     // Initialize share button functionality
+    let shareButtonTimeouts = new Map(); // Track timeouts for each button
+
     function initializeShareButtons() {
         // Use event delegation for share buttons
         document.addEventListener('click', async function(e) {
@@ -2513,7 +2514,6 @@
             // Get share data
             const reporterLink = reportItem.getAttribute('data-reporter-link');
             const reportSlug = reportItem.getAttribute('data-report-slug');
-            const reportTitle = reportItem.getAttribute('data-report-title') || 'Report';
 
             // Determine which URL to share (reporter link takes priority)
             const shareUrl = reporterLink || (reportSlug ? `https://occupationcrimes.org/report/${reportSlug}` : null);
@@ -2523,149 +2523,61 @@
                 return;
             }
 
-            // Try native share first (mobile), then fall back to clipboard
-            if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            // Try native share first (for all devices that support it)
+            if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: reportTitle,
-                        text: reportTitle,
                         url: shareUrl
                     });
                     console.log('[CMS Client] Shared via native share');
+                    return; // Successfully shared, exit
                 } catch (err) {
-                    // User cancelled or error occurred, fall back to clipboard
-                    if (err.name !== 'AbortError') {
-                        console.log('[CMS Client] Native share failed, copying to clipboard');
-                        await copyToClipboard(shareUrl, shareBtn);
-                    }
+                    // User cancelled or share failed, fall through to clipboard
+                    console.log('[CMS Client] Native share cancelled or failed, falling back to clipboard');
                 }
-            } else {
-                // Desktop or no native share support - copy to clipboard
-                await copyToClipboard(shareUrl, shareBtn);
+            }
+
+            // Fallback to clipboard copy (for desktop or if share fails)
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                console.log('[CMS Client] Link copied to clipboard');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = shareUrl;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                console.log('[CMS Client] Link copied via fallback');
+            }
+
+            // Update button text to show "Copied Link"
+            const shareText = shareBtn.querySelector('.share-text');
+            if (shareText) {
+                const originalText = shareText.textContent;
+                shareText.textContent = 'Copied Link';
+
+                // Clear any existing timeout for this button
+                if (shareButtonTimeouts.has(shareBtn)) {
+                    clearTimeout(shareButtonTimeouts.get(shareBtn));
+                }
+
+                // Set new timeout to restore original text
+                const timeoutId = setTimeout(() => {
+                    shareText.textContent = originalText;
+                    shareButtonTimeouts.delete(shareBtn);
+                }, 2000);
+
+                shareButtonTimeouts.set(shareBtn, timeoutId);
             }
         });
 
         console.log('[CMS Client] Share buttons initialized');
     }
 
-    // Copy to clipboard with visual feedback
-    async function copyToClipboard(text, buttonElement) {
-        try {
-            await navigator.clipboard.writeText(text);
-
-            // Show feedback near the button
-            showShareFeedback(buttonElement, 'Link copied!');
-            console.log('[CMS Client] Link copied to clipboard');
-        } catch (err) {
-            console.error('[CMS Client] Failed to copy link:', err);
-
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.opacity = '0';
-            document.body.appendChild(textArea);
-            textArea.select();
-
-            try {
-                document.execCommand('copy');
-                showShareFeedback(buttonElement, 'Link copied!');
-                console.log('[CMS Client] Link copied via fallback');
-            } catch (fallbackErr) {
-                console.error('[CMS Client] Fallback copy failed:', fallbackErr);
-                showShareFeedback(buttonElement, 'Copy failed', true);
-            } finally {
-                document.body.removeChild(textArea);
-            }
-        }
-    }
-
-    // Show visual feedback for share action
-    function showShareFeedback(buttonElement, message, isError = false) {
-        // Remove any existing feedback
-        const existingFeedback = document.querySelector('.share-feedback');
-        if (existingFeedback) {
-            existingFeedback.remove();
-        }
-
-        // Create feedback element
-        const feedback = document.createElement('div');
-        feedback.className = 'share-feedback';
-        feedback.textContent = message;
-
-        // Style the feedback
-        feedback.style.cssText = `
-            position: absolute;
-            bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: ${isError ? '#dc2626' : '#16a34a'};
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            white-space: nowrap;
-            z-index: 10000;
-            pointer-events: none;
-            animation: shareFeedbackIn 0.2s ease;
-        `;
-
-        // Add animation styles if not already present
-        if (!document.querySelector('#share-feedback-styles')) {
-            const style = document.createElement('style');
-            style.id = 'share-feedback-styles';
-            style.textContent = `
-                @keyframes shareFeedbackIn {
-                    from {
-                        opacity: 0;
-                        transform: translateX(-50%) translateY(4px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(-50%) translateY(0);
-                    }
-                }
-                @keyframes shareFeedbackOut {
-                    from {
-                        opacity: 1;
-                        transform: translateX(-50%) translateY(0);
-                    }
-                    to {
-                        opacity: 0;
-                        transform: translateX(-50%) translateY(-4px);
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        // Position feedback relative to button
-        const buttonRect = buttonElement.getBoundingClientRect();
-        const buttonParent = buttonElement.offsetParent || document.body;
-
-        // If button has position relative/absolute parent, position relative to it
-        if (buttonElement.style.position === 'relative' ||
-            buttonElement.style.position === 'absolute' ||
-            buttonElement.parentElement.style.position === 'relative') {
-            buttonElement.style.position = buttonElement.style.position || 'relative';
-            buttonElement.appendChild(feedback);
-        } else {
-            // Otherwise position fixed on viewport
-            feedback.style.position = 'fixed';
-            feedback.style.bottom = 'auto';
-            feedback.style.top = `${buttonRect.top - 30}px`;
-            feedback.style.left = `${buttonRect.left + buttonRect.width / 2}px`;
-            document.body.appendChild(feedback);
-        }
-
-        // Remove feedback after delay
-        setTimeout(() => {
-            feedback.style.animation = 'shareFeedbackOut 0.2s ease';
-            setTimeout(() => {
-                feedback.remove();
-            }, 200);
-        }, 2000);
-    }
 
     // Initialize all interactions (tabs, accordion, search) - only called once
     function initializeInteractions() {
