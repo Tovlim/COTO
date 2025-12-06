@@ -1403,7 +1403,7 @@
         // Add array filters (checkboxes)
         ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
             if (currentFilters[filterKey] && currentFilters[filterKey].length > 0) {
-                url += `&${filterKey}=${currentFilters[filterKey].join(',')}`;
+                url += `&${filterKey}=${encodeURIComponent(currentFilters[filterKey].join(','))}`;
             }
         });
 
