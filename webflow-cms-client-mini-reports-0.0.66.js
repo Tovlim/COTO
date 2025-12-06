@@ -13,7 +13,12 @@
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         REPORTS_LIMIT: 15,
         REPORTS_PER_PAGE: 10,
-        DEBUG: false
+        DEBUG: false,
+        SEARCH_DEBOUNCE_MS: 400,
+        CACHE_SIZE: 10,
+        CACHE_TTL_MS: 5 * 60 * 1000, // 5 minutes
+        MAX_DOM_NODES: 50, // Maximum report items to keep in DOM
+        REQUEST_TIMEOUT_MS: 10000 // 10 seconds
     };
 
     // Pagination state
@@ -38,10 +43,163 @@
     // Flag to prevent processing checkbox changes during clear operations
     let isClearing = false;
 
+    // Request cancellation
+    let currentAbortController = null;
+
+    // Response cache
+    const responseCache = new Map();
+
     // Helper function for safe console logging
     function log(...args) {
         if (CONFIG.DEBUG) {
             console.log('[CMS Client]', ...args);
+        }
+    }
+
+    // Helper function to show error messages to users
+    function showErrorMessage(message, container = null) {
+        const targetContainer = container || document.querySelector('[cms-deliver="list"]') || document.body;
+
+        // Remove any existing error messages
+        const existingError = targetContainer.querySelector('.cms-error-message');
+        if (existingError) existingError.remove();
+
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'cms-error-message';
+        errorDiv.style.cssText = 'padding: 20px; margin: 20px; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00; text-align: center;';
+        errorDiv.textContent = message;
+
+        if (targetContainer === document.body) {
+            targetContainer.insertBefore(errorDiv, targetContainer.firstChild);
+        } else {
+            targetContainer.appendChild(errorDiv);
+        }
+    }
+
+    // DOM Recycling Management
+    const domRecycling = {
+        visibleItems: new Map(), // Map of visible item elements by report ID
+        hiddenItems: [], // Pool of hidden items for reuse
+        totalItems: 0,
+
+        getReusableItem(listContainer, templateItem) {
+            // Try to get from hidden pool first
+            if (this.hiddenItems.length > 0) {
+                const item = this.hiddenItems.pop();
+                item.style.display = '';
+                return item;
+            }
+
+            // Clone new item if under limit
+            if (this.totalItems < CONFIG.MAX_DOM_NODES) {
+                const newItem = templateItem.cloneNode(true);
+                newItem.classList.add('report-item');
+                newItem.setAttribute('cms-deliver', 'item-clone');
+                this.totalItems++;
+                return newItem;
+            }
+
+            // If at limit, recycle oldest visible item
+            if (this.visibleItems.size > 0) {
+                const [oldestId] = this.visibleItems.keys();
+                const oldestItem = this.visibleItems.get(oldestId);
+                this.visibleItems.delete(oldestId);
+                // Clear old content
+                this.clearItemContent(oldestItem);
+                return oldestItem;
+            }
+
+            // Fallback: clone new item
+            const newItem = templateItem.cloneNode(true);
+            newItem.classList.add('report-item');
+            newItem.setAttribute('cms-deliver', 'item-clone');
+            return newItem;
+        },
+
+        clearItemContent(item) {
+            // Reset data attributes
+            item.removeAttribute('data-report-data');
+            item.removeAttribute('data-content-loaded');
+            item.removeAttribute('data-accordion-initialized');
+
+            // Clear any loaded images to free memory
+            const images = item.querySelectorAll('img');
+            images.forEach(img => {
+                img.src = 'https://cdn.prod.website-files.com/plugins/Basic/assets/placeholder.60f9b1840c.svg';
+                img.srcset = '';
+            });
+
+            // Clear iframes
+            const iframes = item.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                iframe.src = '';
+            });
+        },
+
+        cleanup() {
+            // Remove excessive hidden items
+            while (this.hiddenItems.length > 10) {
+                const item = this.hiddenItems.pop();
+                item.remove();
+                this.totalItems--;
+            }
+
+            // If too many visible items, move oldest to hidden pool
+            if (this.visibleItems.size > CONFIG.MAX_DOM_NODES) {
+                const toHide = this.visibleItems.size - CONFIG.MAX_DOM_NODES;
+                const entries = Array.from(this.visibleItems.entries());
+
+                for (let i = 0; i < toHide; i++) {
+                    const [id, item] = entries[i];
+                    this.visibleItems.delete(id);
+                    item.style.display = 'none';
+                    this.clearItemContent(item);
+                    this.hiddenItems.push(item);
+                }
+            }
+        },
+
+        reset() {
+            // Clear all tracked items
+            this.visibleItems.clear();
+            this.hiddenItems = [];
+            // Don't reset totalItems as DOM nodes still exist
+        }
+    };
+
+    // Debounce utility function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Generate cache key from filters
+    function getCacheKey(filters, offset, limit) {
+        return JSON.stringify({ ...filters, offset, limit });
+    }
+
+    // Check if cache entry is still valid
+    function isCacheValid(entry) {
+        return entry && (Date.now() - entry.timestamp < CONFIG.CACHE_TTL_MS);
+    }
+
+    // Clean old cache entries
+    function cleanCache() {
+        if (responseCache.size > CONFIG.CACHE_SIZE) {
+            const sortedEntries = Array.from(responseCache.entries())
+                .sort((a, b) => b[1].timestamp - a[1].timestamp);
+
+            // Keep only the most recent entries
+            const toKeep = new Map(sortedEntries.slice(0, CONFIG.CACHE_SIZE));
+            responseCache.clear();
+            toKeep.forEach((value, key) => responseCache.set(key, value));
         }
     }
 
@@ -1201,26 +1359,41 @@
 
     // Lazy load content for a report item (called when accordion opens)
     function lazyLoadReportContent(itemElement) {
-        // Check if already loaded
-        if (itemElement.getAttribute('data-content-loaded') === 'true') {
-            return;
-        }
-
-        // Get stored report data
-        const reportDataJson = itemElement.getAttribute('data-report-data');
-        if (!reportDataJson) {
-            console.warn('[CMS Client] No report data found for lazy loading');
-            return;
-        }
-
         try {
+            // Check if already loaded
+            if (itemElement.getAttribute('data-content-loaded') === 'true') {
+                return;
+            }
+
+            // Get stored report data
+            const reportDataJson = itemElement.getAttribute('data-report-data');
+            if (!reportDataJson) {
+                console.warn('[CMS Client] No report data found for lazy loading');
+                return;
+            }
+
             const reportData = JSON.parse(reportDataJson);
+
+            // Validate report data structure
+            if (!reportData || typeof reportData !== 'object') {
+                throw new Error('Invalid report data structure');
+            }
+
             // Always pass true for isLazyLoad to skip tab visibility logic (already handled)
             populateContent(itemElement, reportData, true);
             itemElement.setAttribute('data-content-loaded', 'true');
-            log('Lazy loaded content for report:', reportData.name);
+            log('Lazy loaded content for report:', reportData.name || 'Unknown');
         } catch (error) {
             console.error('[CMS Client] Error lazy loading content:', error);
+
+            // Mark as loaded to prevent repeated attempts
+            itemElement.setAttribute('data-content-loaded', 'error');
+
+            // Show error message to user
+            const contentArea = itemElement.querySelector('[cms-content="description"]');
+            if (contentArea) {
+                contentArea.innerHTML = '<p style="color: #c00;">Failed to load content. Please refresh the page.</p>';
+            }
         }
     }
 
@@ -1279,9 +1452,14 @@
 
         if (!items || items.length === 0) {
             if (!appendMode) {
-                // Remove all cloned items but keep the template (with cms-template-original class)
+                // Hide all existing items for reuse
                 const existingClones = listContainer.querySelectorAll('[cms-deliver="item"]:not(.cms-template-original)');
-                existingClones.forEach(item => item.remove());
+                existingClones.forEach(item => {
+                    item.style.display = 'none';
+                    domRecycling.clearItemContent(item);
+                    domRecycling.hiddenItems.push(item);
+                });
+                domRecycling.reset();
 
                 // Remove any existing messages
                 const existingMsg = listContainer.querySelector('.no-search-results, .search-error');
@@ -1305,9 +1483,14 @@
         }
 
         if (!appendMode) {
-            // Remove all cloned items but keep the template
+            // Reset DOM recycling for fresh load
             const existingClones = listContainer.querySelectorAll('[cms-deliver="item"]:not(.cms-template-original)');
-            existingClones.forEach(item => item.remove());
+            existingClones.forEach(item => {
+                item.style.display = 'none';
+                domRecycling.clearItemContent(item);
+                domRecycling.hiddenItems.push(item);
+            });
+            domRecycling.reset();
 
             const existingMsg = listContainer.querySelector('.no-search-results, .search-error');
             if (existingMsg) existingMsg.remove();
@@ -1323,20 +1506,32 @@
 
         let successCount = 0;
         items.forEach((report, index) => {
-            const newItem = templateItem.cloneNode(true);
-            // Remove all template-related classes from the clone
+            // Use DOM recycling to get an item
+            const newItem = domRecycling.getReusableItem(listContainer, templateItem);
+
+            // Remove all template-related classes
             newItem.classList.remove('cms-template', 'is--loading', 'cms-template-original');
             newItem.style.display = '';
 
             const populated = populateReportItem(newItem, report);
 
             if (populated) {
+                // Track the item for recycling
+                if (report.id) {
+                    domRecycling.visibleItems.set(report.id, newItem);
+                }
                 fragment.appendChild(newItem);
                 successCount++;
             } else {
                 console.warn(`[CMS Client] Failed to populate report ${index + 1}:`, report.name || 'Unknown', 'ID:', report.id);
+                // Return item to pool if population failed
+                newItem.style.display = 'none';
+                domRecycling.hiddenItems.push(newItem);
             }
         });
+
+        // Cleanup excess DOM nodes after adding new items
+        domRecycling.cleanup();
 
         if (sentinel) {
             listContainer.insertBefore(fragment, sentinel);
@@ -1642,6 +1837,12 @@
 
     // Apply current filters and reload reports
     async function applyFilters() {
+        // Cancel any pending request
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
+
         // Reset pagination
         currentOffset = 0;
         hasMoreReports = true;
@@ -1662,14 +1863,47 @@
         }
 
         try {
+            // Check cache first
+            const cacheKey = getCacheKey(currentFilters, 0, CONFIG.REPORTS_LIMIT);
+            const cachedResponse = responseCache.get(cacheKey);
+
+            if (isCacheValid(cachedResponse)) {
+                log('Using cached response for filters');
+                const items = cachedResponse.data.data || [];
+                currentOffset = CONFIG.REPORTS_LIMIT;
+                totalReports = cachedResponse.data.metadata?.total || items.length;
+                hasMoreReports = (currentOffset < totalReports);
+
+                await populateReports(items, listContainer, templateItem, false);
+                updateResultsCount(totalReports);
+                console.log(`[CMS Client] Filters applied from cache: ${items.length} results (Total: ${totalReports})`);
+                return;
+            }
+
+            // Create new abort controller for this request
+            currentAbortController = new AbortController();
+            const timeoutId = setTimeout(() => currentAbortController.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+
             const url = buildFilterUrl(0, CONFIG.REPORTS_LIMIT);
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                signal: currentAbortController.signal
+            });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const response_data = await response.json();
+
+            // Cache the successful response
+            responseCache.set(cacheKey, {
+                data: response_data,
+                timestamp: Date.now()
+            });
+            cleanCache();
+
             const items = response_data.data || [];
 
             currentOffset = CONFIG.REPORTS_LIMIT;
@@ -1684,16 +1918,30 @@
             console.log(`[CMS Client] Filters applied: ${items.length} results (Total: ${totalReports})`);
 
         } catch (error) {
+            // Don't show error for aborted requests
+            if (error.name === 'AbortError') {
+                log('Request was cancelled');
+                return;
+            }
+
             console.error('[CMS Client] Filter error:', error);
 
             const errorMsg = document.createElement('div');
             errorMsg.className = 'search-error';
             errorMsg.style.cssText = 'padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00; margin: 20px;';
+
+            let errorText = error.message;
+            if (error.message.includes('aborted')) {
+                errorText = 'Request timeout - please try again';
+            }
+
             errorMsg.innerHTML = `
-                <strong>Filter error:</strong> ${error.message}<br>
+                <strong>Filter error:</strong> ${errorText}<br>
                 <small>Please try again</small>
             `;
             listContainer.appendChild(errorMsg);
+        } finally {
+            currentAbortController = null;
         }
     }
 
@@ -2026,15 +2274,41 @@
         showLoadingIndicator(listContainer);
 
         try {
-            currentOffset += CONFIG.REPORTS_PER_PAGE;
-            const url = buildFilterUrl(currentOffset, CONFIG.REPORTS_PER_PAGE);
-            const response = await fetch(url);
+            // Check cache first
+            const cacheKey = getCacheKey(currentFilters, currentOffset + CONFIG.REPORTS_PER_PAGE, CONFIG.REPORTS_PER_PAGE);
+            const cachedResponse = responseCache.get(cacheKey);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            let response_data;
+            if (isCacheValid(cachedResponse)) {
+                log('Using cached response for load more');
+                response_data = cachedResponse.data;
+            } else {
+                // Create abort controller for this request
+                const loadMoreController = new AbortController();
+                const timeoutId = setTimeout(() => loadMoreController.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+
+                currentOffset += CONFIG.REPORTS_PER_PAGE;
+                const url = buildFilterUrl(currentOffset, CONFIG.REPORTS_PER_PAGE);
+                const response = await fetch(url, {
+                    signal: loadMoreController.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                response_data = await response.json();
+
+                // Cache the successful response
+                responseCache.set(cacheKey, {
+                    data: response_data,
+                    timestamp: Date.now()
+                });
+                cleanCache();
             }
 
-            const response_data = await response.json();
             const items = response_data.data || [];
 
             const successCount = await populateReports(items, listContainer, templateItem, true);
@@ -2058,12 +2332,13 @@
     }
 
     // Main function to fetch and populate reports (initial load only)
-    async function loadReports(initializeUI = true) {
+    const loadReports = async function loadReports(initializeUI = true) {
         try {
             const listContainer = await waitForElement('[cms-deliver="list"]', 5000);
 
             if (!listContainer) {
                 console.error('[CMS Client] List container not found');
+                showErrorMessage('Reports container not found. Please refresh the page.');
                 return;
             }
 
@@ -2071,16 +2346,43 @@
 
             if (!templateItem) {
                 console.error('[CMS Client] Template item not found');
+                showErrorMessage('Report template not found. Please contact support.');
                 return;
             }
 
-            const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`);
+            // Check cache first for initial load
+            const cacheKey = getCacheKey({}, 0, CONFIG.REPORTS_LIMIT);
+            const cachedResponse = responseCache.get(cacheKey);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            let response_data;
+            if (isCacheValid(cachedResponse)) {
+                log('Using cached response for initial load');
+                response_data = cachedResponse.data;
+            } else {
+                // Create abort controller with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+
+                const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`, {
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                response_data = await response.json();
+
+                // Cache successful response
+                responseCache.set(cacheKey, {
+                    data: response_data,
+                    timestamp: Date.now()
+                });
+                cleanCache();
             }
 
-            const response_data = await response.json();
             const items = response_data.data || [];
 
             const successCount = await populateReports(items, listContainer, templateItem);
@@ -2130,20 +2432,37 @@
             }));
 
         } catch (error) {
+            // Don't show error for aborted requests
+            if (error.name === 'AbortError') {
+                log('Initial load request was cancelled');
+                return;
+            }
+
             console.error('[CMS Client] Error:', error);
 
-            const listContainer = document.querySelector('[cms-deliver="list"]');
-            if (listContainer) {
-                listContainer.innerHTML = `
-                    <div style="padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00;">
-                        <strong>Error loading reports:</strong><br>
-                        ${error.message}<br>
-                        <small>Check browser console for details</small>
-                    </div>
-                `;
+            let errorMessage = 'Error loading reports';
+            if (error.message.includes('aborted')) {
+                errorMessage = 'Request timeout - please refresh the page';
+            } else if (error.message.includes('404')) {
+                errorMessage = 'Reports not found - please check your configuration';
+            } else if (error.message.includes('500')) {
+                errorMessage = 'Server error - please try again later';
+            } else if (!navigator.onLine) {
+                errorMessage = 'No internet connection - please check your connection';
+            }
+
+            showErrorMessage(`${errorMessage}: ${error.message}`);
+
+            // Still try to initialize UI even on error
+            if (initializeUI) {
+                const listContainer = document.querySelector('[cms-deliver="list"]');
+                if (listContainer) {
+                    initializeInteractions();
+                    initializeFilters();
+                }
             }
         }
-    }
+    };
 
     // Initialize all filter components
     function initializeFilters() {
@@ -2550,23 +2869,16 @@
             return;
         }
 
-        let debounceTimer;
+        const debouncedSearch = debounce(function(e) {
+            currentFilters.search = e.target.value.trim();
+            applyFilters();
+        }, CONFIG.SEARCH_DEBOUNCE_MS);
 
-        searchInput.addEventListener('input', function(e) {
-            const query = e.target.value.trim();
-
-            clearTimeout(debounceTimer);
-
-            debounceTimer = setTimeout(() => {
-                currentFilters.search = query;
-                applyFilters();
-            }, 500);
-        });
+        searchInput.addEventListener('input', debouncedSearch);
 
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                clearTimeout(debounceTimer);
                 currentFilters.search = e.target.value.trim();
                 applyFilters();
             }
