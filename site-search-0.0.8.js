@@ -538,10 +538,10 @@ class SiteSearch {
 
     resultEls.forEach((el, i) => {
       if (i === this.data.selectedIndex) {
-        el.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+        el.classList.add('is--selected');
         el.scrollIntoView({ block: 'nearest' });
       } else {
-        el.style.backgroundColor = '';
+        el.classList.remove('is--selected');
       }
     });
   }
