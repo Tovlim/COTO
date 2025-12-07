@@ -108,7 +108,8 @@ class SiteSearch {
       filteredResults: [],  // Results after filtering
       currentFilter: '',    // Current filter type
       currentSort: '',      // Current sort option
-      searchTerm: ''        // Current search term
+      searchTerm: '',       // Current search term
+      selectedIndex: -1     // Currently selected result index for keyboard nav
     };
 
     // API state
@@ -263,15 +264,26 @@ class SiteSearch {
     // Handle window resize for responsive sidebar
     window.addEventListener('resize', () => this.handleResize());
 
-    // Enter key to select first result
+    // Keyboard navigation
     this.elements.input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && this.data.filteredResults.length > 0) {
+      const resultsCount = this.data.filteredResults.length;
+
+      if (e.key === 'ArrowDown' && resultsCount > 0) {
         e.preventDefault();
-        const firstResult = this.data.filteredResults[0];
-        this.navigateToResult(firstResult);
+        this.data.selectedIndex = Math.min(this.data.selectedIndex + 1, resultsCount - 1);
+        this.updateSelectedResult();
       }
-      // ESC key to close sidebar
-      if (e.key === 'Escape' && this.elements.sidebar) {
+      else if (e.key === 'ArrowUp' && resultsCount > 0) {
+        e.preventDefault();
+        this.data.selectedIndex = Math.max(this.data.selectedIndex - 1, 0);
+        this.updateSelectedResult();
+      }
+      else if (e.key === 'Enter' && resultsCount > 0) {
+        e.preventDefault();
+        const index = this.data.selectedIndex >= 0 ? this.data.selectedIndex : 0;
+        this.navigateToResult(this.data.filteredResults[index]);
+      }
+      else if (e.key === 'Escape' && this.elements.sidebar) {
         this.closeSidebar();
       }
     });
@@ -513,6 +525,25 @@ class SiteSearch {
       resultEl.style.display = '';
       this.elements.resultsWrap.appendChild(resultEl);
     });
+
+    // Reset selection index
+    this.data.selectedIndex = -1;
+  }
+
+  updateSelectedResult() {
+    if (!this.elements.resultsWrap) return;
+
+    const resultEls = Array.from(this.elements.resultsWrap.querySelectorAll('[site-search="result-wrap"]'))
+      .filter(el => el !== this.elements.resultTemplate);
+
+    resultEls.forEach((el, i) => {
+      if (i === this.data.selectedIndex) {
+        el.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+        el.scrollIntoView({ block: 'nearest' });
+      } else {
+        el.style.backgroundColor = '';
+      }
+    });
   }
 
   formatTypeDisplay(type) {
@@ -595,8 +626,8 @@ class SiteSearch {
       return null;
     }
 
-    // Join parts with dash separator
-    return locationParts.length > 0 ? locationParts.join(' - ') : null;
+    // Join parts with slash separator
+    return locationParts.length > 0 ? locationParts.join(' / ') : null;
   }
 
   navigateToResult(item) {
