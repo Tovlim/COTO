@@ -21,10 +21,12 @@
         // Virtual scroll settings
         VIRTUAL_SCROLL: {
             enabled: true,
-            itemHeight: 180,           // Estimated collapsed item height in pixels
+            itemHeightMini: 180,       // Estimated collapsed mini report height
+            itemHeightFull: 220,       // Estimated collapsed full report height
             expandedItemHeight: 500,   // Estimated expanded item height
             bufferSize: 5,             // Number of items to render above/below viewport
-            poolSize: 30               // Maximum number of DOM nodes in the pool
+            poolSize: 30,              // Maximum number of DOM nodes in the pool
+            useActualHeights: true     // Measure and cache actual heights for better accuracy
         }
     };
 
@@ -624,10 +626,12 @@
     const VirtualScroller = {
         // Configuration (initialized from CONFIG.VIRTUAL_SCROLL)
         config: {
-            itemHeight: CONFIG.VIRTUAL_SCROLL.itemHeight,
+            itemHeightMini: CONFIG.VIRTUAL_SCROLL.itemHeightMini,
+            itemHeightFull: CONFIG.VIRTUAL_SCROLL.itemHeightFull,
             expandedItemHeight: CONFIG.VIRTUAL_SCROLL.expandedItemHeight,
             bufferSize: CONFIG.VIRTUAL_SCROLL.bufferSize,
             poolSize: CONFIG.VIRTUAL_SCROLL.poolSize,
+            useActualHeights: CONFIG.VIRTUAL_SCROLL.useActualHeights,
             throttleMs: 16             // Throttle scroll events (~60fps)
         },
 
@@ -642,6 +646,8 @@
         scrollRAF: null,
         isInitialized: false,
         visibleRange: { start: 0, end: 0 },
+        measuredHeights: new Map(),    // Cache of measured item heights by report ID
+        itemType: 'mini',              // Default item type (mini or full)
 
         // Initialize the virtual scroller
         init(scrollContainer, listContainer, templateItem) {
@@ -654,11 +660,17 @@
             this.listContainer = listContainer;
             this.templateItem = templateItem;
 
+            // Detect item type from template
+            this.itemType = templateItem.getAttribute('cms-item-type') || 'mini';
+
             // Setup template
             if (!templateItem.classList.contains('cms-template-original')) {
                 templateItem.classList.add('cms-template-original');
             }
             templateItem.style.display = 'none';
+
+            // Clear measured heights cache
+            this.measuredHeights.clear();
 
             // Create spacers for virtual scroll height
             this.createSpacers();
@@ -670,7 +682,46 @@
             this.bindScrollHandler();
 
             this.isInitialized = true;
-            console.log('[CMS Client] VirtualScroller initialized with pool size:', this.config.poolSize);
+            console.log('[CMS Client] VirtualScroller initialized with pool size:', this.config.poolSize, 'itemType:', this.itemType);
+        },
+
+        // Get the estimated height for an item
+        getItemHeight(reportId, isExpanded = false) {
+            // If expanded, return expanded height
+            if (isExpanded) {
+                // Use cached measured height if available
+                if (this.config.useActualHeights && this.measuredHeights.has(reportId + '_expanded')) {
+                    return this.measuredHeights.get(reportId + '_expanded');
+                }
+                return this.config.expandedItemHeight;
+            }
+
+            // Use cached measured height if available
+            if (this.config.useActualHeights && this.measuredHeights.has(reportId)) {
+                return this.measuredHeights.get(reportId);
+            }
+
+            // Return estimated height based on item type
+            return this.itemType === 'full'
+                ? this.config.itemHeightFull
+                : this.config.itemHeightMini;
+        },
+
+        // Measure and cache the actual height of a rendered node
+        measureNodeHeight(node) {
+            if (!node.isActive || !node.element) return;
+
+            const reportId = node.element.getAttribute('data-report-id');
+            if (!reportId) return;
+
+            const height = node.element.offsetHeight;
+            if (height > 0) {
+                if (node.isExpanded) {
+                    this.measuredHeights.set(reportId + '_expanded', height);
+                } else {
+                    this.measuredHeights.set(reportId, height);
+                }
+            }
         },
 
         // Create top and bottom spacers
@@ -770,9 +821,8 @@
 
             // Find start index
             for (let i = 0; i < reports.length; i++) {
-                const itemHeight = Store.isExpanded(reports[i].id)
-                    ? this.config.expandedItemHeight
-                    : this.config.itemHeight;
+                const isExpanded = Store.isExpanded(reports[i].id);
+                const itemHeight = this.getItemHeight(reports[i].id, isExpanded);
 
                 if (cumulativeHeight + itemHeight >= scrollTop) {
                     startIndex = Math.max(0, i - this.config.bufferSize);
@@ -784,9 +834,8 @@
             // Find end index
             cumulativeHeight = 0;
             for (let i = 0; i < reports.length; i++) {
-                const itemHeight = Store.isExpanded(reports[i].id)
-                    ? this.config.expandedItemHeight
-                    : this.config.itemHeight;
+                const isExpanded = Store.isExpanded(reports[i].id);
+                const itemHeight = this.getItemHeight(reports[i].id, isExpanded);
                 cumulativeHeight += itemHeight;
 
                 if (cumulativeHeight >= scrollTop + viewportHeight) {
@@ -810,9 +859,8 @@
             let height = 0;
 
             for (let i = 0; i < index && i < reports.length; i++) {
-                height += Store.isExpanded(reports[i].id)
-                    ? this.config.expandedItemHeight
-                    : this.config.itemHeight;
+                const isExpanded = Store.isExpanded(reports[i].id);
+                height += this.getItemHeight(reports[i].id, isExpanded);
             }
 
             return height;
@@ -824,9 +872,8 @@
             let height = 0;
 
             for (let i = 0; i < reports.length; i++) {
-                height += Store.isExpanded(reports[i].id)
-                    ? this.config.expandedItemHeight
-                    : this.config.itemHeight;
+                const isExpanded = Store.isExpanded(reports[i].id);
+                height += this.getItemHeight(reports[i].id, isExpanded);
             }
 
             return height;
@@ -905,6 +952,7 @@
                 const target = DOM.$('[open-target]', node.element);
                 if (target) {
                     lazyLoadReportContent(node.element);
+                    selectDefaultTab(node.element); // Select default tab when restoring expanded state
                     target.style.height = 'auto';
                     target.style.overflow = 'visible';
                     const arrow = DOM.$('[dropdown-icon]', node.element);
@@ -918,6 +966,13 @@
             // Insert into DOM if not already there
             if (!node.element.parentNode || node.element.parentNode !== this.listContainer) {
                 this.listContainer.insertBefore(node.element, this.spacerBottom);
+            }
+
+            // Measure actual height after a brief delay (allow render)
+            if (this.config.useActualHeights) {
+                requestAnimationFrame(() => {
+                    this.measureNodeHeight(node);
+                });
             }
         },
 
@@ -975,15 +1030,60 @@
                 .filter(n => n.isActive)
                 .sort((a, b) => a.dataIndex - b.dataIndex);
 
-            activeNodes.forEach(node => {
-                this.listContainer.insertBefore(node.element, this.spacerBottom);
-            });
+            // Check if reordering is actually needed
+            let needsReorder = false;
+            let prevElement = this.spacerTop;
+
+            for (const node of activeNodes) {
+                if (node.element.previousElementSibling !== prevElement) {
+                    needsReorder = true;
+                    break;
+                }
+                prevElement = node.element;
+            }
+
+            // Only reorder if necessary to avoid layout thrashing
+            if (needsReorder) {
+                activeNodes.forEach(node => {
+                    this.listContainer.insertBefore(node.element, this.spacerBottom);
+                });
+            }
         },
 
         // Refresh the virtual scroll (call after data changes)
         refresh() {
+            const reports = Store.getReports();
+
+            // Handle empty state
+            if (reports.length === 0) {
+                this.reset();
+                return;
+            }
+
             this.visibleRange = { start: 0, end: 0 };
             this.updateVisibleItems();
+        },
+
+        // Reset to empty state (deactivate all nodes, reset spacers)
+        reset() {
+            // Deactivate all pool nodes
+            this.nodePool.forEach(node => {
+                if (node.isActive) {
+                    this.deactivateNode(node);
+                }
+            });
+
+            // Reset spacers to 0
+            if (this.spacerTop) this.spacerTop.style.height = '0px';
+            if (this.spacerBottom) this.spacerBottom.style.height = '0px';
+
+            // Reset visible range
+            this.visibleRange = { start: 0, end: 0 };
+
+            // Clear measured heights cache
+            this.measuredHeights.clear();
+
+            log('VirtualScroller reset to empty state');
         },
 
         // Handle item expansion
@@ -1037,6 +1137,9 @@
             if (this.spacerTop) this.spacerTop.remove();
             if (this.spacerBottom) this.spacerBottom.remove();
 
+            // Clear caches
+            this.measuredHeights.clear();
+
             this.isInitialized = false;
             this.visibleRange = { start: 0, end: 0 };
         },
@@ -1045,11 +1148,13 @@
         getDebugInfo() {
             return {
                 isInitialized: this.isInitialized,
+                itemType: this.itemType,
                 poolSize: this.nodePool.length,
                 activeNodes: this.nodePool.filter(n => n.isActive).length,
                 visibleRange: this.visibleRange,
                 totalReports: Store.getReports().length,
                 expandedItems: Store.get('expandedItems').size,
+                measuredHeights: this.measuredHeights.size,
                 spacerTop: this.spacerTop?.style.height,
                 spacerBottom: this.spacerBottom?.style.height
             };
@@ -1752,6 +1857,33 @@
         }
 
         itemElement.setAttribute('data-tabs-initialized', 'true');
+    }
+
+    // Select the default tab (first available) when opening accordion
+    function selectDefaultTab(itemElement) {
+        const itemType = itemElement.getAttribute('cms-item-type');
+
+        // For mini type, select tab 1 (info/description) by default
+        if (itemType !== 'full') {
+            const infoTab = DOM.$('[data-tab="1"]', itemElement);
+            const infoContent = DOM.$('[data-tab-content="1"]', itemElement);
+
+            if (infoTab && infoContent) {
+                // Clear any existing selection
+                DOM.$$('[data-tab]', itemElement).forEach(tab => {
+                    if (tab.getAttribute('data-tab') !== 'wrap') {
+                        tab.classList.remove('current');
+                    }
+                });
+                DOM.$$('[data-tab-content]', itemElement).forEach(content => {
+                    content.style.display = 'none';
+                });
+
+                // Select info tab
+                infoTab.classList.add('current');
+                infoContent.style.display = 'block';
+            }
+        }
     }
 
     // Lazy load content for a report item
@@ -2708,6 +2840,10 @@
 
             if (isClosed) {
                 lazyLoadReportContent(container);
+
+                // Select default tab (info/description) when opening
+                selectDefaultTab(container);
+
                 AccordionUtils.open(target, arrow, container);
 
                 // Track expanded state for virtual scrolling
