@@ -516,9 +516,14 @@
   const toggleSidebar = (side, show = null) => {
     const sidebar = sidebarCache.getSidebar(side);
     if (!sidebar) return;
-    
+
     const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
     sidebar.classList.toggle('is-show', isShowing);
+
+    // Dispatch event when Right sidebar opens
+    if (side === 'Right' && isShowing) {
+      document.dispatchEvent(new CustomEvent('rightSidebarOpened'));
+    }
     
     const jsMarginProperty = sidebarCache.getMarginProperty(side);
     const arrowIcon = sidebarCache.getArrow(side);
@@ -1285,7 +1290,12 @@
       }
     }, true);
   })();
-  
+
+  // Listen for site search sidebar opening to close the Right sidebar
+  document.addEventListener('siteSearchSidebarOpened', () => {
+    closeSidebar('Right');
+  });
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       immediateCheck();
