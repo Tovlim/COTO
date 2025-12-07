@@ -287,6 +287,13 @@ class SiteSearch {
         this.closeSidebar();
       }
     });
+
+    // Listen for right sidebar opening to close this sidebar
+    document.addEventListener('rightSidebarOpened', () => {
+      if (this.elements.sidebar?.classList.contains('is--show')) {
+        this.closeSidebar();
+      }
+    });
   }
 
   async performSearch(searchText) {
@@ -675,6 +682,9 @@ class SiteSearch {
   openSidebar() {
     const sidebar = this.elements.sidebar;
     if (!sidebar) return;
+
+    // Dispatch event to notify other sidebars
+    document.dispatchEvent(new CustomEvent('siteSearchSidebarOpened'));
 
     // Add is-show class for visibility
     sidebar.classList.add('is--show');
