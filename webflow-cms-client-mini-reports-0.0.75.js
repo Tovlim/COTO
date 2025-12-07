@@ -17,17 +17,7 @@
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         REPORTS_LIMIT: 15,
         REPORTS_PER_PAGE: 10,
-        DEBUG: false,
-        // Virtual scroll settings
-        VIRTUAL_SCROLL: {
-            enabled: true,
-            itemHeightMini: 180,       // Estimated collapsed mini report height
-            itemHeightFull: 220,       // Estimated collapsed full report height
-            expandedItemHeight: 500,   // Estimated expanded item height
-            bufferSize: 5,             // Number of items to render above/below viewport
-            poolSize: 30,              // Maximum number of DOM nodes in the pool
-            useActualHeights: true     // Measure and cache actual heights for better accuracy
-        }
+        DEBUG: false
     };
 
     // ===== CENTRALIZED STATE STORE =====
@@ -53,12 +43,7 @@
             },
 
             // UI state
-            isClearing: false,
-
-            // Virtual scroll data store
-            allReports: [],
-            expandedItems: new Set(),
-            virtualScrollEnabled: CONFIG.VIRTUAL_SCROLL.enabled
+            isClearing: false
         },
 
         _subscribers: new Map(),
@@ -152,40 +137,6 @@
         resetPagination() {
             this._state.currentOffset = 0;
             this._state.hasMoreReports = true;
-        },
-
-        // Add reports to the data store
-        addReports(reports, replace = false) {
-            if (replace) {
-                this._state.allReports = [...reports];
-            } else {
-                this._state.allReports = [...this._state.allReports, ...reports];
-            }
-        },
-
-        // Get all reports
-        getReports() {
-            return this._state.allReports;
-        },
-
-        // Clear all reports
-        clearReports() {
-            this._state.allReports = [];
-            this._state.expandedItems.clear();
-        },
-
-        // Track expanded items
-        setExpanded(reportId, isExpanded) {
-            if (isExpanded) {
-                this._state.expandedItems.add(reportId);
-            } else {
-                this._state.expandedItems.delete(reportId);
-            }
-        },
-
-        // Check if item is expanded
-        isExpanded(reportId) {
-            return this._state.expandedItems.has(reportId);
         },
 
         // Subscribe to state changes
@@ -330,6 +281,108 @@
                     resolve(null);
                 }, timeout);
             });
+        }
+    };
+
+    // ===== DOM BATCH UTILITIES =====
+    // Batches DOM operations to minimize reflows/repaints
+    const DOMBatch = {
+        // Queue for deferred DOM operations
+        _readQueue: [],
+        _writeQueue: [],
+        _scheduled: false,
+
+        // Schedule a read operation (measurements)
+        read(fn) {
+            this._readQueue.push(fn);
+            this._scheduleFlush();
+        },
+
+        // Schedule a write operation (mutations)
+        write(fn) {
+            this._writeQueue.push(fn);
+            this._scheduleFlush();
+        },
+
+        // Schedule flush using requestAnimationFrame
+        _scheduleFlush() {
+            if (this._scheduled) return;
+            this._scheduled = true;
+            requestAnimationFrame(() => this._flush());
+        },
+
+        // Execute all queued operations: reads first, then writes
+        _flush() {
+            this._scheduled = false;
+
+            // Execute all reads first (to avoid forced synchronous layouts)
+            const reads = this._readQueue.slice();
+            this._readQueue.length = 0;
+            reads.forEach(fn => {
+                try { fn(); } catch (e) { console.error('[DOMBatch] Read error:', e); }
+            });
+
+            // Then execute all writes
+            const writes = this._writeQueue.slice();
+            this._writeQueue.length = 0;
+            writes.forEach(fn => {
+                try { fn(); } catch (e) { console.error('[DOMBatch] Write error:', e); }
+            });
+
+            // If new operations were queued during execution, schedule another flush
+            if (this._readQueue.length > 0 || this._writeQueue.length > 0) {
+                this._scheduleFlush();
+            }
+        },
+
+        // Batch multiple elements into a DocumentFragment before insertion
+        createFragment(elements) {
+            const fragment = document.createDocumentFragment();
+            elements.forEach(el => fragment.appendChild(el));
+            return fragment;
+        },
+
+        // Batch remove multiple elements
+        removeAll(elements) {
+            const elementsArray = Array.from(elements);
+            elementsArray.forEach(el => el.remove());
+        },
+
+        // Batch class operations on multiple elements
+        batchClassList(elements, action, ...classNames) {
+            const elementsArray = Array.from(elements);
+            elementsArray.forEach(el => {
+                if (el && el.classList) {
+                    el.classList[action](...classNames);
+                }
+            });
+        },
+
+        // Batch style operations on multiple elements
+        batchStyle(elements, styles) {
+            const elementsArray = Array.from(elements);
+            elementsArray.forEach(el => {
+                if (el && el.style) {
+                    Object.assign(el.style, styles);
+                }
+            });
+        },
+
+        // Batch attribute operations
+        batchSetAttribute(elements, attr, value) {
+            const elementsArray = Array.from(elements);
+            elementsArray.forEach(el => {
+                if (el) el.setAttribute(attr, value);
+            });
+        },
+
+        // Prepare element offscreen before appending (reduces layout thrashing)
+        prepareOffscreen(element, prepareFn) {
+            // Temporarily hide to avoid intermediate repaints
+            const originalDisplay = element.style.display;
+            element.style.display = 'none';
+            prepareFn(element);
+            element.style.display = originalDisplay;
         }
     };
 
@@ -484,29 +537,35 @@
         open(reporterListWrap) {
             if (!reporterListWrap) return;
 
-            reporterListWrap.classList.add('modal-click');
-            reporterListWrap.style.display = 'flex';
+            // Batch all modal open operations in single frame
+            requestAnimationFrame(() => {
+                reporterListWrap.classList.add('modal-click');
+                reporterListWrap.style.display = 'flex';
 
-            const modalPreWrap = DOM.$('.modal-pre-wrap', reporterListWrap);
-            if (modalPreWrap) {
-                modalPreWrap.classList.add('modal-click');
-                const modalElements = DOM.$('[modal-elements="true"]', modalPreWrap);
-                if (modalElements) modalElements.classList.add('modal-click');
-            }
+                const modalPreWrap = DOM.$('.modal-pre-wrap', reporterListWrap);
+                if (modalPreWrap) {
+                    modalPreWrap.classList.add('modal-click');
+                    const modalElements = DOM.$('[modal-elements="true"]', modalPreWrap);
+                    if (modalElements) modalElements.classList.add('modal-click');
+                }
+            });
         },
 
         close(reporterListWrap) {
             if (!reporterListWrap) return;
 
-            const modalPreWrap = DOM.$('.modal-pre-wrap', reporterListWrap);
-            if (modalPreWrap) {
-                modalPreWrap.classList.remove('modal-click');
-                const modalElements = DOM.$('[modal-elements="true"]', modalPreWrap);
-                if (modalElements) modalElements.classList.remove('modal-click');
-            }
+            // Batch all modal close operations in single frame
+            requestAnimationFrame(() => {
+                const modalPreWrap = DOM.$('.modal-pre-wrap', reporterListWrap);
+                if (modalPreWrap) {
+                    modalPreWrap.classList.remove('modal-click');
+                    const modalElements = DOM.$('[modal-elements="true"]', modalPreWrap);
+                    if (modalElements) modalElements.classList.remove('modal-click');
+                }
 
-            reporterListWrap.classList.remove('modal-click');
-            reporterListWrap.style.display = 'none';
+                reporterListWrap.classList.remove('modal-click');
+                reporterListWrap.style.display = 'none';
+            });
         },
 
         setupTrigger(multiReporterWrap, reportersWrap) {
@@ -558,27 +617,34 @@
         open(target, arrow, container) {
             if (!target) return;
 
-            if (!target.style.transition) {
-                target.style.transition = 'height 300ms ease';
-            }
+            // Use requestAnimationFrame to batch visual updates
+            requestAnimationFrame(() => {
+                // Read phase: get scrollHeight
+                const scrollHeight = target.scrollHeight;
 
-            setTimeout(() => {
-                target.style.height = target.scrollHeight + 'px';
-                if (arrow) arrow.style.transform = 'rotateZ(180deg)';
+                // Write phase: apply all style changes together
+                requestAnimationFrame(() => {
+                    if (!target.style.transition) {
+                        target.style.transition = 'height 300ms ease';
+                    }
 
-                // Clear any existing timeout
-                if (this._overflowTimeouts.has(container)) {
-                    clearTimeout(this._overflowTimeouts.get(container));
-                }
+                    target.style.height = scrollHeight + 'px';
+                    if (arrow) arrow.style.transform = 'rotateZ(180deg)';
 
-                // Set overflow visible after transition
-                const timeoutId = setTimeout(() => {
-                    target.style.overflow = 'visible';
-                    this._overflowTimeouts.delete(container);
-                }, 300);
+                    // Clear any existing timeout
+                    if (this._overflowTimeouts.has(container)) {
+                        clearTimeout(this._overflowTimeouts.get(container));
+                    }
 
-                this._overflowTimeouts.set(container, timeoutId);
-            }, 10);
+                    // Set overflow visible after transition
+                    const timeoutId = setTimeout(() => {
+                        target.style.overflow = 'visible';
+                        this._overflowTimeouts.delete(container);
+                    }, 300);
+
+                    this._overflowTimeouts.set(container, timeoutId);
+                });
+            });
         },
 
         close(target, arrow, container) {
@@ -590,13 +656,17 @@
                 this._overflowTimeouts.delete(container);
             }
 
-            if (!target.style.transition) {
-                target.style.transition = 'height 300ms ease';
-            }
+            // Use requestAnimationFrame for batched visual update
+            requestAnimationFrame(() => {
+                if (!target.style.transition) {
+                    target.style.transition = 'height 300ms ease';
+                }
 
-            target.style.height = '0px';
-            target.style.overflow = 'hidden';
-            if (arrow) arrow.style.transform = 'rotateZ(0deg)';
+                // Batch all style mutations together
+                target.style.height = '0px';
+                target.style.overflow = 'hidden';
+                if (arrow) arrow.style.transform = 'rotateZ(0deg)';
+            });
         },
 
         isClosed(target) {
@@ -607,557 +677,24 @@
         adjustHeight(target) {
             if (!target || this.isClosed(target)) return;
 
-            const currentHeight = target.offsetHeight;
-            const originalTransition = target.style.transition;
-
-            target.style.transition = 'none';
-            target.style.height = 'auto';
-            const newHeight = target.scrollHeight;
-            target.style.height = currentHeight + 'px';
-
-            target.offsetHeight; // Force reflow
-
-            target.style.transition = originalTransition || 'height 300ms ease';
-            target.style.height = newHeight + 'px';
-        }
-    };
-
-    // ===== VIRTUAL SCROLLER =====
-    const VirtualScroller = {
-        // Configuration (initialized from CONFIG.VIRTUAL_SCROLL)
-        config: {
-            itemHeightMini: CONFIG.VIRTUAL_SCROLL.itemHeightMini,
-            itemHeightFull: CONFIG.VIRTUAL_SCROLL.itemHeightFull,
-            expandedItemHeight: CONFIG.VIRTUAL_SCROLL.expandedItemHeight,
-            bufferSize: CONFIG.VIRTUAL_SCROLL.bufferSize,
-            poolSize: CONFIG.VIRTUAL_SCROLL.poolSize,
-            useActualHeights: CONFIG.VIRTUAL_SCROLL.useActualHeights,
-            throttleMs: 16             // Throttle scroll events (~60fps)
-        },
-
-        // State
-        scrollContainer: null,
-        listContainer: null,
-        templateItem: null,
-        nodePool: [],
-        spacerTop: null,
-        spacerBottom: null,
-        lastScrollTop: 0,
-        scrollRAF: null,
-        isInitialized: false,
-        visibleRange: { start: 0, end: 0 },
-        measuredHeights: new Map(),    // Cache of measured item heights by report ID
-        itemType: 'mini',              // Default item type (mini or full)
-
-        // Initialize the virtual scroller
-        init(scrollContainer, listContainer, templateItem) {
-            if (this.isInitialized) {
-                log('VirtualScroller already initialized');
-                return;
-            }
-
-            this.scrollContainer = scrollContainer;
-            this.listContainer = listContainer;
-            this.templateItem = templateItem;
-
-            // Detect item type from template
-            this.itemType = templateItem.getAttribute('cms-item-type') || 'mini';
-
-            // Setup template
-            if (!templateItem.classList.contains('cms-template-original')) {
-                templateItem.classList.add('cms-template-original');
-            }
-            templateItem.style.display = 'none';
-
-            // Clear measured heights cache
-            this.measuredHeights.clear();
-
-            // Create spacers for virtual scroll height
-            this.createSpacers();
-
-            // Create initial node pool
-            this.createNodePool();
-
-            // Bind scroll handler
-            this.bindScrollHandler();
-
-            this.isInitialized = true;
-            console.log('[CMS Client] VirtualScroller initialized with pool size:', this.config.poolSize, 'itemType:', this.itemType);
-        },
-
-        // Get the estimated height for an item
-        getItemHeight(reportId, isExpanded = false) {
-            // If expanded, return expanded height
-            if (isExpanded) {
-                // Use cached measured height if available
-                if (this.config.useActualHeights && this.measuredHeights.has(reportId + '_expanded')) {
-                    return this.measuredHeights.get(reportId + '_expanded');
-                }
-                return this.config.expandedItemHeight;
-            }
-
-            // Use cached measured height if available
-            if (this.config.useActualHeights && this.measuredHeights.has(reportId)) {
-                return this.measuredHeights.get(reportId);
-            }
-
-            // Return estimated height based on item type
-            return this.itemType === 'full'
-                ? this.config.itemHeightFull
-                : this.config.itemHeightMini;
-        },
-
-        // Measure and cache the actual height of a rendered node
-        measureNodeHeight(node) {
-            if (!node.isActive || !node.element) return;
-
-            const reportId = node.element.getAttribute('data-report-id');
-            if (!reportId) return;
-
-            const height = node.element.offsetHeight;
-            if (height > 0) {
-                if (node.isExpanded) {
-                    this.measuredHeights.set(reportId + '_expanded', height);
-                } else {
-                    this.measuredHeights.set(reportId, height);
-                }
-            }
-        },
-
-        // Create top and bottom spacers
-        createSpacers() {
-            // Remove existing spacers if any
-            if (this.spacerTop) this.spacerTop.remove();
-            if (this.spacerBottom) this.spacerBottom.remove();
-
-            this.spacerTop = DOM.create('div', {
-                className: 'virtual-spacer-top',
-                style: { height: '0px', width: '100%', flexShrink: '0' }
-            });
-
-            this.spacerBottom = DOM.create('div', {
-                className: 'virtual-spacer-bottom',
-                style: { height: '0px', width: '100%', flexShrink: '0' }
-            });
-
-            // Insert spacers
-            this.listContainer.insertBefore(this.spacerTop, this.listContainer.firstChild);
-
-            const sentinel = DOM.$('[scroll-sentinel="true"]', this.listContainer);
-            if (sentinel) {
-                this.listContainer.insertBefore(this.spacerBottom, sentinel);
-            } else {
-                this.listContainer.appendChild(this.spacerBottom);
-            }
-        },
-
-        // Create the DOM node pool
-        createNodePool() {
-            // Clear existing pool
-            this.nodePool.forEach(node => {
-                if (node.element && node.element.parentNode) {
-                    node.element.remove();
-                }
-            });
-            this.nodePool = [];
-
-            // Create pool nodes
-            for (let i = 0; i < this.config.poolSize; i++) {
-                const element = this.templateItem.cloneNode(true);
-                element.classList.remove('cms-template', 'cms-template-original');
-                element.classList.add('virtual-pool-item');
-                element.style.display = 'none';
-                element.setAttribute('data-pool-index', i.toString());
-
-                this.nodePool.push({
-                    element,
-                    dataIndex: -1,      // Index in allReports array
-                    isActive: false,
-                    isExpanded: false
-                });
-            }
-
-            log('Created node pool with', this.config.poolSize, 'nodes');
-        },
-
-        // Bind scroll event handler with throttling
-        bindScrollHandler() {
-            const scrollTarget = this.scrollContainer || window;
-
-            scrollTarget.addEventListener('scroll', () => {
-                if (this.scrollRAF) return;
-
-                this.scrollRAF = requestAnimationFrame(() => {
-                    this.onScroll();
-                    this.scrollRAF = null;
-                });
-            }, { passive: true });
-        },
-
-        // Handle scroll events
-        onScroll() {
-            if (!Store.get('virtualScrollEnabled')) return;
-
-            const reports = Store.getReports();
-            if (reports.length === 0) return;
-
-            this.updateVisibleItems();
-        },
-
-        // Calculate which items should be visible
-        calculateVisibleRange() {
-            const reports = Store.getReports();
-            if (reports.length === 0) return { start: 0, end: 0 };
-
-            const scrollTop = this.scrollContainer ? this.scrollContainer.scrollTop : window.scrollY;
-            const viewportHeight = this.scrollContainer
-                ? this.scrollContainer.clientHeight
-                : window.innerHeight;
-
-            // Calculate cumulative heights considering expanded items
-            let cumulativeHeight = 0;
-            let startIndex = 0;
-            let endIndex = reports.length;
-
-            // Find start index
-            for (let i = 0; i < reports.length; i++) {
-                const isExpanded = Store.isExpanded(reports[i].id);
-                const itemHeight = this.getItemHeight(reports[i].id, isExpanded);
-
-                if (cumulativeHeight + itemHeight >= scrollTop) {
-                    startIndex = Math.max(0, i - this.config.bufferSize);
-                    break;
-                }
-                cumulativeHeight += itemHeight;
-            }
-
-            // Find end index
-            cumulativeHeight = 0;
-            for (let i = 0; i < reports.length; i++) {
-                const isExpanded = Store.isExpanded(reports[i].id);
-                const itemHeight = this.getItemHeight(reports[i].id, isExpanded);
-                cumulativeHeight += itemHeight;
-
-                if (cumulativeHeight >= scrollTop + viewportHeight) {
-                    endIndex = Math.min(reports.length, i + this.config.bufferSize + 1);
-                    break;
-                }
-            }
-
-            // Ensure we don't exceed pool size
-            const maxVisible = this.config.poolSize;
-            if (endIndex - startIndex > maxVisible) {
-                endIndex = startIndex + maxVisible;
-            }
-
-            return { start: startIndex, end: endIndex };
-        },
-
-        // Calculate height before a given index
-        calculateHeightBefore(index) {
-            const reports = Store.getReports();
-            let height = 0;
-
-            for (let i = 0; i < index && i < reports.length; i++) {
-                const isExpanded = Store.isExpanded(reports[i].id);
-                height += this.getItemHeight(reports[i].id, isExpanded);
-            }
-
-            return height;
-        },
-
-        // Calculate total content height
-        calculateTotalHeight() {
-            const reports = Store.getReports();
-            let height = 0;
-
-            for (let i = 0; i < reports.length; i++) {
-                const isExpanded = Store.isExpanded(reports[i].id);
-                height += this.getItemHeight(reports[i].id, isExpanded);
-            }
-
-            return height;
-        },
-
-        // Update visible items based on scroll position
-        updateVisibleItems() {
-            const reports = Store.getReports();
-            if (reports.length === 0) return;
-
-            const newRange = this.calculateVisibleRange();
-
-            // Check if range changed significantly
-            if (newRange.start === this.visibleRange.start &&
-                newRange.end === this.visibleRange.end) {
-                return;
-            }
-
-            this.visibleRange = newRange;
-            log('Visible range:', newRange.start, 'to', newRange.end);
-
-            // Update spacers
-            const topHeight = this.calculateHeightBefore(newRange.start);
-            const totalHeight = this.calculateTotalHeight();
-            const visibleHeight = this.calculateHeightBefore(newRange.end) - topHeight;
-            const bottomHeight = Math.max(0, totalHeight - topHeight - visibleHeight);
-
-            this.spacerTop.style.height = topHeight + 'px';
-            this.spacerBottom.style.height = bottomHeight + 'px';
-
-            // Deactivate nodes that are out of range
-            this.nodePool.forEach(node => {
-                if (node.isActive &&
-                    (node.dataIndex < newRange.start || node.dataIndex >= newRange.end)) {
-                    this.deactivateNode(node);
-                }
-            });
-
-            // Activate nodes for visible range
-            for (let i = newRange.start; i < newRange.end; i++) {
-                const report = reports[i];
-                if (!report) continue;
-
-                // Check if already rendered
-                const existingNode = this.nodePool.find(n => n.isActive && n.dataIndex === i);
-                if (existingNode) continue;
-
-                // Find an available node
-                const availableNode = this.nodePool.find(n => !n.isActive);
-                if (!availableNode) {
-                    console.warn('[VirtualScroller] No available nodes in pool');
-                    continue;
-                }
-
-                this.activateNode(availableNode, i, report);
-            }
-
-            // Sort active nodes in DOM order
-            this.reorderNodes();
-        },
-
-        // Activate a node with report data
-        activateNode(node, dataIndex, report) {
-            node.dataIndex = dataIndex;
-            node.isActive = true;
-            node.isExpanded = Store.isExpanded(report.id);
-
-            // Clear previous state
-            this.resetNodeElement(node.element);
-
-            // Populate with new data
-            populateReportItem(node.element, report, true);
-
-            // Restore expanded state if needed
-            if (node.isExpanded) {
-                const target = DOM.$('[open-target]', node.element);
-                if (target) {
-                    lazyLoadReportContent(node.element);
-                    selectDefaultTab(node.element); // Select default tab when restoring expanded state
-                    target.style.height = 'auto';
-                    target.style.overflow = 'visible';
-                    const arrow = DOM.$('[dropdown-icon]', node.element);
-                    if (arrow) arrow.style.transform = 'rotateZ(180deg)';
-                }
-            }
-
-            node.element.style.display = '';
-            node.element.setAttribute('data-virtual-index', dataIndex.toString());
-
-            // Insert into DOM if not already there
-            if (!node.element.parentNode || node.element.parentNode !== this.listContainer) {
-                this.listContainer.insertBefore(node.element, this.spacerBottom);
-            }
-
-            // Measure actual height after a brief delay (allow render)
-            if (this.config.useActualHeights) {
+            // Use read/write pattern with requestAnimationFrame
+            requestAnimationFrame(() => {
+                // Read phase: measure current and new heights
+                const currentHeight = target.offsetHeight;
+                const originalTransition = target.style.transition;
+
+                // Temporarily disable transition to measure
+                target.style.transition = 'none';
+                target.style.height = 'auto';
+                const newHeight = target.scrollHeight;
+                target.style.height = currentHeight + 'px';
+
+                // Write phase: apply transition and new height
                 requestAnimationFrame(() => {
-                    this.measureNodeHeight(node);
+                    target.style.transition = originalTransition || 'height 300ms ease';
+                    target.style.height = newHeight + 'px';
                 });
-            }
-        },
-
-        // Deactivate a node
-        deactivateNode(node) {
-            node.isActive = false;
-            node.dataIndex = -1;
-            node.isExpanded = false;
-            node.element.style.display = 'none';
-            node.element.removeAttribute('data-virtual-index');
-        },
-
-        // Reset a node element for reuse
-        resetNodeElement(element) {
-            // Reset accordion state
-            const target = DOM.$('[open-target]', element);
-            if (target) {
-                target.style.height = '0px';
-                target.style.overflow = 'hidden';
-            }
-
-            const arrow = DOM.$('[dropdown-icon]', element);
-            if (arrow) {
-                arrow.style.transform = 'rotateZ(0deg)';
-            }
-
-            // Reset tabs
-            DOM.$$('[data-tab]', element).forEach(tab => tab.classList.remove('current'));
-            DOM.$$('[data-tab-content]', element).forEach(content => {
-                content.style.display = 'none';
             });
-
-            // Reset content loaded flag
-            element.setAttribute('data-content-loaded', 'false');
-
-            // Remove modal initialization flags for re-initialization
-            const multiReporterWrap = DOM.$('[multi-reporter-wrap="true"]', element);
-            if (multiReporterWrap) {
-                multiReporterWrap.removeAttribute('data-modal-initialized');
-            }
-
-            // Remove thumbnail initialization
-            const thumbnail = DOM.$('[cms-content="header-thumbnail"]', element);
-            if (thumbnail) {
-                thumbnail.removeAttribute('data-thumbnail-initialized');
-            }
-
-            element.classList.remove('is--loaded');
-            element.classList.add('is--loading');
-        },
-
-        // Reorder nodes in DOM to match data order
-        reorderNodes() {
-            const activeNodes = this.nodePool
-                .filter(n => n.isActive)
-                .sort((a, b) => a.dataIndex - b.dataIndex);
-
-            // Check if reordering is actually needed
-            let needsReorder = false;
-            let prevElement = this.spacerTop;
-
-            for (const node of activeNodes) {
-                if (node.element.previousElementSibling !== prevElement) {
-                    needsReorder = true;
-                    break;
-                }
-                prevElement = node.element;
-            }
-
-            // Only reorder if necessary to avoid layout thrashing
-            if (needsReorder) {
-                activeNodes.forEach(node => {
-                    this.listContainer.insertBefore(node.element, this.spacerBottom);
-                });
-            }
-        },
-
-        // Refresh the virtual scroll (call after data changes)
-        refresh() {
-            const reports = Store.getReports();
-
-            // Handle empty state
-            if (reports.length === 0) {
-                this.reset();
-                return;
-            }
-
-            this.visibleRange = { start: 0, end: 0 };
-            this.updateVisibleItems();
-        },
-
-        // Reset to empty state (deactivate all nodes, reset spacers)
-        reset() {
-            // Deactivate all pool nodes
-            this.nodePool.forEach(node => {
-                if (node.isActive) {
-                    this.deactivateNode(node);
-                }
-            });
-
-            // Reset spacers to 0
-            if (this.spacerTop) this.spacerTop.style.height = '0px';
-            if (this.spacerBottom) this.spacerBottom.style.height = '0px';
-
-            // Reset visible range
-            this.visibleRange = { start: 0, end: 0 };
-
-            // Clear measured heights cache
-            this.measuredHeights.clear();
-
-            log('VirtualScroller reset to empty state');
-        },
-
-        // Handle item expansion
-        onItemExpanded(reportId) {
-            Store.setExpanded(reportId, true);
-
-            // Update the node's height tracking
-            const node = this.nodePool.find(n => n.isActive && n.element.getAttribute('data-report-id') === reportId);
-            if (node) {
-                node.isExpanded = true;
-            }
-
-            // Recalculate spacers
-            this.updateSpacerHeights();
-        },
-
-        // Handle item collapse
-        onItemCollapsed(reportId) {
-            Store.setExpanded(reportId, false);
-
-            const node = this.nodePool.find(n => n.isActive && n.element.getAttribute('data-report-id') === reportId);
-            if (node) {
-                node.isExpanded = false;
-            }
-
-            this.updateSpacerHeights();
-        },
-
-        // Update spacer heights without full refresh
-        updateSpacerHeights() {
-            const topHeight = this.calculateHeightBefore(this.visibleRange.start);
-            const totalHeight = this.calculateTotalHeight();
-            const visibleHeight = this.calculateHeightBefore(this.visibleRange.end) - topHeight;
-            const bottomHeight = Math.max(0, totalHeight - topHeight - visibleHeight);
-
-            this.spacerTop.style.height = topHeight + 'px';
-            this.spacerBottom.style.height = bottomHeight + 'px';
-        },
-
-        // Destroy and cleanup
-        destroy() {
-            // Remove all pool nodes
-            this.nodePool.forEach(node => {
-                if (node.element && node.element.parentNode) {
-                    node.element.remove();
-                }
-            });
-            this.nodePool = [];
-
-            // Remove spacers
-            if (this.spacerTop) this.spacerTop.remove();
-            if (this.spacerBottom) this.spacerBottom.remove();
-
-            // Clear caches
-            this.measuredHeights.clear();
-
-            this.isInitialized = false;
-            this.visibleRange = { start: 0, end: 0 };
-        },
-
-        // Get debug info
-        getDebugInfo() {
-            return {
-                isInitialized: this.isInitialized,
-                itemType: this.itemType,
-                poolSize: this.nodePool.length,
-                activeNodes: this.nodePool.filter(n => n.isActive).length,
-                visibleRange: this.visibleRange,
-                totalReports: Store.getReports().length,
-                expandedItems: Store.get('expandedItems').size,
-                measuredHeights: this.measuredHeights.size,
-                spacerTop: this.spacerTop?.style.height,
-                spacerBottom: this.spacerBottom?.style.height
-            };
         }
     };
 
@@ -1239,33 +776,31 @@
         const parentContainer = templateLink.parentElement;
         if (!parentContainer) return;
 
-        // Remove existing clones and separators
-        DOM.$$('a[cms-link="reporter"]', parentContainer).forEach((link, index) => {
-            if (index > 0) link.remove();
-        });
-        DOM.$$('.reporter-separator', parentContainer).forEach(sep => sep.remove());
+        // Batch remove existing clones and separators
+        const existingLinks = Array.from(DOM.$$('a[cms-link="reporter"]', parentContainer));
+        const existingSeparators = Array.from(DOM.$$('.reporter-separator', parentContainer));
+        DOMBatch.removeAll(existingLinks.slice(1)); // Keep first link (template)
+        DOMBatch.removeAll(existingSeparators);
 
         const separatorTemplate = DOM.create('div', {
             className: 'sub-text-block reporter-separator',
             textContent: '·'
         });
 
-        let lastElement = templateLink;
-        reporters.forEach((reporter, index) => {
-            if (!reporter.slug) return;
+        // Build all elements first, then insert in one batch
+        const elementsToInsert = [];
+        const validReporters = reporters.filter(r => r.slug);
 
-            if (index > 0) {
-                const separator = separatorTemplate.cloneNode(true);
-                parentContainer.insertBefore(separator, lastElement.nextSibling);
-                lastElement = separator;
-            }
-
+        validReporters.forEach((reporter, index) => {
             let reporterLink;
             if (index === 0) {
+                // Update template link in place
                 reporterLink = templateLink;
             } else {
+                // Create separator and new link
+                elementsToInsert.push(separatorTemplate.cloneNode(true));
                 reporterLink = templateLink.cloneNode(true);
-                parentContainer.insertBefore(reporterLink, lastElement.nextSibling);
+                elementsToInsert.push(reporterLink);
             }
 
             reporterLink.href = `/reporter/${reporter.slug}`;
@@ -1274,10 +809,15 @@
                 reporterField.textContent = reporter.name;
             }
             reporterLink.style.display = '';
-            lastElement = reporterLink;
         });
 
-        if (reporters.filter(r => r.slug).length === 0) {
+        // Single batch insertion after template link
+        if (elementsToInsert.length > 0) {
+            const fragment = DOMBatch.createFragment(elementsToInsert);
+            templateLink.after(fragment);
+        }
+
+        if (validReporters.length === 0) {
             templateLink.style.display = 'none';
         }
     }
@@ -1299,15 +839,22 @@
         const topicLinkTemplate = DOM.$('[cms-link="topic"]', itemElement);
 
         if (topicsWrap && topicLinkTemplate) {
-            // Clear existing duplicated topics
-            DOM.$$('[cms-link="topic"]', topicsWrap).forEach((link, index) => {
-                if (index > 0) link.remove();
-            });
+            // Batch remove existing duplicated topics
+            const existingTopicLinks = Array.from(DOM.$$('[cms-link="topic"]', topicsWrap));
+            DOMBatch.removeAll(existingTopicLinks.slice(1));
 
             if (reportData.topic && Array.isArray(reportData.topic) && reportData.topic.length > 0) {
+                // Build all topic links first
+                const topicElements = [];
+
                 reportData.topic.forEach((topic, index) => {
-                    let topicLink = index === 0 ? topicLinkTemplate : topicLinkTemplate.cloneNode(true);
-                    if (index > 0) topicsWrap.appendChild(topicLink);
+                    let topicLink;
+                    if (index === 0) {
+                        topicLink = topicLinkTemplate;
+                    } else {
+                        topicLink = topicLinkTemplate.cloneNode(true);
+                        topicElements.push(topicLink);
+                    }
 
                     topicLink.href = `/topic/${topic.slug}`;
                     topicLink.style.display = '';
@@ -1315,6 +862,12 @@
                     const topicField = DOM.$('[cms-field="topic"]', topicLink);
                     DOM.setText(topicField || topicLink, topic.name);
                 });
+
+                // Single batch insertion
+                if (topicElements.length > 0) {
+                    const fragment = DOMBatch.createFragment(topicElements);
+                    topicsWrap.appendChild(fragment);
+                }
                 successCount++;
             } else if (reportData.topic?.slug) {
                 topicLinkTemplate.href = `/topic/${reportData.topic.slug}`;
@@ -1689,10 +1242,13 @@
             return;
         }
 
-        // Clear existing except template
-        DOM.$$('[cms-deliver="video-wrap"]', videosWrap).forEach((vw, index) => {
-            if (index > 0) vw.remove();
-        });
+        // Batch remove existing except template
+        const existingWraps = Array.from(DOM.$$('[cms-deliver="video-wrap"]', videosWrap));
+        DOMBatch.removeAll(existingWraps.slice(1));
+
+        // Build all video elements first
+        const videoElements = [];
+        let firstVideoWrap = null;
 
         videos.forEach((video, index) => {
             const videoWrap = templateVideoWrap.cloneNode(true);
@@ -1728,11 +1284,20 @@
             videoWrap.style.display = '';
 
             if (index === 0) {
-                templateVideoWrap.replaceWith(videoWrap);
+                firstVideoWrap = videoWrap;
             } else {
-                videosWrap.appendChild(videoWrap);
+                videoElements.push(videoWrap);
             }
         });
+
+        // Single batch DOM update
+        if (firstVideoWrap) {
+            templateVideoWrap.replaceWith(firstVideoWrap);
+        }
+        if (videoElements.length > 0) {
+            const fragment = DOMBatch.createFragment(videoElements);
+            videosWrap.appendChild(fragment);
+        }
 
         videosWrap.style.display = '';
     }
@@ -1766,11 +1331,15 @@
             return;
         }
 
-        DOM.$$('.picturelightbox', imagesWrap).forEach((lb, index) => {
-            if (index > 0) lb.remove();
-        });
+        // Batch remove existing lightboxes except template
+        const existingLightboxes = Array.from(DOM.$$('.picturelightbox', imagesWrap));
+        DOMBatch.removeAll(existingLightboxes.slice(1));
 
         const galleryId = 'gallery-' + reportData.id;
+
+        // Build all lightbox elements first
+        const lightboxElements = [];
+        let firstLightbox = null;
 
         allImages.forEach((image, index) => {
             const lightbox = templateLightbox.cloneNode(true);
@@ -1793,12 +1362,21 @@
                 lightbox.style.display = '';
 
                 if (index === 0) {
-                    templateLightbox.replaceWith(lightbox);
+                    firstLightbox = lightbox;
                 } else {
-                    imagesWrap.appendChild(lightbox);
+                    lightboxElements.push(lightbox);
                 }
             }
         });
+
+        // Single batch DOM update
+        if (firstLightbox) {
+            templateLightbox.replaceWith(firstLightbox);
+        }
+        if (lightboxElements.length > 0) {
+            const fragment = DOMBatch.createFragment(lightboxElements);
+            imagesWrap.appendChild(fragment);
+        }
 
         imagesWrap.style.display = '';
 
@@ -1857,33 +1435,6 @@
         }
 
         itemElement.setAttribute('data-tabs-initialized', 'true');
-    }
-
-    // Select the default tab (first available) when opening accordion
-    function selectDefaultTab(itemElement) {
-        const itemType = itemElement.getAttribute('cms-item-type');
-
-        // For mini type, select tab 1 (info/description) by default
-        if (itemType !== 'full') {
-            const infoTab = DOM.$('[data-tab="1"]', itemElement);
-            const infoContent = DOM.$('[data-tab-content="1"]', itemElement);
-
-            if (infoTab && infoContent) {
-                // Clear any existing selection
-                DOM.$$('[data-tab]', itemElement).forEach(tab => {
-                    if (tab.getAttribute('data-tab') !== 'wrap') {
-                        tab.classList.remove('current');
-                    }
-                });
-                DOM.$$('[data-tab-content]', itemElement).forEach(content => {
-                    content.style.display = 'none';
-                });
-
-                // Select info tab
-                infoTab.classList.add('current');
-                infoContent.style.display = 'block';
-            }
-        }
     }
 
     // Lazy load content for a report item
@@ -1945,8 +1496,8 @@
         return successCount > 0;
     }
 
-    // Populate reports in the DOM (legacy mode - used when virtual scroll is disabled)
-    async function populateReportsLegacy(items, listContainer, templateItem, appendMode = false) {
+    // Populate reports in the DOM
+    async function populateReports(items, listContainer, templateItem, appendMode = false) {
         if (!templateItem) {
             console.error('[CMS Client] Template item not found!');
             return 0;
@@ -1959,8 +1510,10 @@
 
         if (!items || items.length === 0) {
             if (!appendMode) {
-                DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer)
-                    .forEach(item => item.remove());
+                // Batch remove all existing items
+                DOMBatch.removeAll(
+                    DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer)
+                );
 
                 const existingMsg = DOM.$('.no-search-results, .search-error', listContainer);
                 if (existingMsg) existingMsg.remove();
@@ -1982,8 +1535,10 @@
         }
 
         if (!appendMode) {
-            DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer)
-                .forEach(item => item.remove());
+            // Batch remove all existing items
+            DOMBatch.removeAll(
+                DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer)
+            );
 
             const existingMsg = DOM.$('.no-search-results, .search-error', listContainer);
             if (existingMsg) existingMsg.remove();
@@ -1995,21 +1550,27 @@
         }
 
         const sentinel = DOM.$('[scroll-sentinel="true"]', listContainer);
-        const fragment = document.createDocumentFragment();
 
+        // Build all items offscreen first, then insert once
+        const preparedItems = [];
         let successCount = 0;
+
         items.forEach((report, index) => {
             const newItem = templateItem.cloneNode(true);
+            // Batch class removal
             newItem.classList.remove('cms-template', 'is--loading', 'cms-template-original');
             newItem.style.display = '';
 
             if (populateReportItem(newItem, report)) {
-                fragment.appendChild(newItem);
+                preparedItems.push(newItem);
                 successCount++;
             } else {
                 console.warn(`[CMS Client] Failed to populate report ${index + 1}:`, report.name || 'Unknown');
             }
         });
+
+        // Single DOM insertion using fragment
+        const fragment = DOMBatch.createFragment(preparedItems);
 
         if (sentinel) {
             listContainer.insertBefore(fragment, sentinel);
@@ -2022,62 +1583,6 @@
         console.log(`[CMS Client] Populated ${successCount} items in DOM`);
 
         return successCount;
-    }
-
-    // Populate reports using virtual scrolling
-    async function populateReportsVirtual(items, listContainer, templateItem, appendMode = false) {
-        if (!items || items.length === 0) {
-            if (!appendMode) {
-                Store.clearReports();
-                VirtualScroller.refresh();
-
-                const existingMsg = DOM.$('.no-search-results, .search-error', listContainer);
-                if (existingMsg) existingMsg.remove();
-
-                const noResultsMsg = DOM.create('div', {
-                    className: 'no-search-results',
-                    style: { padding: '40px 20px', textAlign: 'center', color: '#666' },
-                    innerHTML: 'No reports match your filters'
-                });
-
-                const sentinel = DOM.$('[scroll-sentinel="true"]', listContainer);
-                if (sentinel) {
-                    listContainer.insertBefore(noResultsMsg, sentinel);
-                } else {
-                    listContainer.appendChild(noResultsMsg);
-                }
-            }
-            return 0;
-        }
-
-        // Remove no results message if exists
-        const existingMsg = DOM.$('.no-search-results, .search-error', listContainer);
-        if (existingMsg) existingMsg.remove();
-
-        // Add reports to the data store
-        Store.addReports(items, !appendMode);
-
-        // Initialize virtual scroller if not already done
-        const scrollContainer = DOM.$('[cms-reports="scroll-wrap"]');
-        if (!VirtualScroller.isInitialized) {
-            VirtualScroller.init(scrollContainer, listContainer, templateItem);
-        }
-
-        // Refresh the virtual scroll to render visible items
-        VirtualScroller.refresh();
-
-        console.log(`[CMS Client] Virtual scroll: ${items.length} items added, total: ${Store.getReports().length}`);
-
-        return items.length;
-    }
-
-    // Main populate function - delegates to virtual or legacy mode
-    async function populateReports(items, listContainer, templateItem, appendMode = false) {
-        if (Store.get('virtualScrollEnabled')) {
-            return populateReportsVirtual(items, listContainer, templateItem, appendMode);
-        } else {
-            return populateReportsLegacy(items, listContainer, templateItem, appendMode);
-        }
     }
 
     // Loading indicator functions
@@ -2318,7 +1823,6 @@
     // Apply current filters and reload reports
     async function applyFilters() {
         Store.resetPagination();
-        Store.clearReports(); // Clear virtual scroll data
         TagManager.updateTags();
 
         const noMoreMsg = document.getElementById('no-more-reports');
@@ -2654,9 +2158,6 @@
                 return;
             }
 
-            // Clear any existing reports data
-            Store.clearReports();
-
             const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`);
 
             if (!response.ok) {
@@ -2757,12 +2258,6 @@
                 if (isCurrentTab && !isClosed && target) {
                     tab.classList.remove('current');
                     AccordionUtils.close(target, arrow, container);
-
-                    // Track collapsed state for virtual scrolling
-                    const reportId = container.getAttribute('data-report-id');
-                    if (reportId && VirtualScroller.isInitialized) {
-                        VirtualScroller.onItemCollapsed(reportId);
-                    }
                     return;
                 }
 
@@ -2778,12 +2273,6 @@
                         lazyLoadReportContent(container);
                     }
                     AccordionUtils.open(target, arrow, container);
-
-                    // Track expanded state for virtual scrolling
-                    const reportId = container.getAttribute('data-report-id');
-                    if (reportId && VirtualScroller.isInitialized) {
-                        VirtualScroller.onItemExpanded(reportId);
-                    }
                 } else if (!AccordionUtils.isClosed(target)) {
                     AccordionUtils.adjustHeight(target);
                 }
@@ -2795,12 +2284,6 @@
 
             if (isCurrentTab) {
                 AccordionUtils.close(target, arrow, container);
-
-                // Track collapsed state for virtual scrolling
-                const reportId = container.getAttribute('data-report-id');
-                if (reportId && VirtualScroller.isInitialized) {
-                    VirtualScroller.onItemCollapsed(reportId);
-                }
                 return;
             }
 
@@ -2836,27 +2319,12 @@
             if (itemType === 'full') return;
 
             const isClosed = AccordionUtils.isClosed(target);
-            const reportId = container.getAttribute('data-report-id');
 
             if (isClosed) {
                 lazyLoadReportContent(container);
-
-                // Select default tab (info/description) when opening
-                selectDefaultTab(container);
-
                 AccordionUtils.open(target, arrow, container);
-
-                // Track expanded state for virtual scrolling
-                if (reportId && VirtualScroller.isInitialized) {
-                    VirtualScroller.onItemExpanded(reportId);
-                }
             } else {
                 AccordionUtils.close(target, arrow, container);
-
-                // Track collapsed state for virtual scrolling
-                if (reportId && VirtualScroller.isInitialized) {
-                    VirtualScroller.onItemCollapsed(reportId);
-                }
             }
         });
     }
@@ -3107,10 +2575,10 @@
         config: CONFIG,
         loadReports,
         Store,
+        DOMBatch,
         applyFilters,
         clearAllFilters,
         TagManager,
-        VirtualScroller,
         checkElements() {
             const list = DOM.$('[cms-deliver="list"]');
             const item = DOM.$('[cms-deliver="item"]');
@@ -3137,30 +2605,6 @@
         },
         getState() {
             return Store.getState();
-        },
-        // Virtual scroll utilities
-        getVirtualScrollInfo() {
-            return VirtualScroller.getDebugInfo();
-        },
-        enableVirtualScroll() {
-            Store.setState({ virtualScrollEnabled: true }, true);
-            console.log('[CMS Client] Virtual scroll enabled');
-        },
-        disableVirtualScroll() {
-            Store.setState({ virtualScrollEnabled: false }, true);
-            VirtualScroller.destroy();
-            console.log('[CMS Client] Virtual scroll disabled - reload page to use legacy mode');
-        },
-        refreshVirtualScroll() {
-            if (VirtualScroller.isInitialized) {
-                VirtualScroller.refresh();
-                console.log('[CMS Client] Virtual scroll refreshed');
-            } else {
-                console.log('[CMS Client] Virtual scroll not initialized');
-            }
-        },
-        getReportsData() {
-            return Store.getReports();
         }
     };
 
