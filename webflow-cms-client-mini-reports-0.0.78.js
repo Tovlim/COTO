@@ -2597,11 +2597,78 @@
         });
     }
 
+    // Find the report ID of the topmost visible report item
+    function getTopVisibleReportId() {
+        const listContainer = DOM.$('[cms-deliver="list"]');
+        if (!listContainer) return null;
+
+        // Get the scroll container (could be the list itself or a parent wrapper)
+        const scrollWrap = DOM.$('[cms-reports="scroll-wrap"]') || listContainer;
+        const containerRect = scrollWrap.getBoundingClientRect();
+
+        const items = DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer);
+        let topVisibleId = null;
+        let smallestOffset = Infinity;
+
+        items.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            // Calculate position relative to the scroll container's top
+            const offsetFromTop = rect.top - containerRect.top;
+
+            // Find the item closest to the top of the viewport (but still visible or just above)
+            if (offsetFromTop >= -rect.height && offsetFromTop < smallestOffset) {
+                smallestOffset = offsetFromTop;
+                topVisibleId = item.getAttribute('data-report-id');
+            }
+        });
+
+        return topVisibleId;
+    }
+
+    // Scroll to a specific report by ID
+    function scrollToReportId(reportId) {
+        if (!reportId) return;
+
+        const listContainer = DOM.$('[cms-deliver="list"]');
+        if (!listContainer) return;
+
+        const targetItem = DOM.$(`[data-report-id="${reportId}"]`, listContainer);
+        if (!targetItem) {
+            console.log(`[CMS Client] Could not find report ${reportId} to scroll to`);
+            return;
+        }
+
+        // Use the scroll wrapper if available
+        const scrollWrap = DOM.$('[cms-reports="scroll-wrap"]');
+
+        if (scrollWrap) {
+            // Calculate the item's position relative to the scroll container
+            const containerRect = scrollWrap.getBoundingClientRect();
+            const itemRect = targetItem.getBoundingClientRect();
+            const currentScrollTop = scrollWrap.scrollTop;
+            const offsetFromContainer = itemRect.top - containerRect.top + currentScrollTop;
+
+            scrollWrap.scrollTo({
+                top: offsetFromContainer,
+                behavior: 'instant' // Use instant for view switch to avoid jarring animation
+            });
+        } else {
+            // Fallback to scrollIntoView
+            targetItem.scrollIntoView({ block: 'start', behavior: 'instant' });
+        }
+
+        log(`[CMS Client] Scrolled to report: ${reportId}`);
+    }
+
     async function switchView(newMode) {
         const currentMode = Store.get('viewMode');
         if (newMode === currentMode) return;
 
         console.log(`[CMS Client] Switching view: ${currentMode} → ${newMode}`);
+
+        // Capture the top visible report BEFORE switching
+        const topVisibleReportId = getTopVisibleReportId();
+        log(`[CMS Client] Top visible report before switch: ${topVisibleReportId}`);
 
         // Update state
         Store.setState({ viewMode: newMode }, true);
@@ -2630,6 +2697,14 @@
 
         // Re-populate with cached data
         await populateReports(cachedReports, listContainer, template, false);
+
+        // Restore scroll position to the same report
+        if (topVisibleReportId) {
+            // Use requestAnimationFrame to ensure DOM is fully rendered
+            requestAnimationFrame(() => {
+                scrollToReportId(topVisibleReportId);
+            });
+        }
 
         console.log(`[CMS Client] View switched to ${newMode}, rendered ${cachedReports.length} reports`);
 
