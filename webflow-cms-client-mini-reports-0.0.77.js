@@ -1571,10 +1571,8 @@
             return 0;
         }
 
-        if (!templateItem.classList.contains('cms-template-original')) {
-            templateItem.classList.add('cms-template-original');
-            templateItem.style.display = 'none';
-        }
+        // templateItem is a cloned template from TemplateManager - no need to hide it
+        // as it's not in the DOM, we just use it as a source for cloning
 
         if (!items || items.length === 0) {
             if (!appendMode) {
@@ -1612,10 +1610,8 @@
             if (existingMsg) existingMsg.remove();
         }
 
-        if (templateItem.parentNode !== listContainer) {
-            console.error('[CMS Client] Template not in list container!');
-            return 0;
-        }
+        // Note: templateItem may be a cloned template from TemplateManager (not in DOM)
+        // so we no longer require it to be in listContainer - we just use it as a clone source
 
         const sentinel = DOM.$('[scroll-sentinel="true"]', listContainer);
 
@@ -1645,8 +1641,6 @@
         } else {
             listContainer.appendChild(fragment);
         }
-
-        templateItem.style.display = 'none';
 
         console.log(`[CMS Client] Populated ${successCount} items in DOM`);
 
