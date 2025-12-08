@@ -43,7 +43,9 @@
             },
 
             // UI state
-            isClearing: false
+            isClearing: false,
+            viewMode: 'mini', // 'mini' or 'full'
+            cachedReports: [] // Cache reports for view switching without re-fetch
         },
 
         _subscribers: new Map(),
@@ -383,6 +385,72 @@
             element.style.display = 'none';
             prepareFn(element);
             element.style.display = originalDisplay;
+        }
+    };
+
+    // ===== TEMPLATE MANAGER =====
+    const TemplateManager = {
+        templates: {
+            mini: null,
+            full: null
+        },
+
+        // Initialize templates from DOM
+        init(listContainer) {
+            // Find templates by cms-item-type attribute
+            const miniTemplate = listContainer?.querySelector('[cms-deliver="item"][cms-item-type="mini"]');
+            const fullTemplate = listContainer?.querySelector('[cms-deliver="item"][cms-item-type="full"]');
+
+            // Fallback: if no typed templates, use first item as mini
+            if (!miniTemplate && !fullTemplate) {
+                const defaultTemplate = listContainer?.querySelector('[cms-deliver="item"]');
+                if (defaultTemplate) {
+                    defaultTemplate.setAttribute('cms-item-type', 'mini');
+                    this.templates.mini = defaultTemplate.cloneNode(true);
+                    console.log('[CMS Client] Using default template as mini');
+                }
+            } else {
+                if (miniTemplate) {
+                    this.templates.mini = miniTemplate.cloneNode(true);
+                    miniTemplate.classList.add('cms-template-original');
+                    miniTemplate.style.display = 'none';
+                    console.log('[CMS Client] Mini template initialized');
+                }
+                if (fullTemplate) {
+                    this.templates.full = fullTemplate.cloneNode(true);
+                    fullTemplate.classList.add('cms-template-original');
+                    fullTemplate.style.display = 'none';
+                    console.log('[CMS Client] Full template initialized');
+                }
+            }
+
+            return this.templates.mini || this.templates.full;
+        },
+
+        // Get the active template based on current view mode
+        getActiveTemplate() {
+            const viewMode = Store.get('viewMode');
+            const template = this.templates[viewMode];
+
+            if (!template) {
+                console.warn(`[CMS Client] No template found for view mode: ${viewMode}, falling back`);
+                return this.templates.mini || this.templates.full;
+            }
+
+            return template;
+        },
+
+        // Check if both templates are available
+        hasBothTemplates() {
+            return !!(this.templates.mini && this.templates.full);
+        },
+
+        // Get available view modes
+        getAvailableModes() {
+            const modes = [];
+            if (this.templates.mini) modes.push('mini');
+            if (this.templates.full) modes.push('full');
+            return modes;
         }
     };
 
@@ -1829,7 +1897,7 @@
         if (noMoreMsg) noMoreMsg.remove();
 
         const listContainer = DOM.$('[cms-deliver="list"]');
-        const templateItem = listContainer?.querySelector('[cms-deliver="item"]');
+        const templateItem = TemplateManager.getActiveTemplate();
 
         if (!listContainer || !templateItem) {
             console.error('[CMS Client] List container or template not found');
@@ -1846,6 +1914,9 @@
 
             const response_data = await response.json();
             const items = response_data.data || [];
+
+            // Cache reports for view switching
+            Store.setState({ cachedReports: items }, true);
 
             Store.setState({
                 currentOffset: CONFIG.REPORTS_LIMIT,
@@ -2095,7 +2166,7 @@
         log('Loading more reports...');
 
         const listContainer = DOM.$('[cms-deliver="list"]');
-        const templateItem = listContainer?.querySelector('[cms-deliver="item"]');
+        const templateItem = TemplateManager.getActiveTemplate();
 
         if (!listContainer || !templateItem) {
             console.error('[CMS Client] List container or template not found');
@@ -2116,6 +2187,10 @@
 
             const response_data = await response.json();
             const items = response_data.data || [];
+
+            // Append to cached reports for view switching
+            const currentCached = Store.get('cachedReports') || [];
+            Store.setState({ cachedReports: [...currentCached, ...items] }, true);
 
             const successCount = await populateReports(items, listContainer, templateItem, true);
 
@@ -2151,7 +2226,8 @@
                 return;
             }
 
-            const templateItem = DOM.$('[cms-deliver="item"]', listContainer);
+            // Initialize template manager
+            const templateItem = TemplateManager.init(listContainer);
 
             if (!templateItem) {
                 console.error('[CMS Client] Template item not found');
@@ -2167,7 +2243,12 @@
             const response_data = await response.json();
             const items = response_data.data || [];
 
-            const successCount = await populateReports(items, listContainer, templateItem);
+            // Cache reports for view switching
+            Store.setState({ cachedReports: items }, true);
+
+            // Use template from TemplateManager based on current viewMode
+            const activeTemplate = TemplateManager.getActiveTemplate();
+            const successCount = await populateReports(items, listContainer, activeTemplate);
 
             const totalReports = response_data.metadata?.total || items.length;
             Store.setState({
@@ -2463,6 +2544,105 @@
         initializeSearch();
         initializeScrollToTop();
         initializeShareButtons();
+        initializeViewToggle();
+    }
+
+    // ===== VIEW TOGGLE =====
+    function initializeViewToggle() {
+        const toggleButtons = DOM.$$('[cms-view-toggle]');
+
+        if (toggleButtons.length === 0) {
+            console.log('[CMS Client] No view toggle buttons found');
+            return;
+        }
+
+        // Check if we have both templates available
+        if (!TemplateManager.hasBothTemplates()) {
+            console.warn('[CMS Client] View toggle disabled - need both mini and full templates');
+            toggleButtons.forEach(btn => btn.style.display = 'none');
+            return;
+        }
+
+        // Set initial active state
+        updateToggleButtonStates();
+
+        // Event delegation for toggle clicks
+        document.addEventListener('click', function(e) {
+            const toggleBtn = e.target.closest('[cms-view-toggle]');
+            if (!toggleBtn) return;
+
+            e.preventDefault();
+
+            const targetMode = toggleBtn.getAttribute('cms-view-toggle');
+            const currentMode = Store.get('viewMode');
+
+            if (targetMode === currentMode) return;
+
+            if (targetMode === 'mini' || targetMode === 'full') {
+                switchView(targetMode);
+            } else {
+                // Toggle between modes if no specific target
+                switchView(currentMode === 'mini' ? 'full' : 'mini');
+            }
+        });
+
+        console.log('[CMS Client] View toggle initialized');
+    }
+
+    function updateToggleButtonStates() {
+        const currentMode = Store.get('viewMode');
+
+        DOM.$$('[cms-view-toggle]').forEach(btn => {
+            const btnMode = btn.getAttribute('cms-view-toggle');
+
+            if (btnMode === currentMode) {
+                btn.classList.add('is--active');
+            } else {
+                btn.classList.remove('is--active');
+            }
+        });
+    }
+
+    async function switchView(newMode) {
+        const currentMode = Store.get('viewMode');
+        if (newMode === currentMode) return;
+
+        console.log(`[CMS Client] Switching view: ${currentMode} → ${newMode}`);
+
+        // Update state
+        Store.setState({ viewMode: newMode }, true);
+
+        // Update button states
+        updateToggleButtonStates();
+
+        // Get cached reports
+        const cachedReports = Store.get('cachedReports');
+
+        if (!cachedReports || cachedReports.length === 0) {
+            console.warn('[CMS Client] No cached reports for view switch');
+            return;
+        }
+
+        // Re-render with new template
+        const listContainer = DOM.$('[cms-deliver="list"]');
+        if (!listContainer) return;
+
+        // Get the new template
+        const template = TemplateManager.getActiveTemplate();
+        if (!template) {
+            console.error('[CMS Client] No template available for mode:', newMode);
+            return;
+        }
+
+        // Re-populate with cached data
+        await populateReports(cachedReports, listContainer, template, false);
+
+        console.log(`[CMS Client] View switched to ${newMode}, rendered ${cachedReports.length} reports`);
+
+        // Dispatch event for other scripts
+        window.dispatchEvent(new CustomEvent('cmsViewChanged', {
+            detail: { mode: newMode, previousMode: currentMode }
+        }));
     }
 
     function initializeInfiniteScroll(listContainer) {
@@ -2579,6 +2759,10 @@
         applyFilters,
         clearAllFilters,
         TagManager,
+        TemplateManager,
+        switchView,
+        getViewMode: () => Store.get('viewMode'),
+        setViewMode: (mode) => switchView(mode),
         checkElements() {
             const list = DOM.$('[cms-deliver="list"]');
             const item = DOM.$('[cms-deliver="item"]');
