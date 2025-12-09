@@ -2560,6 +2560,12 @@
         // Set initial active state
         updateToggleButtonStates();
 
+        // Set initial margin class based on default view mode
+        const listContainer = DOM.$('[cms-deliver="list"]');
+        if (listContainer && Store.get('viewMode') === 'mini') {
+            listContainer.classList.add('is-mini-reports');
+        }
+
         // Event delegation for toggle clicks
         document.addEventListener('click', function(e) {
             const toggleBtn = e.target.closest('[cms-view-toggle]');
@@ -2687,6 +2693,13 @@
         // Re-render with new template
         const listContainer = DOM.$('[cms-deliver="list"]');
         if (!listContainer) return;
+
+        // Update list container margin class
+        if (newMode === 'mini') {
+            listContainer.classList.add('is-mini-reports');
+        } else {
+            listContainer.classList.remove('is-mini-reports');
+        }
 
         // Get the new template
         const template = TemplateManager.getActiveTemplate();
