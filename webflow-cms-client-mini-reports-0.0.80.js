@@ -556,6 +556,13 @@
         }
     }
 
+    // ===== CMS LOADING INDICATOR =====
+    function setCmsLoadingIndicator(show) {
+        document.querySelectorAll('[cms-loading="indicator"]').forEach(el => {
+            el.style.display = show ? '' : 'none';
+        });
+    }
+
     // ===== LOCATION FIELDS CONFIG =====
     const LOCATION_FIELDS = [
         {
@@ -1886,6 +1893,7 @@
     async function applyFilters() {
         Store.resetPagination();
         TagManager.updateTags();
+        setCmsLoadingIndicator(true);
 
         const noMoreMsg = document.getElementById('no-more-reports');
         if (noMoreMsg) noMoreMsg.remove();
@@ -1895,6 +1903,7 @@
 
         if (!listContainer || !templateItem) {
             console.error('[CMS Client] List container or template not found');
+            setCmsLoadingIndicator(false);
             return;
         }
 
@@ -1943,6 +1952,8 @@
                 `
             });
             listContainer.appendChild(errorMsg);
+        } finally {
+            setCmsLoadingIndicator(false);
         }
     }
 
@@ -2157,6 +2168,7 @@
         }
 
         Store.setState({ isLoading: true }, true);
+        setCmsLoadingIndicator(true);
         log('Loading more reports...');
 
         const listContainer = DOM.$('[cms-deliver="list"]');
@@ -2165,6 +2177,7 @@
         if (!listContainer || !templateItem) {
             console.error('[CMS Client] List container or template not found');
             Store.setState({ isLoading: false }, true);
+            setCmsLoadingIndicator(false);
             return;
         }
 
@@ -2205,6 +2218,7 @@
             console.error('[CMS Client] Error loading more reports:', error);
         } finally {
             hideLoadingIndicator();
+            setCmsLoadingIndicator(false);
             Store.setState({ isLoading: false }, true);
         }
     }
@@ -2212,11 +2226,13 @@
     // ===== MAIN LOAD FUNCTION =====
 
     async function loadReports(initializeUI = true) {
+        setCmsLoadingIndicator(true);
         try {
             const listContainer = await DOM.waitFor('[cms-deliver="list"]', 5000);
 
             if (!listContainer) {
                 console.error('[CMS Client] List container not found');
+                setCmsLoadingIndicator(false);
                 return;
             }
 
@@ -2273,12 +2289,14 @@
                 initializeFilters();
             }
 
+            setCmsLoadingIndicator(false);
             window.dispatchEvent(new CustomEvent('cmsDataLoaded', {
                 detail: { count: successCount, total: totalReports }
             }));
 
         } catch (error) {
             console.error('[CMS Client] Error:', error);
+            setCmsLoadingIndicator(false);
 
             const listContainer = DOM.$('[cms-deliver="list"]');
             if (listContainer) {
@@ -2671,6 +2689,7 @@
         if (newMode === currentMode) return;
 
         console.log(`[CMS Client] Switching view: ${currentMode} → ${newMode}`);
+        setCmsLoadingIndicator(true);
 
         // Capture the top visible report BEFORE switching
         const topVisibleReportId = getTopVisibleReportId();
@@ -2687,12 +2706,16 @@
 
         if (!cachedReports || cachedReports.length === 0) {
             console.warn('[CMS Client] No cached reports for view switch');
+            setCmsLoadingIndicator(false);
             return;
         }
 
         // Re-render with new template
         const listContainer = DOM.$('[cms-deliver="list"]');
-        if (!listContainer) return;
+        if (!listContainer) {
+            setCmsLoadingIndicator(false);
+            return;
+        }
 
         // Update list container margin class
         if (newMode === 'mini') {
@@ -2705,6 +2728,7 @@
         const template = TemplateManager.getActiveTemplate();
         if (!template) {
             console.error('[CMS Client] No template available for mode:', newMode);
+            setCmsLoadingIndicator(false);
             return;
         }
 
@@ -2719,6 +2743,7 @@
             });
         }
 
+        setCmsLoadingIndicator(false);
         console.log(`[CMS Client] View switched to ${newMode}, rendered ${cachedReports.length} reports`);
 
         // Dispatch event for other scripts
