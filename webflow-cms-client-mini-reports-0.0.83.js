@@ -20,6 +20,56 @@
         DEBUG: false
     };
 
+    // ===== SELECTORS =====
+    // Centralized selector strings to avoid magic strings throughout the codebase
+    const SELECTORS = {
+        // CMS delivery elements
+        list: '[cms-deliver="list"]',
+        item: '[cms-deliver="item"]',
+        itemMini: '[cms-deliver="item"][cms-item-type="mini"]',
+        itemFull: '[cms-deliver="item"][cms-item-type="full"]',
+        itemNotTemplate: '[cms-deliver="item"]:not(.cms-template-original)',
+        videosWrap: '[cms-deliver="videos-wrap"]',
+        videoWrap: '[cms-deliver="video-wrap"]',
+        imagesWrap: '[cms-deliver="images-wrap"]',
+
+        // Filter elements
+        filterForm: '[cms-filter="form-block"]',
+        dateFrom: '[cms-filter="From"]',
+        dateUntil: '[cms-filter="Until"]',
+        searchInput: '[filter-reports="search"]',
+        filterAttr: '[cms-filter]',
+
+        // Filter UI elements
+        tagWrap: '[cms-filter-element="tag-wrap"]',
+        tag: '[cms-filter-element="tag"]',
+        tagNotTemplate: '[cms-filter-element="tag"]:not(.tag-template)',
+        tagRemove: '[cms-filter-element="tag-remove"]',
+        tagField: '[cms-filter-element="tag-field"]',
+        tagValue: '[cms-filter-element="tag-value"]',
+        resultsCount: '[cms-filter-element="results-count"]',
+
+        // Scroll and loading
+        scrollWrap: '[cms-reports="scroll-wrap"]',
+        jumpToTop: '[cms-reports="jump-to-top"]',
+        scrollSentinel: '[scroll-sentinel="true"]',
+        loadingIndicator: '[cms-loading="indicator"]',
+
+        // Content elements
+        headerThumbnail: '[cms-content="header-thumbnail"]',
+        mainImage: '[cms-content="main-image"]',
+        infoContent: '[cms-content="info"]',
+        descriptionContent: '[cms-content="description"]',
+
+        // View toggle
+        viewToggle: '[cms-view-toggle]',
+
+        // Action buttons
+        shareAction: '[cms-action="share"]',
+        clearAll: '[cms-clear-element="all"]',
+        clearElement: '[cms-clear-element]'
+    };
+
     // ===== CENTRALIZED STATE STORE =====
     const Store = {
         _state: {
@@ -53,6 +103,8 @@
 
         _subscribers: new Map(),
         _subscriberId: 0,
+        _isNotifying: false,
+        _pendingNotify: null,
 
         // Get current state (returns a shallow copy to prevent direct mutation)
         getState() {
@@ -166,21 +218,40 @@
             return () => this._subscribers.delete(id);
         },
 
-        // Notify all subscribers
+        // Notify all subscribers (with guard against cascading updates)
         _notify(prevState = null) {
-            this._subscribers.forEach(({ callback, keys }) => {
-                if (keys) {
-                    // Only notify if watched keys changed
-                    const changed = keys.some(key =>
-                        this.get(key) !== (prevState ?
-                            key.split('.').reduce((obj, k) => obj?.[k], prevState) :
-                            undefined)
-                    );
-                    if (changed) callback(this._state);
-                } else {
-                    callback(this._state);
+            // If already notifying, queue this notification for later
+            if (this._isNotifying) {
+                this._pendingNotify = prevState;
+                return;
+            }
+
+            this._isNotifying = true;
+
+            try {
+                this._subscribers.forEach(({ callback, keys }) => {
+                    if (keys) {
+                        // Only notify if watched keys changed
+                        const changed = keys.some(key =>
+                            this.get(key) !== (prevState ?
+                                key.split('.').reduce((obj, k) => obj?.[k], prevState) :
+                                undefined)
+                        );
+                        if (changed) callback(this._state);
+                    } else {
+                        callback(this._state);
+                    }
+                });
+            } finally {
+                this._isNotifying = false;
+
+                // Process any pending notification that was queued during this cycle
+                if (this._pendingNotify !== null) {
+                    const pending = this._pendingNotify;
+                    this._pendingNotify = null;
+                    this._notify(pending);
                 }
-            });
+            }
         }
     };
 
@@ -305,56 +376,8 @@
     };
 
     // ===== DOM BATCH UTILITIES =====
-    // Batches DOM operations to minimize reflows/repaints
+    // Helper functions for batching DOM operations
     const DOMBatch = {
-        // Queue for deferred DOM operations
-        _readQueue: [],
-        _writeQueue: [],
-        _scheduled: false,
-
-        // Schedule a read operation (measurements)
-        read(fn) {
-            this._readQueue.push(fn);
-            this._scheduleFlush();
-        },
-
-        // Schedule a write operation (mutations)
-        write(fn) {
-            this._writeQueue.push(fn);
-            this._scheduleFlush();
-        },
-
-        // Schedule flush using requestAnimationFrame
-        _scheduleFlush() {
-            if (this._scheduled) return;
-            this._scheduled = true;
-            requestAnimationFrame(() => this._flush());
-        },
-
-        // Execute all queued operations: reads first, then writes
-        _flush() {
-            this._scheduled = false;
-
-            // Execute all reads first (to avoid forced synchronous layouts)
-            const reads = this._readQueue.slice();
-            this._readQueue.length = 0;
-            reads.forEach(fn => {
-                try { fn(); } catch (e) { console.error('[DOMBatch] Read error:', e); }
-            });
-
-            // Then execute all writes
-            const writes = this._writeQueue.slice();
-            this._writeQueue.length = 0;
-            writes.forEach(fn => {
-                try { fn(); } catch (e) { console.error('[DOMBatch] Write error:', e); }
-            });
-
-            // If new operations were queued during execution, schedule another flush
-            if (this._readQueue.length > 0 || this._writeQueue.length > 0) {
-                this._scheduleFlush();
-            }
-        },
-
         // Batch multiple elements into a DocumentFragment before insertion
         createFragment(elements) {
             const fragment = document.createDocumentFragment();
@@ -366,43 +389,6 @@
         removeAll(elements) {
             const elementsArray = Array.from(elements);
             elementsArray.forEach(el => el.remove());
-        },
-
-        // Batch class operations on multiple elements
-        batchClassList(elements, action, ...classNames) {
-            const elementsArray = Array.from(elements);
-            elementsArray.forEach(el => {
-                if (el && el.classList) {
-                    el.classList[action](...classNames);
-                }
-            });
-        },
-
-        // Batch style operations on multiple elements
-        batchStyle(elements, styles) {
-            const elementsArray = Array.from(elements);
-            elementsArray.forEach(el => {
-                if (el && el.style) {
-                    Object.assign(el.style, styles);
-                }
-            });
-        },
-
-        // Batch attribute operations
-        batchSetAttribute(elements, attr, value) {
-            const elementsArray = Array.from(elements);
-            elementsArray.forEach(el => {
-                if (el) el.setAttribute(attr, value);
-            });
-        },
-
-        // Prepare element offscreen before appending (reduces layout thrashing)
-        prepareOffscreen(element, prepareFn) {
-            // Temporarily hide to avoid intermediate repaints
-            const originalDisplay = element.style.display;
-            element.style.display = 'none';
-            prepareFn(element);
-            element.style.display = originalDisplay;
         }
     };
 
@@ -416,12 +402,12 @@
         // Initialize templates from DOM
         init(listContainer) {
             // Find templates by cms-item-type attribute
-            const miniTemplate = listContainer?.querySelector('[cms-deliver="item"][cms-item-type="mini"]');
-            const fullTemplate = listContainer?.querySelector('[cms-deliver="item"][cms-item-type="full"]');
+            const miniTemplate = listContainer?.querySelector(SELECTORS.itemMini);
+            const fullTemplate = listContainer?.querySelector(SELECTORS.itemFull);
 
             // Fallback: if no typed templates, use first item as mini
             if (!miniTemplate && !fullTemplate) {
-                const defaultTemplate = listContainer?.querySelector('[cms-deliver="item"]');
+                const defaultTemplate = listContainer?.querySelector(SELECTORS.item);
                 if (defaultTemplate) {
                     defaultTemplate.setAttribute('cms-item-type', 'mini');
                     this.templates.mini = defaultTemplate.cloneNode(true);
@@ -587,7 +573,7 @@
 
     // ===== CMS LOADING INDICATOR =====
     function setCmsLoadingIndicator(show) {
-        document.querySelectorAll('[cms-loading="indicator"]').forEach(el => {
+        document.querySelectorAll(SELECTORS.loadingIndicator).forEach(el => {
             el.style.display = show ? '' : 'none';
         });
     }
@@ -806,7 +792,7 @@
 
     // Populate header thumbnail with main image
     function populateHeaderThumbnail(itemElement, reportData) {
-        const thumbnailElement = DOM.$('[cms-content="header-thumbnail"]', itemElement);
+        const thumbnailElement = DOM.$(SELECTORS.headerThumbnail, itemElement);
         if (!thumbnailElement) return;
 
         if (!reportData.photo?.url) {
@@ -931,7 +917,7 @@
         let successCount = 0;
 
         if (DOM.setText(DOM.$('[cms-field="title"]', itemElement), reportData.name)) successCount++;
-        if (DOM.setImage(DOM.$('[cms-content="main-image"]', itemElement), reportData.photo?.url || '', reportData.name)) successCount++;
+        if (DOM.setImage(DOM.$(SELECTORS.mainImage, itemElement), reportData.photo?.url || '', reportData.name)) successCount++;
 
         const dateValue = reportData.date || reportData.createdOn;
         if (DOM.setText(DOM.$('[cms-field="date"]', itemElement), DateUtils.format(dateValue))) successCount++;
@@ -1281,8 +1267,8 @@
 
     // Populate content tabs
     function populateContent(itemElement, reportData, isLazyLoad = false) {
-        const infoContent = DOM.$('[cms-content="info"]', itemElement);
-        const descriptionContent = DOM.$('[cms-content="description"]', itemElement);
+        const infoContent = DOM.$(SELECTORS.infoContent, itemElement);
+        const descriptionContent = DOM.$(SELECTORS.descriptionContent, itemElement);
         if (reportData.description) {
             DOM.setRichText(infoContent, reportData.description);
             DOM.setRichText(descriptionContent, reportData.description);
@@ -1334,20 +1320,20 @@
 
     // Populate videos
     function populateVideos(itemElement, videos) {
-        const videosWrap = DOM.$('[cms-deliver="videos-wrap"]', itemElement);
+        const videosWrap = DOM.$(SELECTORS.videosWrap, itemElement);
         if (!videosWrap || !videos || videos.length === 0) {
             DOM.toggle(videosWrap, false);
             return;
         }
 
-        const templateVideoWrap = DOM.$('[cms-deliver="video-wrap"]', videosWrap);
+        const templateVideoWrap = DOM.$(SELECTORS.videoWrap, videosWrap);
         if (!templateVideoWrap) {
             console.warn('[CMS Client] No [cms-deliver="video-wrap"] template found');
             return;
         }
 
         // Batch remove existing except template
-        const existingWraps = Array.from(DOM.$$('[cms-deliver="video-wrap"]', videosWrap));
+        const existingWraps = Array.from(DOM.$$(SELECTORS.videoWrap, videosWrap));
         DOMBatch.removeAll(existingWraps.slice(1));
 
         // Build all video elements first
@@ -1408,7 +1394,7 @@
 
     // Populate images gallery
     function populateImagesGallery(itemElement, reportData) {
-        const imagesWrap = DOM.$('[cms-deliver="images-wrap"]', itemElement);
+        const imagesWrap = DOM.$(SELECTORS.imagesWrap, itemElement);
         const reportImages = reportData.reportImages;
         const mainImage = reportData.photo?.url;
 
@@ -1617,7 +1603,7 @@
             if (!appendMode) {
                 // Batch remove all existing items
                 DOMBatch.removeAll(
-                    DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer)
+                    DOM.$$(SELECTORS.itemNotTemplate, listContainer)
                 );
 
                 const existingMsg = DOM.$('.no-search-results, .search-error', listContainer);
@@ -1629,7 +1615,7 @@
                     innerHTML: 'No reports match your filters'
                 });
 
-                const sentinel = DOM.$('[scroll-sentinel="true"]', listContainer);
+                const sentinel = DOM.$(SELECTORS.scrollSentinel, listContainer);
                 if (sentinel) {
                     listContainer.insertBefore(noResultsMsg, sentinel);
                 } else {
@@ -1642,7 +1628,7 @@
         if (!appendMode) {
             // Batch remove all existing items
             DOMBatch.removeAll(
-                DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer)
+                DOM.$$(SELECTORS.itemNotTemplate, listContainer)
             );
 
             const existingMsg = DOM.$('.no-search-results, .search-error', listContainer);
@@ -1652,7 +1638,7 @@
         // Note: templateItem may be a cloned template from TemplateManager (not in DOM)
         // so we no longer require it to be in listContainer - we just use it as a clone source
 
-        const sentinel = DOM.$('[scroll-sentinel="true"]', listContainer);
+        const sentinel = DOM.$(SELECTORS.scrollSentinel, listContainer);
 
         // Build all items offscreen first, then insert once
         const preparedItems = [];
@@ -1747,7 +1733,7 @@
                 const filterKeys = new Set();
 
                 // Find cms-filter checkboxes/inputs
-                DOM.$$('[cms-filter]', wrapper).forEach(el => {
+                DOM.$$(SELECTORS.filterAttr, wrapper).forEach(el => {
                     const filterAttr = el.getAttribute('cms-filter');
                     if (filterAttr) {
                         // Map attribute names to Store filter keys
@@ -1767,7 +1753,7 @@
                 });
 
                 // Find search input
-                if (DOM.$('[filter-reports="search"]', wrapper)) {
+                if (DOM.$(SELECTORS.searchInput, wrapper)) {
                     filterKeys.add('search');
                 }
 
@@ -1870,9 +1856,9 @@
         tagTemplate: null,
 
         init() {
-            this.tagWrap = DOM.$('[cms-filter-element="tag-wrap"]');
+            this.tagWrap = DOM.$(SELECTORS.tagWrap);
             if (this.tagWrap) {
-                this.tagTemplate = DOM.$('[cms-filter-element="tag"]', this.tagWrap);
+                this.tagTemplate = DOM.$(SELECTORS.tag, this.tagWrap);
                 if (this.tagTemplate) {
                     this.tagTemplate.style.display = 'none';
                     this.tagTemplate.classList.add('tag-template');
@@ -1880,11 +1866,11 @@
 
                 // Event delegation for tag removal
                 this.tagWrap.addEventListener('click', (e) => {
-                    const removeBtn = e.target.closest('[cms-filter-element="tag-remove"]');
+                    const removeBtn = e.target.closest(SELECTORS.tagRemove);
                     if (removeBtn) {
                         e.preventDefault();
                         e.stopPropagation();
-                        const tag = removeBtn.closest('[cms-filter-element="tag"]');
+                        const tag = removeBtn.closest(SELECTORS.tag);
                         if (tag && !tag.classList.contains('tag-template')) {
                             const filterKey = tag.getAttribute('data-filter-key');
                             const filterValue = tag.getAttribute('data-filter-value');
@@ -1909,7 +1895,7 @@
 
         clearAllTags() {
             if (!this.tagWrap) return;
-            DOM.$$('[cms-filter-element="tag"]:not(.tag-template)', this.tagWrap)
+            DOM.$$(SELECTORS.tagNotTemplate, this.tagWrap)
                 .forEach(tag => tag.remove());
         },
 
@@ -1926,10 +1912,10 @@
                 tag.setAttribute('data-multi-value', 'true');
             }
 
-            const fieldElements = DOM.$$('[cms-filter-element="tag-field"]', tag);
+            const fieldElements = DOM.$$(SELECTORS.tagField, tag);
             if (fieldElements[0]) fieldElements[0].textContent = field;
 
-            const valueElement = DOM.$('[cms-filter-element="tag-value"]', tag);
+            const valueElement = DOM.$(SELECTORS.tagValue, tag);
             if (valueElement) valueElement.textContent = value;
 
             this.tagWrap.appendChild(tag);
@@ -1958,18 +1944,18 @@
 
             if (filterKey === 'search') {
                 Store.setFilter('search', '');
-                const searchInput = DOM.$('[filter-reports="search"]');
+                const searchInput = DOM.$(SELECTORS.searchInput);
                 if (searchInput) searchInput.value = '';
             } else if (filterKey === 'dateFrom') {
                 Store.setFilter('dateFrom', '');
-                const dateInput = DOM.$('[cms-filter="From"]');
+                const dateInput = DOM.$(SELECTORS.dateFrom);
                 if (dateInput) {
                     dateInput.value = '';
                     if (dateInput._flatpickr) dateInput._flatpickr.clear();
                 }
             } else if (filterKey === 'dateUntil') {
                 Store.setFilter('dateUntil', '');
-                const dateInput = DOM.$('[cms-filter="Until"]');
+                const dateInput = DOM.$(SELECTORS.dateUntil);
                 if (dateInput) {
                     dateInput.value = '';
                     if (dateInput._flatpickr) dateInput._flatpickr.clear();
@@ -2081,7 +2067,7 @@
         const noMoreMsg = document.getElementById('no-more-reports');
         if (noMoreMsg) noMoreMsg.remove();
 
-        const listContainer = DOM.$('[cms-deliver="list"]');
+        const listContainer = DOM.$(SELECTORS.list);
         const templateItem = TemplateManager.getActiveTemplate();
 
         if (!listContainer || !templateItem) {
@@ -2142,7 +2128,7 @@
 
     // Update results count display
     function updateResultsCount(count) {
-        DOM.$$('[cms-filter-element="results-count"]').forEach(el => {
+        DOM.$$(SELECTORS.resultsCount).forEach(el => {
             el.textContent = count.toString();
         });
     }
@@ -2172,13 +2158,13 @@
             }
         };
 
-        initPicker('[cms-filter="From"]', 'dateFrom');
-        initPicker('[cms-filter="Until"]', 'dateUntil');
+        initPicker(SELECTORS.dateFrom, 'dateFrom');
+        initPicker(SELECTORS.dateUntil, 'dateUntil');
     }
 
     // Initialize checkbox filters
     function initializeCheckboxFilters() {
-        const filterForm = DOM.$('[cms-filter="form-block"]');
+        const filterForm = DOM.$(SELECTORS.filterForm);
         if (!filterForm) return;
 
         const checkboxes = DOM.$$('input[type="checkbox"][cms-filter]', filterForm);
@@ -2241,7 +2227,7 @@
 
     // Initialize clear buttons
     function initializeClearButtons() {
-        DOM.$$('[cms-clear-element="all"]').forEach(btn => {
+        DOM.$$(SELECTORS.clearAll).forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -2249,7 +2235,7 @@
             });
         });
 
-        DOM.$$('[cms-clear-element]').forEach(btn => {
+        DOM.$$(SELECTORS.clearElement).forEach(btn => {
             const clearTargets = btn.getAttribute('cms-clear-element');
             if (clearTargets === 'all') return;
 
@@ -2269,15 +2255,15 @@
 
         // Clear search
         Store.setFilter('search', '');
-        const searchInput = DOM.$('[filter-reports="search"]');
+        const searchInput = DOM.$(SELECTORS.searchInput);
         if (searchInput) searchInput.value = '';
 
         // Clear dates
         Store.setFilter('dateFrom', '');
         Store.setFilter('dateUntil', '');
 
-        const fromInput = DOM.$('[cms-filter="From"]');
-        const untilInput = DOM.$('[cms-filter="Until"]');
+        const fromInput = DOM.$(SELECTORS.dateFrom);
+        const untilInput = DOM.$(SELECTORS.dateUntil);
         if (fromInput) {
             fromInput.value = '';
             if (fromInput._flatpickr) fromInput._flatpickr.clear();
@@ -2310,21 +2296,21 @@
     function clearSpecificFilter(filterName) {
         if (filterName === 'From') {
             Store.setFilter('dateFrom', '');
-            const input = DOM.$('[cms-filter="From"]');
+            const input = DOM.$(SELECTORS.dateFrom);
             if (input) {
                 input.value = '';
                 if (input._flatpickr) input._flatpickr.clear();
             }
         } else if (filterName === 'Until') {
             Store.setFilter('dateUntil', '');
-            const input = DOM.$('[cms-filter="Until"]');
+            const input = DOM.$(SELECTORS.dateUntil);
             if (input) {
                 input.value = '';
                 if (input._flatpickr) input._flatpickr.clear();
             }
         } else if (filterName === 'search') {
             Store.setFilter('search', '');
-            const input = DOM.$('[filter-reports="search"]');
+            const input = DOM.$(SELECTORS.searchInput);
             if (input) input.value = '';
         } else {
             const filters = Store.get('filters');
@@ -2347,6 +2333,7 @@
     // Request tracking for race condition prevention
     let currentLoadRequestId = 0;
     let pendingLoadRequest = null;
+    let infiniteScrollObserver = null;
 
     async function loadMoreReports() {
         // Check if already loading - return existing promise if so
@@ -2368,7 +2355,7 @@
         setCmsLoadingIndicator(true);
         log('Loading more reports... (request #' + requestId + ')');
 
-        const listContainer = DOM.$('[cms-deliver="list"]');
+        const listContainer = DOM.$(SELECTORS.list);
         const templateItem = TemplateManager.getActiveTemplate();
 
         if (!listContainer || !templateItem) {
@@ -2455,7 +2442,7 @@
     async function loadReports(initializeUI = true) {
         setCmsLoadingIndicator(true);
         try {
-            const listContainer = await DOM.waitFor('[cms-deliver="list"]', 5000);
+            const listContainer = await DOM.waitFor(SELECTORS.list, 5000);
 
             if (!listContainer) {
                 console.error('[CMS Client] List container not found');
@@ -2525,7 +2512,7 @@
             console.error('[CMS Client] Error:', error);
             setCmsLoadingIndicator(false);
 
-            const listContainer = DOM.$('[cms-deliver="list"]');
+            const listContainer = DOM.$(SELECTORS.list);
             if (listContainer) {
                 listContainer.innerHTML = `
                     <div style="padding: 20px; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00;">
@@ -2564,7 +2551,7 @@
             const tabId = tab.getAttribute('data-tab');
             if (tabId === 'wrap') return;
 
-            const container = tab.closest('[cms-deliver="item"]');
+            const container = tab.closest(SELECTORS.item);
             if (!container) return;
 
             const itemType = container.getAttribute('cms-item-type');
@@ -2630,7 +2617,7 @@
 
             e.preventDefault();
 
-            const container = trigger.closest('[cms-deliver="item"]');
+            const container = trigger.closest(SELECTORS.item);
             const target = DOM.$('[open-target]', container);
             const arrow = DOM.$('[dropdown-icon]', container);
 
@@ -2651,8 +2638,8 @@
     }
 
     function initializeScrollToTop() {
-        const scrollWrap = DOM.$('[cms-reports="scroll-wrap"]');
-        const jumpButton = DOM.$('[cms-reports="jump-to-top"]');
+        const scrollWrap = DOM.$(SELECTORS.scrollWrap);
+        const jumpButton = DOM.$(SELECTORS.jumpToTop);
 
         if (!scrollWrap || !jumpButton) {
             console.warn('[CMS Client] Scroll-to-top elements not found');
@@ -2714,13 +2701,13 @@
 
     function initializeShareButtons() {
         document.addEventListener('click', async function(e) {
-            const shareBtn = e.target.closest('[cms-action="share"]');
+            const shareBtn = e.target.closest(SELECTORS.shareAction);
             if (!shareBtn) return;
 
             e.preventDefault();
             e.stopPropagation();
 
-            const reportItem = shareBtn.closest('[cms-deliver="item"]');
+            const reportItem = shareBtn.closest(SELECTORS.item);
             if (!reportItem) return;
 
             const reporterLink = reportItem.getAttribute('data-reporter-link');
@@ -2789,7 +2776,7 @@
 
     // ===== VIEW TOGGLE =====
     function initializeViewToggle() {
-        const toggleButtons = DOM.$$('[cms-view-toggle]');
+        const toggleButtons = DOM.$$(SELECTORS.viewToggle);
 
         if (toggleButtons.length === 0) {
             console.log('[CMS Client] No view toggle buttons found');
@@ -2807,14 +2794,14 @@
         updateToggleButtonStates();
 
         // Set initial margin class based on default view mode
-        const listContainer = DOM.$('[cms-deliver="list"]');
+        const listContainer = DOM.$(SELECTORS.list);
         if (listContainer && Store.get('viewMode') === 'mini') {
             listContainer.classList.add('is-mini-reports');
         }
 
         // Event delegation for toggle clicks
         document.addEventListener('click', function(e) {
-            const toggleBtn = e.target.closest('[cms-view-toggle]');
+            const toggleBtn = e.target.closest(SELECTORS.viewToggle);
             if (!toggleBtn) return;
 
             e.preventDefault();
@@ -2838,7 +2825,7 @@
     function updateToggleButtonStates() {
         const currentMode = Store.get('viewMode');
 
-        DOM.$$('[cms-view-toggle]').forEach(btn => {
+        DOM.$$(SELECTORS.viewToggle).forEach(btn => {
             const btnMode = btn.getAttribute('cms-view-toggle');
 
             if (btnMode === currentMode) {
@@ -2851,14 +2838,14 @@
 
     // Find the report ID of the topmost visible report item
     function getTopVisibleReportId() {
-        const listContainer = DOM.$('[cms-deliver="list"]');
+        const listContainer = DOM.$(SELECTORS.list);
         if (!listContainer) return null;
 
         // Get the scroll container (could be the list itself or a parent wrapper)
-        const scrollWrap = DOM.$('[cms-reports="scroll-wrap"]') || listContainer;
+        const scrollWrap = DOM.$(SELECTORS.scrollWrap) || listContainer;
         const containerRect = scrollWrap.getBoundingClientRect();
 
-        const items = DOM.$$('[cms-deliver="item"]:not(.cms-template-original)', listContainer);
+        const items = DOM.$$(SELECTORS.itemNotTemplate, listContainer);
         let topVisibleId = null;
         let smallestOffset = Infinity;
 
@@ -2881,7 +2868,7 @@
     function scrollToReportId(reportId) {
         if (!reportId) return;
 
-        const listContainer = DOM.$('[cms-deliver="list"]');
+        const listContainer = DOM.$(SELECTORS.list);
         if (!listContainer) return;
 
         const targetItem = DOM.$(`[data-report-id="${reportId}"]`, listContainer);
@@ -2891,7 +2878,7 @@
         }
 
         // Use the scroll wrapper if available
-        const scrollWrap = DOM.$('[cms-reports="scroll-wrap"]');
+        const scrollWrap = DOM.$(SELECTORS.scrollWrap);
 
         if (scrollWrap) {
             // Calculate the item's position relative to the scroll container
@@ -2939,7 +2926,7 @@
         }
 
         // Re-render with new template
-        const listContainer = DOM.$('[cms-deliver="list"]');
+        const listContainer = DOM.$(SELECTORS.list);
         if (!listContainer) {
             setCmsLoadingIndicator(false);
             return;
@@ -2981,14 +2968,20 @@
     }
 
     function initializeInfiniteScroll(listContainer) {
-        const sentinel = DOM.$('[scroll-sentinel="true"]', listContainer);
+        const sentinel = DOM.$(SELECTORS.scrollSentinel, listContainer);
 
         if (!sentinel) {
             console.error('[CMS Client] Scroll sentinel not found!');
             return;
         }
 
-        const observer = new IntersectionObserver((entries) => {
+        // Disconnect existing observer if present (prevents duplicates on re-init)
+        if (infiniteScrollObserver) {
+            infiniteScrollObserver.disconnect();
+            infiniteScrollObserver = null;
+        }
+
+        infiniteScrollObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting && Store.get('hasMoreReports') && !Store.get('isLoading')) {
                     log('Sentinel visible, loading more reports...');
@@ -3001,7 +2994,7 @@
             threshold: 0.1
         });
 
-        observer.observe(sentinel);
+        infiniteScrollObserver.observe(sentinel);
 
         console.log('[CMS Client] Infinite scroll initialized');
 
@@ -3027,7 +3020,7 @@
     }
 
     function initializeSearch() {
-        const searchInput = DOM.$('[filter-reports="search"]');
+        const searchInput = DOM.$(SELECTORS.searchInput);
         if (!searchInput) return;
 
         let debounceTimer;
@@ -3088,6 +3081,7 @@
     // ===== DEBUG INTERFACE =====
     window.cmsDebug = {
         config: CONFIG,
+        selectors: SELECTORS,
         loadReports,
         Store,
         DOMBatch,
@@ -3102,10 +3096,10 @@
         setViewMode: (mode) => switchView(mode),
         getReportData: (id) => Store.getReportData(id),
         checkElements() {
-            const list = DOM.$('[cms-deliver="list"]');
-            const item = DOM.$('[cms-deliver="item"]');
+            const list = DOM.$(SELECTORS.list);
+            const item = DOM.$(SELECTORS.item);
             const title = item ? DOM.$('[cms-field="title"]', item) : null;
-            const mainImage = item ? DOM.$('[cms-content="main-image"]', item) : null;
+            const mainImage = item ? DOM.$(SELECTORS.mainImage, item) : null;
             const date = item ? DOM.$('[cms-field="date"]', item) : null;
             const reporters = item ? DOM.$('[cms-field="reporters"]', item) : null;
 
