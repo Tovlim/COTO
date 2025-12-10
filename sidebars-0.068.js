@@ -1002,7 +1002,8 @@
           eventManager.add(element, 'change', () => element.checked && handler());
         } else {
           eventManager.add(element, eventType, (e) => {
-            e.stopPropagation(); 
+            e.preventDefault();
+            e.stopPropagation();
             handler();
           });
         }
