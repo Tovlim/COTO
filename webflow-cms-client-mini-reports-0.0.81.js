@@ -1682,6 +1682,156 @@
         listContainer.appendChild(message);
     }
 
+    // ===== FILTER INDICATORS =====
+    // Shows/hides visual indicators on filter tabs based on active filter state
+    const FilterIndicators = {
+        // Map of groupName -> array of filter keys
+        _groupToFiltersMap: new Map(),
+        // Cache of indicator elements by group
+        _indicatorCache: new Map(),
+        // Store subscription unsubscribe function
+        _unsubscribe: null,
+
+        init() {
+            this._buildGroupMap();
+            this._cacheIndicators();
+            this._subscribe();
+            this.updateAll();
+            console.log('[CMS Client] FilterIndicators initialized', {
+                groups: Array.from(this._groupToFiltersMap.keys()),
+                mappings: Object.fromEntries(this._groupToFiltersMap)
+            });
+        },
+
+        // Scan wrappers and build map of group -> filter keys
+        _buildGroupMap() {
+            this._groupToFiltersMap.clear();
+            const wrappers = DOM.$$('[filter-indicator-wrap]');
+
+            wrappers.forEach(wrapper => {
+                const groupName = wrapper.getAttribute('filter-indicator-wrap');
+                if (!groupName) return;
+
+                const filterKeys = new Set();
+
+                // Find cms-filter checkboxes/inputs
+                DOM.$$('[cms-filter]', wrapper).forEach(el => {
+                    const filterAttr = el.getAttribute('cms-filter');
+                    if (filterAttr) {
+                        // Map attribute names to Store filter keys
+                        const keyMap = {
+                            'from': 'dateFrom',
+                            'until': 'dateUntil',
+                            'topic': 'topic',
+                            'region': 'region',
+                            'locality': 'locality',
+                            'territory': 'territory',
+                            'reporter': 'reporter',
+                            'urgent': 'urgent'
+                        };
+                        const storeKey = keyMap[filterAttr.toLowerCase()] || filterAttr.toLowerCase();
+                        filterKeys.add(storeKey);
+                    }
+                });
+
+                // Find search input
+                if (DOM.$('[filter-reports="search"]', wrapper)) {
+                    filterKeys.add('search');
+                }
+
+                if (filterKeys.size > 0) {
+                    this._groupToFiltersMap.set(groupName, Array.from(filterKeys));
+                }
+            });
+        },
+
+        // Cache indicator elements
+        _cacheIndicators() {
+            this._indicatorCache.clear();
+            const indicators = DOM.$$('[filter-indicator]');
+
+            indicators.forEach(indicator => {
+                const groupName = indicator.getAttribute('filter-indicator');
+                if (!groupName) return;
+
+                if (!this._indicatorCache.has(groupName)) {
+                    this._indicatorCache.set(groupName, []);
+                }
+                this._indicatorCache.get(groupName).push(indicator);
+            });
+        },
+
+        // Subscribe to Store filter changes
+        _subscribe() {
+            if (this._unsubscribe) {
+                this._unsubscribe();
+            }
+
+            this._unsubscribe = Store.subscribe(() => {
+                this.updateAll();
+            });
+        },
+
+        // Check if a filter key has active values
+        _isFilterActive(filterKey) {
+            const filters = Store.get('filters');
+            const value = filters[filterKey];
+
+            if (value === null || value === undefined) return false;
+            if (Array.isArray(value)) return value.length > 0;
+            if (typeof value === 'string') return value.trim() !== '';
+            if (typeof value === 'boolean') return true; // urgent: true or false both count as active
+            return false;
+        },
+
+        // Check if any filter in a group is active
+        _isGroupActive(groupName) {
+            const filterKeys = this._groupToFiltersMap.get(groupName);
+            if (!filterKeys) return false;
+
+            return filterKeys.some(key => this._isFilterActive(key));
+        },
+
+        // Toggle indicators for a group
+        _toggleGroup(groupName, shouldShow) {
+            const indicators = this._indicatorCache.get(groupName);
+            if (!indicators) return;
+
+            indicators.forEach(indicator => {
+                indicator.style.display = shouldShow ? 'flex' : 'none';
+            });
+        },
+
+        // Update all indicator groups
+        updateAll() {
+            this._groupToFiltersMap.forEach((_, groupName) => {
+                const isActive = this._isGroupActive(groupName);
+                this._toggleGroup(groupName, isActive);
+            });
+        },
+
+        // Public API: rescan for new elements
+        rescan() {
+            this._buildGroupMap();
+            this._cacheIndicators();
+            this.updateAll();
+            console.log('[CMS Client] FilterIndicators rescanned');
+        },
+
+        // Get current state for debugging
+        getState() {
+            const state = {};
+            this._groupToFiltersMap.forEach((filterKeys, groupName) => {
+                state[groupName] = {
+                    filterKeys,
+                    isActive: this._isGroupActive(groupName),
+                    indicatorCount: this._indicatorCache.get(groupName)?.length || 0
+                };
+            });
+            return state;
+        }
+    };
+
     // ===== TAG MANAGER =====
     const TagManager = {
         tagWrap: null,
@@ -2314,6 +2464,7 @@
     // Initialize all filter components
     function initializeFilters() {
         TagManager.init();
+        FilterIndicators.init();
         initializeDatePickers();
         initializeCheckboxFilters();
         initializeClearButtons();
@@ -2866,6 +3017,7 @@
         applyFilters,
         clearAllFilters,
         TagManager,
+        FilterIndicators,
         TemplateManager,
         switchView,
         getViewMode: () => Store.get('viewMode'),
