@@ -51,6 +51,7 @@
 
         // Scroll and loading
         scrollWrap: '[cms-reports="scroll-wrap"]',
+        scrollWindow: '[cms-reports="scroll-window"]',
         jumpToTop: '[cms-reports="jump-to-top"]',
         scrollSentinel: '[scroll-sentinel="true"]',
         loadingIndicator: '[cms-loading="indicator"]',
@@ -2639,61 +2640,80 @@
 
     function initializeScrollToTop() {
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
+        const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
         const jumpButton = DOM.$(SELECTORS.jumpToTop);
 
-        if (!scrollWrap || !jumpButton) {
+        if ((!scrollWrap && !useWindowScroll) || !jumpButton) {
             console.warn('[CMS Client] Scroll-to-top elements not found');
             return;
         }
 
-        // Add scrollbar styling
-        const styleId = 'cms-scrollbar-styles';
-        if (!document.getElementById(styleId)) {
-            const style = DOM.create('style', { id: styleId });
-            style.textContent = `
-                [cms-reports="scroll-wrap"]::-webkit-scrollbar-track { background: transparent; }
-                [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
-                    background: transparent;
-                    border-radius: 4px;
-                    transition: background 0.3s ease;
-                    border: 2px solid transparent;
-                    background-clip: padding-box;
-                }
-                [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb {
-                    background: rgba(100, 100, 100, 0.7);
-                    background-clip: padding-box;
-                }
-                [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb:hover {
-                    background: rgba(120, 120, 120, 0.9);
-                    background-clip: padding-box;
-                }
-                [cms-reports="scroll-wrap"] {
-                    scrollbar-width: thin;
-                    scrollbar-color: transparent transparent;
-                    transition: scrollbar-color 0.3s ease;
-                }
-                [cms-reports="scroll-wrap"]:hover {
-                    scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
-                }
-            `;
-            document.head.appendChild(style);
+        // Add scrollbar styling (only for container-based scrolling)
+        if (scrollWrap && !useWindowScroll) {
+            const styleId = 'cms-scrollbar-styles';
+            if (!document.getElementById(styleId)) {
+                const style = DOM.create('style', { id: styleId });
+                style.textContent = `
+                    [cms-reports="scroll-wrap"]::-webkit-scrollbar-track { background: transparent; }
+                    [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
+                        background: transparent;
+                        border-radius: 4px;
+                        transition: background 0.3s ease;
+                        border: 2px solid transparent;
+                        background-clip: padding-box;
+                    }
+                    [cms-reports="scroll-wrap"]:hover::-webkit-scrollbar-thumb {
+                        background: rgba(100, 100, 100, 0.7);
+                        background-clip: padding-box;
+                    }
+                    [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb:hover {
+                        background: rgba(120, 120, 120, 0.9);
+                        background-clip: padding-box;
+                    }
+                    [cms-reports="scroll-wrap"] {
+                        scrollbar-width: thin;
+                        scrollbar-color: transparent transparent;
+                        transition: scrollbar-color 0.3s ease;
+                    }
+                    [cms-reports="scroll-wrap"]:hover {
+                        scrollbar-color: rgba(100, 100, 100, 0.7) transparent;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
         }
 
         jumpButton.style.opacity = '0';
         jumpButton.style.pointerEvents = 'none';
 
-        scrollWrap.addEventListener('scroll', function() {
-            const opacity = Math.min(this.scrollTop / 300, 1);
-            jumpButton.style.opacity = opacity.toString();
-            jumpButton.style.pointerEvents = opacity > 0 ? 'auto' : 'none';
-        });
+        if (useWindowScroll) {
+            // Window-level scrolling
+            window.addEventListener('scroll', function() {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const opacity = Math.min(scrollTop / 300, 1);
+                jumpButton.style.opacity = opacity.toString();
+                jumpButton.style.pointerEvents = opacity > 0 ? 'auto' : 'none';
+            });
 
-        jumpButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            scrollWrap.scrollTo({ top: 0, behavior: 'smooth' });
-        });
+            jumpButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        } else {
+            // Container-level scrolling
+            scrollWrap.addEventListener('scroll', function() {
+                const opacity = Math.min(this.scrollTop / 300, 1);
+                jumpButton.style.opacity = opacity.toString();
+                jumpButton.style.pointerEvents = opacity > 0 ? 'auto' : 'none';
+            });
 
-        console.log('[CMS Client] Scroll-to-top initialized');
+            jumpButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                scrollWrap.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        }
+
+        console.log(`[CMS Client] Scroll-to-top initialized (${useWindowScroll ? 'window' : 'container'} mode)`);
     }
 
     // Share button functionality
@@ -2841,25 +2861,38 @@
         const listContainer = DOM.$(SELECTORS.list);
         if (!listContainer) return null;
 
-        // Get the scroll container (could be the list itself or a parent wrapper)
-        const scrollWrap = DOM.$(SELECTORS.scrollWrap) || listContainer;
-        const containerRect = scrollWrap.getBoundingClientRect();
-
+        const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
         const items = DOM.$$(SELECTORS.itemNotTemplate, listContainer);
         let topVisibleId = null;
         let smallestOffset = Infinity;
 
-        items.forEach(item => {
-            const rect = item.getBoundingClientRect();
-            // Calculate position relative to the scroll container's top
-            const offsetFromTop = rect.top - containerRect.top;
+        if (useWindowScroll) {
+            // Window-level scrolling: use viewport top as reference
+            items.forEach(item => {
+                const rect = item.getBoundingClientRect();
+                // Find the item closest to the top of the viewport (but still visible or just above)
+                if (rect.top >= -rect.height && rect.top < smallestOffset) {
+                    smallestOffset = rect.top;
+                    topVisibleId = item.getAttribute('data-report-id');
+                }
+            });
+        } else {
+            // Container-level scrolling
+            const scrollWrap = DOM.$(SELECTORS.scrollWrap) || listContainer;
+            const containerRect = scrollWrap.getBoundingClientRect();
 
-            // Find the item closest to the top of the viewport (but still visible or just above)
-            if (offsetFromTop >= -rect.height && offsetFromTop < smallestOffset) {
-                smallestOffset = offsetFromTop;
-                topVisibleId = item.getAttribute('data-report-id');
-            }
-        });
+            items.forEach(item => {
+                const rect = item.getBoundingClientRect();
+                // Calculate position relative to the scroll container's top
+                const offsetFromTop = rect.top - containerRect.top;
+
+                // Find the item closest to the top of the viewport (but still visible or just above)
+                if (offsetFromTop >= -rect.height && offsetFromTop < smallestOffset) {
+                    smallestOffset = offsetFromTop;
+                    topVisibleId = item.getAttribute('data-report-id');
+                }
+            });
+        }
 
         return topVisibleId;
     }
@@ -2877,11 +2910,21 @@
             return;
         }
 
-        // Use the scroll wrapper if available
+        const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
 
-        if (scrollWrap) {
-            // Calculate the item's position relative to the scroll container
+        if (useWindowScroll) {
+            // Window-level scrolling
+            const itemRect = targetItem.getBoundingClientRect();
+            const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const targetScrollTop = itemRect.top + currentScrollTop;
+
+            window.scrollTo({
+                top: targetScrollTop,
+                behavior: 'instant'
+            });
+        } else if (scrollWrap) {
+            // Container-level scrolling
             const containerRect = scrollWrap.getBoundingClientRect();
             const itemRect = targetItem.getBoundingClientRect();
             const currentScrollTop = scrollWrap.scrollTop;
@@ -2889,7 +2932,7 @@
 
             scrollWrap.scrollTo({
                 top: offsetFromContainer,
-                behavior: 'instant' // Use instant for view switch to avoid jarring animation
+                behavior: 'instant'
             });
         } else {
             // Fallback to scrollIntoView
