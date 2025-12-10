@@ -39,6 +39,9 @@
       settlements: 'https://raw.githubusercontent.com/Tovlim/COTO/refs/heads/main/settlements-0.006.geojson'
     }
   };
+
+  // Track whether CMS reports have finished initial loading
+  let cmsReportsLoaded = false;
   
   // ====================================================================
   // SAFE STORAGE WRAPPER (from mapbox v2.0.0)
@@ -516,6 +519,10 @@
   const toggleSidebar = (side, show = null) => {
     const sidebar = sidebarCache.getSidebar(side);
     if (!sidebar) return;
+
+    // Prevent opening sidebars until CMS reports have loaded
+    const wouldOpen = show !== null ? show : !sidebar.classList.contains('is-show');
+    if (wouldOpen && !cmsReportsLoaded) return;
 
     const isShowing = show !== null ? show : !sidebar.classList.contains('is-show');
     sidebar.classList.toggle('is-show', isShowing);
@@ -1091,8 +1098,6 @@
       if (leftReady && rightReady) {
         setupInitialMargins();
         setupControls();
-        // Hide loading indicators after everything is set up
-        hideSidebarLoadingIndicators();
         return;
       }
 
@@ -1103,8 +1108,6 @@
         // Final attempt - setup with whatever elements are available
         setupInitialMargins();
         setupControls();
-        // Hide loading indicators even if not all sidebars are ready
-        hideSidebarLoadingIndicators();
       }
     };
 
@@ -1222,6 +1225,15 @@
     }
   };
   
+  // ====================================================================
+  // CMS DATA LOADED LISTENER
+  // ====================================================================
+  // Wait for CMS reports to finish loading before enabling sidebars and hiding loading indicators
+  window.addEventListener('cmsDataLoaded', function() {
+    cmsReportsLoaded = true;
+    hideSidebarLoadingIndicators();
+  }, { once: true });
+
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
