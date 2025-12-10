@@ -48,6 +48,9 @@
             cachedReports: [] // Cache reports for view switching without re-fetch
         },
 
+        // Report data cache - stores full report data by ID to avoid JSON serialization
+        _reportDataCache: new Map(),
+
         _subscribers: new Map(),
         _subscriberId: 0,
 
@@ -139,6 +142,21 @@
         resetPagination() {
             this._state.currentOffset = 0;
             this._state.hasMoreReports = true;
+        },
+
+        // Store report data in cache
+        cacheReportData(reportId, data) {
+            this._reportDataCache.set(reportId, data);
+        },
+
+        // Get report data from cache
+        getReportData(reportId) {
+            return this._reportDataCache.get(reportId);
+        },
+
+        // Clear report data cache
+        clearReportCache() {
+            this._reportDataCache.clear();
         },
 
         // Subscribe to state changes
@@ -554,6 +572,17 @@
         if (CONFIG.DEBUG) {
             console.log('[CMS Client]', ...args);
         }
+    }
+
+    // ===== ASYNC UTILITIES =====
+    // Wait for next frame - ensures DOM updates have been painted
+    // Uses double rAF to guarantee paint has occurred
+    function nextFrame() {
+        return new Promise(resolve => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(resolve);
+            });
+        });
     }
 
     // ===== CMS LOADING INDICATOR =====
@@ -1516,20 +1545,21 @@
     function lazyLoadReportContent(itemElement) {
         if (itemElement.getAttribute('data-content-loaded') === 'true') return;
 
-        const reportDataJson = itemElement.getAttribute('data-report-data');
-        if (!reportDataJson) {
-            console.warn('[CMS Client] No report data found for lazy loading');
+        const reportId = itemElement.getAttribute('data-report-id');
+        if (!reportId) {
+            console.warn('[CMS Client] No report ID found for lazy loading');
             return;
         }
 
-        try {
-            const reportData = JSON.parse(reportDataJson);
-            populateContent(itemElement, reportData, true);
-            itemElement.setAttribute('data-content-loaded', 'true');
-            log('Lazy loaded content for report:', reportData.name);
-        } catch (error) {
-            console.error('[CMS Client] Error lazy loading content:', error);
+        const reportData = Store.getReportData(reportId);
+        if (!reportData) {
+            console.warn('[CMS Client] No cached report data found for ID:', reportId);
+            return;
         }
+
+        populateContent(itemElement, reportData, true);
+        itemElement.setAttribute('data-content-loaded', 'true');
+        log('Lazy loaded content for report:', reportData.name);
     }
 
     // Main function to populate a report item
@@ -1545,10 +1575,14 @@
             populatePerpetratorInfo(itemElement, reportData);
         }
 
+        // Set report ID first (needed for cache lookup)
+        itemElement.setAttribute('data-report-id', reportData.id);
+
         if (!lazyLoadContent) {
             populateContent(itemElement, reportData);
         } else {
-            itemElement.setAttribute('data-report-data', JSON.stringify(reportData));
+            // Cache report data in Store instead of serializing to attribute
+            Store.cacheReportData(reportData.id, reportData);
             itemElement.setAttribute('data-content-loaded', 'false');
 
             if (isFullType) {
@@ -1557,8 +1591,6 @@
                 setupMiniTypeTabsVisibility(itemElement, reportData);
             }
         }
-
-        itemElement.setAttribute('data-report-id', reportData.id);
         itemElement.setAttribute('data-report-slug', reportData.slug || '');
 
         if (reportData.reporterEventLink) {
@@ -1903,7 +1935,7 @@
             this.tagWrap.appendChild(tag);
         },
 
-        removeAllValuesForKey(filterKey) {
+        async removeAllValuesForKey(filterKey) {
             Store.setState({ isClearing: true }, true);
 
             if (Array.isArray(Store.get('filters')[filterKey])) {
@@ -1916,13 +1948,12 @@
                 });
             }
 
-            setTimeout(() => {
-                Store.setState({ isClearing: false }, true);
-                applyFilters();
-            }, 20);
+            await nextFrame();
+            Store.setState({ isClearing: false }, true);
+            applyFilters();
         },
 
-        removeTag(filterKey, value) {
+        async removeTag(filterKey, value) {
             const filters = Store.get('filters');
 
             if (filterKey === 'search') {
@@ -1959,10 +1990,9 @@
                     }
                 });
 
-                setTimeout(() => {
-                    Store.setState({ isClearing: false }, true);
-                    applyFilters();
-                }, 20);
+                await nextFrame();
+                Store.setState({ isClearing: false }, true);
+                applyFilters();
                 return;
             } else {
                 Store.setFilter(filterKey, null);
@@ -2041,6 +2071,9 @@
 
     // Apply current filters and reload reports
     async function applyFilters() {
+        // Cancel any pending infinite scroll load
+        cancelPendingLoad();
+
         Store.resetPagination();
         TagManager.updateTags();
         setCmsLoadingIndicator(true);
@@ -2176,33 +2209,34 @@
     }
 
     // Handle checkbox state changes
-    function handleCheckboxChange(checkbox) {
+    async function handleCheckboxChange(checkbox) {
         if (Store.get('isClearing')) return;
 
         if (checkbox.hasAttribute('data-processing')) return;
         checkbox.setAttribute('data-processing', 'true');
 
-        setTimeout(() => {
-            checkbox.removeAttribute('data-processing');
+        // Wait for DOM to settle after checkbox visual update
+        await nextFrame();
 
-            const { key: filterKey, value: filterValue } = CheckboxUtils.getFilterInfo(checkbox);
+        checkbox.removeAttribute('data-processing');
 
-            const filters = Store.get('filters');
-            if (!filters[filterKey]) {
-                Store.setFilter(filterKey, []);
-            }
+        const { key: filterKey, value: filterValue } = CheckboxUtils.getFilterInfo(checkbox);
 
-            const isChecked = checkbox.checked;
-            const currentlyInFilter = filters[filterKey].includes(filterValue);
+        const filters = Store.get('filters');
+        if (!filters[filterKey]) {
+            Store.setFilter(filterKey, []);
+        }
 
-            if (isChecked && !currentlyInFilter) {
-                Store.addToFilter(filterKey, filterValue);
-                applyFilters();
-            } else if (!isChecked && currentlyInFilter) {
-                Store.removeFromFilter(filterKey, filterValue);
-                applyFilters();
-            }
-        }, 10);
+        const isChecked = checkbox.checked;
+        const currentlyInFilter = filters[filterKey].includes(filterValue);
+
+        if (isChecked && !currentlyInFilter) {
+            Store.addToFilter(filterKey, filterValue);
+            applyFilters();
+        } else if (!isChecked && currentlyInFilter) {
+            Store.removeFromFilter(filterKey, filterValue);
+            applyFilters();
+        }
     }
 
     // Initialize clear buttons
@@ -2219,17 +2253,18 @@
             const clearTargets = btn.getAttribute('cms-clear-element');
             if (clearTargets === 'all') return;
 
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 clearTargets.split(',').map(t => t.trim()).forEach(clearSpecificFilter);
-                setTimeout(() => applyFilters(), 10);
+                await nextFrame();
+                applyFilters();
             });
         });
     }
 
     // Clear all filters
-    function clearAllFilters() {
+    async function clearAllFilters() {
         Store.setState({ isClearing: true }, true);
 
         // Clear search
@@ -2266,10 +2301,9 @@
 
         Store.setFilter('urgent', null);
 
-        setTimeout(() => {
-            Store.setState({ isClearing: false }, true);
-            applyFilters();
-        }, 20);
+        await nextFrame();
+        Store.setState({ isClearing: false }, true);
+        applyFilters();
     }
 
     // Clear specific filter
@@ -2310,16 +2344,29 @@
 
     // ===== INFINITE SCROLL =====
 
+    // Request tracking for race condition prevention
+    let currentLoadRequestId = 0;
+    let pendingLoadRequest = null;
+
     async function loadMoreReports() {
+        // Check if already loading - return existing promise if so
+        if (pendingLoadRequest) {
+            log('Load already in progress, returning existing promise');
+            return pendingLoadRequest;
+        }
+
         const state = Store.getState();
         if (state.isLoading || !state.hasMoreReports) {
             log('Skipping load more - isLoading:', state.isLoading, 'hasMoreReports:', state.hasMoreReports);
             return;
         }
 
+        // Increment request ID to track this specific request
+        const requestId = ++currentLoadRequestId;
+
         Store.setState({ isLoading: true }, true);
         setCmsLoadingIndicator(true);
-        log('Loading more reports...');
+        log('Loading more reports... (request #' + requestId + ')');
 
         const listContainer = DOM.$('[cms-deliver="list"]');
         const templateItem = TemplateManager.getActiveTemplate();
@@ -2333,43 +2380,73 @@
 
         showLoadingIndicator(listContainer);
 
-        try {
-            const newOffset = state.currentOffset + CONFIG.REPORTS_PER_PAGE;
-            const url = buildFilterUrl(newOffset, CONFIG.REPORTS_PER_PAGE);
-            const response = await fetch(url);
+        // Create and store the promise
+        pendingLoadRequest = (async () => {
+            try {
+                const newOffset = state.currentOffset + CONFIG.REPORTS_PER_PAGE;
+                const url = buildFilterUrl(newOffset, CONFIG.REPORTS_PER_PAGE);
+                const response = await fetch(url);
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                // Check if this request is still current (not superseded)
+                if (requestId !== currentLoadRequestId) {
+                    log('Request #' + requestId + ' superseded, discarding results');
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const responseData = await response.json();
+                const items = responseData.data || [];
+
+                // Double-check request is still current after parsing
+                if (requestId !== currentLoadRequestId) {
+                    log('Request #' + requestId + ' superseded after parse, discarding results');
+                    return;
+                }
+
+                // Append to cached reports for view switching
+                const currentCached = Store.get('cachedReports') || [];
+                Store.setState({ cachedReports: [...currentCached, ...items] }, true);
+
+                const successCount = await populateReports(items, listContainer, templateItem, true);
+
+                const totalReports = responseData.metadata?.total || state.totalReports;
+                Store.setState({
+                    currentOffset: newOffset,
+                    totalReports,
+                    hasMoreReports: newOffset < totalReports
+                }, true);
+
+                log(`Loaded ${successCount} more reports. Total offset: ${newOffset}, Total: ${totalReports}`);
+
+                if (!Store.get('hasMoreReports')) {
+                    showNoMoreMessage(listContainer);
+                }
+
+            } catch (error) {
+                console.error('[CMS Client] Error loading more reports:', error);
+            } finally {
+                hideLoadingIndicator();
+                setCmsLoadingIndicator(false);
+                Store.setState({ isLoading: false }, true);
+                pendingLoadRequest = null;
             }
+        })();
 
-            const response_data = await response.json();
-            const items = response_data.data || [];
+        return pendingLoadRequest;
+    }
 
-            // Append to cached reports for view switching
-            const currentCached = Store.get('cachedReports') || [];
-            Store.setState({ cachedReports: [...currentCached, ...items] }, true);
-
-            const successCount = await populateReports(items, listContainer, templateItem, true);
-
-            const totalReports = response_data.metadata?.total || state.totalReports;
-            Store.setState({
-                currentOffset: newOffset,
-                totalReports,
-                hasMoreReports: newOffset < totalReports
-            }, true);
-
-            log(`Loaded ${successCount} more reports. Total offset: ${newOffset}, Total: ${totalReports}`);
-
-            if (!Store.get('hasMoreReports')) {
-                showNoMoreMessage(listContainer);
-            }
-
-        } catch (error) {
-            console.error('[CMS Client] Error loading more reports:', error);
-        } finally {
+    // Cancel any pending load request (useful when filters change)
+    function cancelPendingLoad() {
+        if (pendingLoadRequest) {
+            currentLoadRequestId++; // Invalidate the current request
+            pendingLoadRequest = null;
+            Store.setState({ isLoading: false }, true);
             hideLoadingIndicator();
             setCmsLoadingIndicator(false);
-            Store.setState({ isLoading: false }, true);
+            log('Pending load request cancelled');
         }
     }
 
@@ -3016,12 +3093,14 @@
         DOMBatch,
         applyFilters,
         clearAllFilters,
+        cancelPendingLoad,
         TagManager,
         FilterIndicators,
         TemplateManager,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
+        getReportData: (id) => Store.getReportData(id),
         checkElements() {
             const list = DOM.$('[cms-deliver="list"]');
             const item = DOM.$('[cms-deliver="item"]');
