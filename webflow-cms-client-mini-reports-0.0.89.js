@@ -448,7 +448,10 @@
             // Also apply padding to list container
             const listContainer = DOM.$(SELECTORS.list);
             if (listContainer) {
-                listContainer.style.paddingTop = this._value + 'px';
+                // Add extra 0.5rem padding for mini view mode
+                const isMiniView = Store.get('viewMode') === 'mini';
+                const extraPadding = isMiniView ? ' + 0.5rem' : '';
+                listContainer.style.paddingTop = `calc(${this._value}px${extraPadding})`;
             }
         },
 
@@ -457,9 +460,12 @@
             return this._value;
         },
 
-        // Force recalculation
+        // Force recalculation and reapply CSS
         refresh() {
-            this._updateValue();
+            if (this._element) {
+                this._value = this._element.offsetHeight;
+            }
+            this._applyCssVariable();
         },
 
         // Cleanup
@@ -3056,6 +3062,9 @@
 
         // Update button states
         updateToggleButtonStates();
+
+        // Refresh top offset padding (mini view has extra 0.5rem)
+        TopOffset.refresh();
 
         // Get cached reports
         const cachedReports = Store.get('cachedReports');
