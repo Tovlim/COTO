@@ -1992,16 +1992,20 @@
             this.clearAllTags();
 
             const filters = Store.get('filters');
+            let hasActiveFilters = false;
 
             if (filters.search) {
                 this.addTag('Search', filters.search, 'search');
+                hasActiveFilters = true;
             }
 
             if (filters.dateFrom) {
                 this.addTag('From', DateUtils.formatForTag(filters.dateFrom), 'dateFrom');
+                hasActiveFilters = true;
             }
             if (filters.dateUntil) {
                 this.addTag('Until', DateUtils.formatForTag(filters.dateUntil), 'dateUntil');
+                hasActiveFilters = true;
             }
 
             ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
@@ -2014,11 +2018,19 @@
                     } else {
                         this.addTag(fieldName, values.join(', '), filterKey, values);
                     }
+                    hasActiveFilters = true;
                 }
             });
 
             if (filters.urgent !== null) {
                 this.addTag('Urgent', filters.urgent ? 'Yes' : 'No', 'urgent');
+                hasActiveFilters = true;
+            }
+
+            // Toggle tags-section visibility based on active filters
+            const tagsSection = DOM.$('[cms-filter-element="tags-section"]');
+            if (tagsSection) {
+                tagsSection.style.display = hasActiveFilters ? 'flex' : 'none';
             }
         }
     };
