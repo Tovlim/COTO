@@ -465,6 +465,8 @@
             if (this._element) {
                 this._value = this._element.offsetHeight;
             }
+            // Always apply CSS variable, even if not fully initialized
+            // This ensures mini view padding is applied when view mode changes
             this._applyCssVariable();
         },
 
