@@ -52,6 +52,7 @@
         // Scroll and loading
         scrollWrap: '[cms-reports="scroll-wrap"]',
         scrollWindow: '[cms-reports="scroll-window"]',
+        paddingCalc: '[cms-reports="padding-calc"]',
         jumpToTop: '[cms-reports="jump-to-top"]',
         scrollSentinel: '[scroll-sentinel="true"]',
         loadingIndicator: '[cms-loading="indicator"]',
@@ -390,6 +391,84 @@
         removeAll(elements) {
             const elementsArray = Array.from(elements);
             elementsArray.forEach(el => el.remove());
+        }
+    };
+
+    // ===== TOP OFFSET MANAGER =====
+    // Manages dynamic top offset for fixed header compensation
+    const TopOffset = {
+        _value: 0,
+        _element: null,
+        _resizeObserver: null,
+        _initialized: false,
+
+        init() {
+            if (this._initialized) return;
+
+            // Only apply offset in window scroll mode
+            const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
+            if (!useWindowScroll) {
+                log('TopOffset: Skipping - not in window scroll mode');
+                return;
+            }
+
+            this._element = DOM.$(SELECTORS.paddingCalc);
+            if (!this._element) {
+                log('TopOffset: No padding-calc element found');
+                return;
+            }
+
+            // Initial measurement
+            this._updateValue();
+
+            // Watch for size changes
+            this._resizeObserver = new ResizeObserver(() => {
+                this._updateValue();
+            });
+            this._resizeObserver.observe(this._element);
+
+            this._initialized = true;
+            console.log('[CMS Client] TopOffset initialized:', this._value + 'px');
+        },
+
+        _updateValue() {
+            if (!this._element) return;
+
+            const newValue = this._element.offsetHeight;
+            if (newValue !== this._value) {
+                this._value = newValue;
+                this._applyCssVariable();
+                log('TopOffset updated:', this._value + 'px');
+            }
+        },
+
+        _applyCssVariable() {
+            document.documentElement.style.setProperty('--cms-top-offset', this._value + 'px');
+
+            // Also apply padding to list container
+            const listContainer = DOM.$(SELECTORS.list);
+            if (listContainer) {
+                listContainer.style.paddingTop = this._value + 'px';
+            }
+        },
+
+        // Get current offset value (for scroll calculations)
+        get() {
+            return this._value;
+        },
+
+        // Force recalculation
+        refresh() {
+            this._updateValue();
+        },
+
+        // Cleanup
+        destroy() {
+            if (this._resizeObserver) {
+                this._resizeObserver.disconnect();
+                this._resizeObserver = null;
+            }
+            this._initialized = false;
         }
     };
 
@@ -2471,6 +2550,9 @@
                 return;
             }
 
+            // Initialize top offset for fixed header compensation
+            TopOffset.init();
+
             const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`);
 
             if (!response.ok) {
@@ -2879,12 +2961,15 @@
         let smallestOffset = Infinity;
 
         if (useWindowScroll) {
-            // Window-level scrolling: use viewport top as reference
+            // Window-level scrolling: use viewport top as reference, accounting for fixed header
+            const topOffset = TopOffset.get();
             items.forEach(item => {
                 const rect = item.getBoundingClientRect();
-                // Find the item closest to the top of the viewport (but still visible or just above)
-                if (rect.top >= -rect.height && rect.top < smallestOffset) {
-                    smallestOffset = rect.top;
+                // Adjust for fixed header - items at topOffset position are at the "top"
+                const adjustedTop = rect.top - topOffset;
+                // Find the item closest to the visible top (but still visible or just above)
+                if (adjustedTop >= -rect.height && adjustedTop < smallestOffset) {
+                    smallestOffset = adjustedTop;
                     topVisibleId = item.getAttribute('data-report-id');
                 }
             });
@@ -2926,10 +3011,11 @@
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
 
         if (useWindowScroll) {
-            // Window-level scrolling
+            // Window-level scrolling - account for fixed header offset
             const itemRect = targetItem.getBoundingClientRect();
             const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const targetScrollTop = itemRect.top + currentScrollTop;
+            const topOffset = TopOffset.get();
+            const targetScrollTop = itemRect.top + currentScrollTop - topOffset;
 
             window.scrollTo({
                 top: targetScrollTop,
@@ -3146,6 +3232,7 @@
         TagManager,
         FilterIndicators,
         TemplateManager,
+        TopOffset,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
