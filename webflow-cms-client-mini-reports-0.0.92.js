@@ -17,7 +17,8 @@
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         REPORTS_LIMIT: 15,
         REPORTS_PER_PAGE: 10,
-        DEBUG: false
+        DEBUG: false,
+        MINI_VIEW_GAP_REM: 0.5 // Extra gap below header for mini view mode
     };
 
     // ===== SELECTORS =====
@@ -448,9 +449,9 @@
             // Also apply padding to list container
             const listContainer = DOM.$(SELECTORS.list);
             if (listContainer) {
-                // Add extra 0.5rem padding for mini view mode
+                // Add extra padding for mini view mode
                 const isMiniView = Store.get('viewMode') === 'mini';
-                const extraPadding = isMiniView ? ' + 0.5rem' : '';
+                const extraPadding = isMiniView ? ` + ${CONFIG.MINI_VIEW_GAP_REM}rem` : '';
                 listContainer.style.paddingTop = `calc(${this._value}px${extraPadding})`;
             }
         },
@@ -458,6 +459,12 @@
         // Get current offset value (for scroll calculations)
         get() {
             return this._value;
+        },
+
+        // Get mini view gap in pixels (for scroll calculations)
+        getMiniViewGapPx() {
+            if (Store.get('viewMode') !== 'mini') return 0;
+            return parseFloat(getComputedStyle(document.documentElement).fontSize) * CONFIG.MINI_VIEW_GAP_REM;
         },
 
         // Force recalculation and reapply CSS
@@ -3019,16 +3026,13 @@
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
 
         if (useWindowScroll) {
-            // Window-level scrolling - account for fixed header offset
+            // Window-level scrolling - account for fixed header offset and mini view gap
             const itemRect = targetItem.getBoundingClientRect();
             const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const topOffset = TopOffset.get();
+            const miniViewGap = TopOffset.getMiniViewGapPx();
 
-            // Add extra gap for mini view (0.5rem converted to pixels)
-            const isMiniView = Store.get('viewMode') === 'mini';
-            const extraGap = isMiniView ? parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.5 : 0;
-
-            const targetScrollTop = itemRect.top + currentScrollTop - topOffset - extraGap;
+            const targetScrollTop = itemRect.top + currentScrollTop - topOffset - miniViewGap;
 
             window.scrollTo({
                 top: targetScrollTop,
