@@ -3023,7 +3023,12 @@
             const itemRect = targetItem.getBoundingClientRect();
             const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const topOffset = TopOffset.get();
-            const targetScrollTop = itemRect.top + currentScrollTop - topOffset;
+
+            // Add extra gap for mini view (0.5rem converted to pixels)
+            const isMiniView = Store.get('viewMode') === 'mini';
+            const extraGap = isMiniView ? parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.5 : 0;
+
+            const targetScrollTop = itemRect.top + currentScrollTop - topOffset - extraGap;
 
             window.scrollTo({
                 top: targetScrollTop,
