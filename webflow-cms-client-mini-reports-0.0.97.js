@@ -928,13 +928,13 @@
                     }));
 
                     if (galleryImages.length > 0) {
-                        Fancybox.show(galleryImages, { startIndex });
+                        Fancybox.show(galleryImages, { startIndex, hideScrollbar: false });
                     } else {
                         Fancybox.show([{
                             src: reportData.photo.url,
                             caption: reportData.name || '',
                             thumb: reportData.photo.url
-                        }]);
+                        }], { hideScrollbar: false });
                     }
                 };
 
@@ -1567,7 +1567,8 @@
 
         if (typeof Fancybox !== 'undefined') {
             Fancybox.bind(`[data-fancybox="${galleryId}"]`, {
-                Thumbs: { autoStart: true }
+                Thumbs: { autoStart: true },
+                hideScrollbar: false
             });
         }
     }
@@ -3218,19 +3219,7 @@
 
     // ===== INITIALIZATION =====
 
-    // Inject global styles immediately (before any conditional logic)
-    function injectGlobalStyles() {
-        const globalStyleId = 'cms-global-styles';
-        if (!document.getElementById(globalStyleId)) {
-            const globalStyle = DOM.create('style', { id: globalStyleId });
-            globalStyle.textContent = `body { scrollbar-gutter: stable; }`;
-            document.head.appendChild(globalStyle);
-        }
-    }
-
     function init() {
-        // Inject global styles first (prevents layout shift when modals hide scrollbar)
-        injectGlobalStyles();
 
         if (window.Webflow?.env?.() === 'design') {
             console.log('[CMS Client] Skipping in Webflow Designer mode');
