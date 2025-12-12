@@ -2933,11 +2933,71 @@
         console.log('[CMS Client] Share buttons initialized');
     }
 
+    // Date link click handler - filters by clicked report's date
+    function initializeDateLinks() {
+        document.addEventListener('click', function(e) {
+            const dateLink = e.target.closest('[cms-link="date"]');
+            if (!dateLink) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Find the parent report item
+            const reportItem = dateLink.closest(SELECTORS.item);
+            if (!reportItem) return;
+
+            // Get report ID and look up cached data
+            const reportId = reportItem.getAttribute('data-report-id');
+            if (!reportId) return;
+
+            const reportData = Store.getReportData(reportId);
+            if (!reportData) {
+                console.warn('[CMS Client] No cached data for report:', reportId);
+                return;
+            }
+
+            // Extract date (use occupation date or createdOn)
+            const dateValue = reportData.date || reportData.createdOn;
+            if (!dateValue) {
+                console.warn('[CMS Client] No date found for report:', reportId);
+                return;
+            }
+
+            // Format to YYYY-MM-DD for the filter
+            const dateObj = new Date(dateValue);
+            if (isNaN(dateObj.getTime())) {
+                console.warn('[CMS Client] Invalid date:', dateValue);
+                return;
+            }
+
+            const formattedDate = dateObj.toISOString().split('T')[0];
+
+            console.log(`[CMS Client] Filtering by date: ${formattedDate}`);
+
+            // Set the date filter and apply
+            Store.setFilter('date', formattedDate);
+
+            // Update the date picker input if it exists
+            const dateInput = DOM.$(SELECTORS.date);
+            if (dateInput) {
+                dateInput.value = formattedDate;
+                if (dateInput._flatpickr) {
+                    dateInput._flatpickr.setDate(formattedDate, false);
+                }
+            }
+
+            applyFilters();
+        });
+
+        console.log('[CMS Client] Date links initialized');
+    }
+
     function initializeInteractions() {
         initializeTabsAndAccordion();
         initializeSearch();
         initializeScrollToTop();
         initializeShareButtons();
+        initializeDateLinks();
         initializeViewToggle();
     }
 
