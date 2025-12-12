@@ -2652,7 +2652,7 @@
             }
 
             // Show list container (hidden initially to prevent flash of unstyled content)
-            listContainer.style.display = '';
+            listContainer.style.display = 'flex';
 
             setCmsLoadingIndicator(false);
             window.dispatchEvent(new CustomEvent('cmsDataLoaded', {
