@@ -2651,6 +2651,9 @@
                 initializeFilters();
             }
 
+            // Show list container (hidden initially to prevent flash of unstyled content)
+            listContainer.style.display = '';
+
             setCmsLoadingIndicator(false);
             window.dispatchEvent(new CustomEvent('cmsDataLoaded', {
                 detail: { count: successCount, total: totalReports }
