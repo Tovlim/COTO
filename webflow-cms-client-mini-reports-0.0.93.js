@@ -2763,6 +2763,7 @@
             if (!document.getElementById(styleId)) {
                 const style = DOM.create('style', { id: styleId });
                 style.textContent = `
+                    body { scrollbar-gutter: stable; }
                     [cms-reports="scroll-wrap"]::-webkit-scrollbar-track { background: transparent; }
                     [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
                         background: transparent;
