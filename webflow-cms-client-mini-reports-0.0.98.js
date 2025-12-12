@@ -36,6 +36,7 @@
 
         // Filter elements
         filterForm: '[cms-filter="form-block"]',
+        date: '[cms-filter="Date"]',
         dateFrom: '[cms-filter="From"]',
         dateUntil: '[cms-filter="Until"]',
         searchInput: '[filter-reports="search"]',
@@ -85,6 +86,7 @@
             // Filter state
             filters: {
                 search: '',
+                date: '',
                 dateFrom: '',
                 dateUntil: '',
                 topic: [],
@@ -181,6 +183,7 @@
         resetFilters() {
             this._state.filters = {
                 search: '',
+                date: '',
                 dateFrom: '',
                 dateUntil: '',
                 topic: [],
@@ -1834,6 +1837,7 @@
                     if (filterAttr) {
                         // Map attribute names to Store filter keys
                         const keyMap = {
+                            'date': 'date',
                             'from': 'dateFrom',
                             'until': 'dateUntil',
                             'topic': 'topic',
@@ -2042,6 +2046,13 @@
                 Store.setFilter('search', '');
                 const searchInput = DOM.$(SELECTORS.searchInput);
                 if (searchInput) searchInput.value = '';
+            } else if (filterKey === 'date') {
+                Store.setFilter('date', '');
+                const dateInput = DOM.$(SELECTORS.date);
+                if (dateInput) {
+                    dateInput.value = '';
+                    if (dateInput._flatpickr) dateInput._flatpickr.clear();
+                }
             } else if (filterKey === 'dateFrom') {
                 Store.setFilter('dateFrom', '');
                 const dateInput = DOM.$(SELECTORS.dateFrom);
@@ -2094,13 +2105,19 @@
                 hasActiveFilters = true;
             }
 
-            if (filters.dateFrom) {
-                this.addTag('From', DateUtils.formatForTag(filters.dateFrom), 'dateFrom');
+            // Single date filter takes precedence over range
+            if (filters.date) {
+                this.addTag('Date', DateUtils.formatForTag(filters.date), 'date');
                 hasActiveFilters = true;
-            }
-            if (filters.dateUntil) {
-                this.addTag('Until', DateUtils.formatForTag(filters.dateUntil), 'dateUntil');
-                hasActiveFilters = true;
+            } else {
+                if (filters.dateFrom) {
+                    this.addTag('From', DateUtils.formatForTag(filters.dateFrom), 'dateFrom');
+                    hasActiveFilters = true;
+                }
+                if (filters.dateUntil) {
+                    this.addTag('Until', DateUtils.formatForTag(filters.dateUntil), 'dateUntil');
+                    hasActiveFilters = true;
+                }
             }
 
             ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
@@ -2141,11 +2158,17 @@
             url += `&search=${encodeURIComponent(filters.search)}`;
         }
 
-        if (filters.dateFrom) {
-            url += `&dateFrom=${filters.dateFrom}`;
-        }
-        if (filters.dateUntil) {
-            url += `&dateUntil=${filters.dateUntil}`;
+        // Single date filter - send as both dateFrom and dateUntil
+        if (filters.date) {
+            url += `&dateFrom=${filters.date}&dateUntil=${filters.date}`;
+        } else {
+            // Range date filters (only used if single date is not set)
+            if (filters.dateFrom) {
+                url += `&dateFrom=${filters.dateFrom}`;
+            }
+            if (filters.dateUntil) {
+                url += `&dateUntil=${filters.dateUntil}`;
+            }
         }
 
         ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
@@ -2266,6 +2289,7 @@
             }
         };
 
+        initPicker(SELECTORS.date, 'date');
         initPicker(SELECTORS.dateFrom, 'dateFrom');
         initPicker(SELECTORS.dateUntil, 'dateUntil');
     }
@@ -2366,12 +2390,18 @@
         const searchInput = DOM.$(SELECTORS.searchInput);
         if (searchInput) searchInput.value = '';
 
-        // Clear dates
+        // Clear dates (single date and range)
+        Store.setFilter('date', '');
         Store.setFilter('dateFrom', '');
         Store.setFilter('dateUntil', '');
 
+        const dateInput = DOM.$(SELECTORS.date);
         const fromInput = DOM.$(SELECTORS.dateFrom);
         const untilInput = DOM.$(SELECTORS.dateUntil);
+        if (dateInput) {
+            dateInput.value = '';
+            if (dateInput._flatpickr) dateInput._flatpickr.clear();
+        }
         if (fromInput) {
             fromInput.value = '';
             if (fromInput._flatpickr) fromInput._flatpickr.clear();
@@ -2402,7 +2432,14 @@
 
     // Clear specific filter
     function clearSpecificFilter(filterName) {
-        if (filterName === 'From') {
+        if (filterName === 'Date' || filterName === 'date') {
+            Store.setFilter('date', '');
+            const input = DOM.$(SELECTORS.date);
+            if (input) {
+                input.value = '';
+                if (input._flatpickr) input._flatpickr.clear();
+            }
+        } else if (filterName === 'From') {
             Store.setFilter('dateFrom', '');
             const input = DOM.$(SELECTORS.dateFrom);
             if (input) {
