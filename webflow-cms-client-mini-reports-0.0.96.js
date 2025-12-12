@@ -2757,14 +2757,6 @@
             return;
         }
 
-        // Add global scrollbar-gutter style to prevent layout shift when modals hide scrollbar
-        const globalStyleId = 'cms-global-styles';
-        if (!document.getElementById(globalStyleId)) {
-            const globalStyle = DOM.create('style', { id: globalStyleId });
-            globalStyle.textContent = `body { scrollbar-gutter: stable; }`;
-            document.head.appendChild(globalStyle);
-        }
-
         // Add scrollbar styling (only for container-based scrolling)
         if (scrollWrap && !useWindowScroll) {
             const styleId = 'cms-scrollbar-styles';
@@ -3226,7 +3218,20 @@
 
     // ===== INITIALIZATION =====
 
+    // Inject global styles immediately (before any conditional logic)
+    function injectGlobalStyles() {
+        const globalStyleId = 'cms-global-styles';
+        if (!document.getElementById(globalStyleId)) {
+            const globalStyle = DOM.create('style', { id: globalStyleId });
+            globalStyle.textContent = `body { scrollbar-gutter: stable; }`;
+            document.head.appendChild(globalStyle);
+        }
+    }
+
     function init() {
+        // Inject global styles first (prevents layout shift when modals hide scrollbar)
+        injectGlobalStyles();
+
         if (window.Webflow?.env?.() === 'design') {
             console.log('[CMS Client] Skipping in Webflow Designer mode');
             return;
