@@ -2757,13 +2757,20 @@
             return;
         }
 
+        // Add global scrollbar-gutter style to prevent layout shift when modals hide scrollbar
+        const globalStyleId = 'cms-global-styles';
+        if (!document.getElementById(globalStyleId)) {
+            const globalStyle = DOM.create('style', { id: globalStyleId });
+            globalStyle.textContent = `body { scrollbar-gutter: stable; }`;
+            document.head.appendChild(globalStyle);
+        }
+
         // Add scrollbar styling (only for container-based scrolling)
         if (scrollWrap && !useWindowScroll) {
             const styleId = 'cms-scrollbar-styles';
             if (!document.getElementById(styleId)) {
                 const style = DOM.create('style', { id: styleId });
                 style.textContent = `
-                    body { scrollbar-gutter: stable; }
                     [cms-reports="scroll-wrap"]::-webkit-scrollbar-track { background: transparent; }
                     [cms-reports="scroll-wrap"]::-webkit-scrollbar-thumb {
                         background: transparent;
