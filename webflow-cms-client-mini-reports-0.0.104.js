@@ -2867,6 +2867,12 @@
                 UrlManager.updateUrl(true);
 
                 setCmsLoadingIndicator(false);
+
+                // Dispatch cmsDataLoaded event so sidebars can open
+                window.dispatchEvent(new CustomEvent('cmsDataLoaded', {
+                    detail: { count: Store.get('totalReports'), total: Store.get('totalReports'), fromUrlFilters: true }
+                }));
+
                 return;
             }
 
