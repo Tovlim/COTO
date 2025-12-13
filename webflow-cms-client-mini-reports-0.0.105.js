@@ -100,7 +100,11 @@
             // UI state
             isClearing: false,
             viewMode: 'mini', // 'mini' or 'full'
-            cachedReports: [] // Cache reports for view switching without re-fetch
+            cachedReports: [], // Cache reports for view switching without re-fetch
+
+            // Page-based filter (from CMS page slug, e.g., /topic/gaza-genocide)
+            // This filter is permanent and cannot be cleared by the user
+            pageFilter: null // { type: 'topic'|'reporter'|'region'|etc, slug: 'the-slug' }
         },
 
         // Report data cache - stores full report data by ID to avoid JSON serialization
@@ -863,6 +867,86 @@
             });
 
             console.log('[CMS Client] Popstate listener initialized');
+        }
+    };
+
+    // ===== PAGE FILTER MANAGER =====
+    // Detects and manages page-based filters from CMS page URLs (e.g., /topic/gaza-genocide)
+    // These filters are permanent and cannot be cleared by the user
+    const PageFilter = {
+        // Supported page types and their URL patterns
+        // The key is the filter type (matches API parameter), value is the URL prefix
+        _pageTypes: {
+            topic: '/topic/',
+            reporter: '/reporter/',
+            region: '/region/',
+            locality: '/locality/',
+            territory: '/territory/'
+        },
+
+        // Detect page filter from current URL path
+        detect() {
+            const path = window.location.pathname;
+
+            for (const [type, prefix] of Object.entries(this._pageTypes)) {
+                if (path.startsWith(prefix)) {
+                    // Extract slug from path (everything after the prefix, excluding trailing slash)
+                    const slug = path.slice(prefix.length).replace(/\/$/, '');
+                    if (slug) {
+                        return { type, slug };
+                    }
+                }
+            }
+
+            return null;
+        },
+
+        // Initialize page filter from URL and store it
+        init() {
+            const pageFilter = this.detect();
+
+            if (pageFilter) {
+                Store.setState({ pageFilter }, true);
+                console.log('[CMS Client] Page filter detected:', pageFilter);
+            }
+
+            return pageFilter;
+        },
+
+        // Get the current page filter
+        get() {
+            return Store.get('pageFilter');
+        },
+
+        // Check if there's an active page filter
+        hasPageFilter() {
+            return Store.get('pageFilter') !== null;
+        },
+
+        // Get page filter as URL parameter string (for API calls)
+        toUrlParam() {
+            const pageFilter = this.get();
+            if (!pageFilter) return '';
+
+            return `${pageFilter.type}=${encodeURIComponent(pageFilter.slug)}`;
+        },
+
+        // Get display info for the page filter (for showing in UI if needed)
+        getDisplayInfo() {
+            const pageFilter = this.get();
+            if (!pageFilter) return null;
+
+            // Convert slug to display name (replace hyphens with spaces, title case)
+            const displayName = pageFilter.slug
+                .split('-')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+
+            return {
+                type: pageFilter.type,
+                slug: pageFilter.slug,
+                displayName
+            };
         }
     };
 
@@ -2367,6 +2451,7 @@
     // Build URL with current filters
     function buildFilterUrl(offset = 0, limit = CONFIG.REPORTS_LIMIT) {
         const filters = Store.get('filters');
+        const pageFilter = PageFilter.get();
         let url = `${CONFIG.WORKER_URL}/reports?limit=${limit}&offset=${offset}`;
 
         if (filters.search) {
@@ -2386,9 +2471,18 @@
             }
         }
 
+        // Build array filters, merging with page filter if applicable
         ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
-            if (filters[filterKey]?.length > 0) {
-                url += `&${filterKey}=${encodeURIComponent(filters[filterKey].join(','))}`;
+            const userValues = filters[filterKey] || [];
+            let allValues = [...userValues];
+
+            // If page filter matches this filter type, prepend it (if not already included)
+            if (pageFilter && pageFilter.type === filterKey && !allValues.includes(pageFilter.slug)) {
+                allValues.unshift(pageFilter.slug);
+            }
+
+            if (allValues.length > 0) {
+                url += `&${filterKey}=${encodeURIComponent(allValues.join(','))}`;
             }
         });
 
@@ -2838,6 +2932,10 @@
             // Initialize top offset for fixed header compensation
             TopOffset.init();
 
+            // Initialize page filter from URL path (e.g., /topic/gaza-genocide)
+            // This must be done early, before any API calls
+            const pageFilter = PageFilter.init();
+
             // Check if URL has filter parameters - if so, apply them
             const hasUrlFilters = UrlManager.hasFiltersInUrl();
 
@@ -2861,6 +2959,7 @@
                 listContainer.style.display = 'flex';
 
                 // Apply filters (will fetch filtered data and update URL with replaceState)
+                // Note: buildFilterUrl will automatically include the page filter
                 await applyFilters(true); // Skip URL update since we're loading from URL
 
                 // Use replaceState to preserve the URL without adding to history
@@ -2876,8 +2975,17 @@
                 return;
             }
 
-            // No URL filters - do normal initial load
-            const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`);
+            // No URL query filters - check if we have a page filter
+            // If so, use buildFilterUrl to include it; otherwise do a plain fetch
+            let initialUrl;
+            if (pageFilter) {
+                console.log('[CMS Client] Page filter active, using filtered initial load');
+                initialUrl = buildFilterUrl(0, CONFIG.REPORTS_LIMIT);
+            } else {
+                initialUrl = `${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`;
+            }
+
+            const response = await fetch(initialUrl);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -3630,12 +3738,15 @@
         TemplateManager,
         TopOffset,
         UrlManager,
+        PageFilter,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
         getReportData: (id) => Store.getReportData(id),
         getUrlParams: () => UrlManager.buildUrlParams(),
         parseUrlFilters: () => UrlManager.parseUrl(),
+        getPageFilter: () => PageFilter.get(),
+        hasPageFilter: () => PageFilter.hasPageFilter(),
         checkElements() {
             const list = DOM.$(SELECTORS.list);
             const item = DOM.$(SELECTORS.item);
