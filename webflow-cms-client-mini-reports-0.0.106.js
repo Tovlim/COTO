@@ -15,7 +15,8 @@
     // ===== CONFIGURATION =====
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
-        REPORTS_LIMIT: 15,
+        INITIAL_REPORTS_LIMIT: 6, // Smaller initial fetch for faster first paint
+        REPORTS_LIMIT: 15, // Standard batch size for subsequent loads
         REPORTS_PER_PAGE: 10,
         DEBUG: false,
         MINI_VIEW_GAP_REM: 0.5 // Extra gap below header for mini view mode
@@ -2945,17 +2946,7 @@
                 // Apply URL filters to Store
                 UrlManager.applyUrlFiltersToStore();
 
-                // Initialize UI components first (needed for checkbox syncing)
-                if (initializeUI) {
-                    initializeInteractions();
-                    initializeInfiniteScroll(listContainer);
-                    initializeFilters();
-                }
-
-                // Sync UI elements with filters from URL
-                UrlManager.syncUIWithFilters();
-
-                // Show list container
+                // Show list container early
                 listContainer.style.display = 'flex';
 
                 // Apply filters (will fetch filtered data and update URL with replaceState)
@@ -2972,17 +2963,36 @@
                     detail: { count: Store.get('totalReports'), total: Store.get('totalReports'), fromUrlFilters: true }
                 }));
 
+                // Defer UI initializations to after first paint
+                const deferredInit = () => {
+                    if (initializeUI) {
+                        initializeInteractions();
+                        initializeInfiniteScroll(listContainer);
+                        initializeFilters();
+                    }
+                    // Sync UI elements with filters from URL (after filters are initialized)
+                    UrlManager.syncUIWithFilters();
+                };
+
+                if (typeof requestIdleCallback === 'function') {
+                    requestIdleCallback(deferredInit, { timeout: 200 });
+                } else {
+                    setTimeout(deferredInit, 0);
+                }
+
                 return;
             }
 
             // No URL query filters - check if we have a page filter
             // If so, use buildFilterUrl to include it; otherwise do a plain fetch
+            // Use smaller initial limit for faster first paint
+            const initialLimit = CONFIG.INITIAL_REPORTS_LIMIT;
             let initialUrl;
             if (pageFilter) {
                 console.log('[CMS Client] Page filter active, using filtered initial load');
-                initialUrl = buildFilterUrl(0, CONFIG.REPORTS_LIMIT);
+                initialUrl = buildFilterUrl(0, initialLimit);
             } else {
-                initialUrl = `${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`;
+                initialUrl = `${CONFIG.WORKER_URL}/reports?limit=${initialLimit}&_t=${Date.now()}`;
             }
 
             const response = await fetch(initialUrl);
@@ -3003,9 +3013,9 @@
 
             const totalReports = response_data.metadata?.total || items.length;
             Store.setState({
-                currentOffset: CONFIG.REPORTS_LIMIT,
+                currentOffset: initialLimit,
                 totalReports,
-                hasMoreReports: CONFIG.REPORTS_LIMIT < totalReports
+                hasMoreReports: initialLimit < totalReports
             }, true);
 
             // Reset filters
@@ -3013,30 +3023,43 @@
 
             updateResultsCount(totalReports);
 
-            console.log(`[CMS Client] Loaded ${successCount} reports. Total: ${totalReports}`);
+            console.log(`[CMS Client] Loaded ${successCount} reports (initial batch). Total: ${totalReports}`);
 
-            if (totalReports <= 40 && Store.get('hasMoreReports')) {
-                console.log(`[CMS Client] Total reports is ${totalReports}, loading all immediately`);
-                setTimeout(() => {
-                    if (Store.get('hasMoreReports') && !Store.get('isLoading')) {
-                        loadMoreReports();
-                    }
-                }, 500);
-            }
-
-            if (initializeUI) {
-                initializeInteractions();
-                initializeInfiniteScroll(listContainer);
-                initializeFilters();
-            }
-
-            // Show list container (hidden initially to prevent flash of unstyled content)
+            // Show list container immediately for fast first paint
             listContainer.style.display = 'flex';
-
             setCmsLoadingIndicator(false);
+
+            // Dispatch event so other components know data is ready
             window.dispatchEvent(new CustomEvent('cmsDataLoaded', {
                 detail: { count: successCount, total: totalReports }
             }));
+
+            // Defer non-critical initializations to after first paint
+            // This allows the browser to render the initial reports first
+            const deferredInit = () => {
+                if (initializeUI) {
+                    initializeInteractions();
+                    initializeInfiniteScroll(listContainer);
+                    initializeFilters();
+                }
+
+                // Load more reports if total is small (after UI is ready)
+                if (totalReports <= 40 && Store.get('hasMoreReports')) {
+                    console.log(`[CMS Client] Total reports is ${totalReports}, loading all immediately`);
+                    setTimeout(() => {
+                        if (Store.get('hasMoreReports') && !Store.get('isLoading')) {
+                            loadMoreReports();
+                        }
+                    }, 100);
+                }
+            };
+
+            // Use requestIdleCallback if available, otherwise setTimeout
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(deferredInit, { timeout: 200 });
+            } else {
+                setTimeout(deferredInit, 0);
+            }
 
         } catch (error) {
             console.error('[CMS Client] Error:', error);
