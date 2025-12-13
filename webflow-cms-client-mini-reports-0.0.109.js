@@ -16,7 +16,7 @@
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         INITIAL_REPORTS_LIMIT: 6, // Smaller initial fetch for faster first paint
-        REPORTS_LIMIT: 6, // Standard batch size for subsequent loads
+        REPORTS_LIMIT: 15, // Standard batch size for subsequent loads
         REPORTS_PER_PAGE: 10,
         DEBUG: false,
         MINI_VIEW_GAP_REM: 0.5, // Extra gap below header for mini view mode
@@ -2843,8 +2843,8 @@
         // Create and store the promise
         pendingLoadRequest = (async () => {
             try {
-                const newOffset = state.currentOffset + CONFIG.REPORTS_PER_PAGE;
-                const url = buildFilterUrl(newOffset, CONFIG.REPORTS_PER_PAGE);
+                const currentOffset = state.currentOffset;
+                const url = buildFilterUrl(currentOffset, CONFIG.REPORTS_PER_PAGE);
                 const response = await fetch(url);
 
                 // Check if this request is still current (not superseded)
@@ -2873,6 +2873,7 @@
                 const successCount = await populateReports(items, listContainer, templateItem, true);
 
                 const totalReports = responseData.metadata?.total || state.totalReports;
+                const newOffset = currentOffset + items.length;
                 Store.setState({
                     currentOffset: newOffset,
                     totalReports,
