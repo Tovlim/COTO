@@ -2229,6 +2229,17 @@
 
             await populateReports(items, listContainer, templateItem, false);
 
+            // Scroll to top instantly after filter change
+            const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
+            if (useWindowScroll) {
+                window.scrollTo({ top: 0, behavior: 'instant' });
+            } else {
+                const scrollWrap = DOM.$(SELECTORS.scrollWrap);
+                if (scrollWrap) {
+                    scrollWrap.scrollTo({ top: 0, behavior: 'instant' });
+                }
+            }
+
             updateResultsCount(Store.get('totalReports'));
 
             console.log(`[CMS Client] Filters applied: ${items.length} results (Total: ${Store.get('totalReports')})`);
