@@ -651,6 +651,221 @@
         }
     };
 
+    // ===== URL MANAGER =====
+    // Handles URL parameter synchronization for shareable/bookmarkable filter states
+    const UrlManager = {
+        // Filter keys that are arrays (comma-separated in URL)
+        _arrayFilters: ['topic', 'region', 'locality', 'territory', 'reporter'],
+
+        // Parse URL parameters and return filter state
+        parseUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const filters = {
+                search: '',
+                date: '',
+                dateFrom: '',
+                dateUntil: '',
+                topic: [],
+                region: [],
+                locality: [],
+                territory: [],
+                reporter: [],
+                urgent: null
+            };
+
+            // Parse search
+            if (params.has('search')) {
+                filters.search = params.get('search') || '';
+            }
+
+            // Parse dates
+            if (params.has('date')) {
+                filters.date = params.get('date') || '';
+            }
+            if (params.has('dateFrom')) {
+                filters.dateFrom = params.get('dateFrom') || '';
+            }
+            if (params.has('dateUntil')) {
+                filters.dateUntil = params.get('dateUntil') || '';
+            }
+
+            // Parse array filters (comma-separated)
+            this._arrayFilters.forEach(key => {
+                if (params.has(key)) {
+                    const value = params.get(key);
+                    if (value) {
+                        filters[key] = value.split(',').map(v => v.trim()).filter(v => v);
+                    }
+                }
+            });
+
+            // Parse urgent (boolean)
+            if (params.has('urgent')) {
+                const urgentVal = params.get('urgent');
+                filters.urgent = urgentVal === 'true' ? true : urgentVal === 'false' ? false : null;
+            }
+
+            return filters;
+        },
+
+        // Build URL search string from current Store filters
+        buildUrlParams() {
+            const filters = Store.get('filters');
+            const params = new URLSearchParams();
+
+            // Add search
+            if (filters.search) {
+                params.set('search', filters.search);
+            }
+
+            // Add dates (single date takes precedence)
+            if (filters.date) {
+                params.set('date', filters.date);
+            } else {
+                if (filters.dateFrom) {
+                    params.set('dateFrom', filters.dateFrom);
+                }
+                if (filters.dateUntil) {
+                    params.set('dateUntil', filters.dateUntil);
+                }
+            }
+
+            // Add array filters
+            this._arrayFilters.forEach(key => {
+                if (filters[key]?.length > 0) {
+                    params.set(key, filters[key].join(','));
+                }
+            });
+
+            // Add urgent
+            if (filters.urgent !== null) {
+                params.set('urgent', filters.urgent.toString());
+            }
+
+            return params.toString();
+        },
+
+        // Update browser URL without page reload
+        updateUrl(useReplaceState = false) {
+            const paramString = this.buildUrlParams();
+            const newUrl = paramString
+                ? `${window.location.pathname}?${paramString}`
+                : window.location.pathname;
+
+            if (useReplaceState) {
+                window.history.replaceState({ filters: Store.get('filters') }, '', newUrl);
+            } else {
+                window.history.pushState({ filters: Store.get('filters') }, '', newUrl);
+            }
+
+            log('URL updated:', newUrl);
+        },
+
+        // Check if URL has any filter parameters
+        hasFiltersInUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const filterKeys = ['search', 'date', 'dateFrom', 'dateUntil', 'urgent', ...this._arrayFilters];
+            return filterKeys.some(key => params.has(key));
+        },
+
+        // Apply URL filters to Store and sync UI elements
+        applyUrlFiltersToStore() {
+            const urlFilters = this.parseUrl();
+
+            // Update Store with URL filters (silent to avoid triggering subscribers prematurely)
+            Object.entries(urlFilters).forEach(([key, value]) => {
+                if (Array.isArray(value)) {
+                    Store.setFilter(key, value);
+                } else if (value !== '' && value !== null) {
+                    Store.setFilter(key, value);
+                }
+            });
+
+            return urlFilters;
+        },
+
+        // Sync UI elements with current Store filters
+        syncUIWithFilters() {
+            const filters = Store.get('filters');
+
+            // Sync search input
+            const searchInput = DOM.$(SELECTORS.searchInput);
+            if (searchInput && filters.search) {
+                searchInput.value = filters.search;
+            }
+
+            // Sync date inputs
+            const dateInput = DOM.$(SELECTORS.date);
+            if (dateInput && filters.date) {
+                dateInput.value = filters.date;
+                if (dateInput._flatpickr) {
+                    dateInput._flatpickr.setDate(filters.date, false);
+                }
+            }
+
+            const dateFromInput = DOM.$(SELECTORS.dateFrom);
+            if (dateFromInput && filters.dateFrom) {
+                dateFromInput.value = filters.dateFrom;
+                if (dateFromInput._flatpickr) {
+                    dateFromInput._flatpickr.setDate(filters.dateFrom, false);
+                }
+            }
+
+            const dateUntilInput = DOM.$(SELECTORS.dateUntil);
+            if (dateUntilInput && filters.dateUntil) {
+                dateUntilInput.value = filters.dateUntil;
+                if (dateUntilInput._flatpickr) {
+                    dateUntilInput._flatpickr.setDate(filters.dateUntil, false);
+                }
+            }
+
+            // Sync checkboxes for array filters
+            this._arrayFilters.forEach(filterKey => {
+                const values = filters[filterKey] || [];
+                values.forEach(value => {
+                    const checkbox = CheckboxUtils.find(filterKey, value);
+                    if (checkbox && !CheckboxUtils.isChecked(checkbox)) {
+                        checkbox.checked = true;
+                        // Update Webflow visual state
+                        const checkboxDiv = checkbox.previousElementSibling ||
+                                           checkbox.closest('.w-checkbox-input');
+                        if (checkboxDiv) {
+                            checkboxDiv.classList.add('w--redirected-checked');
+                        }
+                    }
+                });
+            });
+
+            log('UI synced with filters:', filters);
+        },
+
+        // Initialize popstate listener for browser back/forward
+        initPopstateListener() {
+            window.addEventListener('popstate', (event) => {
+                log('Popstate event:', event.state);
+
+                // Parse filters from URL (more reliable than event.state)
+                const urlFilters = this.parseUrl();
+
+                // Reset Store filters
+                Store.resetFilters();
+
+                // Apply URL filters to Store
+                Object.entries(urlFilters).forEach(([key, value]) => {
+                    Store.setFilter(key, value);
+                });
+
+                // Sync UI
+                this.syncUIWithFilters();
+
+                // Apply filters (this will fetch new data)
+                applyFilters(true); // true = skip URL update since we're responding to URL change
+            });
+
+            console.log('[CMS Client] Popstate listener initialized');
+        }
+    };
+
     // ===== LOGGING =====
     function log(...args) {
         if (CONFIG.DEBUG) {
@@ -2187,13 +2402,19 @@
     }
 
     // Apply current filters and reload reports
-    async function applyFilters() {
+    // skipUrlUpdate: true when responding to popstate (browser back/forward)
+    async function applyFilters(skipUrlUpdate = false) {
         // Cancel any pending infinite scroll load
         cancelPendingLoad();
 
         Store.resetPagination();
         TagManager.updateTags();
         setCmsLoadingIndicator(true);
+
+        // Update URL with current filters (unless responding to URL change)
+        if (!skipUrlUpdate) {
+            UrlManager.updateUrl();
+        }
 
         const noMoreMsg = document.getElementById('no-more-reports');
         if (noMoreMsg) noMoreMsg.remove();
@@ -2617,6 +2838,39 @@
             // Initialize top offset for fixed header compensation
             TopOffset.init();
 
+            // Check if URL has filter parameters - if so, apply them
+            const hasUrlFilters = UrlManager.hasFiltersInUrl();
+
+            if (hasUrlFilters) {
+                console.log('[CMS Client] URL filters detected, applying...');
+
+                // Apply URL filters to Store
+                UrlManager.applyUrlFiltersToStore();
+
+                // Initialize UI components first (needed for checkbox syncing)
+                if (initializeUI) {
+                    initializeInteractions();
+                    initializeInfiniteScroll(listContainer);
+                    initializeFilters();
+                }
+
+                // Sync UI elements with filters from URL
+                UrlManager.syncUIWithFilters();
+
+                // Show list container
+                listContainer.style.display = 'flex';
+
+                // Apply filters (will fetch filtered data and update URL with replaceState)
+                await applyFilters(true); // Skip URL update since we're loading from URL
+
+                // Use replaceState to preserve the URL without adding to history
+                UrlManager.updateUrl(true);
+
+                setCmsLoadingIndicator(false);
+                return;
+            }
+
+            // No URL filters - do normal initial load
             const response = await fetch(`${CONFIG.WORKER_URL}/reports?limit=${CONFIG.REPORTS_LIMIT}&_t=${Date.now()}`);
 
             if (!response.ok) {
@@ -2694,6 +2948,9 @@
         initializeDatePickers();
         initializeCheckboxFilters();
         initializeClearButtons();
+
+        // Initialize browser back/forward navigation handling
+        UrlManager.initPopstateListener();
     }
 
     // ===== INTERACTION HANDLERS =====
@@ -3366,10 +3623,13 @@
         FilterIndicators,
         TemplateManager,
         TopOffset,
+        UrlManager,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
         getReportData: (id) => Store.getReportData(id),
+        getUrlParams: () => UrlManager.buildUrlParams(),
+        parseUrlFilters: () => UrlManager.parseUrl(),
         checkElements() {
             const list = DOM.$(SELECTORS.list);
             const item = DOM.$(SELECTORS.item);
