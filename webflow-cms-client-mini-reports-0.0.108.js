@@ -16,7 +16,7 @@
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         INITIAL_REPORTS_LIMIT: 6, // Smaller initial fetch for faster first paint
-        REPORTS_LIMIT: 15, // Standard batch size for subsequent loads
+        REPORTS_LIMIT: 6, // Standard batch size for subsequent loads
         REPORTS_PER_PAGE: 10,
         DEBUG: false,
         MINI_VIEW_GAP_REM: 0.5, // Extra gap below header for mini view mode
