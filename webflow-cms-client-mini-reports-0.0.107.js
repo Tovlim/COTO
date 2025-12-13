@@ -19,7 +19,8 @@
         REPORTS_LIMIT: 15, // Standard batch size for subsequent loads
         REPORTS_PER_PAGE: 10,
         DEBUG: false,
-        MINI_VIEW_GAP_REM: 0.5 // Extra gap below header for mini view mode
+        MINI_VIEW_GAP_REM: 0.5, // Extra gap below header for mini view mode
+        VIEW_MODE_STORAGE_KEY: 'cms-view-mode' // localStorage key for persisting view mode
     };
 
     // ===== SELECTORS =====
@@ -2930,6 +2931,21 @@
                 return;
             }
 
+            // Restore saved view mode from localStorage (if valid and template exists)
+            try {
+                const savedViewMode = localStorage.getItem(CONFIG.VIEW_MODE_STORAGE_KEY);
+                if (savedViewMode && (savedViewMode === 'mini' || savedViewMode === 'full')) {
+                    // Only apply if the template for that mode exists
+                    if (TemplateManager.templates[savedViewMode]) {
+                        Store.setState({ viewMode: savedViewMode }, true);
+                        console.log('[CMS Client] Restored view mode from localStorage:', savedViewMode);
+                    }
+                }
+            } catch (e) {
+                // localStorage may be unavailable
+                log('Could not read view mode from localStorage:', e);
+            }
+
             // Initialize top offset for fixed header compensation
             TopOffset.init();
 
@@ -3576,6 +3592,14 @@
 
         // Update state
         Store.setState({ viewMode: newMode }, true);
+
+        // Persist view mode to localStorage
+        try {
+            localStorage.setItem(CONFIG.VIEW_MODE_STORAGE_KEY, newMode);
+        } catch (e) {
+            // localStorage may be unavailable (private browsing, etc.)
+            log('Could not save view mode to localStorage:', e);
+        }
 
         // Update button states
         updateToggleButtonStates();
