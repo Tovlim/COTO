@@ -2963,6 +2963,11 @@
                 // Apply URL filters to Store
                 UrlManager.applyUrlFiltersToStore();
 
+                // Initialize TagManager and FilterIndicators BEFORE applyFilters
+                // so that tags are displayed correctly on initial load
+                TagManager.init();
+                FilterIndicators.init();
+
                 // Show list container early
                 listContainer.style.display = 'flex';
 
@@ -2980,12 +2985,17 @@
                     detail: { count: Store.get('totalReports'), total: Store.get('totalReports'), fromUrlFilters: true }
                 }));
 
-                // Defer UI initializations to after first paint
+                // Defer remaining UI initializations to after first paint
                 const deferredInit = () => {
                     if (initializeUI) {
                         initializeInteractions();
                         initializeInfiniteScroll(listContainer);
-                        initializeFilters();
+                        // Initialize remaining filter components (date pickers, checkboxes, clear buttons)
+                        // TagManager and FilterIndicators already initialized above
+                        initializeDatePickers();
+                        initializeCheckboxFilters();
+                        initializeClearButtons();
+                        UrlManager.initPopstateListener();
                     }
                     // Sync UI elements with filters from URL (after filters are initialized)
                     UrlManager.syncUIWithFilters();
