@@ -60,6 +60,7 @@
         jumpToTop: '[cms-reports="jump-to-top"]',
         scrollSentinel: '[scroll-sentinel="true"]',
         loadingIndicator: '[cms-loading="indicator"]',
+        skeletonList: '[cms-deliver="skeleton-list"]',
 
         // Content elements
         headerThumbnail: '[cms-content="header-thumbnail"]',
@@ -401,6 +402,60 @@
         removeAll(elements) {
             const elementsArray = Array.from(elements);
             elementsArray.forEach(el => el.remove());
+        }
+    };
+
+    // ===== SKELETON MANAGER =====
+    // Manages skeleton placeholder list visibility during initial load
+    const SkeletonManager = {
+        _skeletonList: null,
+        _realList: null,
+        _initialized: false,
+
+        init() {
+            if (this._initialized) return;
+
+            this._skeletonList = DOM.$(SELECTORS.skeletonList);
+            this._realList = DOM.$(SELECTORS.list);
+
+            if (this._skeletonList) {
+                console.log('[CMS Client] SkeletonManager initialized');
+                this._initialized = true;
+            } else {
+                log('SkeletonManager: No skeleton list found, skipping');
+            }
+        },
+
+        // Show skeleton list, hide real list
+        show() {
+            if (!this._initialized) return;
+
+            if (this._skeletonList) {
+                this._skeletonList.style.display = 'flex';
+            }
+            if (this._realList) {
+                this._realList.style.display = 'none';
+            }
+            log('Skeleton shown');
+        },
+
+        // Hide skeleton list, show real list
+        hide() {
+            if (!this._initialized) return;
+
+            if (this._skeletonList) {
+                this._skeletonList.style.display = 'none';
+            }
+            if (this._realList) {
+                this._realList.style.display = 'flex';
+            }
+            log('Skeleton hidden');
+        },
+
+        // Check if skeleton is currently visible
+        isVisible() {
+            if (!this._skeletonList) return false;
+            return this._skeletonList.style.display !== 'none';
         }
     };
 
@@ -2950,6 +3005,9 @@
             // Initialize top offset for fixed header compensation
             TopOffset.init();
 
+            // Initialize skeleton manager for loading state
+            SkeletonManager.init();
+
             // Initialize page filter from URL path (e.g., /topic/gaza-genocide)
             // This must be done early, before any API calls
             const pageFilter = PageFilter.init();
@@ -2968,9 +3026,6 @@
                 TagManager.init();
                 FilterIndicators.init();
 
-                // Show list container early
-                listContainer.style.display = 'flex';
-
                 // Apply filters (will fetch filtered data and update URL with replaceState)
                 // Note: buildFilterUrl will automatically include the page filter
                 await applyFilters(true); // Skip URL update since we're loading from URL
@@ -2978,6 +3033,8 @@
                 // Use replaceState to preserve the URL without adding to history
                 UrlManager.updateUrl(true);
 
+                // Hide skeleton, show real list
+                SkeletonManager.hide();
                 setCmsLoadingIndicator(false);
 
                 // Dispatch cmsDataLoaded event so sidebars can open
@@ -3052,8 +3109,8 @@
 
             console.log(`[CMS Client] Loaded ${successCount} reports (initial batch). Total: ${totalReports}`);
 
-            // Show list container immediately for fast first paint
-            listContainer.style.display = 'flex';
+            // Hide skeleton, show real list for fast first paint
+            SkeletonManager.hide();
             setCmsLoadingIndicator(false);
 
             // Dispatch event so other components know data is ready
@@ -3090,6 +3147,8 @@
 
         } catch (error) {
             console.error('[CMS Client] Error:', error);
+            // Hide skeleton and show list (to display error message)
+            SkeletonManager.hide();
             setCmsLoadingIndicator(false);
 
             const listContainer = DOM.$(SELECTORS.list);
@@ -3797,6 +3856,7 @@
         TopOffset,
         UrlManager,
         PageFilter,
+        SkeletonManager,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
