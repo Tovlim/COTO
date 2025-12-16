@@ -3109,15 +3109,15 @@
                     initializeFilters();
                 }
 
-                // Load more reports if total is small (after UI is ready)
-                if (totalReports <= 40 && Store.get('hasMoreReports')) {
-                    console.log(`[CMS Client] Total reports is ${totalReports}, loading all immediately`);
-                    setTimeout(() => {
-                        if (Store.get('hasMoreReports') && !Store.get('isLoading')) {
-                            loadMoreReports();
-                        }
-                    }, 100);
-                }
+                // Auto-loading disabled - rely on infinite scroll instead
+                // if (totalReports <= 40 && Store.get('hasMoreReports')) {
+                //     console.log(`[CMS Client] Total reports is ${totalReports}, loading all immediately`);
+                //     setTimeout(() => {
+                //         if (Store.get('hasMoreReports') && !Store.get('isLoading')) {
+                //             loadMoreReports();
+                //         }
+                //     }, 100);
+                // }
             };
 
             // Use requestIdleCallback if available, otherwise setTimeout
@@ -3737,25 +3737,27 @@
 
         console.log('[CMS Client] Infinite scroll initialized');
 
-        setTimeout(() => {
-            const remaining = Store.get('totalReports') - Store.get('currentOffset');
-            if (remaining > 0 && remaining <= 25 && Store.get('hasMoreReports')) {
-                console.log(`[CMS Client] Auto-loading remaining ${remaining} reports`);
-                loadMoreReports();
-            }
-        }, 1000);
+        // Auto-loading disabled - rely on user scrolling instead
+        // setTimeout(() => {
+        //     const remaining = Store.get('totalReports') - Store.get('currentOffset');
+        //     if (remaining > 0 && remaining <= 25 && Store.get('hasMoreReports')) {
+        //         console.log(`[CMS Client] Auto-loading remaining ${remaining} reports`);
+        //         loadMoreReports();
+        //     }
+        // }, 1000);
 
-        setTimeout(() => {
-            if (Store.get('hasMoreReports') && !Store.get('isLoading')) {
-                const viewportHeight = window.innerHeight;
-                const documentHeight = document.documentElement.scrollHeight;
-
-                if (viewportHeight > documentHeight * 0.5) {
-                    console.log('[CMS Client] Viewport tall enough, loading more');
-                    loadMoreReports();
-                }
-            }
-        }, 100);
+        // Auto-loading disabled - rely on infinite scroll intersection observer
+        // setTimeout(() => {
+        //     if (Store.get('hasMoreReports') && !Store.get('isLoading')) {
+        //         const viewportHeight = window.innerHeight;
+        //         const documentHeight = document.documentElement.scrollHeight;
+        //
+        //         if (viewportHeight > documentHeight * 0.5) {
+        //             console.log('[CMS Client] Viewport tall enough, loading more');
+        //             loadMoreReports();
+        //         }
+        //     }
+        // }, 100);
     }
 
     function initializeSearch() {
