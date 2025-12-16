@@ -3720,8 +3720,16 @@
             infiniteScrollObserver = null;
         }
 
+        // Track if initial render is complete to prevent immediate triggering
+        let initialRenderComplete = false;
+
         infiniteScrollObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
+                // Skip if initial render hasn't completed yet
+                if (!initialRenderComplete) {
+                    log('Skipping intersection - initial render not complete');
+                    return;
+                }
                 if (entry.isIntersecting && Store.get('hasMoreReports') && !Store.get('isLoading')) {
                     log('Sentinel visible, loading more reports...');
                     loadMoreReports();
@@ -3729,13 +3737,22 @@
             });
         }, {
             root: null,
-            rootMargin: '500px',
+            rootMargin: '300px', // Reduced from 500px to prevent early triggering
             threshold: 0.1
         });
 
         infiniteScrollObserver.observe(sentinel);
 
-        console.log('[CMS Client] Infinite scroll initialized');
+        // Delay enabling the observer to allow initial content to render
+        // This prevents immediate triggering when sentinel is in viewport on load
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                initialRenderComplete = true;
+                log('Infinite scroll now active');
+            });
+        });
+
+        console.log('[CMS Client] Infinite scroll initialized (delayed activation)');
 
         // Auto-loading disabled - rely on user scrolling instead
         // setTimeout(() => {
