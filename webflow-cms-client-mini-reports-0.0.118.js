@@ -1094,46 +1094,59 @@
             });
         },
 
-        setupTrigger(multiReporterWrap, reportersWrap) {
-            if (!multiReporterWrap || multiReporterWrap.hasAttribute('data-modal-initialized')) return;
-
-            multiReporterWrap.setAttribute('data-modal-initialized', 'true');
+        // Mark element for delegation (no individual listeners needed)
+        setupTrigger(multiReporterWrap) {
+            if (!multiReporterWrap) return;
             multiReporterWrap.style.cursor = 'pointer';
-
-            multiReporterWrap.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const reporterListWrap = DOM.$('[reporter-list-wrap="true"]', reportersWrap);
-                this.open(reporterListWrap);
-            });
         },
 
-        setupClose(reporterListWrap) {
-            if (!reporterListWrap) return;
+        // No-op - delegation handles close events
+        setupClose() {
+            // Delegated event handler manages all modal close interactions
+        },
 
-            if (!reporterListWrap.hasAttribute('data-modal-bg-initialized')) {
-                reporterListWrap.setAttribute('data-modal-bg-initialized', 'true');
-                reporterListWrap.addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        e.preventDefault();
-                        ModalUtils.close(this);
+        // Initialize delegated event handlers (called once during app init)
+        initDelegation() {
+            if (this._delegationInitialized) return;
+            this._delegationInitialized = true;
+
+            document.addEventListener('click', (e) => {
+                // Handle multi-reporter modal trigger
+                const multiReporterWrap = e.target.closest('[multi-reporter-wrap="true"]');
+                if (multiReporterWrap) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const reportersWrap = multiReporterWrap.closest('[reporters-wrap="true"]');
+                    if (reportersWrap) {
+                        const reporterListWrap = DOM.$('[reporter-list-wrap="true"]', reportersWrap);
+                        this.open(reporterListWrap);
                     }
-                });
-            }
-
-            const modalPreWrap = DOM.$('.modal-pre-wrap', reporterListWrap);
-            if (modalPreWrap) {
-                const closeBtn = DOM.$('[modal-close-btn="true"]', modalPreWrap);
-                if (closeBtn && !closeBtn.hasAttribute('data-modal-close-initialized')) {
-                    closeBtn.setAttribute('data-modal-close-initialized', 'true');
-                    closeBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        ModalUtils.close(this.closest('[reporter-list-wrap="true"]'));
-                    });
+                    return;
                 }
-            }
-        }
+
+                // Handle modal close button
+                const closeBtn = e.target.closest('[modal-close-btn="true"]');
+                if (closeBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const reporterListWrap = closeBtn.closest('[reporter-list-wrap="true"]');
+                    this.close(reporterListWrap);
+                    return;
+                }
+
+                // Handle modal background click (close on backdrop)
+                const reporterListWrap = e.target.closest('[reporter-list-wrap="true"]');
+                if (reporterListWrap && e.target === reporterListWrap) {
+                    e.preventDefault();
+                    this.close(reporterListWrap);
+                    return;
+                }
+            });
+
+            log('ModalUtils delegation initialized');
+        },
+
+        _delegationInitialized: false
     };
 
     // ===== ACCORDION UTILITIES =====
@@ -1243,6 +1256,9 @@
         thumbnailElement.removeAttribute('data-fancybox');
         thumbnailElement.setAttribute('data-caption', reportData.name || '');
         thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
+        // Store data attributes for delegated click handler
+        thumbnailElement.setAttribute('data-gallery-id', galleryId);
+        thumbnailElement.setAttribute('data-has-gallery', hasGalleryImages ? 'true' : 'false');
 
         const thumbnailImg = DOM.$('img', thumbnailElement);
         if (thumbnailImg) {
@@ -1252,11 +1268,33 @@
             thumbnailImg.removeAttribute('data-ll-status');
         }
 
-        if (!thumbnailElement.hasAttribute('data-thumbnail-initialized')) {
-            thumbnailElement.setAttribute('data-thumbnail-initialized', 'true');
+        // No individual listener - handled by ThumbnailHandler delegation
+        thumbnailElement.style.display = '';
+    }
 
-            thumbnailElement.addEventListener('click', function(e) {
+    // ===== THUMBNAIL HANDLER (Delegated) =====
+    const ThumbnailHandler = {
+        _initialized: false,
+
+        init() {
+            if (this._initialized) return;
+            this._initialized = true;
+
+            document.addEventListener('click', (e) => {
+                const thumbnail = e.target.closest(SELECTORS.headerThumbnail);
+                if (!thumbnail) return;
+
                 e.preventDefault();
+
+                const itemElement = thumbnail.closest(SELECTORS.item);
+                if (!itemElement) return;
+
+                const reportId = itemElement.getAttribute('data-report-id');
+                const galleryId = thumbnail.getAttribute('data-gallery-id');
+                const hasGalleryImages = thumbnail.getAttribute('data-has-gallery') === 'true';
+
+                // Get report data from cache for fallback image info
+                const reportData = Store.getReportData(reportId);
 
                 const openGallery = (startIndex = 0) => {
                     if (typeof Fancybox === 'undefined') return;
@@ -1270,11 +1308,19 @@
 
                     if (galleryImages.length > 0) {
                         Fancybox.show(galleryImages, { startIndex, hideScrollbar: false });
-                    } else {
+                    } else if (reportData?.photo?.url) {
+                        // Fallback to single image from cached data
                         Fancybox.show([{
                             src: reportData.photo.url,
                             caption: reportData.name || '',
                             thumb: reportData.photo.url
+                        }], { hideScrollbar: false });
+                    } else {
+                        // Last resort: use thumbnail's own href
+                        Fancybox.show([{
+                            src: thumbnail.href,
+                            caption: thumbnail.getAttribute('data-caption') || '',
+                            thumb: thumbnail.getAttribute('data-thumb') || thumbnail.href
                         }], { hideScrollbar: false });
                     }
                 };
@@ -1286,10 +1332,10 @@
                     openGallery(0);
                 }
             });
-        }
 
-        thumbnailElement.style.display = '';
-    }
+            log('ThumbnailHandler delegation initialized');
+        }
+    };
 
     // Populate reporter byline links
     function populateReporterBylineLinks(itemElement, reporters) {
@@ -1583,8 +1629,8 @@
                 }
             }
 
-            ModalUtils.setupTrigger(multiReporterWrap, reportersWrap);
-            ModalUtils.setupClose(reporterListWrap);
+            ModalUtils.setupTrigger(multiReporterWrap);
+            ModalUtils.setupClose();
         }
 
         const supportButton = DOM.$('.support-button-2', itemElement);
@@ -3460,6 +3506,10 @@
     }
 
     function initializeInteractions() {
+        // Initialize delegated event handlers (single listeners for all items)
+        ModalUtils.initDelegation();
+        ThumbnailHandler.init();
+
         initializeTabsAndAccordion();
         initializeSearch();
         initializeScrollToTop();
@@ -3833,6 +3883,8 @@
         UrlManager,
         PageFilter,
         SkeletonManager,
+        ModalUtils,
+        ThumbnailHandler,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
