@@ -19,7 +19,6 @@
         REPORTS_LIMIT: 15, // Standard batch size for subsequent loads
         REPORTS_PER_PAGE: 10,
         DEBUG: false,
-        MINI_VIEW_GAP_REM: 0.5, // Extra gap below header for mini view mode
         VIEW_MODE_STORAGE_KEY: 'cms-view-mode' // localStorage key for persisting view mode
     };
 
@@ -509,15 +508,6 @@
 
         _applyCssVariable() {
             document.documentElement.style.setProperty('--cms-top-offset', this._value + 'px');
-
-            // Also apply padding to list container
-            const listContainer = DOM.$(SELECTORS.list);
-            if (listContainer) {
-                // Add extra padding for mini view mode
-                const isMiniView = Store.get('viewMode') === 'mini';
-                const extraPadding = isMiniView ? ` + ${CONFIG.MINI_VIEW_GAP_REM}rem` : '';
-                listContainer.style.paddingTop = `calc(${this._value}px${extraPadding})`;
-            }
         },
 
         // Get current offset value (for scroll calculations)
@@ -525,20 +515,12 @@
             return this._value;
         },
 
-        // Get mini view gap in pixels (for scroll calculations)
-        getMiniViewGapPx() {
-            if (Store.get('viewMode') !== 'mini') return 0;
-            return parseFloat(getComputedStyle(document.documentElement).fontSize) * CONFIG.MINI_VIEW_GAP_REM;
-        },
-
         // Force recalculation and reapply CSS
         refresh() {
             if (this._element) {
                 this._value = this._element.offsetHeight;
+                this._applyCssVariable();
             }
-            // Always apply CSS variable, even if not fully initialized
-            // This ensures mini view padding is applied when view mode changes
-            this._applyCssVariable();
         },
 
         // Cleanup
@@ -3618,13 +3600,12 @@
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
 
         if (useWindowScroll) {
-            // Window-level scrolling - account for fixed header offset and mini view gap
+            // Window-level scrolling - account for fixed header offset
             const itemRect = targetItem.getBoundingClientRect();
             const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const topOffset = TopOffset.get();
-            const miniViewGap = TopOffset.getMiniViewGapPx();
 
-            const targetScrollTop = itemRect.top + currentScrollTop - topOffset - miniViewGap;
+            const targetScrollTop = itemRect.top + currentScrollTop - topOffset;
 
             window.scrollTo({
                 top: targetScrollTop,
@@ -3673,9 +3654,6 @@
 
         // Update button states
         updateToggleButtonStates();
-
-        // Refresh top offset padding (mini view has extra 0.5rem)
-        TopOffset.refresh();
 
         // Get cached reports
         const cachedReports = Store.get('cachedReports');
