@@ -2872,10 +2872,13 @@
             const filters = Store.get('filters');
             if (Array.isArray(filters[filterName])) {
                 Store.setFilter(filterName, []);
+                // Just uncheck visually - don't dispatch change event
+                // The Store is already cleared, dispatching change would cause
+                // handleCheckboxChange to see unchecked state and potentially
+                // cause race conditions
                 CheckboxUtils.findAll(filterName).forEach(cb => {
                     if (CheckboxUtils.isChecked(cb)) {
                         CheckboxUtils.uncheck(cb);
-                        cb.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 });
             } else {
