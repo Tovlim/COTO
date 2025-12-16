@@ -2537,6 +2537,10 @@
     function buildFilterUrl(offset = 0, limit = CONFIG.REPORTS_LIMIT) {
         const filters = Store.get('filters');
         const pageFilter = PageFilter.get();
+
+        // Debug logging for page filter
+        console.log('[CMS Client] buildFilterUrl - pageFilter:', pageFilter, 'filters:', JSON.stringify(filters));
+
         let url = `${CONFIG.WORKER_URL}/reports?limit=${limit}&offset=${offset}`;
 
         if (filters.search) {
@@ -2577,6 +2581,7 @@
 
         url += `&_t=${Date.now()}`;
 
+        console.log('[CMS Client] buildFilterUrl - final URL:', url);
         return url;
     }
 
