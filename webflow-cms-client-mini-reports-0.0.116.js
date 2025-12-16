@@ -3737,7 +3737,7 @@
             });
         }, {
             root: null,
-            rootMargin: '300px', // Reduced from 500px to prevent early triggering
+            rootMargin: '300px',
             threshold: 0.1
         });
 
@@ -3745,12 +3745,22 @@
 
         // Delay enabling the observer to allow initial content to render
         // This prevents immediate triggering when sentinel is in viewport on load
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                initialRenderComplete = true;
-                log('Infinite scroll now active');
-            });
-        });
+        // Use setTimeout to ensure we're past the initial paint cycle
+        setTimeout(() => {
+            initialRenderComplete = true;
+            log('Infinite scroll now active');
+
+            // Manually check if sentinel is already visible (observer won't re-fire if already intersecting)
+            // This handles the case where 6 reports don't fill the viewport
+            const sentinelRect = sentinel.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const isVisible = sentinelRect.top < viewportHeight + 300; // 300px matches rootMargin
+
+            if (isVisible && Store.get('hasMoreReports') && !Store.get('isLoading')) {
+                log('Sentinel already visible after activation, loading more...');
+                loadMoreReports();
+            }
+        }, 150); // Small delay to ensure initial paint is complete
 
         console.log('[CMS Client] Infinite scroll initialized (delayed activation)');
 
