@@ -2560,18 +2560,21 @@
             }
         }
 
-        // Build array filters, merging with page filter if applicable
+        // Build array filters with separate page filter parameters
+        // Page filters use "page{Type}" (e.g., pageTopic) and are required (AND logic)
+        // User filters use "{type}" (e.g., topic) and use OR logic among themselves
         ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
             const userValues = filters[filterKey] || [];
-            let allValues = [...userValues];
 
-            // If page filter matches this filter type, prepend it (if not already included)
-            if (pageFilter && pageFilter.type === filterKey && !allValues.includes(pageFilter.slug)) {
-                allValues.unshift(pageFilter.slug);
+            // Send page filter as separate parameter (required, AND logic)
+            if (pageFilter && pageFilter.type === filterKey) {
+                const pageParamName = 'page' + filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
+                url += `&${pageParamName}=${encodeURIComponent(pageFilter.slug)}`;
             }
 
-            if (allValues.length > 0) {
-                url += `&${filterKey}=${encodeURIComponent(allValues.join(','))}`;
+            // Send user filters separately (OR logic among themselves)
+            if (userValues.length > 0) {
+                url += `&${filterKey}=${encodeURIComponent(userValues.join(','))}`;
             }
         });
 
