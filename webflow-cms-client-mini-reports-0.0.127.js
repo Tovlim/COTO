@@ -96,6 +96,7 @@
                 locality: [],
                 territory: [],
                 reporter: [],
+                perpetrator: [],
                 urgent: null
             },
 
@@ -197,6 +198,7 @@
                 locality: [],
                 territory: [],
                 reporter: [],
+                perpetrator: [],
                 urgent: null
             };
             this._notify();
@@ -698,7 +700,7 @@
     // Handles URL parameter synchronization for shareable/bookmarkable filter states
     const UrlManager = {
         // Filter keys that are arrays (comma-separated in URL)
-        _arrayFilters: ['topic', 'region', 'locality', 'territory', 'reporter'],
+        _arrayFilters: ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'],
 
         // Parse URL parameters and return filter state
         parseUrl() {
@@ -713,6 +715,7 @@
                 locality: [],
                 territory: [],
                 reporter: [],
+                perpetrator: [],
                 urgent: null
             };
 
@@ -930,7 +933,8 @@
             reporter: '/reporter/',
             region: '/region/',
             locality: '/locality/',
-            territory: '/territory/'
+            territory: '/territory/',
+            perpetrator: '/perp/'
         },
 
         // Detect page filter from current URL path
@@ -1680,7 +1684,7 @@
 
         if (perpetrator) {
             if (perpLink && perpetrator.slug) {
-                perpLink.href = `/perpetrator/${perpetrator.slug}`;
+                perpLink.href = `/perp/${perpetrator.slug}`;
                 perpLink.style.display = '';
             } else {
                 DOM.toggle(perpLink, false);
@@ -2513,7 +2517,7 @@
                 }
             }
 
-            ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
+            ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
                 if (filters[filterKey]?.length > 0) {
                     const fieldName = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
                     const values = filters[filterKey];
@@ -2572,7 +2576,7 @@
         // Build array filters with separate page filter parameters
         // Page filters use "page{Type}" (e.g., pageTopic) and are required (AND logic)
         // User filters use "{type}" (e.g., topic) and use OR logic among themselves
-        ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(filterKey => {
+        ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
             const userValues = filters[filterKey] || [];
 
             // Send page filter as separate parameter (required, AND logic)
@@ -2840,7 +2844,7 @@
         }
 
         // Clear arrays
-        ['topic', 'region', 'locality', 'territory', 'reporter'].forEach(key => {
+        ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'].forEach(key => {
             Store.setFilter(key, []);
         });
 
