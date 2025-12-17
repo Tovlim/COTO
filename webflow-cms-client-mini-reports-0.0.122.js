@@ -2484,8 +2484,9 @@
             const filters = Store.get('filters');
             let hasActiveFilters = false;
 
+            // Note: search filter is excluded from tags intentionally
+            // It has its own UI in the header search wrap
             if (filters.search) {
-                this.addTag('Search', filters.search, 'search');
                 hasActiveFilters = true;
             }
 
@@ -3849,6 +3850,31 @@
                 applyFilters();
             }
         });
+
+        // Initialize search toggle
+        const searchToggle = DOM.$('[filter-reports="search-toggle"]');
+        const searchWrap = DOM.$('.header-search-wrap');
+        const filterReports = DOM.$('[filter-reports="filter-reports"]');
+
+        if (searchToggle && searchWrap) {
+            searchToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                const isHidden = searchWrap.classList.contains('hide--search');
+
+                if (isHidden) {
+                    // Show search
+                    searchWrap.classList.remove('hide--search');
+                    if (filterReports) filterReports.classList.add('is--open');
+                    // Focus the search input when opening
+                    searchInput.focus();
+                } else {
+                    // Hide search
+                    searchWrap.classList.add('hide--search');
+                    if (filterReports) filterReports.classList.remove('is--open');
+                }
+            });
+            console.log('[CMS Client] Search toggle initialized');
+        }
 
         console.log('[CMS Client] Search initialized');
     }
