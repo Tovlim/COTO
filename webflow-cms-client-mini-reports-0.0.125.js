@@ -3868,6 +3868,13 @@
                     // Hide search
                     searchWrap.classList.add('hide--search');
                     searchToggle.classList.remove('is--open');
+                    // Clear search input and filter when closing
+                    if (searchInput.value.trim()) {
+                        searchInput.value = '';
+                        clearTimeout(debounceTimer);
+                        Store.setFilter('search', '');
+                        applyFilters();
+                    }
                 }
             });
             console.log('[CMS Client] Search toggle initialized');
