@@ -835,6 +835,16 @@
             const searchInput = DOM.$(SELECTORS.searchInput);
             if (searchInput && filters.search) {
                 searchInput.value = filters.search;
+
+                // Open search wrap if there's a search filter from URL
+                const searchWrap = DOM.$('.header-search-wrap');
+                const searchToggle = DOM.$('[filter-reports="search-toggle"]');
+                if (searchWrap) {
+                    searchWrap.classList.remove('hide--search');
+                }
+                if (searchToggle) {
+                    searchToggle.classList.add('is--open');
+                }
             }
 
             // Sync date inputs
