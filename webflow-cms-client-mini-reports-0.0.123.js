@@ -2482,26 +2482,24 @@
             this.clearAllTags();
 
             const filters = Store.get('filters');
-            let hasActiveFilters = false;
+            // Track non-search filters separately (tags section only shows for these)
+            let hasNonSearchFilters = false;
 
             // Note: search filter is excluded from tags intentionally
-            // It has its own UI in the header search wrap
-            if (filters.search) {
-                hasActiveFilters = true;
-            }
+            // It has its own UI in the header search wrap and doesn't show in tags section
 
             // Single date filter takes precedence over range
             if (filters.date) {
                 this.addTag('Date', DateUtils.formatForTag(filters.date), 'date');
-                hasActiveFilters = true;
+                hasNonSearchFilters = true;
             } else {
                 if (filters.dateFrom) {
                     this.addTag('From', DateUtils.formatForTag(filters.dateFrom), 'dateFrom');
-                    hasActiveFilters = true;
+                    hasNonSearchFilters = true;
                 }
                 if (filters.dateUntil) {
                     this.addTag('Until', DateUtils.formatForTag(filters.dateUntil), 'dateUntil');
-                    hasActiveFilters = true;
+                    hasNonSearchFilters = true;
                 }
             }
 
@@ -2515,19 +2513,19 @@
                     } else {
                         this.addTag(fieldName, values.join(', '), filterKey, values);
                     }
-                    hasActiveFilters = true;
+                    hasNonSearchFilters = true;
                 }
             });
 
             if (filters.urgent !== null) {
                 this.addTag('Urgent', filters.urgent ? 'Yes' : 'No', 'urgent');
-                hasActiveFilters = true;
+                hasNonSearchFilters = true;
             }
 
-            // Toggle tags-section visibility based on active filters
+            // Toggle tags-section visibility - only show for non-search filters
             const tagsSection = DOM.$('[cms-filter-element="tags-section"]');
             if (tagsSection) {
-                tagsSection.style.display = hasActiveFilters ? 'flex' : 'none';
+                tagsSection.style.display = hasNonSearchFilters ? 'flex' : 'none';
             }
         }
     };
@@ -3854,7 +3852,6 @@
         // Initialize search toggle
         const searchToggle = DOM.$('[filter-reports="search-toggle"]');
         const searchWrap = DOM.$('.header-search-wrap');
-        const filterReports = DOM.$('[filter-reports="filter-reports"]');
 
         if (searchToggle && searchWrap) {
             searchToggle.addEventListener('click', function(e) {
@@ -3864,13 +3861,13 @@
                 if (isHidden) {
                     // Show search
                     searchWrap.classList.remove('hide--search');
-                    if (filterReports) filterReports.classList.add('is--open');
+                    searchToggle.classList.add('is--open');
                     // Focus the search input when opening
                     searchInput.focus();
                 } else {
                     // Hide search
                     searchWrap.classList.add('hide--search');
-                    if (filterReports) filterReports.classList.remove('is--open');
+                    searchToggle.classList.remove('is--open');
                 }
             });
             console.log('[CMS Client] Search toggle initialized');
