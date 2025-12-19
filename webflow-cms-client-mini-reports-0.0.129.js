@@ -2025,24 +2025,79 @@
     }
 
     // Lazy load content for a report item
+    // Returns a promise that resolves when content is loaded (or immediately if already loaded)
     function lazyLoadReportContent(itemElement) {
-        if (itemElement.getAttribute('data-content-loaded') === 'true') return;
+        return new Promise((resolve) => {
+            if (itemElement.getAttribute('data-content-loaded') === 'true') {
+                resolve(true);
+                return;
+            }
 
-        const reportId = itemElement.getAttribute('data-report-id');
-        if (!reportId) {
-            console.warn('[CMS Client] No report ID found for lazy loading');
-            return;
+            const reportId = itemElement.getAttribute('data-report-id');
+            if (!reportId) {
+                console.warn('[CMS Client] No report ID found for lazy loading');
+                resolve(false);
+                return;
+            }
+
+            const reportData = Store.getReportData(reportId);
+            if (!reportData) {
+                console.warn('[CMS Client] No cached report data found for ID:', reportId);
+                resolve(false);
+                return;
+            }
+
+            populateContent(itemElement, reportData, true);
+            itemElement.setAttribute('data-content-loaded', 'true');
+            log('Lazy loaded content for report:', reportData.name);
+            resolve(true);
+        });
+    }
+
+    // Show loading tab content and hide others
+    function showLoadingState(itemElement) {
+        // Hide all tab contents
+        DOM.$$('[data-tab-content]', itemElement).forEach(content => {
+            content.style.display = 'none';
+        });
+
+        // Show loading content
+        const loadingContent = DOM.$('[data-tab-content="loading"]', itemElement);
+        if (loadingContent) {
+            loadingContent.style.display = 'flex';
         }
 
-        const reportData = Store.getReportData(reportId);
-        if (!reportData) {
-            console.warn('[CMS Client] No cached report data found for ID:', reportId);
-            return;
+        // Remove current state from all tabs
+        DOM.$$('[data-tab]', itemElement).forEach(tab => {
+            if (tab.getAttribute('data-tab') !== 'wrap') {
+                tab.classList.remove('current');
+            }
+        });
+    }
+
+    // Switch from loading state to actual content tab
+    function switchFromLoadingToTab(itemElement, tabId = '1') {
+        // Hide loading content
+        const loadingContent = DOM.$('[data-tab-content="loading"]', itemElement);
+        if (loadingContent) {
+            loadingContent.style.display = 'none';
         }
 
-        populateContent(itemElement, reportData, true);
-        itemElement.setAttribute('data-content-loaded', 'true');
-        log('Lazy loaded content for report:', reportData.name);
+        // Show the target tab content
+        DOM.$$('[data-tab-content]', itemElement).forEach(content => {
+            const contentTabId = content.getAttribute('data-tab-content');
+            content.style.display = contentTabId === tabId ? 'block' : 'none';
+        });
+
+        // Update tab button states
+        DOM.$$('[data-tab]', itemElement).forEach(tab => {
+            const btnTabId = tab.getAttribute('data-tab');
+            if (btnTabId === tabId) {
+                tab.classList.add('current');
+            } else if (btnTabId !== 'wrap') {
+                tab.classList.remove('current');
+            }
+        });
     }
 
     // Main function to populate a report item
@@ -3235,7 +3290,7 @@
         interactionsInitialized = true;
 
         // Tab switching - event delegation
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', async function(e) {
             const tab = e.target.closest('[data-tab]');
             if (!tab) return;
 
@@ -3250,6 +3305,7 @@
             const isFullType = itemType === 'full';
             const target = DOM.$('[open-target]', container);
             const arrow = DOM.$('[dropdown-icon]', container);
+            const needsLazyLoad = container.getAttribute('data-content-loaded') !== 'true';
 
             if (isFullType) {
                 const isCurrentTab = tab.classList.contains('current');
@@ -3264,16 +3320,27 @@
                 DOM.$$('[data-tab]', container).forEach(t => t.classList.remove('current'));
                 tab.classList.add('current');
 
-                DOM.$$('[data-tab-content]', container).forEach(content => {
-                    content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
-                });
-
                 if (isClosed && target) {
-                    if (container.getAttribute('data-content-loaded') !== 'true') {
-                        lazyLoadReportContent(container);
+                    if (needsLazyLoad) {
+                        // Show loading state first, then open accordion
+                        showLoadingState(container);
+                        AccordionUtils.open(target, arrow, container);
+                        // Load content, then switch to requested tab
+                        await lazyLoadReportContent(container);
+                        switchFromLoadingToTab(container, tabId);
+                        AccordionUtils.adjustHeight(target);
+                    } else {
+                        // Content already loaded, show tab directly
+                        DOM.$$('[data-tab-content]', container).forEach(content => {
+                            content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
+                        });
+                        AccordionUtils.open(target, arrow, container);
                     }
-                    AccordionUtils.open(target, arrow, container);
                 } else if (!AccordionUtils.isClosed(target)) {
+                    // Already open, just switch tabs
+                    DOM.$$('[data-tab-content]', container).forEach(content => {
+                        content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
+                    });
                     AccordionUtils.adjustHeight(target);
                 }
                 return;
@@ -3290,17 +3357,35 @@
             DOM.$$('[data-tab]', container).forEach(t => t.classList.remove('current'));
             tab.classList.add('current');
 
-            DOM.$$('[data-tab-content]', container).forEach(content => {
-                content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
-            });
-
-            if (!AccordionUtils.isClosed(target)) {
+            // For mini type, if accordion is closed and we're clicking a tab, we need to handle loading
+            const isClosed = AccordionUtils.isClosed(target);
+            if (isClosed && target) {
+                if (needsLazyLoad) {
+                    // Show loading state first, then open accordion
+                    showLoadingState(container);
+                    AccordionUtils.open(target, arrow, container);
+                    // Load content, then switch to requested tab
+                    await lazyLoadReportContent(container);
+                    switchFromLoadingToTab(container, tabId);
+                    AccordionUtils.adjustHeight(target);
+                } else {
+                    // Content already loaded, show tab directly
+                    DOM.$$('[data-tab-content]', container).forEach(content => {
+                        content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
+                    });
+                    AccordionUtils.open(target, arrow, container);
+                }
+            } else if (!AccordionUtils.isClosed(target)) {
+                // Already open, just switch tabs
+                DOM.$$('[data-tab-content]', container).forEach(content => {
+                    content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
+                });
                 AccordionUtils.adjustHeight(target);
             }
         });
 
         // Accordion open/close - event delegation
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', async function(e) {
             const trigger = e.target.closest('[open-trigger]');
             if (!trigger) return;
 
@@ -3319,10 +3404,21 @@
             if (itemType === 'full') return;
 
             const isClosed = AccordionUtils.isClosed(target);
+            const needsLazyLoad = container.getAttribute('data-content-loaded') !== 'true';
 
             if (isClosed) {
-                lazyLoadReportContent(container);
-                AccordionUtils.open(target, arrow, container);
+                if (needsLazyLoad) {
+                    // Show loading state first, then open accordion
+                    showLoadingState(container);
+                    AccordionUtils.open(target, arrow, container);
+                    // Load content, then switch to tab 1 (default)
+                    await lazyLoadReportContent(container);
+                    switchFromLoadingToTab(container, '1');
+                    AccordionUtils.adjustHeight(target);
+                } else {
+                    // Content already loaded, just open
+                    AccordionUtils.open(target, arrow, container);
+                }
             } else {
                 AccordionUtils.close(target, arrow, container);
             }
