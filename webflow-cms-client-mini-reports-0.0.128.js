@@ -3047,6 +3047,13 @@
                     if (TemplateManager.templates[savedViewMode]) {
                         Store.setState({ viewMode: savedViewMode }, true);
                         console.log('[CMS Client] Restored view mode from localStorage:', savedViewMode);
+
+                        // Apply the correct list class immediately based on restored view mode
+                        if (savedViewMode === 'mini') {
+                            listContainer.classList.add('is-mini-reports');
+                        } else {
+                            listContainer.classList.remove('is-mini-reports');
+                        }
                     }
                 }
             } catch (e) {
@@ -3561,10 +3568,14 @@
         // Set initial active state
         updateToggleButtonStates();
 
-        // Set initial margin class based on default view mode
+        // Set initial margin class based on current view mode
         const listContainer = DOM.$(SELECTORS.list);
-        if (listContainer && Store.get('viewMode') === 'mini') {
-            listContainer.classList.add('is-mini-reports');
+        if (listContainer) {
+            if (Store.get('viewMode') === 'mini') {
+                listContainer.classList.add('is-mini-reports');
+            } else {
+                listContainer.classList.remove('is-mini-reports');
+            }
         }
 
         // Event delegation for toggle clicks
