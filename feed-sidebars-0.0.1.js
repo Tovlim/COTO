@@ -392,6 +392,9 @@
   };
 
   const closeNavbar = () => {
+    // Only operate on mobile/tablet (991px and below)
+    if (window.innerWidth > 991) return;
+
     const navbar = navbarCache.getNavbar();
     if (!navbar || !navbar.classList.contains(CONFIG.NAVBAR_OPEN_CLASS)) return;
 
@@ -408,6 +411,9 @@
   };
 
   const openNavbar = () => {
+    // Only operate on mobile/tablet (991px and below)
+    if (window.innerWidth > 991) return;
+
     const navbar = navbarCache.getNavbar();
     if (!navbar) return;
 
@@ -429,6 +435,9 @@
   };
 
   const toggleNavbar = (show = null) => {
+    // Only operate on mobile/tablet (991px and below)
+    if (window.innerWidth > 991) return;
+
     const navbar = navbarCache.getNavbar();
     if (!navbar) return;
 
@@ -476,58 +485,6 @@
     });
   };
 
-  // ====================================================================
-  // BACK TO TOP BUTTON
-  // ====================================================================
-  function setupBackToTopButton() {
-    const button = $id('jump-to-top');
-    const scrollContainer = $id('scroll-wrap');
-
-    if (!button || !scrollContainer) return;
-
-    button.style.opacity = '0';
-    button.style.display = 'flex';
-    button.style.pointerEvents = 'none';
-
-    const scrollThreshold = 100;
-    let isVisible = false;
-
-    const updateButtonVisibility = () => {
-      const scrollTop = scrollContainer.scrollTop;
-      const shouldShow = scrollTop > scrollThreshold;
-
-      if (shouldShow && !isVisible) {
-        isVisible = true;
-        button.style.display = 'flex';
-        button.style.pointerEvents = 'auto';
-        const opacity = Math.min(1, (scrollTop - scrollThreshold) / 100);
-        button.style.opacity = opacity.toString();
-      } else if (!shouldShow && isVisible) {
-        isVisible = false;
-        button.style.opacity = '0';
-        button.style.pointerEvents = 'none';
-      } else if (shouldShow && isVisible) {
-        const opacity = Math.min(1, (scrollTop - scrollThreshold) / 100);
-        button.style.opacity = opacity.toString();
-      }
-    };
-
-    const scrollToTop = () => {
-      scrollContainer.scrollTo({
-        top: 0,
-        behavior: 'auto'
-      });
-    };
-
-    eventManager.add(scrollContainer, 'scroll', updateButtonVisibility);
-    eventManager.add(button, 'click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      scrollToTop();
-    });
-
-    updateButtonVisibility();
-  }
 
   // ====================================================================
   // SETUP CONTROLS
@@ -603,8 +560,6 @@
       rightClose.dataset.setupComplete = 'true';
     }
 
-    // Setup back to top button
-    setupBackToTopButton();
   }
 
   // ====================================================================
@@ -643,11 +598,13 @@
           rightSidebar.style.marginRight = `-${width + 1}px`;
         }
 
-        // Navbar initial margin
-        const navbar = navbarCache.getNavbar();
-        if (navbar && !navbar.classList.contains(CONFIG.NAVBAR_OPEN_CLASS)) {
-          const width = navbarCache.getWidth();
-          navbar.style.marginLeft = `-${width + 1}px`;
+        // Navbar initial margin (only on 991px and below)
+        if (window.innerWidth <= 991) {
+          const navbar = navbarCache.getNavbar();
+          if (navbar && !navbar.classList.contains(CONFIG.NAVBAR_OPEN_CLASS)) {
+            const width = navbarCache.getWidth();
+            navbar.style.marginLeft = `-${width + 1}px`;
+          }
         }
       }
     };
