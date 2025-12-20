@@ -692,9 +692,10 @@
   // ====================================================================
   // AUTO-INITIALIZATION
   // ====================================================================
-  // Listen for site search sidebar opening to close the Right sidebar
+  // Listen for site search sidebar opening to close other sidebars
   document.addEventListener('siteSearchSidebarOpened', () => {
     closeRightSidebar();
+    closeNavbar();
   });
 
   if (document.readyState === 'loading') {
