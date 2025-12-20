@@ -388,12 +388,18 @@
     invalidate() {
       this.element = null;
       this.width = null;
+    },
+
+    // Check if navbar should work on all breakpoints
+    isAllBreakpoints() {
+      const navbar = this.getNavbar();
+      return navbar?.getAttribute('data-wf--vertical-navbar--variant') === 'all-breakpoints';
     }
   };
 
   const closeNavbar = () => {
-    // Only operate on mobile/tablet (991px and below)
-    if (window.innerWidth > 991) return;
+    // Only operate on mobile/tablet (991px and below) unless all-breakpoints variant
+    if (window.innerWidth > 991 && !navbarCache.isAllBreakpoints()) return;
 
     const navbar = navbarCache.getNavbar();
     if (!navbar || !navbar.classList.contains(CONFIG.NAVBAR_OPEN_CLASS)) return;
@@ -411,8 +417,8 @@
   };
 
   const openNavbar = () => {
-    // Only operate on mobile/tablet (991px and below)
-    if (window.innerWidth > 991) return;
+    // Only operate on mobile/tablet (991px and below) unless all-breakpoints variant
+    if (window.innerWidth > 991 && !navbarCache.isAllBreakpoints()) return;
 
     const navbar = navbarCache.getNavbar();
     if (!navbar) return;
@@ -435,8 +441,8 @@
   };
 
   const toggleNavbar = (show = null) => {
-    // Only operate on mobile/tablet (991px and below)
-    if (window.innerWidth > 991) return;
+    // Only operate on mobile/tablet (991px and below) unless all-breakpoints variant
+    if (window.innerWidth > 991 && !navbarCache.isAllBreakpoints()) return;
 
     const navbar = navbarCache.getNavbar();
     if (!navbar) return;
@@ -598,8 +604,8 @@
           rightSidebar.style.marginRight = `-${width + 1}px`;
         }
 
-        // Navbar initial margin (only on 991px and below)
-        if (window.innerWidth <= 991) {
+        // Navbar initial margin (only on 991px and below, or all-breakpoints variant)
+        if (window.innerWidth <= 991 || navbarCache.isAllBreakpoints()) {
           const navbar = navbarCache.getNavbar();
           if (navbar && !navbar.classList.contains(CONFIG.NAVBAR_OPEN_CLASS)) {
             const width = navbarCache.getWidth();
