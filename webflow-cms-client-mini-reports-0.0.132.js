@@ -3674,8 +3674,9 @@
 
         const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
-        // Extra padding for visual breathing room (0.5rem = 8px)
-        const scrollPadding = 8;
+        // Extra padding for mini reports only (0.5rem = 8px), no padding for full reports
+        const isMiniMode = Store.get('viewMode') === 'mini';
+        const scrollPadding = isMiniMode ? 8 : 0;
 
         if (useWindowScroll) {
             // Window-level scrolling - account for fixed header offset
