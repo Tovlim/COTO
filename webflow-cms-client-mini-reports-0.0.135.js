@@ -2399,7 +2399,7 @@
                 .forEach(tag => tag.remove());
         },
 
-        addTag(field, value, filterKey, individualValues = null) {
+        addTag(field, value, filterKey, individualValues = null, isMapFilter = false) {
             if (!this.tagWrap || !this.tagTemplate) return;
 
             const tag = this.tagTemplate.cloneNode(true);
@@ -2417,6 +2417,12 @@
 
             const valueElement = DOM.$(SELECTORS.tagValue, tag);
             if (valueElement) valueElement.textContent = value;
+
+            // Show map icon if this is a map-selected filter
+            if (isMapFilter) {
+                const mapTagIcon = DOM.$('[cms-filter-element="map-tag"]', tag);
+                if (mapTagIcon) mapTagIcon.style.display = 'block';
+            }
 
             this.tagWrap.appendChild(tag);
         },
@@ -2501,6 +2507,9 @@
             // Track non-search filters separately (tags section only shows for these)
             let hasNonSearchFilters = false;
 
+            // Get current map selection to identify map-originated filters
+            const mapSelection = window.MapboxCore?.getCurrentSelection?.() || null;
+
             // Note: search filter is excluded from tags intentionally
             // It has its own UI in the header search wrap and doesn't show in tags section
 
@@ -2519,15 +2528,20 @@
                 }
             }
 
-            ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
+            ['topic', 'region', 'locality', 'settlement', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
                 if (filters[filterKey]?.length > 0) {
                     const fieldName = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
                     const values = filters[filterKey];
 
+                    // Check if this filter value matches the current map selection
+                    const isMapFilter = mapSelection &&
+                        mapSelection.filterKey === filterKey &&
+                        values.includes(mapSelection.filterValue);
+
                     if (values.length === 1) {
-                        this.addTag(fieldName, values[0], filterKey);
+                        this.addTag(fieldName, values[0], filterKey, null, isMapFilter);
                     } else {
-                        this.addTag(fieldName, values.join(', '), filterKey, values);
+                        this.addTag(fieldName, values.join(', '), filterKey, values, isMapFilter);
                     }
                     hasNonSearchFilters = true;
                 }
