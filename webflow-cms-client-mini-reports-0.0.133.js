@@ -94,6 +94,7 @@
                 topic: [],
                 region: [],
                 locality: [],
+                settlement: [],
                 territory: [],
                 reporter: [],
                 perpetrator: [],
@@ -700,7 +701,7 @@
     // Handles URL parameter synchronization for shareable/bookmarkable filter states
     const UrlManager = {
         // Filter keys that are arrays (comma-separated in URL)
-        _arrayFilters: ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'],
+        _arrayFilters: ['topic', 'region', 'locality', 'settlement', 'territory', 'reporter', 'perpetrator'],
 
         // Parse URL parameters and return filter state
         parseUrl() {
@@ -713,6 +714,7 @@
                 topic: [],
                 region: [],
                 locality: [],
+                settlement: [],
                 territory: [],
                 reporter: [],
                 perpetrator: [],
@@ -2576,7 +2578,7 @@
         // Build array filters with separate page filter parameters
         // Page filters use "page{Type}" (e.g., pageTopic) and are required (AND logic)
         // User filters use "{type}" (e.g., topic) and use OR logic among themselves
-        ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
+        ['topic', 'region', 'locality', 'settlement', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
             const userValues = filters[filterKey] || [];
 
             // Send page filter as separate parameter (required, AND logic)
@@ -2844,7 +2846,7 @@
         }
 
         // Clear arrays
-        ['topic', 'region', 'locality', 'territory', 'reporter', 'perpetrator'].forEach(key => {
+        ['topic', 'region', 'locality', 'settlement', 'territory', 'reporter', 'perpetrator'].forEach(key => {
             Store.setFilter(key, []);
         });
 
