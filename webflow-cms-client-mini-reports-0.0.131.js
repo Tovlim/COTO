@@ -3674,6 +3674,8 @@
 
         const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
+        // Extra padding for visual breathing room (0.5rem = 8px)
+        const scrollPadding = 8;
 
         if (useWindowScroll) {
             // Window-level scrolling - account for fixed header offset
@@ -3681,7 +3683,7 @@
             const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const topOffset = TopOffset.get();
 
-            const targetScrollTop = itemRect.top + currentScrollTop - topOffset;
+            const targetScrollTop = itemRect.top + currentScrollTop - topOffset - scrollPadding;
 
             window.scrollTo({
                 top: targetScrollTop,
@@ -3692,7 +3694,7 @@
             const containerRect = scrollWrap.getBoundingClientRect();
             const itemRect = targetItem.getBoundingClientRect();
             const currentScrollTop = scrollWrap.scrollTop;
-            const offsetFromContainer = itemRect.top - containerRect.top + currentScrollTop;
+            const offsetFromContainer = itemRect.top - containerRect.top + currentScrollTop - scrollPadding;
 
             scrollWrap.scrollTo({
                 top: offsetFromContainer,
