@@ -1,10 +1,14 @@
 /**
- * SITE-WIDE SEARCH SCRIPT v3.0.0
+ * SITE-WIDE SEARCH SCRIPT v3.1.0
  *
  * High-performance search across all CMS collections.
  * Searches: Reporters, Perpetrators, Topics, Regions, Localities, Settlements
  *
  * Features: API integration, filtering, sorting, results display.
+ *
+ * Supports two modes:
+ *   - 'site': Default site-wide search, navigates to item page on click
+ *   - 'map': Map search, zooms to location and applies CMS filter on click
  *
  * Simplified to work exclusively with Webflow-created HTML structure
  */
@@ -32,7 +36,24 @@ const SITE_SEARCH_CONFIG = {
     'reporter': 'reporter',
     'perpetrator': 'perpetrator',
     'topic': 'topic'
-  }
+  },
+  // Mode-specific configuration
+  modes: {
+    site: {
+      placeholder: 'Search',
+      showSortBy: true,
+      showFilterByType: true,
+      locationTypesOnly: false
+    },
+    map: {
+      placeholder: 'Search Map',
+      showSortBy: false,
+      showFilterByType: false,
+      locationTypesOnly: true
+    }
+  },
+  // Location types for map mode filtering
+  locationTypes: ['locality', 'settlement', 'region', 'territory']
 };
 
 // ========================
@@ -112,6 +133,9 @@ class SiteSearch {
       selectedIndex: -1     // Currently selected result index for keyboard nav
     };
 
+    // Mode state: 'site' (default) or 'map'
+    this.mode = 'site';
+
     // API state
     this.apiState = {
       currentRequest: null,
@@ -142,6 +166,7 @@ class SiteSearch {
       // Sidebar elements
       sidebar: document.querySelector('[site-search="sidebar"]'),
       openSearch: document.querySelector('[site-search="open-search"]'),
+      openMapSearch: document.querySelector('[map-search="open-search"]'),
       sidebarClose: document.querySelector('[site-search="sidebar-close"]')
     };
 
@@ -155,6 +180,7 @@ class SiteSearch {
       resultTemplate: !!this.elements.resultTemplate,
       sidebar: !!this.elements.sidebar,
       openSearch: !!this.elements.openSearch,
+      openMapSearch: !!this.elements.openMapSearch,
       sidebarClose: !!this.elements.sidebarClose
     });
 
@@ -237,11 +263,22 @@ class SiteSearch {
       });
     }
 
-    // Open search sidebar
+    // Open search sidebar (site mode)
     if (this.elements.openSearch && this.elements.sidebar) {
       this.elements.openSearch.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('[Site Search] Opening sidebar');
+        console.log('[Site Search] Opening sidebar in site mode');
+        this.setMode('site');
+        this.openSidebar();
+      });
+    }
+
+    // Open search sidebar (map mode)
+    if (this.elements.openMapSearch && this.elements.sidebar) {
+      this.elements.openMapSearch.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('[Site Search] Opening sidebar in map mode');
+        this.setMode('map');
         this.openSidebar();
       });
     }
@@ -394,7 +431,12 @@ class SiteSearch {
     // Start with all results
     let results = [...this.data.allResults];
 
-    // Apply filter
+    // In map mode, filter to location types only
+    if (this.mode === 'map') {
+      results = results.filter(item => SITE_SEARCH_CONFIG.locationTypes.includes(item.type));
+    }
+
+    // Apply user-selected filter (only in site mode since filter dropdown is hidden in map mode)
     if (this.data.currentFilter) {
       const filterMap = {
         'Reports': ['report'],
@@ -638,18 +680,143 @@ class SiteSearch {
   }
 
   navigateToResult(item) {
-    console.log('[Site Search] Navigating to:', item);
+    console.log('[Site Search] Navigating to:', item, 'Mode:', this.mode);
 
     // Save to recent searches
     this.saveRecentSearch(this.data.searchTerm, item);
 
-    // Navigate to the item's page
+    // Handle based on current mode
+    if (this.mode === 'map') {
+      this.handleMapResultClick(item);
+      // Don't close sidebar in map mode - user may want to search for more locations
+      return;
+    }
+
+    // Site mode: Navigate to the item's page
     const urlPrefix = SITE_SEARCH_CONFIG.urlPrefixes[item.type] || item.type;
     const slug = item.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const targetUrl = `/${urlPrefix}/${slug}`;
 
     console.log('[Site Search] Navigating to URL:', targetUrl);
     window.location.href = targetUrl;
+  }
+
+  /**
+   * Handle result click in map mode
+   * Zooms to location on map and applies CMS filter
+   * @param {Object} item - The search result item
+   */
+  handleMapResultClick(item) {
+    console.log('[Site Search] Map mode - handling result click:', item);
+
+    // Check if MapboxCore is available
+    if (!window.MapboxCore) {
+      console.warn('[Site Search] MapboxCore not available, falling back to navigation');
+      // Fall back to navigation if map is not available
+      const urlPrefix = SITE_SEARCH_CONFIG.urlPrefixes[item.type] || item.type;
+      const slug = item.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      window.location.href = `/${urlPrefix}/${slug}`;
+      return;
+    }
+
+    // Get coordinates for the location
+    const coords = this.getLocationCoordinates(item);
+
+    if (coords) {
+      // Zoom to location on map
+      console.log('[Site Search] Flying to coordinates:', coords);
+      window.MapboxCore.flyTo({
+        center: coords,
+        zoom: this.getZoomLevelForType(item.type),
+        duration: 1000
+      });
+    }
+
+    // Apply CMS filter using MapboxCore's filter integration
+    // This will filter the reports list to show only reports from this location
+    window.MapboxCore.filterByMarker(item.type, item.name, item.slug);
+
+    console.log('[Site Search] Applied map filter for:', item.type, item.name);
+  }
+
+  /**
+   * Get coordinates for a location item
+   * Attempts to get from MapboxCore's cached data
+   * @param {Object} item - The search result item
+   * @returns {Array|null} - [lng, lat] or null if not found
+   */
+  getLocationCoordinates(item) {
+    if (!window.MapboxCore || !window.MapboxCore.state) {
+      return null;
+    }
+
+    const state = window.MapboxCore.state;
+    const itemName = item.name.toLowerCase();
+
+    // Search through MapboxCore's cached location data based on type
+    if (item.type === 'locality' && state.locationData?.features) {
+      const feature = state.locationData.features.find(f =>
+        f.properties.name?.toLowerCase() === itemName
+      );
+      if (feature?.geometry?.coordinates) {
+        return feature.geometry.coordinates;
+      }
+    }
+
+    if (item.type === 'settlement' && state.settlementData?.features) {
+      const feature = state.settlementData.features.find(f =>
+        f.properties.name?.toLowerCase() === itemName
+      );
+      if (feature?.geometry?.coordinates) {
+        return feature.geometry.coordinates;
+      }
+    }
+
+    if (item.type === 'region') {
+      const feature = state.allRegionFeatures.find(f =>
+        f.properties.name?.toLowerCase() === itemName
+      );
+      if (feature?.geometry?.coordinates) {
+        return feature.geometry.coordinates;
+      }
+    }
+
+    if (item.type === 'territory') {
+      const feature = state.territoryFeatures.find(f =>
+        f.properties.name?.toLowerCase() === itemName
+      );
+      if (feature?.geometry?.coordinates) {
+        return feature.geometry.coordinates;
+      }
+    }
+
+    // Also check district features for regions
+    if (item.type === 'region') {
+      const feature = state.allDistrictFeatures.find(f =>
+        f.properties.name?.toLowerCase() === itemName
+      );
+      if (feature?.geometry?.coordinates) {
+        return feature.geometry.coordinates;
+      }
+    }
+
+    console.warn('[Site Search] Could not find coordinates for:', item.name, item.type);
+    return null;
+  }
+
+  /**
+   * Get appropriate zoom level based on location type
+   * @param {string} type - Location type
+   * @returns {number} - Zoom level
+   */
+  getZoomLevelForType(type) {
+    const zoomLevels = {
+      'territory': 8,
+      'region': 10,
+      'locality': 13,
+      'settlement': 13
+    };
+    return zoomLevels[type] || 12;
   }
 
   handleClear() {
@@ -726,6 +893,46 @@ class SiteSearch {
 
     // Clear search when closing sidebar (optional - remove if not desired)
     this.handleClear();
+  }
+
+  /**
+   * Set the search mode and apply mode-specific UI changes
+   * @param {string} mode - 'site' or 'map'
+   */
+  setMode(mode) {
+    if (mode !== 'site' && mode !== 'map') {
+      console.warn('[Site Search] Invalid mode:', mode);
+      return;
+    }
+
+    this.mode = mode;
+    const modeConfig = SITE_SEARCH_CONFIG.modes[mode];
+
+    console.log('[Site Search] Mode set to:', mode, modeConfig);
+
+    // Update placeholder
+    if (this.elements.input) {
+      this.elements.input.placeholder = modeConfig.placeholder;
+    }
+
+    // Show/hide sort dropdown
+    if (this.elements.sortDropdown) {
+      const sortContainer = this.elements.sortDropdown.closest('[site-search="sort-by-wrap"]') || this.elements.sortDropdown;
+      sortContainer.style.display = modeConfig.showSortBy ? '' : 'none';
+    }
+
+    // Show/hide filter dropdown
+    if (this.elements.filterDropdown) {
+      const filterContainer = this.elements.filterDropdown.closest('[site-search="filter-by-type-wrap"]') || this.elements.filterDropdown;
+      filterContainer.style.display = modeConfig.showFilterByType ? '' : 'none';
+    }
+
+    // Clear existing results when switching modes
+    this.clearResults();
+    if (this.elements.input) {
+      this.elements.input.value = '';
+      this.data.searchTerm = '';
+    }
   }
 
   handleResize() {
