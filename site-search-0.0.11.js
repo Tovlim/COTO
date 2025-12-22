@@ -48,9 +48,14 @@ const SITE_SEARCH_CONFIG = {
     map: {
       placeholder: 'Search Map',
       showSortBy: false,
-      showFilterByType: false,
+      showFilterByType: true,  // Show dropdown but with location types only
       locationTypesOnly: true
     }
+  },
+  // Filter options for each mode
+  filterOptions: {
+    site: ['', 'Reports', 'Localities', 'Regions', 'Settlements', 'Reporters', 'Perpetrators', 'Topics'],
+    map: ['', 'Localities', 'Regions', 'Settlements']
   },
   // Location types for map mode filtering
   locationTypes: ['locality', 'settlement', 'region', 'territory']
@@ -921,10 +926,13 @@ class SiteSearch {
       sortContainer.style.display = modeConfig.showSortBy ? '' : 'none';
     }
 
-    // Show/hide filter dropdown
+    // Show/hide filter dropdown and update options
     if (this.elements.filterDropdown) {
       const filterContainer = this.elements.filterDropdown.closest('[site-search="filter-by-type-wrap"]') || this.elements.filterDropdown;
       filterContainer.style.display = modeConfig.showFilterByType ? '' : 'none';
+
+      // Update filter dropdown options based on mode
+      this.updateFilterDropdownOptions(mode);
     }
 
     // Clear existing results when switching modes
@@ -932,6 +940,42 @@ class SiteSearch {
     if (this.elements.input) {
       this.elements.input.value = '';
       this.data.searchTerm = '';
+    }
+  }
+
+  /**
+   * Update filter dropdown options based on current mode
+   * @param {string} mode - 'site' or 'map'
+   */
+  updateFilterDropdownOptions(mode) {
+    const dropdown = this.elements.filterDropdown;
+    if (!dropdown) return;
+
+    const allowedOptions = SITE_SEARCH_CONFIG.filterOptions[mode];
+
+    // Store original options on first call (for restoring later)
+    if (!this._originalFilterOptions) {
+      this._originalFilterOptions = Array.from(dropdown.options).map(opt => ({
+        value: opt.value,
+        text: opt.text
+      }));
+    }
+
+    // Show/hide options based on mode
+    Array.from(dropdown.options).forEach(option => {
+      const optionValue = option.value || option.text;
+      const isAllowed = allowedOptions.includes(optionValue) || allowedOptions.includes(option.text);
+      option.style.display = isAllowed ? '' : 'none';
+      option.disabled = !isAllowed;
+    });
+
+    // Reset to first option if current selection is not allowed
+    const currentValue = dropdown.value;
+    const currentAllowed = allowedOptions.includes(currentValue) ||
+                           allowedOptions.includes(dropdown.options[dropdown.selectedIndex]?.text);
+    if (!currentAllowed) {
+      dropdown.value = '';
+      this.data.currentFilter = '';
     }
   }
 
