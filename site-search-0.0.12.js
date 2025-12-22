@@ -920,9 +920,9 @@ class SiteSearch {
       this.elements.input.placeholder = modeConfig.placeholder;
     }
 
-    // Show/hide sort dropdown
+    // Show/hide sort dropdown (hide parent wrapper if it exists)
     if (this.elements.sortDropdown) {
-      const sortContainer = this.elements.sortDropdown.closest('[site-search="sort-by-wrap"]') || this.elements.sortDropdown;
+      const sortContainer = this.elements.sortDropdown.parentElement || this.elements.sortDropdown;
       sortContainer.style.display = modeConfig.showSortBy ? '' : 'none';
     }
 
