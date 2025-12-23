@@ -761,6 +761,12 @@
             const filters = Store.get('filters');
             const params = new URLSearchParams();
 
+            // IMPORTANT: Preserve ?of= param at the START of URL if it exists
+            // This is the page-level filter that should always come first and be persistent
+            if (PageFilter._ofParam) {
+                params.set('of', PageFilter._ofParam);
+            }
+
             // Add search
             if (filters.search) {
                 params.set('search', filters.search);
@@ -926,6 +932,7 @@
 
     // ===== PAGE FILTER MANAGER =====
     // Detects and manages page-based filters from CMS page URLs (e.g., /topic/gaza-genocide)
+    // or from ?of= query param (e.g., /map?of=reporter/btselem)
     // These filters are permanent and cannot be cleared by the user
     const PageFilter = {
         // Supported page types and their URL patterns
@@ -936,19 +943,39 @@
             region: '/region/',
             locality: '/locality/',
             territory: '/territory/',
-            perpetrator: '/perp/'
+            perpetrator: '/perp/',
+            settlement: '/settlement/'
         },
 
-        // Detect page filter from current URL path
+        // Store the original ?of= param value to preserve it in URL updates
+        _ofParam: null,
+
+        // Detect page filter from ?of= query param or URL path
         detect() {
             const path = window.location.pathname;
+            const searchParams = new URLSearchParams(window.location.search);
 
+            // 1. Check for ?of= query param first (highest priority)
+            // Format: ?of=type/slug (e.g., ?of=reporter/btselem)
+            const ofParam = searchParams.get('of');
+            if (ofParam) {
+                const ofMatch = ofParam.match(/^(reporter|topic|region|territory|perpetrator|locality|settlement)\/(.+)$/);
+                if (ofMatch) {
+                    const type = ofMatch[1];
+                    const slug = decodeURIComponent(ofMatch[2]);
+                    this._ofParam = ofParam; // Store for URL preservation
+                    console.log('[CMS Client] Page filter from ?of= param:', type, slug);
+                    return { type, slug, fromOfParam: true };
+                }
+            }
+
+            // 2. Check URL path patterns (e.g., /reporter/btselem)
             for (const [type, prefix] of Object.entries(this._pageTypes)) {
                 if (path.startsWith(prefix)) {
                     // Extract slug from path (everything after the prefix, excluding trailing slash)
                     const slug = path.slice(prefix.length).replace(/\/$/, '');
                     if (slug) {
-                        return { type, slug };
+                        return { type, slug, fromOfParam: false };
                     }
                 }
             }
