@@ -3520,6 +3520,67 @@
         console.log('[CMS Client] Share buttons initialized');
     }
 
+    // Share page button functionality - shares current page URL with hash
+    const sharePageButtonTimeouts = new Map();
+
+    function initializeSharePageButton() {
+        document.addEventListener('click', async function(e) {
+            const shareBtn = e.target.closest('[share="page"]');
+            if (!shareBtn) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Get current page URL including hash
+            const shareUrl = window.location.href;
+
+            // Try native share first
+            if (navigator.share) {
+                try {
+                    await navigator.share({ url: shareUrl });
+                    console.log('[CMS Client] Page shared via native share');
+                    return;
+                } catch (err) {
+                    console.log('[CMS Client] Native share failed, using clipboard');
+                }
+            }
+
+            // Fallback to clipboard
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+            } catch (err) {
+                const textArea = document.createElement('textarea');
+                textArea.value = shareUrl;
+                textArea.style.cssText = 'position:fixed;opacity:0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+
+            console.log('[CMS Client] Page link copied to clipboard');
+
+            const shareText = DOM.$('.share-text', shareBtn);
+            if (shareText) {
+                const originalText = shareText.textContent;
+                shareText.textContent = 'Copied Link';
+
+                if (sharePageButtonTimeouts.has(shareBtn)) {
+                    clearTimeout(sharePageButtonTimeouts.get(shareBtn));
+                }
+
+                const timeoutId = setTimeout(() => {
+                    shareText.textContent = originalText;
+                    sharePageButtonTimeouts.delete(shareBtn);
+                }, 2000);
+
+                sharePageButtonTimeouts.set(shareBtn, timeoutId);
+            }
+        });
+
+        console.log('[CMS Client] Share page button initialized');
+    }
+
     // Date link click handler - filters by clicked report's date
     function initializeDateLinks() {
         document.addEventListener('click', function(e) {
@@ -3588,6 +3649,7 @@
         initializeSearch();
         initializeScrollToTop();
         initializeShareButtons();
+        initializeSharePageButton();
         initializeDateLinks();
         initializeViewToggle();
     }
