@@ -1691,7 +1691,7 @@
 
                 // Create separator
                 const separator = document.createElement('span');
-                separator.textContent = ' / ';
+                separator.textContent = ', ';
                 separator.className = 'location-separator';
                 parentContainer.appendChild(separator);
 
