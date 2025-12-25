@@ -1561,7 +1561,7 @@
                         // Create separator
                         const separator = document.createElement('span');
                         separator.textContent = ' / ';
-                        separator.className = 'territory-separator';
+                        separator.className = 'location-separator';
                         parentContainer.appendChild(separator);
 
                         // Clone and set up the link for this territory
