@@ -1534,14 +1534,57 @@
         LOCATION_FIELDS.forEach(config => {
             let data = reportData[config.dataKey];
 
-            // Handle arrays - use first item
-            if (Array.isArray(data)) {
-                data = data.length > 0 ? data[0] : null;
-            }
-
             const fieldElement = DOM.$(config.fieldSelector, itemElement);
             const linkElement = DOM.$(config.linkSelector, itemElement);
             const slash = config.slashAttr ? slashes[config.slashAttr] : null;
+
+            // Special handling for territory - show all territories separated by /
+            if (config.dataKey === 'territory' && Array.isArray(data) && data.length > 1) {
+                const validTerritories = data.filter(t => t?.name);
+                if (validTerritories.length > 0 && linkElement) {
+                    // Get the parent container of the link element
+                    const parentContainer = linkElement.parentElement;
+
+                    // Set up the first territory using the existing link element
+                    const firstTerritory = validTerritories[0];
+                    DOM.setText(fieldElement, firstTerritory.name);
+                    if (firstTerritory.slug) {
+                        DOM.setLink(linkElement, config.urlPrefix + firstTerritory.slug);
+                    } else {
+                        DOM.toggle(linkElement, false);
+                    }
+
+                    // Add remaining territories with separators
+                    for (let i = 1; i < validTerritories.length; i++) {
+                        const territory = validTerritories[i];
+
+                        // Create separator
+                        const separator = document.createElement('span');
+                        separator.textContent = ' / ';
+                        separator.className = 'territory-separator';
+                        parentContainer.appendChild(separator);
+
+                        // Clone and set up the link for this territory
+                        const newLink = linkElement.cloneNode(true);
+                        const newFieldElement = DOM.$(config.fieldSelector, newLink) || newLink;
+                        DOM.setText(newFieldElement, territory.name);
+                        if (territory.slug) {
+                            DOM.setLink(newLink, config.urlPrefix + territory.slug);
+                        } else {
+                            newLink.removeAttribute('href');
+                        }
+                        parentContainer.appendChild(newLink);
+                    }
+                } else {
+                    DOM.toggle(linkElement, false);
+                }
+                return; // Skip normal processing for multi-territory
+            }
+
+            // Handle arrays - use first item (for non-territory fields or single territory)
+            if (Array.isArray(data)) {
+                data = data.length > 0 ? data[0] : null;
+            }
 
             if (data?.slug) {
                 DOM.setText(fieldElement, data.name);
