@@ -1531,6 +1531,14 @@
             slashes[slash.getAttribute('slash-for')] = slash;
         });
 
+        // Map of dataKey to hasMultiple flag from API
+        const multipleFlags = {
+            locality: reportData.hasMultipleLocalities,
+            subRegion: reportData.hasMultipleSubRegions,
+            region: reportData.hasMultipleRegions,
+            territory: reportData.hasMultipleTerritories
+        };
+
         LOCATION_FIELDS.forEach(config => {
             let data = reportData[config.dataKey];
 
@@ -1538,8 +1546,19 @@
             const linkElement = DOM.$(config.linkSelector, itemElement);
             const slash = config.slashAttr ? slashes[config.slashAttr] : null;
 
-            // Special handling for territory - show all territories separated by /
-            if (config.dataKey === 'territory' && Array.isArray(data) && data.length > 1) {
+            // Check if this field has multiple values - if so, hide the condensed view
+            // (multi-location fields in info tab will show the full list)
+            const hasMultiple = multipleFlags[config.dataKey];
+
+            if (hasMultiple && config.dataKey !== 'territory') {
+                // Hide the field and its adjacent slash for locality/region/subRegion
+                DOM.toggle(linkElement, false);
+                if (slash) slash.style.display = 'none';
+                return;
+            }
+
+            // Special handling for territory - always show all territories separated by /
+            if (config.dataKey === 'territory' && Array.isArray(data) && data.length > 0) {
                 const validTerritories = data.filter(t => t?.name);
                 if (validTerritories.length > 0 && linkElement) {
                     // Get the parent container of the link element
@@ -1554,7 +1573,7 @@
                         DOM.toggle(linkElement, false);
                     }
 
-                    // Add remaining territories with separators
+                    // Add remaining territories with separators (if multiple)
                     for (let i = 1; i < validTerritories.length; i++) {
                         const territory = validTerritories[i];
 
@@ -1578,10 +1597,10 @@
                 } else {
                     DOM.toggle(linkElement, false);
                 }
-                return; // Skip normal processing for multi-territory
+                return; // Skip normal processing for territory
             }
 
-            // Handle arrays - use first item (for non-territory fields or single territory)
+            // Handle arrays - use first item (for non-territory fields with single value)
             if (Array.isArray(data)) {
                 data = data.length > 0 ? data[0] : null;
             }
@@ -1597,6 +1616,95 @@
             } else {
                 DOM.toggle(linkElement, false);
                 if (slash) slash.style.display = 'none';
+            }
+        });
+    }
+
+    // Populate multi-location fields in the info tab (for reports with multiple locations)
+    function populateMultiLocationFields(itemElement, reportData) {
+        // Configuration for multi-location fields
+        const MULTI_LOCATION_FIELDS = [
+            {
+                dataKey: 'locality',
+                hasMultipleFlag: 'hasMultipleLocalities',
+                fieldSelector: '[cms-field="multi-locality"]',
+                linkSelector: '[cms-link="multi-locality"]',
+                urlPrefix: '/locality/'
+            },
+            {
+                dataKey: 'subRegion',
+                hasMultipleFlag: 'hasMultipleSubRegions',
+                fieldSelector: '[cms-field="multi-region"]',
+                linkSelector: '[cms-link="multi-region"]',
+                urlPrefix: '/region/'
+            },
+            {
+                dataKey: 'territory',
+                hasMultipleFlag: 'hasMultipleTerritories',
+                fieldSelector: '[cms-field="multi-territory"]',
+                linkSelector: '[cms-link="multi-territory"]',
+                urlPrefix: '/territory/'
+            },
+            {
+                dataKey: 'region',
+                hasMultipleFlag: 'hasMultipleRegions',
+                fieldSelector: '[cms-field="multi-governorate"]',
+                linkSelector: '[cms-link="multi-governorate"]',
+                urlPrefix: '/region/'
+            }
+        ];
+
+        MULTI_LOCATION_FIELDS.forEach(config => {
+            const data = reportData[config.dataKey];
+            const linkElement = DOM.$(config.linkSelector, itemElement);
+
+            if (!linkElement) return;
+
+            const parentContainer = linkElement.parentElement;
+            if (!parentContainer) return;
+
+            // Get valid items with names
+            const validItems = Array.isArray(data) ? data.filter(item => item?.name) : [];
+
+            if (validItems.length === 0) {
+                // Hide the entire container if no valid items
+                DOM.toggle(parentContainer, false);
+                return;
+            }
+
+            // Show the container
+            DOM.toggle(parentContainer, true);
+
+            // Set up the first item using the existing link element
+            const firstItem = validItems[0];
+            const fieldElement = DOM.$(config.fieldSelector, linkElement) || linkElement;
+            DOM.setText(fieldElement, firstItem.name);
+            if (firstItem.slug) {
+                DOM.setLink(linkElement, config.urlPrefix + firstItem.slug);
+            } else {
+                linkElement.removeAttribute('href');
+            }
+
+            // Add remaining items with separators
+            for (let i = 1; i < validItems.length; i++) {
+                const item = validItems[i];
+
+                // Create separator
+                const separator = document.createElement('span');
+                separator.textContent = ' / ';
+                separator.className = 'location-separator';
+                parentContainer.appendChild(separator);
+
+                // Clone and set up the link for this item
+                const newLink = linkElement.cloneNode(true);
+                const newFieldElement = DOM.$(config.fieldSelector, newLink) || newLink;
+                DOM.setText(newFieldElement, item.name);
+                if (item.slug) {
+                    DOM.setLink(newLink, config.urlPrefix + item.slug);
+                } else {
+                    newLink.removeAttribute('href');
+                }
+                parentContainer.appendChild(newLink);
             }
         });
     }
@@ -2121,6 +2229,7 @@
     function populateReportItem(itemElement, reportData, lazyLoadContent = true) {
         const successCount = populateBasicFields(itemElement, reportData);
         populateLocationFields(itemElement, reportData);
+        populateMultiLocationFields(itemElement, reportData);
         populateReporterInfo(itemElement, reportData.reporters || []);
 
         const itemType = itemElement.getAttribute('cms-item-type');
