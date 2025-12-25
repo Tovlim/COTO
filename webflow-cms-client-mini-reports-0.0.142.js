@@ -73,7 +73,10 @@
         // Action buttons
         shareAction: '[cms-action="share"]',
         clearAll: '[cms-clear-element="all"]',
-        clearElement: '[cms-clear-element]'
+        clearElement: '[cms-clear-element]',
+
+        // Conditional visibility
+        cmsExtra: '[cms-extra]'
     };
 
     // ===== CENTRALIZED STATE STORE =====
@@ -694,6 +697,110 @@
             } catch (e) {
                 return dateString;
             }
+        }
+    };
+
+    // ===== EXTRA VISIBILITY =====
+    // Handles conditional visibility of elements based on cms-extra attribute
+    // Usage: <div cms-extra="perpetrator"> will only show if report has perpetrator data
+    const ExtraVisibility = {
+        // Map of subject names to functions that check if data exists
+        // Each function receives reportData and returns true if the subject has data
+        _subjectChecks: {
+            // Perpetrator - check both array and single object formats
+            perpetrator: (data) => !!(data.perpetrators?.length > 0 || data.perpetrator),
+            perp: (data) => !!(data.perpetrators?.length > 0 || data.perpetrator),
+
+            // Settlement
+            settlement: (data) => !!(data.settlement?.name || data.settlement?.slug),
+
+            // Place / Location Type
+            place: (data) => !!(data.place?.name || data.place?.slug || data.locationType?.name || data.locationType?.slug),
+            locationType: (data) => !!(data.place?.name || data.place?.slug || data.locationType?.name || data.locationType?.slug),
+
+            // Backer
+            backer: (data) => !!(data.backer?.name || data.backer?.slug),
+
+            // Description / Info content
+            description: (data) => !!(data.description?.trim()),
+            info: (data) => !!(data.description?.trim()),
+
+            // Media
+            videos: (data) => !!(data.videos?.length > 0),
+            images: (data) => !!(data.reportImages?.length > 0),
+            reportImages: (data) => !!(data.reportImages?.length > 0),
+            photo: (data) => !!(data.photo?.url),
+
+            // Victims donation link
+            victimsDonationLink: (data) => !!(data.victimsDonationLink),
+            victims: (data) => !!(data.victimsDonationLink),
+
+            // Reporter event link
+            reporterEventLink: (data) => !!(data.reporterEventLink),
+
+            // Urgent flag
+            urgent: (data) => data.urgent === true,
+
+            // Topic
+            topic: (data) => !!(data.topic?.length > 0 || data.topic?.slug),
+
+            // Reporters
+            reporters: (data) => !!(data.reporters?.length > 0),
+            reporter: (data) => !!(data.reporters?.length > 0),
+
+            // Location fields
+            locality: (data) => !!(data.locality?.name || (Array.isArray(data.locality) && data.locality.length > 0)),
+            region: (data) => !!(data.subRegion?.name || data.region?.name ||
+                                (Array.isArray(data.subRegion) && data.subRegion.length > 0) ||
+                                (Array.isArray(data.region) && data.region.length > 0)),
+            territory: (data) => !!(data.territory?.name || (Array.isArray(data.territory) && data.territory.length > 0)),
+
+            // Multi-location flags
+            multiLocality: (data) => !!data.hasMultipleLocalities,
+            multiRegion: (data) => !!data.hasMultipleSubRegions,
+            multiTerritory: (data) => !!data.hasMultipleTerritories,
+            multiGovernorate: (data) => !!data.hasMultipleRegions
+        },
+
+        // Apply visibility to all cms-extra elements within a container
+        apply(itemElement, reportData) {
+            const extraElements = DOM.$$(SELECTORS.cmsExtra, itemElement);
+
+            if (extraElements.length === 0) return;
+
+            extraElements.forEach(element => {
+                const subject = element.getAttribute('cms-extra');
+                if (!subject) return;
+
+                // Support multiple subjects with comma separation (AND logic)
+                // e.g., cms-extra="perpetrator,settlement" shows only if BOTH exist
+                const subjects = subject.split(',').map(s => s.trim().toLowerCase());
+
+                // Check if ALL subjects have data (AND logic)
+                const shouldShow = subjects.every(subj => {
+                    const check = this._subjectChecks[subj];
+                    if (!check) {
+                        log(`ExtraVisibility: Unknown subject "${subj}"`);
+                        return false;
+                    }
+                    return check(reportData);
+                });
+
+                DOM.toggle(element, shouldShow);
+            });
+
+            log('ExtraVisibility applied:', extraElements.length, 'elements processed');
+        },
+
+        // Check if a specific subject has data (for external use)
+        hasData(subject, reportData) {
+            const check = this._subjectChecks[subject.toLowerCase()];
+            return check ? check(reportData) : false;
+        },
+
+        // Get list of supported subjects
+        getSupportedSubjects() {
+            return Object.keys(this._subjectChecks);
         }
     };
 
@@ -1833,11 +1940,8 @@
         DOM.setLink(joinButton, firstReporter.joinLink);
     }
 
-    // Populate perpetrator info for full reports
+    // Populate perpetrator info (works for both mini and full reports)
     function populatePerpetratorInfo(itemElement, reportData) {
-        const itemType = itemElement.getAttribute('cms-item-type');
-        if (itemType !== 'full') return;
-
         const perpInfoWrap = DOM.$('[cms-info="wrap"]', itemElement);
         if (!perpInfoWrap) return;
 
@@ -2235,9 +2339,11 @@
         const itemType = itemElement.getAttribute('cms-item-type');
         const isFullType = itemType === 'full';
 
-        if (isFullType) {
-            populatePerpetratorInfo(itemElement, reportData);
-        }
+        // Populate perpetrator/settlement/place/backer info (works for both mini and full)
+        populatePerpetratorInfo(itemElement, reportData);
+
+        // Apply conditional visibility for cms-extra elements (works for both mini and full)
+        ExtraVisibility.apply(itemElement, reportData);
 
         // Set report ID first (needed for cache lookup)
         itemElement.setAttribute('data-report-id', reportData.id);
@@ -4211,6 +4317,7 @@
         SkeletonManager,
         ModalUtils,
         ThumbnailHandler,
+        ExtraVisibility,
         switchView,
         getViewMode: () => Store.get('viewMode'),
         setViewMode: (mode) => switchView(mode),
