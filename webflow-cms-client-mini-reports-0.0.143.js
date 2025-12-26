@@ -1894,9 +1894,10 @@
             multiReporterWrap.style.display = 'flex';
             reporterListWrap.style.display = 'none';
 
+            // Format: "Name1, Name2 and Name3" for 3+, "Name1 and Name2" for 2
             const displayName = reporters.length === 2
-                ? reporters.map(r => r.name).join(' & ')
-                : `${firstReporter.name} + ${reporters.length - 1} more`;
+                ? reporters.map(r => r.name).join(' and ')
+                : reporters.slice(0, -1).map(r => r.name).join(', ') + ' and ' + reporters[reporters.length - 1].name;
             DOM.setText(multiReporterNameElement, displayName);
 
             const firstReporterImage = DOM.$('[first-reporter-image="true"]', multiReporterWrap);
@@ -3910,6 +3911,7 @@
         initializeSharePageButton();
         initializeDateLinks();
         initializeViewToggle();
+        initMobileViewMode();
     }
 
     // ===== VIEW TOGGLE =====
@@ -3975,6 +3977,59 @@
             } else {
                 btn.classList.remove('is--active');
             }
+        });
+    }
+
+    // Mobile breakpoint for forcing full view mode
+    const MOBILE_BREAKPOINT = 478;
+    let lastMobileState = null;
+    let userPreferredMode = null; // Store user's preferred mode before mobile override
+
+    // Check if viewport is at mobile breakpoint and apply full view mode
+    function checkMobileViewMode() {
+        const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+        const currentMode = Store.get('viewMode');
+
+        // Only act on state change to avoid unnecessary switches
+        if (isMobile === lastMobileState) return;
+        lastMobileState = isMobile;
+
+        if (isMobile) {
+            // Entering mobile: save current mode and switch to full
+            if (currentMode !== 'full') {
+                userPreferredMode = currentMode;
+                switchView('full');
+                console.log('[CMS Client] Mobile breakpoint: switched to full view');
+            }
+        } else {
+            // Leaving mobile: restore user's preferred mode if we saved one
+            if (userPreferredMode && currentMode !== userPreferredMode) {
+                switchView(userPreferredMode);
+                console.log('[CMS Client] Desktop breakpoint: restored', userPreferredMode, 'view');
+                userPreferredMode = null;
+            }
+        }
+    }
+
+    // Initialize mobile view mode handling
+    function initMobileViewMode() {
+        // Check on initial load
+        lastMobileState = window.innerWidth <= MOBILE_BREAKPOINT;
+        if (lastMobileState && Store.get('viewMode') !== 'full') {
+            userPreferredMode = Store.get('viewMode');
+            Store.setState({ viewMode: 'full' }, true);
+            const listContainer = DOM.$(SELECTORS.list);
+            if (listContainer) {
+                listContainer.classList.remove('is-mini-reports');
+            }
+            console.log('[CMS Client] Initial mobile breakpoint: set to full view');
+        }
+
+        // Listen for resize with debounce
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(checkMobileViewMode, 150);
         });
     }
 
