@@ -945,6 +945,8 @@ class SiteSearch {
 
   /**
    * Update filter dropdown options based on current mode
+   * Removes non-allowed options from DOM for iOS compatibility
+   * (iOS Safari ignores display:none on <option> elements)
    * @param {string} mode - 'site' or 'map'
    */
   updateFilterDropdownOptions(mode) {
@@ -961,22 +963,26 @@ class SiteSearch {
       }));
     }
 
-    // Show/hide options based on mode
-    Array.from(dropdown.options).forEach(option => {
-      const optionValue = option.value || option.text;
-      const isAllowed = allowedOptions.includes(optionValue) || allowedOptions.includes(option.text);
-      option.style.display = isAllowed ? '' : 'none';
-      option.disabled = !isAllowed;
+    // Clear all current options
+    dropdown.innerHTML = '';
+
+    // Re-add only allowed options
+    this._originalFilterOptions.forEach(opt => {
+      // Check if option value is in allowed list
+      // Handle empty string explicitly (don't use || fallback)
+      const isAllowed = allowedOptions.includes(opt.value) || allowedOptions.includes(opt.text);
+
+      if (isAllowed) {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.text = opt.text;
+        dropdown.appendChild(option);
+      }
     });
 
-    // Reset to first option if current selection is not allowed
-    const currentValue = dropdown.value;
-    const currentAllowed = allowedOptions.includes(currentValue) ||
-                           allowedOptions.includes(dropdown.options[dropdown.selectedIndex]?.text);
-    if (!currentAllowed) {
-      dropdown.value = '';
-      this.data.currentFilter = '';
-    }
+    // Reset to first option
+    dropdown.selectedIndex = 0;
+    this.data.currentFilter = dropdown.value;
   }
 
   handleResize() {
