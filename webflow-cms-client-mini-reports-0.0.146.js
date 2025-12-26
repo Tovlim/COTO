@@ -668,11 +668,47 @@
 
     // ===== DATE UTILITIES =====
     const DateUtils = {
+        // Get start of calendar day (midnight) in local timezone
+        _getStartOfDay(date) {
+            const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        },
+
+        // Calculate difference in calendar days between two dates
+        _getDaysDifference(date1, date2) {
+            const start1 = this._getStartOfDay(date1);
+            const start2 = this._getStartOfDay(date2);
+            const diffMs = start2 - start1;
+            return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        },
+
+        // Format date with relative labels (Today, Yesterday, X days ago, Last week)
         format(dateString) {
             if (!dateString) return '';
             try {
                 const date = new Date(dateString);
                 if (isNaN(date.getTime())) return '';
+
+                const today = new Date();
+                const daysDiff = this._getDaysDifference(date, today);
+
+                // Same calendar day
+                if (daysDiff === 0) {
+                    return 'Today';
+                }
+
+                // Previous calendar day
+                if (daysDiff === 1) {
+                    return 'Yesterday';
+                }
+
+                // 2-13 days ago
+                if (daysDiff >= 2 && daysDiff <= 13) {
+                    return `${daysDiff} days ago`;
+                }
+
+                // 14+ days ago - use full formatted date
                 return date.toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
@@ -684,6 +720,7 @@
             }
         },
 
+        // Format date for filter tags (always full date for clarity)
         formatForTag(dateString) {
             if (!dateString) return '';
             try {
@@ -1602,10 +1639,18 @@
             }
         }
 
-        // Handle urgent wrapper
+        // Handle urgent wrapper - only show if urgent AND within last 13 days
         const urgentWrap = DOM.$('[cms-wrap="urgent"]', itemElement);
         if (urgentWrap) {
-            urgentWrap.style.display = reportData.urgent === true ? '' : 'none';
+            let showUrgent = false;
+            if (reportData.urgent === true) {
+                const reportDate = new Date(reportData.date || reportData.createdOn);
+                if (!isNaN(reportDate.getTime())) {
+                    const daysDiff = DateUtils._getDaysDifference(reportDate, new Date());
+                    showUrgent = daysDiff <= 13;
+                }
+            }
+            urgentWrap.style.display = showUrgent ? '' : 'none';
         }
 
         populateReporterBylineLinks(itemElement, reportData.reporters);
