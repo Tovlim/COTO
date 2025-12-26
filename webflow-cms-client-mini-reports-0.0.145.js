@@ -3341,26 +3341,34 @@
                 return;
             }
 
-            // Restore saved view mode from localStorage (if valid and template exists)
+            // Restore saved view mode from localStorage, or use screen-size-based default
+            let viewModeToApply = null;
             try {
                 const savedViewMode = localStorage.getItem(CONFIG.VIEW_MODE_STORAGE_KEY);
                 if (savedViewMode && (savedViewMode === 'mini' || savedViewMode === 'full')) {
                     // Only apply if the template for that mode exists
                     if (TemplateManager.templates[savedViewMode]) {
-                        Store.setState({ viewMode: savedViewMode }, true);
+                        viewModeToApply = savedViewMode;
                         console.log('[CMS Client] Restored view mode from localStorage:', savedViewMode);
-
-                        // Apply the correct list class immediately based on restored view mode
-                        if (savedViewMode === 'mini') {
-                            listContainer.classList.add('is-mini-reports');
-                        } else {
-                            listContainer.classList.remove('is-mini-reports');
-                        }
                     }
                 }
             } catch (e) {
                 // localStorage may be unavailable
                 log('Could not read view mode from localStorage:', e);
+            }
+
+            // If no saved preference, use screen-size-based default (full on mobile, mini on desktop)
+            if (!viewModeToApply) {
+                viewModeToApply = getDefaultViewMode();
+                console.log('[CMS Client] Using screen-based default view mode:', viewModeToApply);
+            }
+
+            // Apply the view mode
+            Store.setState({ viewMode: viewModeToApply }, true);
+            if (viewModeToApply === 'mini') {
+                listContainer.classList.add('is-mini-reports');
+            } else {
+                listContainer.classList.remove('is-mini-reports');
             }
 
             // Initialize top offset for fixed header compensation
@@ -3911,7 +3919,6 @@
         initializeSharePageButton();
         initializeDateLinks();
         initializeViewToggle();
-        initMobileViewMode();
     }
 
     // ===== VIEW TOGGLE =====
@@ -3980,57 +3987,13 @@
         });
     }
 
-    // Mobile breakpoint for forcing full view mode
+    // Mobile breakpoint for initial view mode default
     const MOBILE_BREAKPOINT = 478;
-    let lastMobileState = null;
-    let userPreferredMode = null; // Store user's preferred mode before mobile override
 
-    // Check if viewport is at mobile breakpoint and apply full view mode
-    function checkMobileViewMode() {
-        const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
-        const currentMode = Store.get('viewMode');
-
-        // Only act on state change to avoid unnecessary switches
-        if (isMobile === lastMobileState) return;
-        lastMobileState = isMobile;
-
-        if (isMobile) {
-            // Entering mobile: save current mode and switch to full
-            if (currentMode !== 'full') {
-                userPreferredMode = currentMode;
-                switchView('full');
-                console.log('[CMS Client] Mobile breakpoint: switched to full view');
-            }
-        } else {
-            // Leaving mobile: restore user's preferred mode if we saved one
-            if (userPreferredMode && currentMode !== userPreferredMode) {
-                switchView(userPreferredMode);
-                console.log('[CMS Client] Desktop breakpoint: restored', userPreferredMode, 'view');
-                userPreferredMode = null;
-            }
-        }
-    }
-
-    // Initialize mobile view mode handling
-    function initMobileViewMode() {
-        // Check on initial load
-        lastMobileState = window.innerWidth <= MOBILE_BREAKPOINT;
-        if (lastMobileState && Store.get('viewMode') !== 'full') {
-            userPreferredMode = Store.get('viewMode');
-            Store.setState({ viewMode: 'full' }, true);
-            const listContainer = DOM.$(SELECTORS.list);
-            if (listContainer) {
-                listContainer.classList.remove('is-mini-reports');
-            }
-            console.log('[CMS Client] Initial mobile breakpoint: set to full view');
-        }
-
-        // Listen for resize with debounce
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(checkMobileViewMode, 150);
-        });
+    // Get the appropriate default view mode based on screen size
+    // Only used when there's no saved preference in localStorage
+    function getDefaultViewMode() {
+        return window.innerWidth <= MOBILE_BREAKPOINT ? 'full' : 'mini';
     }
 
     // Find the report ID of the topmost visible report item
