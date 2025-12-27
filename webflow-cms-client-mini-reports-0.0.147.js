@@ -905,11 +905,8 @@
             const filters = Store.get('filters');
             const params = new URLSearchParams();
 
-            // IMPORTANT: Preserve ?of= param at the START of URL if it exists
-            // This is the page-level filter that should always come first and be persistent
-            if (PageFilter._ofParam) {
-                params.set('of', PageFilter._ofParam);
-            }
+            // Note: Page filter is now part of the URL path (e.g., /map/by-btselem)
+            // so we don't need to preserve it in query params
 
             // Add search
             if (filters.search) {
@@ -1075,8 +1072,9 @@
     };
 
     // ===== PAGE FILTER MANAGER =====
-    // Detects and manages page-based filters from CMS page URLs (e.g., /topic/gaza-genocide)
-    // or from ?of= query param (e.g., /map?of=reporter/btselem)
+    // Detects and manages page-based filters from:
+    // 1. Map collection URLs: /map/[prefix]-[slug] (e.g., /map/by-btselem, /map/loc-gaza)
+    // 2. CMS page URLs: /topic/gaza-genocide, /reporter/btselem, etc.
     // These filters are permanent and cannot be cleared by the user
     const PageFilter = {
         // Supported page types and their URL patterns
@@ -1091,25 +1089,32 @@
             settlement: '/settlement/'
         },
 
-        // Store the original ?of= param value to preserve it in URL updates
-        _ofParam: null,
+        // Map collection prefixes to filter types
+        // Used for /map/[prefix]-[slug] pattern
+        _mapPrefixes: {
+            'by': 'reporter',      // /map/by-btselem
+            'top': 'topic',        // /map/top-genocide
+            'reg': 'region',       // /map/reg-gaza
+            'loc': 'locality',     // /map/loc-gaza
+            'ter': 'territory',    // /map/ter-west-bank
+            'stl': 'settlement',   // /map/stl-ariel
+            'prp': 'perpetrator'   // /map/prp-idf
+        },
 
-        // Detect page filter from ?of= query param or URL path
+        // Detect page filter from map collection URL or CMS page URL
         detect() {
             const path = window.location.pathname;
-            const searchParams = new URLSearchParams(window.location.search);
 
-            // 1. Check for ?of= query param first (highest priority)
-            // Format: ?of=type/slug (e.g., ?of=reporter/btselem)
-            const ofParam = searchParams.get('of');
-            if (ofParam) {
-                const ofMatch = ofParam.match(/^(reporter|topic|region|territory|perpetrator|locality|settlement)\/(.+)$/);
-                if (ofMatch) {
-                    const type = ofMatch[1];
-                    const slug = decodeURIComponent(ofMatch[2]);
-                    this._ofParam = ofParam; // Store for URL preservation
-                    console.log('[CMS Client] Page filter from ?of= param:', type, slug);
-                    return { type, slug, fromOfParam: true };
+            // 1. Check for map collection pattern: /map/[prefix]-[slug]
+            const mapMatch = path.match(/^\/map\/([a-z]+)-(.+?)\/?$/);
+            if (mapMatch) {
+                const prefix = mapMatch[1];
+                const slug = mapMatch[2];
+                const type = this._mapPrefixes[prefix];
+
+                if (type) {
+                    console.log('[CMS Client] Page filter from map collection:', type, slug);
+                    return { type, slug, fromMapCollection: true };
                 }
             }
 
@@ -1119,7 +1124,7 @@
                     // Extract slug from path (everything after the prefix, excluding trailing slash)
                     const slug = path.slice(prefix.length).replace(/\/$/, '');
                     if (slug) {
-                        return { type, slug, fromOfParam: false };
+                        return { type, slug, fromMapCollection: false };
                     }
                 }
             }
