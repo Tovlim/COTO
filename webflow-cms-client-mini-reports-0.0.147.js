@@ -1098,7 +1098,8 @@
             'loc': 'locality',     // /map/loc-gaza
             'ter': 'territory',    // /map/ter-west-bank
             'stl': 'settlement',   // /map/stl-ariel
-            'prp': 'perpetrator'   // /map/prp-idf
+            'prp': 'perpetrator',  // /map/prp-idf
+            'of': 'custom'         // /map/of-siege-of-gaza (user-generated)
         },
 
         // Detect page filter from map collection URL or CMS page URL
@@ -2304,7 +2305,8 @@
         if (typeof Fancybox !== 'undefined') {
             Fancybox.bind(`[data-fancybox="${galleryId}"]`, {
                 Thumbs: { autoStart: true },
-                hideScrollbar: false
+                hideScrollbar: false,
+                Hash: false
             });
         }
     }
