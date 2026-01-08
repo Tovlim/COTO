@@ -1368,9 +1368,11 @@
                         clearTimeout(this._overflowTimeouts.get(container));
                     }
 
-                    // Set overflow visible after transition
+                    // Set overflow visible and height auto after transition
+                    // height: auto allows content to expand naturally when media loads
                     const timeoutId = setTimeout(() => {
                         target.style.overflow = 'visible';
+                        target.style.height = 'auto';
                         this._overflowTimeouts.delete(container);
                     }, 300);
 
@@ -1390,20 +1392,31 @@
 
             // Use requestAnimationFrame for batched visual update
             requestAnimationFrame(() => {
-                if (!target.style.transition) {
-                    target.style.transition = 'height 300ms ease';
+                // If height is auto, we need to set it to current pixel value first
+                // so that the transition to 0 animates smoothly
+                if (target.style.height === 'auto') {
+                    target.style.height = target.scrollHeight + 'px';
                 }
 
-                // Batch all style mutations together
-                target.style.height = '0px';
-                target.style.overflow = 'hidden';
-                if (arrow) arrow.style.transform = 'rotateZ(0deg)';
+                // Force reflow to ensure the height is applied before transitioning
+                requestAnimationFrame(() => {
+                    if (!target.style.transition) {
+                        target.style.transition = 'height 300ms ease';
+                    }
+
+                    // Batch all style mutations together
+                    target.style.height = '0px';
+                    target.style.overflow = 'hidden';
+                    if (arrow) arrow.style.transform = 'rotateZ(0deg)';
+                });
             });
         },
 
         isClosed(target) {
-            return !target || target.style.height === '0px' ||
-                   target.style.height === '0' || !target.style.height;
+            if (!target) return true;
+            const height = target.style.height;
+            // height: auto means open, any pixel value > 0 means open
+            return height === '0px' || height === '0' || !height;
         },
 
         adjustHeight(target) {
