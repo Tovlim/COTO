@@ -1690,6 +1690,11 @@
             const reportUrl = reportData.reporterEventLink ||
                             (reportData.slug ? `https://occupationcrimes.org/report/${reportData.slug}` : null);
             DOM.setLink(link, reportUrl);
+            // Open external reporter links in new tab
+            if (reportData.reporterEventLink) {
+                link.setAttribute('target', '_blank');
+                link.setAttribute('rel', 'noopener noreferrer');
+            }
         });
 
         return successCount;
@@ -2432,6 +2437,11 @@
         if (reportData.reporterEventLink) {
             itemElement.setAttribute('data-reporter-link', reportData.reporterEventLink);
         }
+
+        // Toggle visibility for elements with outsidelink attribute
+        DOM.$$('[outsidelink="true"]', itemElement).forEach(el => {
+            DOM.toggle(el, !!reportData.reporterEventLink);
+        });
 
         itemElement.classList.remove('is--loading');
         itemElement.classList.add('is--loaded');
