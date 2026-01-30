@@ -336,6 +336,13 @@ class SiteSearch {
         this.closeSidebar();
       }
     });
+
+    // Listen for layers sidebar opening to close this sidebar
+    document.addEventListener('layersSidebarOpened', () => {
+      if (this.elements.sidebar?.classList.contains('is--show')) {
+        this.closeSidebar();
+      }
+    });
   }
 
   async performSearch(searchText) {
