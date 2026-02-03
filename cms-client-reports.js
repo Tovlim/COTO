@@ -2202,7 +2202,7 @@
 
         thumbnailElement.href = reportData.photo.url;
         thumbnailElement.removeAttribute('data-fancybox');
-        thumbnailElement.setAttribute('data-caption', reportData.name || '');
+        thumbnailElement.setAttribute('data-caption', reportData.photo?.alt || reportData.name || '');
         thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
         // Store data attributes for delegated click handler
         thumbnailElement.setAttribute('data-gallery-id', galleryId);
@@ -2260,7 +2260,7 @@
                         // Fallback to single image from cached data
                         Fancybox.show([{
                             src: reportData.photo.url,
-                            caption: reportData.name || '',
+                            caption: reportData.photo?.alt || reportData.name || '',
                             thumb: reportData.photo.url
                         }], { hideScrollbar: false });
                     } else {
