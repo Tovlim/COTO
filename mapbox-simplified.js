@@ -107,6 +107,7 @@
 
     // Boundaries tracking
     boundaryLayers: new Map(),
+    highlightedBoundaries: new Set(),  // Currently highlighted district names
 
     // Loading state
     dataLoaded: {
@@ -1250,7 +1251,7 @@
       {
         keyId: 'governorate-toggle-key',
         type: 'region',
-        layers: ['region-points', 'subregion-points']
+        layers: ['region-points', 'subregion-points', 'district-points']
       },
       {
         keyId: 'locality-toggle-key',
@@ -1445,6 +1446,59 @@
     });
 
     return map;
+  }
+
+  // ====================================================================
+  // BOUNDARY HIGHLIGHTING
+  // ====================================================================
+
+  /**
+   * Highlight a single district boundary on the map
+   */
+  function highlightBoundary(name) {
+    const boundary = state.boundaryLayers.get(name);
+    if (!boundary || !map) return;
+
+    if (!map.getLayer(boundary.fillId) || !map.getLayer(boundary.borderId)) return;
+
+    map.setPaintProperty(boundary.fillId, 'fill-opacity', 0.2);
+    map.setPaintProperty(boundary.borderId, 'line-width', 2.5);
+    map.setPaintProperty(boundary.borderId, 'line-opacity', 1);
+    map.setPaintProperty(boundary.borderId, 'line-dasharray', [1, 0]);
+
+    state.highlightedBoundaries.add(name);
+  }
+
+  /**
+   * Highlight all district boundaries belonging to a territory
+   */
+  function highlightTerritoryBoundaries(territoryName) {
+    state.districtData.forEach(feature => {
+      if (feature.properties.territory === territoryName) {
+        highlightBoundary(feature.properties.name);
+      }
+    });
+  }
+
+  /**
+   * Remove all boundary highlights, resetting to default paint values
+   */
+  function removeAllHighlights() {
+    state.highlightedBoundaries.forEach(name => {
+      const boundary = state.boundaryLayers.get(name);
+      if (!boundary || !map) return;
+
+      if (map.getLayer(boundary.fillId)) {
+        map.setPaintProperty(boundary.fillId, 'fill-opacity', 0);
+      }
+      if (map.getLayer(boundary.borderId)) {
+        map.setPaintProperty(boundary.borderId, 'line-width', 1.5);
+        map.setPaintProperty(boundary.borderId, 'line-opacity', 0.7);
+        map.setPaintProperty(boundary.borderId, 'line-dasharray', [4, 3]);
+      }
+    });
+
+    state.highlightedBoundaries.clear();
   }
 
   // ====================================================================
@@ -1660,6 +1714,22 @@
   function initFilterIntegration() {
     // Listen for marker click events
     document.addEventListener('mapMarkerClick', handleMarkerFilter);
+
+    // Listen for CMS filter changes to highlight boundaries
+    document.addEventListener('cmsFilterChanged', (event) => {
+      if (!map) return;
+
+      removeAllHighlights();
+
+      const { territory, region } = event.detail;
+
+      if (territory && territory.length > 0) {
+        territory.forEach(name => highlightTerritoryBoundaries(name));
+      } else if (region && region.length > 0) {
+        region.forEach(name => highlightBoundary(name));
+      }
+    });
+
     console.log('[MapboxCore] CMS filter integration initialized');
   }
 
