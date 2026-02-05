@@ -3899,8 +3899,9 @@
             const shareBtn = e.target.closest('[share="page"]');
             if (!shareBtn) return;
 
-            e.preventDefault();
-            e.stopPropagation();
+            // Note: No preventDefault() or stopPropagation() here
+            // These are div elements with no default behavior, and blocking
+            // propagation interferes with Webflow dropdown close behavior
 
             // Get current page URL including hash
             const shareUrl = window.location.href;
@@ -4119,7 +4120,8 @@
             const toggleBtn = e.target.closest(SELECTORS.viewToggle);
             if (!toggleBtn) return;
 
-            e.preventDefault();
+            // Note: No preventDefault() here - these are div elements with no default behavior,
+            // and blocking propagation interferes with Webflow dropdown close behavior
 
             const targetMode = toggleBtn.getAttribute('cms-view-toggle');
             const currentMode = Store.get('viewMode');
@@ -4428,8 +4430,9 @@
 
         if (searchToggles.length && searchWrap) {
             searchToggles.forEach(searchToggle => {
-                searchToggle.addEventListener('click', function(e) {
-                    e.preventDefault();
+                searchToggle.addEventListener('click', function() {
+                    // Note: No preventDefault() here - these are div elements with no default behavior,
+                    // and blocking propagation interferes with Webflow dropdown close behavior
                     const isHidden = searchWrap.classList.contains('hide--search');
 
                     if (isHidden) {
