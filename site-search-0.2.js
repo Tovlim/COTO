@@ -55,7 +55,7 @@ const SITE_SEARCH_CONFIG = {
   // Filter options for each mode
   filterOptions: {
     site: ['', 'Reports', 'Localities', 'Regions', 'Settlements', 'Reporters', 'Perpetrators', 'Topics'],
-    map: ['', 'Localities', 'Regions', 'Settlements']
+    map: ['', 'Localities', 'Regions', 'Settlements', 'Territories']
   },
   // Location types for map mode filtering
   locationTypes: ['locality', 'settlement', 'region', 'territory']
@@ -455,6 +455,7 @@ class SiteSearch {
         'Localities': ['locality'],
         'Regions': ['region'],
         'Settlements': ['settlement'],
+        'Territories': ['territory'],
         'Reporters': ['reporter'],
         'Perpetrators': ['perpetrator'],
         'Topics': ['topic']
