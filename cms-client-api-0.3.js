@@ -3949,31 +3949,26 @@
         console.log('[CMS Client] Share page button initialized');
     }
 
-    // Fallback dropdown handler for Webflow dropdowns that don't initialize on cloned elements
-    function initializeWebflowDropdownFallback() {
+    // Dropdown handler for report options menu
+    // Uses [report-options="toggle"] for the trigger and [report-options="dropdown"] for the container
+    function initializeReportOptionsDropdown() {
         document.addEventListener('click', function(e) {
-            const toggle = e.target.closest('.w-dropdown-toggle');
+            const toggle = e.target.closest('[report-options="toggle"]');
             if (!toggle) return;
 
-            const dropdown = toggle.closest('.w-dropdown');
+            const dropdown = toggle.closest('[report-options="dropdown"]');
             if (!dropdown) return;
 
-            // Check if Webflow already handled this (look for w--open class toggling)
-            // If Webflow IX2 is working, the dropdown will have proper event handlers
-            // This fallback only activates if Webflow's system isn't working
             const list = dropdown.querySelector('.w-dropdown-list');
             if (!list) return;
-
-            // Don't interfere if Webflow's IX2 is handling it (check for Webflow's internal data)
-            if (dropdown._wfDropdown) return;
 
             e.preventDefault();
             e.stopPropagation();
 
             const isOpen = dropdown.classList.contains('w--open');
 
-            // Close all other dropdowns first
-            document.querySelectorAll('.w-dropdown.w--open').forEach(d => {
+            // Close all other report option dropdowns first
+            document.querySelectorAll('[report-options="dropdown"].w--open').forEach(d => {
                 if (d !== dropdown) {
                     d.classList.remove('w--open');
                     const dList = d.querySelector('.w-dropdown-list');
@@ -3996,12 +3991,10 @@
             }
         });
 
-        // Close dropdown when clicking outside
+        // Close report option dropdowns when clicking outside
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.w-dropdown')) {
-                document.querySelectorAll('.w-dropdown.w--open').forEach(d => {
-                    // Only close if this is a fallback-managed dropdown
-                    if (d._wfDropdown) return;
+            if (!e.target.closest('[report-options="dropdown"]')) {
+                document.querySelectorAll('[report-options="dropdown"].w--open').forEach(d => {
                     d.classList.remove('w--open');
                     const list = d.querySelector('.w-dropdown-list');
                     if (list) {
@@ -4012,7 +4005,7 @@
             }
         });
 
-        console.log('[CMS Client] Webflow dropdown fallback initialized');
+        console.log('[CMS Client] Report options dropdown initialized');
     }
 
     // Date link click handler - filters by clicked report's date
@@ -4084,7 +4077,7 @@
         initializeScrollToTop();
         initializeShareButtons();
         initializeSharePageButton();
-        initializeWebflowDropdownFallback();
+        initializeReportOptionsDropdown();
         initializeDateLinks();
         initializeViewToggle();
     }
