@@ -1187,6 +1187,39 @@
         }
     }
 
+    // ===== WEBFLOW DROPDOWN UTILITIES =====
+    // Utility to close all open Webflow dropdowns
+    // This is needed because custom click handlers inside dropdowns can interfere
+    // with Webflow's internal dropdown state management
+    function closeWebflowDropdowns() {
+        const openDropdowns = document.querySelectorAll('.w-dropdown.w--open');
+        console.log('[CMS Client DEBUG] closeWebflowDropdowns called, found', openDropdowns.length, 'open dropdowns');
+
+        openDropdowns.forEach(dropdown => {
+            // Remove open state from dropdown container
+            dropdown.classList.remove('w--open');
+
+            // Remove open state from toggle
+            const toggle = dropdown.querySelector('.w-dropdown-toggle');
+            if (toggle) {
+                toggle.classList.remove('w--open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+
+            // Remove open state and hide the list
+            const list = dropdown.querySelector('.w-dropdown-list');
+            if (list) {
+                list.classList.remove('w--open');
+                // Reset any inline styles that might have been set
+                list.style.display = '';
+                list.style.opacity = '';
+                list.style.height = '';
+            }
+
+            console.log('[CMS Client DEBUG] Closed dropdown:', dropdown);
+        });
+    }
+
     // ===== ASYNC UTILITIES =====
     // Wait for next frame - ensures DOM updates have been painted
     // Uses double rAF to guarantee paint has occurred
@@ -3899,9 +3932,8 @@
             const shareBtn = e.target.closest('[share="page"]');
             if (!shareBtn) return;
 
-            // Note: No preventDefault() or stopPropagation() here
-            // These are div elements with no default behavior, and blocking
-            // propagation interferes with Webflow dropdown close behavior
+            // Close any open Webflow dropdowns since we're handling this click
+            closeWebflowDropdowns();
 
             // Get current page URL including hash
             const shareUrl = window.location.href;
@@ -4120,8 +4152,8 @@
             const toggleBtn = e.target.closest(SELECTORS.viewToggle);
             if (!toggleBtn) return;
 
-            // Note: No preventDefault() here - these are div elements with no default behavior,
-            // and blocking propagation interferes with Webflow dropdown close behavior
+            // Close any open Webflow dropdowns since we're handling this click
+            closeWebflowDropdowns();
 
             const targetMode = toggleBtn.getAttribute('cms-view-toggle');
             const currentMode = Store.get('viewMode');
@@ -4431,8 +4463,9 @@
         if (searchToggles.length && searchWrap) {
             searchToggles.forEach(searchToggle => {
                 searchToggle.addEventListener('click', function() {
-                    // Note: No preventDefault() here - these are div elements with no default behavior,
-                    // and blocking propagation interferes with Webflow dropdown close behavior
+                    // Close any open Webflow dropdowns since we're handling this click
+                    closeWebflowDropdowns();
+
                     const isHidden = searchWrap.classList.contains('hide--search');
 
                     if (isHidden) {
