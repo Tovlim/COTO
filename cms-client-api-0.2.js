@@ -2527,6 +2527,22 @@
             listContainer.appendChild(fragment);
         }
 
+        // Re-initialize Webflow interactions for newly added elements (dropdowns, etc.)
+        if (window.Webflow && window.Webflow.require) {
+            try {
+                const ix2 = window.Webflow.require('ix2');
+                if (ix2 && ix2.init) {
+                    ix2.init();
+                }
+            } catch (e) {
+                // IX2 not available, try legacy dropdown init
+            }
+            // Also try the simpler ready() which reinits all Webflow components
+            if (typeof window.Webflow.ready === 'function') {
+                window.Webflow.ready();
+            }
+        }
+
         console.log(`[CMS Client] Populated ${successCount} items in DOM`);
 
         return successCount;
@@ -3933,6 +3949,72 @@
         console.log('[CMS Client] Share page button initialized');
     }
 
+    // Fallback dropdown handler for Webflow dropdowns that don't initialize on cloned elements
+    function initializeWebflowDropdownFallback() {
+        document.addEventListener('click', function(e) {
+            const toggle = e.target.closest('.w-dropdown-toggle');
+            if (!toggle) return;
+
+            const dropdown = toggle.closest('.w-dropdown');
+            if (!dropdown) return;
+
+            // Check if Webflow already handled this (look for w--open class toggling)
+            // If Webflow IX2 is working, the dropdown will have proper event handlers
+            // This fallback only activates if Webflow's system isn't working
+            const list = dropdown.querySelector('.w-dropdown-list');
+            if (!list) return;
+
+            // Don't interfere if Webflow's IX2 is handling it (check for Webflow's internal data)
+            if (dropdown._wfDropdown) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const isOpen = dropdown.classList.contains('w--open');
+
+            // Close all other dropdowns first
+            document.querySelectorAll('.w-dropdown.w--open').forEach(d => {
+                if (d !== dropdown) {
+                    d.classList.remove('w--open');
+                    const dList = d.querySelector('.w-dropdown-list');
+                    if (dList) {
+                        dList.classList.remove('w--open');
+                        dList.style.display = '';
+                    }
+                }
+            });
+
+            // Toggle this dropdown
+            if (isOpen) {
+                dropdown.classList.remove('w--open');
+                list.classList.remove('w--open');
+                list.style.display = '';
+            } else {
+                dropdown.classList.add('w--open');
+                list.classList.add('w--open');
+                list.style.display = 'block';
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.w-dropdown')) {
+                document.querySelectorAll('.w-dropdown.w--open').forEach(d => {
+                    // Only close if this is a fallback-managed dropdown
+                    if (d._wfDropdown) return;
+                    d.classList.remove('w--open');
+                    const list = d.querySelector('.w-dropdown-list');
+                    if (list) {
+                        list.classList.remove('w--open');
+                        list.style.display = '';
+                    }
+                });
+            }
+        });
+
+        console.log('[CMS Client] Webflow dropdown fallback initialized');
+    }
+
     // Date link click handler - filters by clicked report's date
     function initializeDateLinks() {
         document.addEventListener('click', function(e) {
@@ -4002,6 +4084,7 @@
         initializeScrollToTop();
         initializeShareButtons();
         initializeSharePageButton();
+        initializeWebflowDropdownFallback();
         initializeDateLinks();
         initializeViewToggle();
     }
