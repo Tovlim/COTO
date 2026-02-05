@@ -1298,12 +1298,12 @@
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         wrapperDiv.addEventListener('mouseenter', () => {
           if (map.getLayer(control.layerId)) {
-            map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+            map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
           }
         });
         wrapperDiv.addEventListener('mouseleave', () => {
           if (map.getLayer(control.layerId)) {
-            map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+            map.setPaintProperty(control.layerId, 'fill-opacity', 0.25);
           }
         });
         wrapperDiv.dataset.mapboxHoverAdded = 'true';
