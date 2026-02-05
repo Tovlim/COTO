@@ -990,13 +990,11 @@
 
                 // Open search wrap if there's a search filter from URL
                 const searchWrap = DOM.$('.header-search-wrap');
-                const searchToggle = DOM.$('[filter-reports="search-toggle"]');
+                const searchToggles = DOM.$$('[filter-reports="search-toggle"]');
                 if (searchWrap) {
                     searchWrap.classList.remove('hide--search');
                 }
-                if (searchToggle) {
-                    searchToggle.classList.add('is--open');
-                }
+                searchToggles.forEach(toggle => toggle.classList.add('is--open'));
             }
 
             // Sync date inputs
@@ -4424,35 +4422,37 @@
             }
         });
 
-        // Initialize search toggle
-        const searchToggle = DOM.$('[filter-reports="search-toggle"]');
+        // Initialize search toggles (supports multiple toggle buttons)
+        const searchToggles = DOM.$$('[filter-reports="search-toggle"]');
         const searchWrap = DOM.$('.header-search-wrap');
 
-        if (searchToggle && searchWrap) {
-            searchToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                const isHidden = searchWrap.classList.contains('hide--search');
+        if (searchToggles.length && searchWrap) {
+            searchToggles.forEach(searchToggle => {
+                searchToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const isHidden = searchWrap.classList.contains('hide--search');
 
-                if (isHidden) {
-                    // Show search
-                    searchWrap.classList.remove('hide--search');
-                    searchToggle.classList.add('is--open');
-                    // Focus the search input when opening
-                    searchInput.focus();
-                } else {
-                    // Hide search
-                    searchWrap.classList.add('hide--search');
-                    searchToggle.classList.remove('is--open');
-                    // Clear search input and filter when closing
-                    if (searchInput.value.trim()) {
-                        searchInput.value = '';
-                        clearTimeout(debounceTimer);
-                        Store.setFilter('search', '');
-                        applyFilters();
+                    if (isHidden) {
+                        // Show search
+                        searchWrap.classList.remove('hide--search');
+                        searchToggles.forEach(toggle => toggle.classList.add('is--open'));
+                        // Focus the search input when opening
+                        searchInput.focus();
+                    } else {
+                        // Hide search
+                        searchWrap.classList.add('hide--search');
+                        searchToggles.forEach(toggle => toggle.classList.remove('is--open'));
+                        // Clear search input and filter when closing
+                        if (searchInput.value.trim()) {
+                            searchInput.value = '';
+                            clearTimeout(debounceTimer);
+                            Store.setFilter('search', '');
+                            applyFilters();
+                        }
                     }
-                }
+                });
             });
-            console.log('[CMS Client] Search toggle initialized');
+            console.log('[CMS Client] Search toggle initialized for', searchToggles.length, 'elements');
         }
 
         console.log('[CMS Client] Search initialized');
