@@ -25,7 +25,7 @@ const SITE_SEARCH_CONFIG = {
     debounce: 300, // API call debounce
   },
   api: {
-    url: 'https://webflow-cms-search.occupation-crimes.workers.dev',
+    url: 'https://cms-reports-api.occupation-crimes.workers.dev',
     maxResults: 200
   },
   urlPrefixes: {
