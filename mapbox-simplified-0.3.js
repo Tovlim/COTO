@@ -1341,90 +1341,36 @@
         checkbox.dataset.mapboxListenerAdded = 'true';
       }
 
-      // Hover highlight on wrapper element
-      const wrapperDiv = document.getElementById(control.wrapId);
-      if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
-        wrapperDiv.addEventListener('mouseenter', () => {
-          if (control.type === 'territory') {
-            if (map.getLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
-            }
-          } else if (control.type === 'region') {
-            if (map.getLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
-            }
-            if (map.getLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
-            }
+      // Hover highlight on wrapper element (region only - highlights boundaries)
+      if (control.type === 'region') {
+        const wrapperDiv = document.getElementById(control.wrapId);
+        if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+          wrapperDiv.addEventListener('mouseenter', () => {
             const allLayers = map.getStyle().layers;
             allLayers.forEach(layer => {
               if (layer.id.includes('-district-fill')) {
-                map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
-              }
-              if (layer.id.includes('-district-border')) {
-                map.setPaintProperty(layer.id, 'line-color', '#6e3500');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.6);
-              }
-            });
-          } else if (control.type === 'locality') {
-            if (map.getLayer('locality-circles')) {
-              map.setPaintProperty('locality-circles', 'text-halo-color', '#a49c00');
-            }
-            if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
-            }
-          } else if (control.type === 'settlement') {
-            if (map.getLayer('settlement-circles')) {
-              map.setPaintProperty('settlement-circles', 'text-halo-color', '#ff3333');
-            }
-            if (map.getLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#ff3333');
-            }
-          }
-        });
-
-        wrapperDiv.addEventListener('mouseleave', () => {
-          if (control.type === 'territory') {
-            if (map.getLayer('territory-points')) {
-              map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
-            }
-          } else if (control.type === 'region') {
-            if (map.getLayer('region-points')) {
-              map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
-            }
-            if (map.getLayer('subregion-points')) {
-              map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
-            }
-            const allLayers = map.getStyle().layers;
-            allLayers.forEach(layer => {
-              if (layer.id.includes('-district-fill')) {
-                map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
                 map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
               }
               if (layer.id.includes('-district-border')) {
-                map.setPaintProperty(layer.id, 'line-color', '#888888');
-                map.setPaintProperty(layer.id, 'line-opacity', 0.4);
+                map.setPaintProperty(layer.id, 'line-opacity', 1);
               }
             });
-          } else if (control.type === 'locality') {
-            if (map.getLayer('locality-circles')) {
-              map.setPaintProperty('locality-circles', 'text-halo-color', '#7e7800');
-            }
-            if (map.getLayer('locality-points')) {
-              map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
-            }
-          } else if (control.type === 'settlement') {
-            if (map.getLayer('settlement-circles')) {
-              map.setPaintProperty('settlement-circles', 'text-halo-color', '#ce0000');
-            }
-            if (map.getLayer('settlement-points')) {
-              map.setPaintProperty('settlement-points', 'text-halo-color', '#ce0000');
-            }
-          }
-        });
+          });
 
-        wrapperDiv.dataset.mapboxHoverAdded = 'true';
+          wrapperDiv.addEventListener('mouseleave', () => {
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-district-fill')) {
+                map.setPaintProperty(layer.id, 'fill-opacity', 0);
+              }
+              if (layer.id.includes('-district-border')) {
+                map.setPaintProperty(layer.id, 'line-opacity', 0.7);
+              }
+            });
+          });
+
+          wrapperDiv.dataset.mapboxHoverAdded = 'true';
+        }
       }
     });
 
