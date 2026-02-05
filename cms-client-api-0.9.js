@@ -4070,19 +4070,6 @@
         console.log('[CMS Client] Date links initialized');
     }
 
-    // Global click-outside handler for Webflow dropdowns
-    function initializeGlobalDropdownClose() {
-        document.addEventListener('click', function(e) {
-            // Don't close if clicking inside a dropdown
-            if (e.target.closest('.w-dropdown')) return;
-
-            // Close all open Webflow dropdowns
-            closeWebflowDropdowns();
-        });
-
-        console.log('[CMS Client] Global dropdown close initialized');
-    }
-
     function initializeInteractions() {
         // Initialize delegated event handlers (single listeners for all items)
         ModalUtils.initDelegation();
@@ -4096,7 +4083,6 @@
         initializeReportOptionsDropdown();
         initializeDateLinks();
         initializeViewToggle();
-        initializeGlobalDropdownClose();
     }
 
     // ===== VIEW TOGGLE =====
@@ -4132,8 +4118,6 @@
         document.addEventListener('click', function(e) {
             const toggleBtn = e.target.closest(SELECTORS.viewToggle);
             if (!toggleBtn) return;
-
-            e.preventDefault();
 
             const targetMode = toggleBtn.getAttribute('cms-view-toggle');
             const currentMode = Store.get('viewMode');
