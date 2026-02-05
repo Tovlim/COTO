@@ -1460,7 +1460,7 @@
 
         thumbnailElement.href = reportData.photo.url;
         thumbnailElement.removeAttribute('data-fancybox');
-        thumbnailElement.setAttribute('data-caption', reportData.name || '');
+        thumbnailElement.setAttribute('data-caption', reportData.photo?.alt || reportData.name || '');
         thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
         // Store data attributes for delegated click handler
         thumbnailElement.setAttribute('data-gallery-id', galleryId);
@@ -1518,7 +1518,7 @@
                         // Fallback to single image from cached data
                         Fancybox.show([{
                             src: reportData.photo.url,
-                            caption: reportData.name || '',
+                            caption: reportData.photo?.alt || reportData.name || '',
                             thumb: reportData.photo.url
                         }], { hideScrollbar: false });
                     } else {
@@ -3041,6 +3041,16 @@
             updateResultsCount(Store.get('totalReports'));
 
             console.log(`[CMS Client] Filters applied: ${items.length} results (Total: ${Store.get('totalReports')})`);
+
+            // Notify map of filter changes for boundary highlighting
+            document.dispatchEvent(new CustomEvent('cmsFilterChanged', {
+                detail: {
+                    territory: Store.get('filters').territory || [],
+                    region: Store.get('filters').region || [],
+                    locality: Store.get('filters').locality || [],
+                    settlement: Store.get('filters').settlement || []
+                }
+            }));
 
         } catch (error) {
             console.error('[CMS Client] Filter error:', error);
