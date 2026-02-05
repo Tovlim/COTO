@@ -3715,8 +3715,13 @@
             const trigger = e.target.closest('[open-trigger]');
             if (!trigger) return;
 
+            // Don't trigger accordion for links
             const clickedLink = e.target.closest('a');
             if (clickedLink && trigger.contains(clickedLink)) return;
+
+            // Don't trigger accordion for report options dropdown
+            const clickedReportOptions = e.target.closest('[report-options="dropdown"], [report-options="toggle"]');
+            if (clickedReportOptions) return;
 
             e.preventDefault();
 
