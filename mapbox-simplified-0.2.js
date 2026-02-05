@@ -1236,30 +1236,34 @@
    */
   function loadAreaControls() {
     const areaControls = [
-      { keyId: 'area-a-key', layerId: 'area-a-layer' },
-      { keyId: 'area-b-key', layerId: 'area-b-layer' },
-      { keyId: 'area-c-key', layerId: 'area-c-layer' },
-      { keyId: 'firing-zones-key', layerId: 'firing-zones-layer' }
+      { keyId: 'area-a-key', layerId: 'area-a-layer', wrapId: 'area-a-key-wrap' },
+      { keyId: 'area-b-key', layerId: 'area-b-layer', wrapId: 'area-b-key-wrap' },
+      { keyId: 'area-c-key', layerId: 'area-c-layer', wrapId: 'area-c-key-wrap' },
+      { keyId: 'firing-zones-key', layerId: 'firing-zones-layer', wrapId: 'firing-zones-key-wrap' }
     ];
 
     const markerControls = [
       {
         keyId: 'territory-toggle-key',
+        wrapId: 'territory-toggle-key-wrap',
         type: 'territory',
         layers: ['territory-points']
       },
       {
         keyId: 'governorate-toggle-key',
+        wrapId: 'governorate-toggle-key-wrap',
         type: 'region',
         layers: ['region-points', 'subregion-points', 'district-points']
       },
       {
         keyId: 'locality-toggle-key',
+        wrapId: 'locality-toggle-key-wrap',
         type: 'locality',
         layers: ['locality-circles', 'locality-points']
       },
       {
         keyId: 'settlement-toggle-key',
+        wrapId: 'settlement-toggle-key-wrap',
         type: 'settlement',
         layers: ['settlement-circles', 'settlement-points']
       }
@@ -1287,6 +1291,22 @@
           }
         });
         checkbox.dataset.mapboxListenerAdded = 'true';
+      }
+
+      // Hover highlight on wrapper element
+      const wrapperDiv = document.getElementById(control.wrapId);
+      if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+        wrapperDiv.addEventListener('mouseenter', () => {
+          if (map.getLayer(control.layerId)) {
+            map.setPaintProperty(control.layerId, 'fill-opacity', 0.8);
+          }
+        });
+        wrapperDiv.addEventListener('mouseleave', () => {
+          if (map.getLayer(control.layerId)) {
+            map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+          }
+        });
+        wrapperDiv.dataset.mapboxHoverAdded = 'true';
       }
     });
 
@@ -1319,6 +1339,92 @@
           }
         });
         checkbox.dataset.mapboxListenerAdded = 'true';
+      }
+
+      // Hover highlight on wrapper element
+      const wrapperDiv = document.getElementById(control.wrapId);
+      if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
+        wrapperDiv.addEventListener('mouseenter', () => {
+          if (control.type === 'territory') {
+            if (map.getLayer('territory-points')) {
+              map.setPaintProperty('territory-points', 'text-halo-color', '#6a6a6a');
+            }
+          } else if (control.type === 'region') {
+            if (map.getLayer('region-points')) {
+              map.setPaintProperty('region-points', 'text-halo-color', '#8f4500');
+            }
+            if (map.getLayer('subregion-points')) {
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#8f4500');
+            }
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-district-fill')) {
+                map.setPaintProperty(layer.id, 'fill-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.25);
+              }
+              if (layer.id.includes('-district-border')) {
+                map.setPaintProperty(layer.id, 'line-color', '#6e3500');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.6);
+              }
+            });
+          } else if (control.type === 'locality') {
+            if (map.getLayer('locality-circles')) {
+              map.setPaintProperty('locality-circles', 'text-halo-color', '#a49c00');
+            }
+            if (map.getLayer('locality-points')) {
+              map.setPaintProperty('locality-points', 'text-halo-color', '#a49c00');
+            }
+          } else if (control.type === 'settlement') {
+            if (map.getLayer('settlement-circles')) {
+              map.setPaintProperty('settlement-circles', 'text-halo-color', '#ff3333');
+            }
+            if (map.getLayer('settlement-points')) {
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#ff3333');
+            }
+          }
+        });
+
+        wrapperDiv.addEventListener('mouseleave', () => {
+          if (control.type === 'territory') {
+            if (map.getLayer('territory-points')) {
+              map.setPaintProperty('territory-points', 'text-halo-color', '#2d1810');
+            }
+          } else if (control.type === 'region') {
+            if (map.getLayer('region-points')) {
+              map.setPaintProperty('region-points', 'text-halo-color', '#6e3500');
+            }
+            if (map.getLayer('subregion-points')) {
+              map.setPaintProperty('subregion-points', 'text-halo-color', '#6e3500');
+            }
+            const allLayers = map.getStyle().layers;
+            allLayers.forEach(layer => {
+              if (layer.id.includes('-district-fill')) {
+                map.setPaintProperty(layer.id, 'fill-color', '#1a1b1e');
+                map.setPaintProperty(layer.id, 'fill-opacity', 0.15);
+              }
+              if (layer.id.includes('-district-border')) {
+                map.setPaintProperty(layer.id, 'line-color', '#888888');
+                map.setPaintProperty(layer.id, 'line-opacity', 0.4);
+              }
+            });
+          } else if (control.type === 'locality') {
+            if (map.getLayer('locality-circles')) {
+              map.setPaintProperty('locality-circles', 'text-halo-color', '#7e7800');
+            }
+            if (map.getLayer('locality-points')) {
+              map.setPaintProperty('locality-points', 'text-halo-color', '#7e7800');
+            }
+          } else if (control.type === 'settlement') {
+            if (map.getLayer('settlement-circles')) {
+              map.setPaintProperty('settlement-circles', 'text-halo-color', '#ce0000');
+            }
+            if (map.getLayer('settlement-points')) {
+              map.setPaintProperty('settlement-points', 'text-halo-color', '#ce0000');
+            }
+          }
+        });
+
+        wrapperDiv.dataset.mapboxHoverAdded = 'true';
       }
     });
 
@@ -1722,6 +1828,15 @@
       removeAllHighlights();
 
       const { territory, region } = event.detail;
+
+      // Clear map selection tracking if the filter it set was removed externally (e.g. tag remove)
+      if (currentMapSelection) {
+        const key = currentMapSelection.filterKey;
+        const values = event.detail[key] || [];
+        if (!values.includes(currentMapSelection.filterValue)) {
+          currentMapSelection = null;
+        }
+      }
 
       if (territory && territory.length > 0) {
         territory.forEach(name => highlightTerritoryBoundaries(name));
