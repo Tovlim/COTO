@@ -43,12 +43,14 @@
         searchInput: '[filter-reports="search"]',
         filterAttr: '[cms-filter]',
 
-        // Filter UI elements
+        // Filter UI elements - Tag system
+        tagsSection: '[cms-filter-element="tags-section"]',
         tagWrap: '[cms-filter-element="tag-wrap"]',
+        tagClearAll: '[cms-filter-element="clear-all"]',
+        tagFieldWrap: '[cms-filter-element="tag-value-wrap"]',
         tag: '[cms-filter-element="tag"]',
-        tagNotTemplate: '[cms-filter-element="tag"]:not(.tag-template)',
-        tagRemove: '[cms-filter-element="tag-remove"]',
-        tagField: '[cms-filter-element="tag-field"]',
+        tagNotTemplate: '[cms-filter-element="tag"]:not(.tag-template):not(.tag-field-template)',
+        tagFieldNotTemplate: '[cms-filter-element="tag-value-wrap"]:not(.tag-field-template)',
         tagValue: '[cms-filter-element="tag-value"]',
         resultsCount: '[cms-filter-element="results-count"]',
 
@@ -2726,107 +2728,192 @@
     };
 
     // ===== TAG MANAGER =====
+    // Manages the filter tags UI with grouped structure:
+    // - Clear All button: clears all filters
+    // - Field tags (tag-value-wrap): shows field name, clicking clears all values for that field
+    // - Value tags (tag): shows individual values, clicking removes just that value
     const TagManager = {
         tagWrap: null,
         tagTemplate: null,
+        tagFieldTemplate: null,
+        clearAllButton: null,
 
         init() {
             this.tagWrap = DOM.$(SELECTORS.tagWrap);
-            if (this.tagWrap) {
-                this.tagTemplate = DOM.$(SELECTORS.tag, this.tagWrap);
-                if (this.tagTemplate) {
-                    this.tagTemplate.style.display = 'none';
-                    this.tagTemplate.classList.add('tag-template');
-                }
-
-                // Event delegation for tag removal
-                this.tagWrap.addEventListener('click', (e) => {
-                    const removeBtn = e.target.closest(SELECTORS.tagRemove);
-                    if (removeBtn) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const tag = removeBtn.closest(SELECTORS.tag);
-                        if (tag && !tag.classList.contains('tag-template')) {
-                            const filterKey = tag.getAttribute('data-filter-key');
-                            const filterValue = tag.getAttribute('data-filter-value');
-                            const isMultiValue = tag.hasAttribute('data-multi-value');
-
-                            if (filterKey) {
-                                if (isMultiValue) {
-                                    this.removeAllValuesForKey(filterKey);
-                                } else {
-                                    this.removeTag(filterKey, filterValue);
-                                }
-                            }
-                        }
-                    }
-                });
+            if (!this.tagWrap) {
+                console.warn('[CMS Client] Tag wrap element not found');
+                return;
             }
 
-            if (!this.tagWrap || !this.tagTemplate) {
-                console.warn('[CMS Client] Tag elements not found');
+            // Get the individual value tag template
+            this.tagTemplate = DOM.$(SELECTORS.tag, this.tagWrap);
+            if (this.tagTemplate) {
+                this.tagTemplate.style.display = 'none';
+                this.tagTemplate.classList.add('tag-template');
+            }
+
+            // Get the field header tag template
+            this.tagFieldTemplate = DOM.$(SELECTORS.tagFieldWrap, this.tagWrap);
+            if (this.tagFieldTemplate) {
+                this.tagFieldTemplate.style.display = 'none';
+                this.tagFieldTemplate.classList.add('tag-field-template');
+            }
+
+            // Get the clear all button
+            this.clearAllButton = DOM.$(SELECTORS.tagClearAll, this.tagWrap);
+            if (this.clearAllButton) {
+                this.clearAllButton.style.display = 'none';
+            }
+
+            // Event delegation for all tag interactions
+            this.tagWrap.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Check for clear-all click
+                const clearAllEl = e.target.closest(SELECTORS.tagClearAll);
+                if (clearAllEl) {
+                    this.clearAllFilters();
+                    return;
+                }
+
+                // Check for field tag click (removes all values for that field)
+                const fieldTag = e.target.closest(SELECTORS.tagFieldWrap);
+                if (fieldTag && !fieldTag.classList.contains('tag-field-template')) {
+                    const filterKey = fieldTag.getAttribute('data-filter-key');
+                    if (filterKey) {
+                        this.removeAllValuesForKey(filterKey);
+                    }
+                    return;
+                }
+
+                // Check for individual value tag click
+                const valueTag = e.target.closest(SELECTORS.tag);
+                if (valueTag && !valueTag.classList.contains('tag-template')) {
+                    const filterKey = valueTag.getAttribute('data-filter-key');
+                    const filterValue = valueTag.getAttribute('data-filter-value');
+                    if (filterKey) {
+                        this.removeSingleValue(filterKey, filterValue);
+                    }
+                    return;
+                }
+            });
+
+            if (!this.tagTemplate) {
+                console.warn('[CMS Client] Tag template not found');
+            }
+            if (!this.tagFieldTemplate) {
+                console.warn('[CMS Client] Tag field template not found');
             }
         },
 
         clearAllTags() {
             if (!this.tagWrap) return;
+            // Remove all non-template tags (both field and value tags)
             DOM.$$(SELECTORS.tagNotTemplate, this.tagWrap)
+                .forEach(tag => tag.remove());
+            DOM.$$(SELECTORS.tagFieldNotTemplate, this.tagWrap)
                 .forEach(tag => tag.remove());
         },
 
-        addTag(field, value, filterKey, individualValues = null, isMapFilter = false) {
-            if (!this.tagWrap || !this.tagTemplate) return;
+        // Add a grouped tag: field header + individual value tags
+        addTagGroup(fieldName, filterKey, values, mapFilterValue = null) {
+            if (!this.tagWrap || !this.tagTemplate || !this.tagFieldTemplate) return;
 
-            const tag = this.tagTemplate.cloneNode(true);
-            tag.style.display = '';
-            tag.classList.remove('tag-template');
-            tag.setAttribute('data-filter-key', filterKey);
-            tag.setAttribute('data-filter-value', value);
+            // Create field header tag
+            const fieldTag = this.tagFieldTemplate.cloneNode(true);
+            fieldTag.style.display = '';
+            fieldTag.classList.remove('tag-field-template');
+            fieldTag.setAttribute('data-filter-key', filterKey);
 
-            if (individualValues?.length > 1) {
-                tag.setAttribute('data-multi-value', 'true');
-            }
+            const fieldValueEl = DOM.$(SELECTORS.tagValue, fieldTag);
+            if (fieldValueEl) fieldValueEl.textContent = fieldName;
 
-            const fieldElements = DOM.$$(SELECTORS.tagField, tag);
-            if (fieldElements[0]) fieldElements[0].textContent = field;
+            this.tagWrap.appendChild(fieldTag);
 
-            const valueElement = DOM.$(SELECTORS.tagValue, tag);
-            if (valueElement) valueElement.textContent = value;
+            // Create individual value tags
+            values.forEach(value => {
+                const valueTag = this.tagTemplate.cloneNode(true);
+                valueTag.style.display = '';
+                valueTag.classList.remove('tag-template');
+                valueTag.setAttribute('data-filter-key', filterKey);
+                valueTag.setAttribute('data-filter-value', value);
 
-            // Show map icon if this is a map-selected filter
-            if (isMapFilter) {
-                const mapTagIcon = DOM.$('[cms-filter-element="map-tag"]', tag);
-                if (mapTagIcon) mapTagIcon.style.display = 'block';
-            }
+                const valueEl = DOM.$(SELECTORS.tagValue, valueTag);
+                if (valueEl) valueEl.textContent = value;
 
-            this.tagWrap.appendChild(tag);
+                // Show map icon if this specific value is from map selection
+                if (mapFilterValue === value) {
+                    const mapTagIcon = DOM.$('[cms-filter-element="map-tag"]', valueTag);
+                    if (mapTagIcon) mapTagIcon.style.display = 'block';
+                }
+
+                this.tagWrap.appendChild(valueTag);
+            });
         },
 
-        async removeAllValuesForKey(filterKey) {
+        // Add a single tag (for non-array filters like date, urgent)
+        addSingleTag(fieldName, value, filterKey) {
+            if (!this.tagWrap || !this.tagTemplate) return;
+
+            // For single-value filters, just create one value tag
+            const valueTag = this.tagTemplate.cloneNode(true);
+            valueTag.style.display = '';
+            valueTag.classList.remove('tag-template');
+            valueTag.setAttribute('data-filter-key', filterKey);
+            valueTag.setAttribute('data-filter-value', value);
+
+            const valueEl = DOM.$(SELECTORS.tagValue, valueTag);
+            if (valueEl) valueEl.textContent = `${fieldName}: ${value}`;
+
+            this.tagWrap.appendChild(valueTag);
+        },
+
+        async clearAllFilters() {
             Store.setState({ isClearing: true }, true);
 
-            if (Array.isArray(Store.get('filters')[filterKey])) {
+            // Clear all array filters
+            ['topic', 'region', 'locality', 'settlement', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
                 Store.setFilter(filterKey, []);
-
                 CheckboxUtils.findAll(filterKey).forEach(checkbox => {
                     if (checkbox.checked || CheckboxUtils.isChecked(checkbox)) {
                         CheckboxUtils.uncheck(checkbox);
                     }
                 });
-            }
+            });
+
+            // Clear date filters
+            Store.setFilter('date', '');
+            Store.setFilter('dateFrom', '');
+            Store.setFilter('dateUntil', '');
+            [SELECTORS.date, SELECTORS.dateFrom, SELECTORS.dateUntil].forEach(sel => {
+                const dateInput = DOM.$(sel);
+                if (dateInput) {
+                    dateInput.value = '';
+                    if (dateInput._flatpickr) dateInput._flatpickr.clear();
+                }
+            });
+
+            // Clear urgent filter
+            Store.setFilter('urgent', null);
 
             await nextFrame();
             Store.setState({ isClearing: false }, true);
             applyFilters();
         },
 
-        async removeTag(filterKey, value) {
+        async removeAllValuesForKey(filterKey) {
+            Store.setState({ isClearing: true }, true);
+
             const filters = Store.get('filters');
 
-            if (filterKey === 'search') {
-                Store.setFilter('search', '');
-                const searchInput = DOM.$(SELECTORS.searchInput);
-                if (searchInput) searchInput.value = '';
+            if (Array.isArray(filters[filterKey])) {
+                Store.setFilter(filterKey, []);
+                CheckboxUtils.findAll(filterKey).forEach(checkbox => {
+                    if (checkbox.checked || CheckboxUtils.isChecked(checkbox)) {
+                        CheckboxUtils.uncheck(checkbox);
+                    }
+                });
             } else if (filterKey === 'date') {
                 Store.setFilter('date', '');
                 const dateInput = DOM.$(SELECTORS.date);
@@ -2848,28 +2935,34 @@
                     dateInput.value = '';
                     if (dateInput._flatpickr) dateInput._flatpickr.clear();
                 }
-            } else if (Array.isArray(filters[filterKey])) {
+            } else if (filterKey === 'urgent') {
+                Store.setFilter('urgent', null);
+            }
+
+            await nextFrame();
+            Store.setState({ isClearing: false }, true);
+            applyFilters();
+        },
+
+        async removeSingleValue(filterKey, value) {
+            const filters = Store.get('filters');
+
+            if (Array.isArray(filters[filterKey])) {
                 Store.setState({ isClearing: true }, true);
 
-                const valuesToRemove = value.includes(',')
-                    ? value.split(',').map(v => v.trim())
-                    : [value];
+                Store.removeFromFilter(filterKey, value);
 
-                valuesToRemove.forEach(val => {
-                    Store.removeFromFilter(filterKey, val);
-
-                    const checkbox = CheckboxUtils.find(filterKey, val);
-                    if (checkbox) {
-                        CheckboxUtils.uncheck(checkbox);
-                    }
-                });
+                const checkbox = CheckboxUtils.find(filterKey, value);
+                if (checkbox) {
+                    CheckboxUtils.uncheck(checkbox);
+                }
 
                 await nextFrame();
                 Store.setState({ isClearing: false }, true);
-                applyFilters();
-                return;
             } else {
-                Store.setFilter(filterKey, null);
+                // For non-array filters, removing the value clears the whole filter
+                await this.removeAllValuesForKey(filterKey);
+                return;
             }
 
             applyFilters();
@@ -2879,58 +2972,57 @@
             this.clearAllTags();
 
             const filters = Store.get('filters');
-            // Track non-search filters separately (tags section only shows for these)
             let hasNonSearchFilters = false;
 
             // Get current map selection to identify map-originated filters
             const mapSelection = window.MapboxCore?.getCurrentSelection?.() || null;
 
-            // Note: search filter is excluded from tags intentionally
-            // It has its own UI in the header search wrap and doesn't show in tags section
-
-            // Single date filter takes precedence over range
+            // Date filters (single value, no field header needed)
             if (filters.date) {
-                this.addTag('Date', DateUtils.formatForTag(filters.date), 'date');
+                this.addSingleTag('Date', DateUtils.formatForTag(filters.date), 'date');
                 hasNonSearchFilters = true;
             } else {
                 if (filters.dateFrom) {
-                    this.addTag('From', DateUtils.formatForTag(filters.dateFrom), 'dateFrom');
+                    this.addSingleTag('From', DateUtils.formatForTag(filters.dateFrom), 'dateFrom');
                     hasNonSearchFilters = true;
                 }
                 if (filters.dateUntil) {
-                    this.addTag('Until', DateUtils.formatForTag(filters.dateUntil), 'dateUntil');
+                    this.addSingleTag('Until', DateUtils.formatForTag(filters.dateUntil), 'dateUntil');
                     hasNonSearchFilters = true;
                 }
             }
 
+            // Array filters (grouped: field header + individual values)
             ['topic', 'region', 'locality', 'settlement', 'territory', 'reporter', 'perpetrator'].forEach(filterKey => {
                 if (filters[filterKey]?.length > 0) {
                     const fieldName = filterKey.charAt(0).toUpperCase() + filterKey.slice(1);
                     const values = filters[filterKey];
 
-                    // Check if this filter value matches the current map selection
-                    const isMapFilter = mapSelection &&
+                    // Check which value (if any) is from map selection
+                    const mapFilterValue = (mapSelection &&
                         mapSelection.filterKey === filterKey &&
-                        values.includes(mapSelection.filterValue);
+                        values.includes(mapSelection.filterValue))
+                        ? mapSelection.filterValue
+                        : null;
 
-                    if (values.length === 1) {
-                        this.addTag(fieldName, values[0], filterKey, null, isMapFilter);
-                    } else {
-                        this.addTag(fieldName, values.join(', '), filterKey, values, isMapFilter);
-                    }
+                    this.addTagGroup(fieldName, filterKey, values, mapFilterValue);
                     hasNonSearchFilters = true;
                 }
             });
 
+            // Urgent filter (single value)
             if (filters.urgent !== null) {
-                this.addTag('Urgent', filters.urgent ? 'Yes' : 'No', 'urgent');
+                this.addSingleTag('Urgent', filters.urgent ? 'Yes' : 'No', 'urgent');
                 hasNonSearchFilters = true;
             }
 
-            // Toggle tags-section visibility - only show for non-search filters
-            const tagsSection = DOM.$('[cms-filter-element="tags-section"]');
+            // Toggle tags-section and clear-all visibility
+            const tagsSection = DOM.$(SELECTORS.tagsSection);
             if (tagsSection) {
                 tagsSection.style.display = hasNonSearchFilters ? 'flex' : 'none';
+            }
+            if (this.clearAllButton) {
+                this.clearAllButton.style.display = hasNonSearchFilters ? '' : 'none';
             }
         }
     };
