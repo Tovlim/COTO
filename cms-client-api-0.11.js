@@ -1861,15 +1861,10 @@
                 linkElement.removeAttribute('href');
             }
 
-            // Add remaining items with separators
+            // Add remaining items, inserted right after the previous sibling of the same type
+            let lastInserted = linkElement;
             for (let i = 1; i < validItems.length; i++) {
                 const item = validItems[i];
-
-                // Create separator
-                const separator = document.createElement('span');
-                separator.textContent = ', ';
-                separator.className = 'location-separator';
-                parentContainer.appendChild(separator);
 
                 // Clone and set up the link for this item
                 const newLink = linkElement.cloneNode(true);
@@ -1880,7 +1875,8 @@
                 } else {
                     newLink.removeAttribute('href');
                 }
-                parentContainer.appendChild(newLink);
+                lastInserted.after(newLink);
+                lastInserted = newLink;
             }
         });
     }
