@@ -1830,28 +1830,25 @@
             }
         ];
 
+        // First, hide all template links by default (only show when populated)
+        MULTI_LOCATION_FIELDS.forEach(config => {
+            const linkElement = DOM.$(config.linkSelector, itemElement);
+            if (linkElement) DOM.toggle(linkElement, false);
+        });
+
         MULTI_LOCATION_FIELDS.forEach(config => {
             const data = reportData[config.dataKey];
             const linkElement = DOM.$(config.linkSelector, itemElement);
 
             if (!linkElement) return;
 
-            const parentContainer = linkElement.parentElement;
-            if (!parentContainer) return;
-
             // Get valid items with names
             const validItems = Array.isArray(data) ? data.filter(item => item?.name) : [];
 
-            if (validItems.length === 0) {
-                // Hide the entire container if no valid items
-                DOM.toggle(parentContainer, false);
-                return;
-            }
+            if (validItems.length === 0) return;
 
-            // Show the container
-            DOM.toggle(parentContainer, true);
-
-            // Set up the first item using the existing link element
+            // Show and set up the first item using the existing link element
+            DOM.toggle(linkElement, true);
             const firstItem = validItems[0];
             const fieldElement = DOM.$(config.fieldSelector, linkElement) || linkElement;
             DOM.setText(fieldElement, firstItem.name);
