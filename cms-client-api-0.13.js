@@ -2327,11 +2327,10 @@
         const itemType = itemElement.getAttribute('cms-item-type');
         if (itemType !== 'full') return;
 
-        const hasDescription = reportData.description?.trim();
         const hasImages = reportData.reportImages?.length > 0;
         const hasVideos = reportData.videos?.length > 0;
 
-        DOM.toggle(DOM.$('[data-tab="1"]', itemElement), !!hasDescription);
+        DOM.toggle(DOM.$('[data-tab="1"]', itemElement), true);
         DOM.toggle(DOM.$('[data-tab="2"]', itemElement), hasImages);
         DOM.toggle(DOM.$('[data-tab="3"]', itemElement), hasVideos);
         DOM.toggle(DOM.$('[data-tab="wrap"]', itemElement), true);
