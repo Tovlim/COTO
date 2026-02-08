@@ -268,13 +268,18 @@ class SiteSearch {
       });
     }
 
-    // Open search sidebar (site mode)
+    // Toggle search sidebar (site mode)
     if (this.elements.openSearch && this.elements.sidebar) {
       this.elements.openSearch.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('[Site Search] Opening sidebar in site mode');
-        this.setMode('site');
-        this.openSidebar();
+        if (this.elements.sidebar.classList.contains('is--show') && this.mode === 'site') {
+          console.log('[Site Search] Closing sidebar (toggle)');
+          this.closeSidebar();
+        } else {
+          console.log('[Site Search] Opening sidebar in site mode');
+          this.setMode('site');
+          this.openSidebar();
+        }
       });
     }
 
