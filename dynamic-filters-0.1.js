@@ -1,0 +1,705 @@
+/**
+ * dynamic-filters.js v2.0.0
+ *
+ * Populates Webflow-built filter sections with dynamically-fetched CMS items.
+ * Clones a checkbox template per item. Uses server-side search.
+ * Lazy-loads featured items when a section is first expanded.
+ *
+ * Dependencies: cms-client-api.js (must load first, exposes window.cmsDebug)
+ *
+ * Webflow attribute reference:
+ *
+ *   Section wrapper:          data-filter-section="{key}"
+ *   Header (collapse toggle): data-filter-header="{key}"
+ *   Collapse target:          filter-collapse="target"          (inside section)
+ *   Search input:             searchbox-filter="{key}"          (inside section)
+ *   Clear search button:      clear-text-input="{key}"          (inside section)
+ *   Clear all checked button: cms-clear-element="{key}"         (inside section)
+ *   Checkbox list container:  data-filter-group="{key}"         (inside section)
+ *   Checkbox template:        data-filter-template="{key}"      (single <label> inside list)
+ *   Arrow indicator:          data-filter-arrow="{key}"         (optional, inside header)
+ *   Active count badge:       data-filter-count="{key}"         (optional, inside header)
+ *
+ *   Inside template:
+ *     <input cms-filter="{key}" cms-filter-value="" data-filter-initialized="true">
+ *     <span data-filter-item="name"></span>
+ *     <a data-filter-item="link"></a>         (optional, external link)
+ *     <div data-filter-item="count"></div>    (optional, facet count)
+ *
+ * {key} = region | locality | reporter | topic | perpetrator | settlement | territory
+ */
+(function () {
+    'use strict';
+
+    // ===== CONFIGURATION =====
+    const CONFIG = {
+        WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
+        DEBOUNCE_MS: 300,
+        FEATURED_LIMIT: 15,
+        SEARCH_LIMIT: 20,
+        MAX_CMS_WAIT: 10000,
+        COLLAPSE_TRANSITION: 'height 0.3s ease',
+
+        // Map filter keys to API collection endpoint names
+        COLLECTION_MAP: {
+            region: 'regions',
+            locality: 'localities',
+            reporter: 'reporters',
+            topic: 'topics',
+            perpetrator: 'perpetrators',
+            settlement: 'settlements',
+            territory: 'territories'
+        },
+
+        // Map filter keys to /featured category names (not all have featured endpoints)
+        FEATURED_MAP: {
+            region: 'regions',
+            locality: 'localities',
+            reporter: 'reporters',
+            topic: 'topics',
+            perpetrator: 'perpetrators'
+        }
+    };
+
+    // ===== PER-GROUP STATE =====
+    const groupState = new Map();
+    let internalUpdate = false;
+
+    function getGroupState(filterKey) {
+        if (!groupState.has(filterKey)) {
+            groupState.set(filterKey, {
+                loaded: false,
+                expanded: false,
+                loading: false,
+                featuredItems: [],
+                currentItems: [],
+                searchTerm: '',
+                checkedSlugs: new Set(),
+                abortController: null,
+                debounceTimer: null,
+                elements: {}
+            });
+        }
+        return groupState.get(filterKey);
+    }
+
+    // ===== DOM HELPERS =====
+    function $(selector, parent) {
+        return (parent || document).querySelector(selector);
+    }
+
+    function $$(selector, parent) {
+        return Array.from((parent || document).querySelectorAll(selector));
+    }
+
+    // ===== SECTION INITIALIZATION =====
+
+    function initSections() {
+        $$('[data-filter-section]').forEach(section => {
+            const key = section.getAttribute('data-filter-section');
+            if (!CONFIG.COLLECTION_MAP[key]) return;
+
+            const state = getGroupState(key);
+
+            // Find all elements by attributes within this section
+            state.elements = {
+                section,
+                header: $(`[data-filter-header="${key}"]`, section),
+                collapseTarget: $('[filter-collapse="target"]', section),
+                searchInput: $(`[searchbox-filter="${key}"]`, section),
+                clearSearchBtn: $(`[clear-text-input="${key}"]`, section),
+                clearFilterBtn: $(`[cms-clear-element="${key}"]`, section),
+                group: $(`[data-filter-group="${key}"]`, section),
+                template: $(`[data-filter-template="${key}"]`, section),
+                arrow: $(`[data-filter-arrow="${key}"]`, section),
+                count: $(`[data-filter-count="${key}"]`, section)
+            };
+
+            if (!state.elements.header || !state.elements.group) {
+                console.warn(`[Dynamic Filters] Missing header or group for "${key}"`);
+                return;
+            }
+
+            // Hide the template label
+            if (state.elements.template) {
+                state.elements.template.style.display = 'none';
+            }
+
+            // Set initial collapsed state on the collapse target
+            if (state.elements.collapseTarget) {
+                const ct = state.elements.collapseTarget;
+                ct.style.height = '0';
+                ct.style.overflow = 'hidden';
+                ct.style.transition = CONFIG.COLLAPSE_TRANSITION;
+            }
+
+            attachSectionHandlers(key, state);
+        });
+    }
+
+    function attachSectionHandlers(filterKey, state) {
+        const { header, searchInput, clearSearchBtn, clearFilterBtn } = state.elements;
+
+        // Collapse toggle on header click
+        header.addEventListener('click', (e) => {
+            // Don't toggle if clicking the clear-filter button inside the header
+            if (e.target.closest(`[cms-clear-element="${filterKey}"]`)) return;
+            toggleSection(filterKey);
+        });
+
+        // Search input
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.trim();
+                handleSearchInput(filterKey, term);
+            });
+        }
+
+        // Clear search button
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (searchInput) searchInput.value = '';
+                handleSearchClear(filterKey);
+                if (searchInput) searchInput.focus();
+            });
+        }
+
+        // Clear all checked for this group
+        if (clearFilterBtn) {
+            clearFilterBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                clearGroupFilters(filterKey);
+            });
+        }
+    }
+
+    // ===== COLLAPSE =====
+
+    function toggleSection(filterKey) {
+        const state = getGroupState(filterKey);
+        const ct = state.elements.collapseTarget;
+        if (!ct) return;
+
+        const newExpanded = !state.expanded;
+        state.expanded = newExpanded;
+
+        if (newExpanded) {
+            // Expand: set height to scrollHeight, then auto after transition
+            ct.style.height = ct.scrollHeight + 'px';
+            const onEnd = () => {
+                ct.removeEventListener('transitionend', onEnd);
+                if (state.expanded) ct.style.height = 'auto';
+            };
+            ct.addEventListener('transitionend', onEnd);
+        } else {
+            // Collapse: set explicit height first, then 0 on next frame
+            ct.style.height = ct.scrollHeight + 'px';
+            requestAnimationFrame(() => {
+                ct.style.height = '0';
+            });
+        }
+
+        // Arrow rotation
+        if (state.elements.arrow) {
+            state.elements.arrow.style.transform = newExpanded ? 'rotate(180deg)' : '';
+        }
+
+        // Lazy load on first expand
+        if (newExpanded && !state.loaded && !state.loading) {
+            loadFeaturedItems(filterKey);
+        }
+    }
+
+    // ===== DATA FETCHING =====
+
+    async function loadFeaturedItems(filterKey) {
+        const state = getGroupState(filterKey);
+        state.loading = true;
+
+        try {
+            let items;
+            const featuredCategory = CONFIG.FEATURED_MAP[filterKey];
+
+            if (featuredCategory) {
+                const response = await fetch(
+                    `${CONFIG.WORKER_URL}/featured/${featuredCategory}?limit=${CONFIG.FEATURED_LIMIT}`
+                );
+                const data = await response.json();
+                items = data.success ? (data.data || []) : [];
+            } else {
+                const collection = CONFIG.COLLECTION_MAP[filterKey];
+                const response = await fetch(
+                    `${CONFIG.WORKER_URL}/${collection}?limit=${CONFIG.FEATURED_LIMIT}&sort=name&order=asc`
+                );
+                const data = await response.json();
+                items = data.success ? (data.data || []) : [];
+            }
+
+            const normalizedItems = items.map(normalizeItem);
+            state.featuredItems = normalizedItems;
+            state.loaded = true;
+            renderItems(filterKey, normalizedItems);
+        } catch (error) {
+            console.error(`[Dynamic Filters] Failed to load featured items for ${filterKey}:`, error);
+            renderMessage(filterKey, 'Failed to load. Click to retry.', () => loadFeaturedItems(filterKey));
+        } finally {
+            state.loading = false;
+        }
+    }
+
+    async function searchCollection(filterKey, query) {
+        const state = getGroupState(filterKey);
+
+        // Cancel any in-flight request
+        if (state.abortController) {
+            state.abortController.abort();
+        }
+        state.abortController = new AbortController();
+
+        try {
+            const collection = CONFIG.COLLECTION_MAP[filterKey];
+            const response = await fetch(
+                `${CONFIG.WORKER_URL}/search/${collection}?q=${encodeURIComponent(query)}&limit=${CONFIG.SEARCH_LIMIT}`,
+                { signal: state.abortController.signal }
+            );
+            const data = await response.json();
+            const results = (data.results || []).map(normalizeItem);
+            state.currentItems = results;
+            renderItems(filterKey, results);
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            console.error(`[Dynamic Filters] Search failed for ${filterKey}:`, error);
+            renderMessage(filterKey, 'Search failed. Try again.', () => searchCollection(filterKey, query));
+        } finally {
+            state.abortController = null;
+        }
+    }
+
+    function normalizeItem(item) {
+        return {
+            name: item.name || '',
+            slug: item.slug || '',
+            region: item.region || item.territory || '',
+            photoUrl: item.photoUrl || item.photo || ''
+        };
+    }
+
+    // ===== SEARCH HANDLING =====
+
+    function handleSearchInput(filterKey, term) {
+        const state = getGroupState(filterKey);
+        state.searchTerm = term;
+
+        if (state.debounceTimer) {
+            clearTimeout(state.debounceTimer);
+            state.debounceTimer = null;
+        }
+
+        if (!term) {
+            handleSearchClear(filterKey);
+            return;
+        }
+
+        state.debounceTimer = setTimeout(() => {
+            searchCollection(filterKey, term);
+        }, CONFIG.DEBOUNCE_MS);
+    }
+
+    function handleSearchClear(filterKey) {
+        const state = getGroupState(filterKey);
+        state.searchTerm = '';
+
+        if (state.debounceTimer) {
+            clearTimeout(state.debounceTimer);
+            state.debounceTimer = null;
+        }
+        if (state.abortController) {
+            state.abortController.abort();
+            state.abortController = null;
+        }
+
+        if (state.featuredItems.length > 0) {
+            renderItems(filterKey, state.featuredItems);
+        }
+    }
+
+    // ===== CHECKBOX RENDERING =====
+
+    function renderItems(filterKey, items) {
+        const state = getGroupState(filterKey);
+        const container = state.elements.group;
+        const template = state.elements.template;
+        if (!container || !template) return;
+
+        // Sync checked slugs from Store
+        syncCheckedSlugsFromStore(filterKey);
+
+        const checkedSlugs = state.checkedSlugs;
+        const itemSlugs = new Set(items.map(i => i.slug));
+        const fragment = document.createDocumentFragment();
+
+        // 1. Pinned checked items not in current results
+        checkedSlugs.forEach(slug => {
+            if (!itemSlugs.has(slug)) {
+                const pinnedItem = { name: slug, slug, region: '', photoUrl: '' };
+                const cached = state.featuredItems.find(i => i.slug === slug);
+                if (cached) Object.assign(pinnedItem, cached);
+                const el = cloneTemplate(filterKey, template, pinnedItem, true, true);
+                if (el) fragment.appendChild(el);
+            }
+        });
+
+        // 2. Current results
+        items.forEach(item => {
+            const isChecked = checkedSlugs.has(item.slug);
+            const el = cloneTemplate(filterKey, template, item, isChecked, false);
+            if (el) fragment.appendChild(el);
+        });
+
+        // Clear existing cloned items (keep template)
+        clearClonedItems(container);
+
+        if (!fragment.hasChildNodes() && items.length === 0) {
+            const empty = document.createElement('div');
+            empty.setAttribute('data-filter-empty', 'true');
+            empty.textContent = 'No items found';
+            container.appendChild(empty);
+        } else {
+            container.appendChild(fragment);
+        }
+
+        state.currentItems = items;
+
+        // Update collapse target height if expanded (content size changed)
+        updateCollapseHeight(filterKey);
+    }
+
+    function cloneTemplate(filterKey, template, item, isChecked, isPinned) {
+        const clone = template.cloneNode(true);
+        clone.style.display = '';
+        clone.removeAttribute('data-filter-template');
+        clone.setAttribute('data-filter-clone', 'true');
+
+        if (isPinned) {
+            clone.setAttribute('data-filter-pinned', 'true');
+        }
+
+        // Input
+        const input = clone.querySelector('input[type="checkbox"]');
+        if (input) {
+            input.setAttribute('cms-filter-value', item.slug);
+            input.setAttribute('data-filter-initialized', 'true');
+            input.checked = isChecked;
+            input.id = `${filterKey}-${item.slug}`;
+        }
+
+        // Checkbox visual
+        const checkboxDiv = clone.querySelector('[class*="w-checkbox-input"]');
+        if (checkboxDiv) {
+            checkboxDiv.classList.toggle('w--redirected-checked', isChecked);
+        }
+
+        // Name
+        const nameEl = clone.querySelector('[data-filter-item="name"]');
+        if (nameEl) {
+            nameEl.textContent = item.name;
+            nameEl.setAttribute('for', `${filterKey}-${item.slug}`);
+        }
+
+        // External link
+        const linkEl = clone.querySelector('[data-filter-item="link"]');
+        if (linkEl) {
+            linkEl.href = `/${filterKey}/${item.slug}`;
+        }
+
+        // Attach change event to input
+        if (input) {
+            input.addEventListener('change', function () {
+                handleCheckboxChange(filterKey, item.slug, this.checked);
+            });
+        }
+
+        // Click on label toggles checkbox (Webflow custom checkbox pattern)
+        clone.addEventListener('click', (e) => {
+            if (!input) return;
+            if (e.target === input) return;
+            // Don't toggle if clicking the external link
+            if (e.target.closest('[data-filter-item="link"]')) return;
+            e.preventDefault();
+            input.checked = !input.checked;
+            input.dispatchEvent(new Event('change'));
+        });
+
+        return clone;
+    }
+
+    function clearClonedItems(container) {
+        // Remove all cloned items (template is kept — it lacks data-filter-clone)
+        const clones = container.querySelectorAll('[data-filter-clone]');
+        clones.forEach(el => el.remove());
+        // Also remove empty/error messages
+        const messages = container.querySelectorAll('[data-filter-empty], [data-filter-error]');
+        messages.forEach(el => el.remove());
+    }
+
+    function updateCollapseHeight(filterKey) {
+        const state = getGroupState(filterKey);
+        const ct = state.elements.collapseTarget;
+        if (ct && state.expanded) {
+            ct.style.height = 'auto';
+        }
+    }
+
+    // ===== CHECKBOX EVENT HANDLING =====
+
+    function handleCheckboxChange(filterKey, slug, isChecked) {
+        const store = window.cmsDebug?.Store;
+        if (!store || store.get('isClearing')) return;
+
+        const state = getGroupState(filterKey);
+
+        // Update Webflow visual for this checkbox
+        const input = state.elements.group?.querySelector(
+            `input[cms-filter-value="${slug}"]`
+        );
+        if (input) {
+            const checkboxDiv = input.previousElementSibling;
+            if (checkboxDiv && checkboxDiv.classList.contains('w-checkbox-input')) {
+                checkboxDiv.classList.toggle('w--redirected-checked', isChecked);
+            }
+        }
+
+        // Update Store with guard
+        internalUpdate = true;
+        if (isChecked) {
+            store.addToFilter(filterKey, slug);
+            state.checkedSlugs.add(slug);
+        } else {
+            store.removeFromFilter(filterKey, slug);
+            state.checkedSlugs.delete(slug);
+        }
+        internalUpdate = false;
+
+        updateFilterCounts();
+        window.cmsDebug.applyFilters();
+    }
+
+    // ===== CLEAR GROUP FILTERS =====
+
+    function clearGroupFilters(filterKey) {
+        const store = window.cmsDebug?.Store;
+        if (!store) return;
+
+        const filters = store.get('filters');
+        if (!filters[filterKey]?.length) return;
+
+        internalUpdate = true;
+        store.setFilter(filterKey, []);
+        internalUpdate = false;
+
+        const state = getGroupState(filterKey);
+        state.checkedSlugs.clear();
+
+        // Update checkbox visuals
+        if (state.expanded && state.elements.group) {
+            const inputs = state.elements.group.querySelectorAll('input[type="checkbox"]');
+            inputs.forEach(input => {
+                input.checked = false;
+                const checkboxDiv = input.previousElementSibling;
+                if (checkboxDiv && checkboxDiv.classList.contains('w-checkbox-input')) {
+                    checkboxDiv.classList.remove('w--redirected-checked');
+                }
+            });
+        }
+
+        updateFilterCounts();
+        window.cmsDebug.applyFilters();
+    }
+
+    // ===== STATE SYNC =====
+
+    function syncCheckedSlugsFromStore(filterKey) {
+        const store = window.cmsDebug?.Store;
+        if (!store) return;
+
+        const state = getGroupState(filterKey);
+        const storeValues = store.get('filters')[filterKey] || [];
+        state.checkedSlugs = new Set(storeValues);
+    }
+
+    function updateFilterCounts() {
+        const store = window.cmsDebug?.Store;
+        if (!store) return;
+
+        const filters = store.get('filters');
+        $$('[data-filter-count]').forEach(el => {
+            const key = el.getAttribute('data-filter-count');
+            const count = filters[key]?.length || 0;
+            el.textContent = count > 0 ? `(${count})` : '';
+        });
+    }
+
+    function onStoreChange() {
+        if (internalUpdate) return;
+
+        updateFilterCounts();
+
+        // Sync checked state for all initialized groups
+        groupState.forEach((state, filterKey) => {
+            const storeValues = window.cmsDebug?.Store?.get('filters')[filterKey] || [];
+            const newChecked = new Set(storeValues);
+
+            const oldChecked = state.checkedSlugs;
+            const changed = newChecked.size !== oldChecked.size ||
+                [...newChecked].some(v => !oldChecked.has(v)) ||
+                [...oldChecked].some(v => !newChecked.has(v));
+
+            if (changed) {
+                state.checkedSlugs = newChecked;
+                if (state.expanded && state.elements.group) {
+                    updateCheckboxVisuals(filterKey);
+                }
+            }
+        });
+    }
+
+    function updateCheckboxVisuals(filterKey) {
+        const state = getGroupState(filterKey);
+        const container = state.elements.group;
+        if (!container) return;
+
+        const checkedSlugs = state.checkedSlugs;
+
+        // Update existing checkboxes
+        const inputs = container.querySelectorAll('input[type="checkbox"][cms-filter]');
+        inputs.forEach(input => {
+            const slug = input.getAttribute('cms-filter-value');
+            const shouldBeChecked = checkedSlugs.has(slug);
+
+            if (input.checked !== shouldBeChecked) {
+                input.checked = shouldBeChecked;
+                const checkboxDiv = input.previousElementSibling;
+                if (checkboxDiv && checkboxDiv.classList.contains('w-checkbox-input')) {
+                    checkboxDiv.classList.toggle('w--redirected-checked', shouldBeChecked);
+                }
+            }
+        });
+
+        // Check if we need to re-render for pinned items
+        const displayedSlugs = new Set();
+        inputs.forEach(input => displayedSlugs.add(input.getAttribute('cms-filter-value')));
+
+        const missingChecked = [...checkedSlugs].some(slug => !displayedSlugs.has(slug));
+        const pinnedItems = container.querySelectorAll('[data-filter-pinned]');
+        const hasStale = Array.from(pinnedItems).some(el => {
+            const inp = el.querySelector('input[type="checkbox"]');
+            return inp && !checkedSlugs.has(inp.getAttribute('cms-filter-value'));
+        });
+
+        if (missingChecked || hasStale) {
+            const itemsToRender = state.searchTerm ? state.currentItems : state.featuredItems;
+            renderItems(filterKey, itemsToRender);
+        }
+    }
+
+    // ===== UI HELPERS =====
+
+    function renderMessage(filterKey, message, retryCallback) {
+        const state = getGroupState(filterKey);
+        const container = state.elements.group;
+        if (!container) return;
+
+        clearClonedItems(container);
+
+        const el = document.createElement('div');
+        el.setAttribute('data-filter-error', 'true');
+        el.textContent = message;
+        if (retryCallback) {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', retryCallback);
+        }
+        container.appendChild(el);
+    }
+
+    // ===== INITIALIZATION =====
+
+    function initCore() {
+        const store = window.cmsDebug?.Store;
+        if (!store) {
+            console.error('[Dynamic Filters] window.cmsDebug.Store not available');
+            return;
+        }
+
+        initSections();
+
+        store.subscribe(onStoreChange);
+        updateFilterCounts();
+
+        // Auto-expand sections that have active filters from URL
+        const filters = store.get('filters');
+        Object.keys(CONFIG.COLLECTION_MAP).forEach(filterKey => {
+            if (filters[filterKey]?.length > 0) {
+                const state = getGroupState(filterKey);
+                if (state.elements.collapseTarget && !state.expanded) {
+                    toggleSection(filterKey);
+                }
+            }
+        });
+
+        console.log('[Dynamic Filters] Initialized');
+    }
+
+    function waitForCmsDebug(callback) {
+        const start = Date.now();
+        const check = () => {
+            if (window.cmsDebug?.Store) {
+                callback();
+            } else if (Date.now() - start < CONFIG.MAX_CMS_WAIT) {
+                requestAnimationFrame(check);
+            } else {
+                console.error('[Dynamic Filters] Timed out waiting for window.cmsDebug');
+            }
+        };
+        check();
+    }
+
+    function init() {
+        if (window.cmsDebug?.Store) {
+            initCore();
+            return;
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => waitForCmsDebug(initCore));
+        } else {
+            waitForCmsDebug(initCore);
+        }
+    }
+
+    // ===== PUBLIC API =====
+    window.dynamicFilters = {
+        toggleSection,
+        refreshGroup(filterKey) {
+            const state = getGroupState(filterKey);
+            state.loaded = false;
+            state.featuredItems = [];
+            if (state.expanded) loadFeaturedItems(filterKey);
+        },
+        getState() {
+            const result = {};
+            groupState.forEach((state, key) => {
+                result[key] = {
+                    loaded: state.loaded,
+                    expanded: state.expanded,
+                    checkedCount: state.checkedSlugs.size,
+                    featuredCount: state.featuredItems.length,
+                    searchTerm: state.searchTerm
+                };
+            });
+            return result;
+        }
+    };
+
+    init();
+
+})();
