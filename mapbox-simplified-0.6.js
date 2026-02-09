@@ -67,8 +67,8 @@
       'Firing Zones': '#c51d3c'
     },
 
-    // Desaturation overlay opacity (0 = no effect, 1 = fully white)
-    DESATURATION_OPACITY: 0.4,
+    // Grayscale base map: true = desaturate all base style layers to B&W
+    GRAYSCALE_BASE: true,
 
     // Marker colors (light map style)
     COLORS: {
@@ -527,43 +527,129 @@
   }
 
   // ====================================================================
-  // DESATURATION OVERLAY
+  // GRAYSCALE BASE MAP
   // ====================================================================
 
   /**
-   * Add a white semi-transparent overlay on top of the base map style
-   * to wash it out (appear monochrome), while custom layers on top
-   * remain in full color.
+   * Convert a color string to grayscale using luminance weights.
+   * Supports hex (#rgb, #rrggbb), rgb(), rgba(), and hsl()/hsla().
+   * Returns an rgba() string or null if parsing fails.
    */
-  function addDesaturationOverlay() {
-    map.addSource('desaturation-overlay-source', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[
-            [-180, -90],
-            [180, -90],
-            [180, 90],
-            [-180, 90],
-            [-180, -90]
-          ]]
+  function colorToGrayscale(color) {
+    if (!color || typeof color !== 'string') return null;
+
+    let r, g, b, a = 1;
+
+    // Handle hsl/hsla - convert to rgb first
+    const hslMatch = color.match(/^hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*(?:,\s*([\d.]+))?\s*\)$/);
+    if (hslMatch) {
+      const h = parseFloat(hslMatch[1]) / 360;
+      const s = parseFloat(hslMatch[2]) / 100;
+      const l = parseFloat(hslMatch[3]) / 100;
+      a = hslMatch[4] !== undefined ? parseFloat(hslMatch[4]) : 1;
+
+      // HSL to RGB conversion
+      if (s === 0) {
+        r = g = b = Math.round(l * 255);
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = Math.round(hue2rgb(p, q, h + 1/3) * 255);
+        g = Math.round(hue2rgb(p, q, h) * 255);
+        b = Math.round(hue2rgb(p, q, h - 1/3) * 255);
+      }
+    }
+
+    // Handle hex
+    else if (color.startsWith('#')) {
+      const hex = color.slice(1);
+      if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+      } else if (hex.length === 6) {
+        r = parseInt(hex.slice(0, 2), 16);
+        g = parseInt(hex.slice(2, 4), 16);
+        b = parseInt(hex.slice(4, 6), 16);
+      } else {
+        return null;
+      }
+    }
+
+    // Handle rgb/rgba
+    else {
+      const rgbMatch = color.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+))?\s*\)$/);
+      if (!rgbMatch) return null;
+      r = parseInt(rgbMatch[1]);
+      g = parseInt(rgbMatch[2]);
+      b = parseInt(rgbMatch[3]);
+      a = rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : 1;
+    }
+
+    // Luminance-weighted grayscale (ITU-R BT.601)
+    const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    return `rgba(${gray}, ${gray}, ${gray}, ${a})`;
+  }
+
+  /**
+   * Desaturate all existing base style layers to grayscale.
+   * Only affects layers that were part of the original Mapbox style,
+   * not layers added by this module.
+   *
+   * Handles fill, line, background, text, and icon color properties.
+   */
+  function desaturateBaseLayers() {
+    if (!CONFIG.GRAYSCALE_BASE) return;
+
+    const style = map.getStyle();
+    if (!style || !style.layers) return;
+
+    // Track which layers are base style layers (snapshot before we add our own)
+    const baseLayers = style.layers.map(l => l.id);
+
+    // Color paint properties to desaturate per layer type
+    const colorProps = {
+      fill: ['fill-color', 'fill-outline-color'],
+      line: ['line-color'],
+      background: ['background-color'],
+      symbol: ['text-color', 'text-halo-color', 'icon-color', 'icon-halo-color'],
+      circle: ['circle-color', 'circle-stroke-color']
+    };
+
+    let converted = 0;
+
+    baseLayers.forEach(layerId => {
+      const layer = style.layers.find(l => l.id === layerId);
+      if (!layer) return;
+
+      const props = colorProps[layer.type];
+      if (!props) return;
+
+      props.forEach(prop => {
+        try {
+          const value = map.getPaintProperty(layerId, prop);
+          if (typeof value === 'string') {
+            const gray = colorToGrayscale(value);
+            if (gray) {
+              map.setPaintProperty(layerId, prop, gray);
+              converted++;
+            }
+          }
+        } catch (e) {
+          // Skip properties that can't be read/set (expressions, etc.)
         }
-      }
+      });
     });
 
-    map.addLayer({
-      id: 'desaturation-overlay',
-      type: 'fill',
-      source: 'desaturation-overlay-source',
-      paint: {
-        'fill-color': '#ffffff',
-        'fill-opacity': CONFIG.DESATURATION_OPACITY
-      }
-    });
-
-    console.log('[MapboxCore] Desaturation overlay added (opacity:', CONFIG.DESATURATION_OPACITY + ')');
+    console.log('[MapboxCore] Desaturated', converted, 'color properties across', baseLayers.length, 'base layers');
   }
 
   // ====================================================================
@@ -1508,8 +1594,8 @@
       extractDistrictFeatures();
       extractRegionFeatures();
 
-      // Add desaturation overlay first (washes out base map)
-      addDesaturationOverlay();
+      // Desaturate base map layers to grayscale (before adding colored layers)
+      desaturateBaseLayers();
 
       // Add layers in order (bottom to top)
       addAreaOverlays();
