@@ -35,7 +35,7 @@
     const CONFIG = {
         WORKER_URL: 'https://cms-reports-api.occupation-crimes.workers.dev',
         DEBOUNCE_MS: 300,
-        FEATURED_LIMIT: 15,
+        FEATURED_LIMIT: 12,
         SEARCH_LIMIT: 20,
         MAX_CMS_WAIT: 10000,
         COLLAPSE_TRANSITION: 'height 0.3s ease',
@@ -281,7 +281,7 @@
             name: item.name || '',
             slug: item.slug || '',
             region: item.region || item.territory || '',
-            photoUrl: item.photoUrl || item.photo || ''
+            photoUrl: item.photoUrl || item.photo?.url || ''
         };
     }
 
@@ -407,6 +407,17 @@
         if (nameEl) {
             nameEl.textContent = item.name;
             nameEl.setAttribute('for', `${filterKey}-${item.slug}`);
+        }
+
+        // Image
+        const imgEl = clone.querySelector('[data-filter-item="image"]');
+        if (imgEl) {
+            if (item.photoUrl) {
+                imgEl.src = item.photoUrl;
+                imgEl.alt = item.name;
+            } else {
+                imgEl.style.display = 'none';
+            }
         }
 
         // External link
