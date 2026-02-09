@@ -19,6 +19,7 @@
  *   Checkbox template:        data-filter-template="{key}"      (single <label> inside list)
  *   Arrow indicator:          data-filter-arrow="{key}"         (optional, inside header)
  *   Active count badge:       data-filter-count="{key}"         (optional, inside header)
+ *   Active indicator:          filter-indicator="{key}"          (optional, anywhere on page)
  *
  *   Inside template:
  *     <input cms-filter="{key}" cms-filter-value="" data-filter-initialized="true">
@@ -495,6 +496,7 @@
         internalUpdate = false;
 
         updateFilterCounts();
+        updateFilterIndicators(filterKey);
         window.cmsDebug.applyFilters();
     }
 
@@ -527,6 +529,7 @@
         }
 
         updateFilterCounts();
+        updateFilterIndicators(filterKey);
         window.cmsDebug.applyFilters();
     }
 
@@ -553,10 +556,27 @@
         });
     }
 
+    function updateFilterIndicators(filterKey) {
+        const store = window.cmsDebug?.Store;
+        if (!store) return;
+
+        const count = store.get('filters')[filterKey]?.length || 0;
+        const show = count > 0;
+
+        $$(`[filter-indicator="${filterKey}"]`).forEach(el => {
+            el.style.display = show ? 'flex' : 'none';
+        });
+    }
+
     function onStoreChange() {
         if (internalUpdate) return;
 
         updateFilterCounts();
+
+        // Update per-key indicators for all groups
+        groupState.forEach((_, filterKey) => {
+            updateFilterIndicators(filterKey);
+        });
 
         // Sync checked state for all initialized groups
         groupState.forEach((state, filterKey) => {
@@ -648,6 +668,9 @@
 
         store.subscribe(onStoreChange);
         updateFilterCounts();
+
+        // Set initial indicator visibility for all keys
+        Object.keys(CONFIG.COLLECTION_MAP).forEach(updateFilterIndicators);
 
         // Auto-expand sections that have active filters from URL
         const filters = store.get('filters');
