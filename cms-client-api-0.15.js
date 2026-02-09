@@ -212,6 +212,7 @@
 
         // Reset pagination
         resetPagination() {
+            console.warn('[SCROLL-DEBUG] resetPagination called, offset 0', new Error().stack?.split('\n').slice(1,4).join(' <- '));
             this._state.currentOffset = 0;
             this._state.hasMoreReports = true;
         },
@@ -3079,6 +3080,7 @@
     // Apply current filters and reload reports
     // skipUrlUpdate: true when responding to popstate (browser back/forward)
     async function applyFilters(skipUrlUpdate = false) {
+        console.warn('[SCROLL-DEBUG] applyFilters() called, skipUrlUpdate:', skipUrlUpdate, new Error().stack?.split('\n').slice(1,4).join(' <- '));
         // Cancel any pending infinite scroll load
         cancelPendingLoad();
 
@@ -3117,6 +3119,7 @@
             // Cache reports for view switching
             Store.setState({ cachedReports: items }, true);
 
+            console.warn(`[SCROLL-DEBUG] applyFilters DONE | items=${items.length} | setting offset=${CONFIG.REPORTS_LIMIT} | total=${response_data.metadata?.total || items.length}`);
             Store.setState({
                 currentOffset: CONFIG.REPORTS_LIMIT,
                 totalReports: response_data.metadata?.total || items.length,
@@ -3403,18 +3406,20 @@
     async function loadMoreReports() {
         // Check if already loading - return existing promise if so
         if (pendingLoadRequest) {
-            log('Load already in progress, returning existing promise');
+            console.warn('[SCROLL-DEBUG] loadMoreReports BLOCKED - pendingLoadRequest exists');
             return pendingLoadRequest;
         }
 
         const state = Store.getState();
         if (state.isLoading || !state.hasMoreReports) {
-            log('Skipping load more - isLoading:', state.isLoading, 'hasMoreReports:', state.hasMoreReports);
+            console.warn('[SCROLL-DEBUG] loadMoreReports BLOCKED - isLoading:', state.isLoading, 'hasMoreReports:', state.hasMoreReports);
             return;
         }
 
         // Increment request ID to track this specific request
         const requestId = ++currentLoadRequestId;
+
+        console.warn(`[SCROLL-DEBUG] loadMoreReports START #${requestId} | offset=${state.currentOffset} | storeOffset=${Store.get('currentOffset')}`);
 
         Store.setState({ isLoading: true }, true);
         setCmsLoadingIndicator(true);
@@ -3437,6 +3442,7 @@
             try {
                 const currentOffset = state.currentOffset;
                 const url = buildFilterUrl(currentOffset, CONFIG.REPORTS_PER_PAGE);
+                console.warn(`[SCROLL-DEBUG] loadMoreReports FETCH #${requestId} | offset=${currentOffset} | url=${url.replace(CONFIG.WORKER_URL, '')}`);
                 const response = await fetch(url);
 
                 // Check if this request is still current (not superseded)
@@ -3466,6 +3472,7 @@
 
                 const totalReports = responseData.metadata?.total || state.totalReports;
                 const newOffset = currentOffset + items.length;
+                console.warn(`[SCROLL-DEBUG] loadMoreReports DONE #${requestId} | fetched=${items.length} | oldOffset=${currentOffset} -> newOffset=${newOffset} | total=${totalReports} | hasMore=${newOffset < totalReports}`);
                 Store.setState({
                     currentOffset: newOffset,
                     totalReports,
@@ -3483,6 +3490,7 @@
             } finally {
                 hideLoadingIndicator();
                 setCmsLoadingIndicator(false);
+                console.warn(`[SCROLL-DEBUG] loadMoreReports FINALLY #${requestId} | setting isLoading=false, pendingLoadRequest=null | currentOffset now=${Store.get('currentOffset')}`);
                 Store.setState({ isLoading: false }, true);
                 pendingLoadRequest = null;
             }
@@ -3495,6 +3503,7 @@
     function cancelPendingLoad() {
         if (pendingLoadRequest) {
             currentLoadRequestId++; // Invalidate the current request
+            console.warn(`[SCROLL-DEBUG] cancelPendingLoad | newRequestId=${currentLoadRequestId}`, new Error().stack?.split('\n').slice(1,3).join(' <- '));
             pendingLoadRequest = null;
             Store.setState({ isLoading: false }, true);
             hideLoadingIndicator();
@@ -3648,6 +3657,7 @@
             const successCount = await populateReports(items, listContainer, activeTemplate);
 
             const totalReports = response_data.metadata?.total || items.length;
+            console.warn(`[SCROLL-DEBUG] Initial load done | items=${items.length} | setting offset=${initialLimit} | total=${totalReports}`);
             Store.setState({
                 currentOffset: initialLimit,
                 totalReports,
@@ -4436,8 +4446,11 @@
                     log('Skipping intersection - initial render not complete');
                     return;
                 }
-                if (entry.isIntersecting && Store.get('hasMoreReports') && !Store.get('isLoading')) {
-                    log('Sentinel visible, loading more reports...');
+                const hasMore = Store.get('hasMoreReports');
+                const isLoading = Store.get('isLoading');
+                const offset = Store.get('currentOffset');
+                console.warn(`[SCROLL-DEBUG] Observer fired | isIntersecting=${entry.isIntersecting} | hasMore=${hasMore} | isLoading=${isLoading} | offset=${offset} | pendingReq=${!!pendingLoadRequest}`);
+                if (entry.isIntersecting && hasMore && !isLoading) {
                     loadMoreReports();
                 }
             });
