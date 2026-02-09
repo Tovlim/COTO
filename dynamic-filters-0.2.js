@@ -74,7 +74,7 @@
                 featuredItems: [],
                 currentItems: [],
                 searchTerm: '',
-                checkedSlugs: new Set(),
+                checkedValues: new Set(),
                 abortController: null,
                 debounceTimer: null,
                 elements: {}
@@ -332,18 +332,18 @@
         const template = state.elements.template;
         if (!container || !template) return;
 
-        // Sync checked slugs from Store
-        syncCheckedSlugsFromStore(filterKey);
+        // Sync checked names from Store
+        syncCheckedFromStore(filterKey);
 
-        const checkedSlugs = state.checkedSlugs;
-        const itemSlugs = new Set(items.map(i => i.slug));
+        const checkedNames = state.checkedValues;
+        const itemNames = new Set(items.map(i => i.name));
         const fragment = document.createDocumentFragment();
 
         // 1. Pinned checked items not in current results
-        checkedSlugs.forEach(slug => {
-            if (!itemSlugs.has(slug)) {
-                const pinnedItem = { name: slug, slug, region: '', photoUrl: '' };
-                const cached = state.featuredItems.find(i => i.slug === slug);
+        checkedNames.forEach(name => {
+            if (!itemNames.has(name)) {
+                const pinnedItem = { name, slug: '', region: '', photoUrl: '' };
+                const cached = state.featuredItems.find(i => i.name === name);
                 if (cached) Object.assign(pinnedItem, cached);
                 const el = cloneTemplate(filterKey, template, pinnedItem, true, true);
                 if (el) fragment.appendChild(el);
@@ -352,7 +352,7 @@
 
         // 2. Current results
         items.forEach(item => {
-            const isChecked = checkedSlugs.has(item.slug);
+            const isChecked = checkedNames.has(item.name);
             const el = cloneTemplate(filterKey, template, item, isChecked, false);
             if (el) fragment.appendChild(el);
         });
@@ -385,10 +385,12 @@
             clone.setAttribute('data-filter-pinned', 'true');
         }
 
-        // Input
+        // Input — cms-filter-value uses name (for Store, tags, URL display)
+        // data-filter-slug keeps the slug for link URLs
         const input = clone.querySelector('input[type="checkbox"]');
         if (input) {
-            input.setAttribute('cms-filter-value', item.slug);
+            input.setAttribute('cms-filter-value', item.name);
+            input.setAttribute('data-filter-slug', item.slug);
             input.setAttribute('data-filter-initialized', 'true');
             input.checked = isChecked;
             input.id = `${filterKey}-${item.slug}`;
@@ -416,7 +418,7 @@
         // Attach change event to input
         if (input) {
             input.addEventListener('change', function () {
-                handleCheckboxChange(filterKey, item.slug, this.checked);
+                handleCheckboxChange(filterKey, item.name, this.checked);
             });
         }
 
@@ -453,7 +455,7 @@
 
     // ===== CHECKBOX EVENT HANDLING =====
 
-    function handleCheckboxChange(filterKey, slug, isChecked) {
+    function handleCheckboxChange(filterKey, filterValue, isChecked) {
         const store = window.cmsDebug?.Store;
         if (!store || store.get('isClearing')) return;
 
@@ -461,7 +463,7 @@
 
         // Update Webflow visual for this checkbox
         const input = state.elements.group?.querySelector(
-            `input[cms-filter-value="${slug}"]`
+            `input[cms-filter-value="${CSS.escape(filterValue)}"]`
         );
         if (input) {
             const checkboxDiv = input.previousElementSibling;
@@ -473,11 +475,11 @@
         // Update Store with guard
         internalUpdate = true;
         if (isChecked) {
-            store.addToFilter(filterKey, slug);
-            state.checkedSlugs.add(slug);
+            store.addToFilter(filterKey, filterValue);
+            state.checkedValues.add(filterValue);
         } else {
-            store.removeFromFilter(filterKey, slug);
-            state.checkedSlugs.delete(slug);
+            store.removeFromFilter(filterKey, filterValue);
+            state.checkedValues.delete(filterValue);
         }
         internalUpdate = false;
 
@@ -499,7 +501,7 @@
         internalUpdate = false;
 
         const state = getGroupState(filterKey);
-        state.checkedSlugs.clear();
+        state.checkedValues.clear();
 
         // Update checkbox visuals
         if (state.expanded && state.elements.group) {
@@ -519,13 +521,13 @@
 
     // ===== STATE SYNC =====
 
-    function syncCheckedSlugsFromStore(filterKey) {
+    function syncCheckedFromStore(filterKey) {
         const store = window.cmsDebug?.Store;
         if (!store) return;
 
         const state = getGroupState(filterKey);
         const storeValues = store.get('filters')[filterKey] || [];
-        state.checkedSlugs = new Set(storeValues);
+        state.checkedValues = new Set(storeValues);
     }
 
     function updateFilterCounts() {
@@ -550,13 +552,13 @@
             const storeValues = window.cmsDebug?.Store?.get('filters')[filterKey] || [];
             const newChecked = new Set(storeValues);
 
-            const oldChecked = state.checkedSlugs;
+            const oldChecked = state.checkedValues;
             const changed = newChecked.size !== oldChecked.size ||
                 [...newChecked].some(v => !oldChecked.has(v)) ||
                 [...oldChecked].some(v => !newChecked.has(v));
 
             if (changed) {
-                state.checkedSlugs = newChecked;
+                state.checkedValues = newChecked;
                 if (state.expanded && state.elements.group) {
                     updateCheckboxVisuals(filterKey);
                 }
@@ -569,13 +571,13 @@
         const container = state.elements.group;
         if (!container) return;
 
-        const checkedSlugs = state.checkedSlugs;
+        const checkedValues = state.checkedValues;
 
         // Update existing checkboxes
         const inputs = container.querySelectorAll('input[type="checkbox"][cms-filter]');
         inputs.forEach(input => {
-            const slug = input.getAttribute('cms-filter-value');
-            const shouldBeChecked = checkedSlugs.has(slug);
+            const value = input.getAttribute('cms-filter-value');
+            const shouldBeChecked = checkedValues.has(value);
 
             if (input.checked !== shouldBeChecked) {
                 input.checked = shouldBeChecked;
@@ -587,14 +589,14 @@
         });
 
         // Check if we need to re-render for pinned items
-        const displayedSlugs = new Set();
-        inputs.forEach(input => displayedSlugs.add(input.getAttribute('cms-filter-value')));
+        const displayedValues = new Set();
+        inputs.forEach(input => displayedValues.add(input.getAttribute('cms-filter-value')));
 
-        const missingChecked = [...checkedSlugs].some(slug => !displayedSlugs.has(slug));
+        const missingChecked = [...checkedValues].some(v => !displayedValues.has(v));
         const pinnedItems = container.querySelectorAll('[data-filter-pinned]');
         const hasStale = Array.from(pinnedItems).some(el => {
             const inp = el.querySelector('input[type="checkbox"]');
-            return inp && !checkedSlugs.has(inp.getAttribute('cms-filter-value'));
+            return inp && !checkedValues.has(inp.getAttribute('cms-filter-value'));
         });
 
         if (missingChecked || hasStale) {
@@ -691,7 +693,7 @@
                 result[key] = {
                     loaded: state.loaded,
                     expanded: state.expanded,
-                    checkedCount: state.checkedSlugs.size,
+                    checkedCount: state.checkedValues.size,
                     featuredCount: state.featuredItems.length,
                     searchTerm: state.searchTerm
                 };
