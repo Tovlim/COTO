@@ -67,6 +67,9 @@
       'Firing Zones': '#c51d3c'
     },
 
+    // Desaturation overlay opacity (0 = no effect, 1 = fully white)
+    DESATURATION_OPACITY: 0.4,
+
     // Marker colors (light map style)
     COLORS: {
       textHalo: '#ffffff',
@@ -521,6 +524,46 @@
     }));
 
     console.log('[MapboxCore] Created', state.territoryFeatures.length, 'territory markers');
+  }
+
+  // ====================================================================
+  // DESATURATION OVERLAY
+  // ====================================================================
+
+  /**
+   * Add a white semi-transparent overlay on top of the base map style
+   * to wash it out (appear monochrome), while custom layers on top
+   * remain in full color.
+   */
+  function addDesaturationOverlay() {
+    map.addSource('desaturation-overlay-source', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [-180, -90],
+            [180, -90],
+            [180, 90],
+            [-180, 90],
+            [-180, -90]
+          ]]
+        }
+      }
+    });
+
+    map.addLayer({
+      id: 'desaturation-overlay',
+      type: 'fill',
+      source: 'desaturation-overlay-source',
+      paint: {
+        'fill-color': '#ffffff',
+        'fill-opacity': CONFIG.DESATURATION_OPACITY
+      }
+    });
+
+    console.log('[MapboxCore] Desaturation overlay added (opacity:', CONFIG.DESATURATION_OPACITY + ')');
   }
 
   // ====================================================================
@@ -1298,7 +1341,7 @@
       if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
         wrapperDiv.addEventListener('mouseenter', () => {
           if (map.getLayer(control.layerId)) {
-            map.setPaintProperty(control.layerId, 'fill-opacity', 0.5);
+            map.setPaintProperty(control.layerId, 'fill-opacity', 0.7);
           }
         });
         wrapperDiv.addEventListener('mouseleave', () => {
@@ -1341,8 +1384,8 @@
         checkbox.dataset.mapboxListenerAdded = 'true';
       }
 
-      // Hover highlight on wrapper element (region only - highlights boundaries)
-      if (control.type === 'region') {
+      // Hover highlight on wrapper element (region and territory - highlights boundaries)
+      if (control.type === 'region' || control.type === 'territory') {
         const wrapperDiv = document.getElementById(control.wrapId);
         if (wrapperDiv && !wrapperDiv.dataset.mapboxHoverAdded) {
           wrapperDiv.addEventListener('mouseenter', () => {
@@ -1464,6 +1507,9 @@
       extractTerritoryFeatures();
       extractDistrictFeatures();
       extractRegionFeatures();
+
+      // Add desaturation overlay first (washes out base map)
+      addDesaturationOverlay();
 
       // Add layers in order (bottom to top)
       addAreaOverlays();
