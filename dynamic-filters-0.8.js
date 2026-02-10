@@ -150,7 +150,10 @@
                 state.elements.errorTemplate.style.display = 'none';
             }
             if (state.elements.moreBtn) {
-                state.elements.moreBtn.style.display = 'none';
+                state.elements.moreBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadMoreItems(key);
+                });
             }
 
             // Set initial collapsed state on the collapse target
@@ -489,45 +492,11 @@
 
     function updateShowMoreButton(filterKey) {
         const state = getGroupState(filterKey);
-        const container = state.elements.group;
-        if (!container) return;
+        const btn = state.elements.moreBtn;
+        if (!btn) return;
 
-        // Remove any previously created fallback button
-        const existingBtn = container.querySelector('[data-filter-more-btn]');
-        if (existingBtn) existingBtn.remove();
-
-        // Use Webflow-designed button if available, otherwise create one
-        const designedBtn = state.elements.moreBtn;
-
-        if (state.hasMore) {
-            if (designedBtn) {
-                designedBtn.style.display = designedBtn.getAttribute('data-filter-display') || 'flex';
-                designedBtn.textContent = CONFIG.SHOW_MORE_LABEL;
-                // Re-attach handler (clone to remove old listeners)
-                const fresh = designedBtn.cloneNode(true);
-                fresh.style.display = designedBtn.style.display;
-                designedBtn.replaceWith(fresh);
-                state.elements.moreBtn = fresh;
-                fresh.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    loadMoreItems(filterKey);
-                });
-            } else {
-                const btn = document.createElement('button');
-                btn.setAttribute('data-filter-more-btn', 'true');
-                btn.textContent = CONFIG.SHOW_MORE_LABEL;
-                btn.style.cssText = 'width:100%;padding:8px;border:none;background:transparent;cursor:pointer;opacity:0.7;font-size:inherit;';
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    loadMoreItems(filterKey);
-                });
-                container.appendChild(btn);
-            }
-        } else {
-            if (designedBtn) {
-                designedBtn.style.display = 'none';
-            }
-        }
+        btn.textContent = CONFIG.SHOW_MORE_LABEL;
+        btn.style.display = state.hasMore ? 'flex' : 'none';
     }
 
     function cloneTemplate(filterKey, template, item, isChecked, isPinned) {
@@ -603,8 +572,8 @@
     }
 
     function clearClonedItems(container) {
-        // Remove all cloned items, fallback state divs, and fallback "show more" buttons
-        const clones = container.querySelectorAll('[data-filter-clone], [data-filter-state-fallback], [data-filter-more-btn]');
+        // Remove all cloned items and any fallback state divs
+        const clones = container.querySelectorAll('[data-filter-clone], [data-filter-state-fallback]');
         clones.forEach(el => el.remove());
     }
 
