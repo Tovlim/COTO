@@ -20,6 +20,9 @@
  *   Arrow indicator:          data-filter-arrow="{key}"         (optional, inside header)
  *   Active count badge:       data-filter-count="{key}"         (optional, inside header)
  *   Active indicator:          filter-indicator="{key}"          (optional, anywhere on page)
+ *   Loading template:          data-filter-loading="{key}"       (optional, inside section, hidden & cloned while loading)
+ *   Empty template:            data-filter-empty="{key}"         (optional, inside section, hidden & cloned when no results)
+ *   Error template:            data-filter-error="{key}"         (optional, inside section, hidden & cloned on fetch error)
  *
  *   Inside template:
  *     <input cms-filter="{key}" cms-filter-value="" data-filter-initialized="true">
@@ -113,7 +116,10 @@
                 group: $(`[data-filter-group="${key}"]`, section),
                 template: $(`[data-filter-template="${key}"]`, section),
                 arrow: $(`[data-filter-arrow="${key}"]`, section),
-                count: $(`[data-filter-count="${key}"]`, section)
+                count: $(`[data-filter-count="${key}"]`, section),
+                loadingTemplate: $(`[data-filter-loading="${key}"]`, section),
+                emptyTemplate: $(`[data-filter-empty="${key}"]`, section),
+                errorTemplate: $(`[data-filter-error="${key}"]`, section)
             };
 
             if (!state.elements.header || !state.elements.group) {
@@ -121,9 +127,18 @@
                 return;
             }
 
-            // Hide the template label
+            // Hide templates
             if (state.elements.template) {
                 state.elements.template.style.display = 'none';
+            }
+            if (state.elements.loadingTemplate) {
+                state.elements.loadingTemplate.style.display = 'none';
+            }
+            if (state.elements.emptyTemplate) {
+                state.elements.emptyTemplate.style.display = 'none';
+            }
+            if (state.elements.errorTemplate) {
+                state.elements.errorTemplate.style.display = 'none';
             }
 
             // Set initial collapsed state on the collapse target
@@ -218,6 +233,8 @@
         const state = getGroupState(filterKey);
         state.loading = true;
 
+        showStateTemplate(filterKey, state.elements.loadingTemplate, 'Loading…');
+
         try {
             let items;
             const featuredCategory = CONFIG.FEATURED_MAP[filterKey];
@@ -243,7 +260,7 @@
             renderItems(filterKey, normalizedItems);
         } catch (error) {
             console.error(`[Dynamic Filters] Failed to load featured items for ${filterKey}:`, error);
-            renderMessage(filterKey, 'Failed to load. Click to retry.', () => loadFeaturedItems(filterKey));
+            showStateTemplate(filterKey, state.elements.errorTemplate, 'Failed to load. Click to retry.', () => loadFeaturedItems(filterKey));
         } finally {
             state.loading = false;
         }
@@ -258,6 +275,8 @@
         }
         state.abortController = new AbortController();
 
+        showStateTemplate(filterKey, state.elements.loadingTemplate, 'Searching…');
+
         try {
             const collection = CONFIG.COLLECTION_MAP[filterKey];
             const response = await fetch(
@@ -271,7 +290,7 @@
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error(`[Dynamic Filters] Search failed for ${filterKey}:`, error);
-            renderMessage(filterKey, 'Search failed. Try again.', () => searchCollection(filterKey, query));
+            showStateTemplate(filterKey, state.elements.errorTemplate, 'Search failed. Try again.', () => searchCollection(filterKey, query));
         } finally {
             state.abortController = null;
         }
@@ -358,14 +377,12 @@
             if (el) fragment.appendChild(el);
         });
 
-        // Clear existing cloned items (keep template)
+        // Clear existing cloned items and state templates
         clearClonedItems(container);
+        hideAllStateTemplates(filterKey);
 
         if (!fragment.hasChildNodes() && items.length === 0) {
-            const empty = document.createElement('div');
-            empty.setAttribute('data-filter-empty', 'true');
-            empty.textContent = 'No items found';
-            container.appendChild(empty);
+            showStateTemplate(filterKey, state.elements.emptyTemplate, 'No items found');
         } else {
             container.appendChild(fragment);
         }
@@ -449,12 +466,52 @@
     }
 
     function clearClonedItems(container) {
-        // Remove all cloned items (template is kept — it lacks data-filter-clone)
-        const clones = container.querySelectorAll('[data-filter-clone]');
+        // Remove all cloned items and any fallback state divs
+        const clones = container.querySelectorAll('[data-filter-clone], [data-filter-state-fallback]');
         clones.forEach(el => el.remove());
-        // Also remove empty/error messages
-        const messages = container.querySelectorAll('[data-filter-empty], [data-filter-error]');
-        messages.forEach(el => el.remove());
+    }
+
+    function hideAllStateTemplates(filterKey) {
+        const state = getGroupState(filterKey);
+        const { loadingTemplate, emptyTemplate, errorTemplate } = state.elements;
+        if (loadingTemplate) loadingTemplate.style.display = 'none';
+        if (emptyTemplate) emptyTemplate.style.display = 'none';
+        if (errorTemplate) errorTemplate.style.display = 'none';
+        // Remove any click handler from error template
+        if (errorTemplate) {
+            const fresh = errorTemplate.cloneNode(true);
+            fresh.style.display = 'none';
+            errorTemplate.replaceWith(fresh);
+            state.elements.errorTemplate = fresh;
+        }
+    }
+
+    function showStateTemplate(filterKey, templateEl, fallbackText, onClick) {
+        const state = getGroupState(filterKey);
+        const container = state.elements.group;
+        if (!container) return;
+
+        clearClonedItems(container);
+        hideAllStateTemplates(filterKey);
+
+        if (templateEl) {
+            templateEl.style.display = '';
+            if (onClick) {
+                templateEl.style.cursor = 'pointer';
+                templateEl.addEventListener('click', onClick, { once: true });
+            }
+        } else {
+            const el = document.createElement('div');
+            el.setAttribute('data-filter-state-fallback', 'true');
+            el.textContent = fallbackText;
+            if (onClick) {
+                el.style.cursor = 'pointer';
+                el.addEventListener('click', onClick, { once: true });
+            }
+            container.appendChild(el);
+        }
+
+        updateCollapseHeight(filterKey);
     }
 
     function updateCollapseHeight(filterKey) {
@@ -634,25 +691,6 @@
             const itemsToRender = state.searchTerm ? state.currentItems : state.featuredItems;
             renderItems(filterKey, itemsToRender);
         }
-    }
-
-    // ===== UI HELPERS =====
-
-    function renderMessage(filterKey, message, retryCallback) {
-        const state = getGroupState(filterKey);
-        const container = state.elements.group;
-        if (!container) return;
-
-        clearClonedItems(container);
-
-        const el = document.createElement('div');
-        el.setAttribute('data-filter-error', 'true');
-        el.textContent = message;
-        if (retryCallback) {
-            el.style.cursor = 'pointer';
-            el.addEventListener('click', retryCallback);
-        }
-        container.appendChild(el);
     }
 
     // ===== INITIALIZATION =====
