@@ -23,6 +23,7 @@
  *   Loading template:          data-filter-loading="{key}"       (optional, inside section, hidden & cloned while loading)
  *   Empty template:            data-filter-empty="{key}"         (optional, inside section, hidden & cloned when no results)
  *   Error template:            data-filter-error="{key}"         (optional, inside section, hidden & cloned on fetch error)
+ *   Display override:          data-filter-display="block"       (optional, on any state template; defaults to "flex")
  *
  *   Inside template:
  *     <input cms-filter="{key}" cms-filter-value="" data-filter-initialized="true">
@@ -495,7 +496,7 @@
         hideAllStateTemplates(filterKey);
 
         if (templateEl) {
-            templateEl.style.display = '';
+            templateEl.style.display = templateEl.getAttribute('data-filter-display') || 'flex';
             if (onClick) {
                 templateEl.style.cursor = 'pointer';
                 templateEl.addEventListener('click', onClick, { once: true });
