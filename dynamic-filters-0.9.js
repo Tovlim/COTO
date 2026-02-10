@@ -3,7 +3,7 @@
  *
  * Populates Webflow-built filter sections with dynamically-fetched CMS items.
  * Clones a checkbox template per item. Uses server-side search.
- * Lazy-loads featured items when a section is first expanded.
+ * Lazy-loads items (sorted by featured order) when a section is first expanded.
  * Supports "Show more" pagination to load additional items.
  *
  * Dependencies: cms-client-api.js (must load first, exposes window.cmsDebug)
@@ -50,6 +50,7 @@
         LOADING_MORE_LABEL: 'Loading…',
 
         // Map filter keys to API collection endpoint names
+        // Collection endpoints sort by featured order by default
         COLLECTION_MAP: {
             region: 'regions',
             locality: 'localities',
@@ -58,15 +59,6 @@
             perpetrator: 'perpetrators',
             settlement: 'settlements',
             territory: 'territories'
-        },
-
-        // Map filter keys to /featured category names (not all have featured endpoints)
-        FEATURED_MAP: {
-            region: 'regions',
-            locality: 'localities',
-            reporter: 'reporters',
-            topic: 'topics',
-            perpetrator: 'perpetrators'
         }
     };
 
@@ -253,27 +245,13 @@
         showStateTemplate(filterKey, state.elements.loadingTemplate, 'Loading…');
 
         try {
-            let items;
-            let total = 0;
-            const featuredCategory = CONFIG.FEATURED_MAP[filterKey];
-
-            if (featuredCategory) {
-                const response = await fetch(
-                    `${CONFIG.WORKER_URL}/featured/${featuredCategory}?limit=${CONFIG.FEATURED_LIMIT}`
-                );
-                const data = await response.json();
-                items = data.success ? (data.data || []) : [];
-                // Featured endpoint may not return total; fall back to collection for "show more"
-                total = data.metadata?.total ?? items.length;
-            } else {
-                const collection = CONFIG.COLLECTION_MAP[filterKey];
-                const response = await fetch(
-                    `${CONFIG.WORKER_URL}/${collection}?limit=${CONFIG.FEATURED_LIMIT}&sort=name&order=asc`
-                );
-                const data = await response.json();
-                items = data.success ? (data.data || []) : [];
-                total = data.metadata?.total ?? items.length;
-            }
+            const collection = CONFIG.COLLECTION_MAP[filterKey];
+            const response = await fetch(
+                `${CONFIG.WORKER_URL}/${collection}?limit=${CONFIG.FEATURED_LIMIT}`
+            );
+            const data = await response.json();
+            const items = data.success ? (data.data || []) : [];
+            const total = data.metadata?.total ?? items.length;
 
             const normalizedItems = items.map(normalizeItem);
             state.featuredItems = normalizedItems;
@@ -335,9 +313,9 @@
         try {
             const collection = CONFIG.COLLECTION_MAP[filterKey];
             const limit = state.searchTerm ? CONFIG.SEARCH_LIMIT : CONFIG.FEATURED_LIMIT;
-            let url = `${CONFIG.WORKER_URL}/${collection}?limit=${limit}&offset=${state.offset}&sort=name&order=asc`;
+            let url = `${CONFIG.WORKER_URL}/${collection}?limit=${limit}&offset=${state.offset}`;
             if (state.searchTerm) {
-                url = `${CONFIG.WORKER_URL}/${collection}?search=${encodeURIComponent(state.searchTerm)}&limit=${limit}&offset=${state.offset}`;
+                url += `&search=${encodeURIComponent(state.searchTerm)}`;
             }
 
             const response = await fetch(url);
