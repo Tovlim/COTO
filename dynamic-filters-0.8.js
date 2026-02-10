@@ -1,9 +1,10 @@
 /**
- * dynamic-filters.js v2.0.0
+ * dynamic-filters.js v2.1.0
  *
  * Populates Webflow-built filter sections with dynamically-fetched CMS items.
  * Clones a checkbox template per item. Uses server-side search.
  * Lazy-loads featured items when a section is first expanded.
+ * Supports "Show more" pagination to load additional items.
  *
  * Dependencies: cms-client-api.js (must load first, exposes window.cmsDebug)
  *
@@ -23,6 +24,7 @@
  *   Loading template:          data-filter-loading="{key}"       (optional, inside section, hidden & cloned while loading)
  *   Empty template:            data-filter-empty="{key}"         (optional, inside section, hidden & cloned when no results)
  *   Error template:            data-filter-error="{key}"         (optional, inside section, hidden & cloned on fetch error)
+ *   Show more button:           data-filter-more="{key}"          (optional, inside section, hidden & shown when more results exist)
  *   Display override:          data-filter-display="block"       (optional, on any state template; defaults to "flex")
  *
  *   Inside template:
@@ -44,6 +46,8 @@
         SEARCH_LIMIT: 20,
         MAX_CMS_WAIT: 10000,
         COLLAPSE_TRANSITION: 'height 0.3s ease',
+        SHOW_MORE_LABEL: 'Show more',
+        LOADING_MORE_LABEL: 'Loading…',
 
         // Map filter keys to API collection endpoint names
         COLLECTION_MAP: {
@@ -76,12 +80,15 @@
                 loaded: false,
                 expanded: false,
                 loading: false,
+                loadingMore: false,
                 featuredItems: [],
                 currentItems: [],
                 searchTerm: '',
                 checkedValues: new Set(),
                 abortController: null,
                 debounceTimer: null,
+                offset: 0,
+                hasMore: false,
                 elements: {}
             });
         }
@@ -120,7 +127,8 @@
                 count: $(`[data-filter-count="${key}"]`, section),
                 loadingTemplate: $(`[data-filter-loading="${key}"]`, section),
                 emptyTemplate: $(`[data-filter-empty="${key}"]`, section),
-                errorTemplate: $(`[data-filter-error="${key}"]`, section)
+                errorTemplate: $(`[data-filter-error="${key}"]`, section),
+                moreBtn: $(`[data-filter-more="${key}"]`, section)
             };
 
             if (!state.elements.header || !state.elements.group) {
@@ -140,6 +148,9 @@
             }
             if (state.elements.errorTemplate) {
                 state.elements.errorTemplate.style.display = 'none';
+            }
+            if (state.elements.moreBtn) {
+                state.elements.moreBtn.style.display = 'none';
             }
 
             // Set initial collapsed state on the collapse target
@@ -233,11 +244,14 @@
     async function loadFeaturedItems(filterKey) {
         const state = getGroupState(filterKey);
         state.loading = true;
+        state.offset = 0;
+        state.hasMore = false;
 
         showStateTemplate(filterKey, state.elements.loadingTemplate, 'Loading…');
 
         try {
             let items;
+            let total = 0;
             const featuredCategory = CONFIG.FEATURED_MAP[filterKey];
 
             if (featuredCategory) {
@@ -246,6 +260,8 @@
                 );
                 const data = await response.json();
                 items = data.success ? (data.data || []) : [];
+                // Featured endpoint may not return total; fall back to collection for "show more"
+                total = data.metadata?.total ?? items.length;
             } else {
                 const collection = CONFIG.COLLECTION_MAP[filterKey];
                 const response = await fetch(
@@ -253,10 +269,13 @@
                 );
                 const data = await response.json();
                 items = data.success ? (data.data || []) : [];
+                total = data.metadata?.total ?? items.length;
             }
 
             const normalizedItems = items.map(normalizeItem);
             state.featuredItems = normalizedItems;
+            state.offset = normalizedItems.length;
+            state.hasMore = normalizedItems.length < total;
             state.loaded = true;
             renderItems(filterKey, normalizedItems);
         } catch (error) {
@@ -275,18 +294,23 @@
             state.abortController.abort();
         }
         state.abortController = new AbortController();
+        state.offset = 0;
+        state.hasMore = false;
 
         showStateTemplate(filterKey, state.elements.loadingTemplate, 'Searching…');
 
         try {
             const collection = CONFIG.COLLECTION_MAP[filterKey];
             const response = await fetch(
-                `${CONFIG.WORKER_URL}/search/${collection}?q=${encodeURIComponent(query)}&limit=${CONFIG.SEARCH_LIMIT}`,
+                `${CONFIG.WORKER_URL}/${collection}?search=${encodeURIComponent(query)}&limit=${CONFIG.SEARCH_LIMIT}`,
                 { signal: state.abortController.signal }
             );
             const data = await response.json();
-            const results = (data.results || []).map(normalizeItem);
+            const results = (data.data || []).map(normalizeItem);
+            const total = data.metadata?.total ?? results.length;
             state.currentItems = results;
+            state.offset = results.length;
+            state.hasMore = results.length < total;
             renderItems(filterKey, results);
         } catch (error) {
             if (error.name === 'AbortError') return;
@@ -294,6 +318,46 @@
             showStateTemplate(filterKey, state.elements.errorTemplate, 'Search failed. Try again.', () => searchCollection(filterKey, query));
         } finally {
             state.abortController = null;
+        }
+    }
+
+    async function loadMoreItems(filterKey) {
+        const state = getGroupState(filterKey);
+        if (state.loadingMore || !state.hasMore) return;
+
+        state.loadingMore = true;
+        const moreBtn = state.elements.moreBtn || state.elements.group?.querySelector('[data-filter-more-btn]');
+        if (moreBtn) moreBtn.textContent = CONFIG.LOADING_MORE_LABEL;
+
+        try {
+            const collection = CONFIG.COLLECTION_MAP[filterKey];
+            const limit = state.searchTerm ? CONFIG.SEARCH_LIMIT : CONFIG.FEATURED_LIMIT;
+            let url = `${CONFIG.WORKER_URL}/${collection}?limit=${limit}&offset=${state.offset}&sort=name&order=asc`;
+            if (state.searchTerm) {
+                url = `${CONFIG.WORKER_URL}/${collection}?search=${encodeURIComponent(state.searchTerm)}&limit=${limit}&offset=${state.offset}`;
+            }
+
+            const response = await fetch(url);
+            const data = await response.json();
+            const newItems = (data.data || []).map(normalizeItem);
+            const total = data.metadata?.total ?? (state.offset + newItems.length);
+
+            state.offset += newItems.length;
+            state.hasMore = state.offset < total;
+
+            // Append to the appropriate items list
+            if (state.searchTerm) {
+                state.currentItems = state.currentItems.concat(newItems);
+            } else {
+                state.featuredItems = state.featuredItems.concat(newItems);
+            }
+
+            appendItems(filterKey, newItems);
+        } catch (error) {
+            console.error(`[Dynamic Filters] Failed to load more items for ${filterKey}:`, error);
+            if (moreBtn) moreBtn.textContent = CONFIG.SHOW_MORE_LABEL;
+        } finally {
+            state.loadingMore = false;
         }
     }
 
@@ -330,6 +394,8 @@
     function handleSearchClear(filterKey) {
         const state = getGroupState(filterKey);
         state.searchTerm = '';
+        state.offset = state.featuredItems.length;
+        state.hasMore = false;
 
         if (state.debounceTimer) {
             clearTimeout(state.debounceTimer);
@@ -389,9 +455,79 @@
         }
 
         state.currentItems = items;
+        updateShowMoreButton(filterKey);
 
         // Update collapse target height if expanded (content size changed)
         updateCollapseHeight(filterKey);
+    }
+
+    function appendItems(filterKey, newItems) {
+        const state = getGroupState(filterKey);
+        const container = state.elements.group;
+        const template = state.elements.template;
+        if (!container || !template) return;
+
+        syncCheckedFromStore(filterKey);
+        const checkedNames = state.checkedValues;
+        const fragment = document.createDocumentFragment();
+
+        newItems.forEach(item => {
+            const isChecked = checkedNames.has(item.name);
+            // Skip if already displayed (e.g. was pinned)
+            const existing = container.querySelector(
+                `input[cms-filter-value="${CSS.escape(item.name)}"]`
+            );
+            if (existing) return;
+            const el = cloneTemplate(filterKey, template, item, isChecked, false);
+            if (el) fragment.appendChild(el);
+        });
+
+        container.appendChild(fragment);
+        updateShowMoreButton(filterKey);
+        updateCollapseHeight(filterKey);
+    }
+
+    function updateShowMoreButton(filterKey) {
+        const state = getGroupState(filterKey);
+        const container = state.elements.group;
+        if (!container) return;
+
+        // Remove any previously created fallback button
+        const existingBtn = container.querySelector('[data-filter-more-btn]');
+        if (existingBtn) existingBtn.remove();
+
+        // Use Webflow-designed button if available, otherwise create one
+        const designedBtn = state.elements.moreBtn;
+
+        if (state.hasMore) {
+            if (designedBtn) {
+                designedBtn.style.display = designedBtn.getAttribute('data-filter-display') || 'flex';
+                designedBtn.textContent = CONFIG.SHOW_MORE_LABEL;
+                // Re-attach handler (clone to remove old listeners)
+                const fresh = designedBtn.cloneNode(true);
+                fresh.style.display = designedBtn.style.display;
+                designedBtn.replaceWith(fresh);
+                state.elements.moreBtn = fresh;
+                fresh.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadMoreItems(filterKey);
+                });
+            } else {
+                const btn = document.createElement('button');
+                btn.setAttribute('data-filter-more-btn', 'true');
+                btn.textContent = CONFIG.SHOW_MORE_LABEL;
+                btn.style.cssText = 'width:100%;padding:8px;border:none;background:transparent;cursor:pointer;opacity:0.7;font-size:inherit;';
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadMoreItems(filterKey);
+                });
+                container.appendChild(btn);
+            }
+        } else {
+            if (designedBtn) {
+                designedBtn.style.display = 'none';
+            }
+        }
     }
 
     function cloneTemplate(filterKey, template, item, isChecked, isPinned) {
@@ -467,8 +603,8 @@
     }
 
     function clearClonedItems(container) {
-        // Remove all cloned items and any fallback state divs
-        const clones = container.querySelectorAll('[data-filter-clone], [data-filter-state-fallback]');
+        // Remove all cloned items, fallback state divs, and fallback "show more" buttons
+        const clones = container.querySelectorAll('[data-filter-clone], [data-filter-state-fallback], [data-filter-more-btn]');
         clones.forEach(el => el.remove());
     }
 
@@ -758,6 +894,8 @@
             const state = getGroupState(filterKey);
             state.loaded = false;
             state.featuredItems = [];
+            state.offset = 0;
+            state.hasMore = false;
             if (state.expanded) loadFeaturedItems(filterKey);
         },
         getState() {
@@ -768,7 +906,8 @@
                     expanded: state.expanded,
                     checkedCount: state.checkedValues.size,
                     featuredCount: state.featuredItems.length,
-                    searchTerm: state.searchTerm
+                    searchTerm: state.searchTerm,
+                    hasMore: state.hasMore
                 };
             });
             return result;
