@@ -1686,12 +1686,14 @@
 
         populateHeaderThumbnail(itemElement, reportData);
 
-        // Handle report links
+        // In-site report link
         DOM.$$('[cms-link="report-link"]', itemElement).forEach(link => {
-            const reportUrl = reportData.reporterEventLink ||
-                            (reportData.slug ? `https://occupationcrimes.org/report/${reportData.slug}` : null);
-            DOM.setLink(link, reportUrl);
-            // Open external reporter links in new tab
+            link.href = `https://occupationcrimes.org/report/${reportData.slug}`;
+        });
+
+        // External report link — only shown if reporterEventLink exists
+        DOM.$$('[cms-link="external-report-link"]', itemElement).forEach(link => {
+            DOM.setLink(link, reportData.reporterEventLink || null);
             if (reportData.reporterEventLink) {
                 link.setAttribute('target', '_blank');
                 link.setAttribute('rel', 'noopener noreferrer');
