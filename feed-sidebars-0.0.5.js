@@ -710,11 +710,15 @@
     initializeCore();
   }
 
-  window.addEventListener('beforeunload', () => {
-    eventManager.cleanup();
-    state.cleanup();
-    rightSidebarCache.invalidate();
-    navbarCache.invalidate();
+  // Re-initialize when navigating back via bfcache
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      // Page was restored from bfcache — flush stale caches and re-init
+      domCache.invalidate();
+      rightSidebarCache.invalidate();
+      navbarCache.invalidate();
+      initializeCore();
+    }
   });
 
 })(window);
