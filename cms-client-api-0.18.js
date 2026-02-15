@@ -1343,107 +1343,6 @@
         _delegationInitialized: false
     };
 
-    // ===== ACCORDION UTILITIES =====
-    const AccordionUtils = {
-        _overflowTimeouts: new WeakMap(),
-
-        open(target, arrow, container) {
-            if (!target) return;
-
-            // Use requestAnimationFrame to batch visual updates
-            requestAnimationFrame(() => {
-                // Read phase: get scrollHeight
-                const scrollHeight = target.scrollHeight;
-
-                // Write phase: apply all style changes together
-                requestAnimationFrame(() => {
-                    if (!target.style.transition) {
-                        target.style.transition = 'height 300ms ease';
-                    }
-
-                    target.style.height = scrollHeight + 'px';
-                    if (arrow) arrow.style.transform = 'rotateZ(180deg)';
-
-                    // Clear any existing timeout
-                    if (this._overflowTimeouts.has(container)) {
-                        clearTimeout(this._overflowTimeouts.get(container));
-                    }
-
-                    // Set overflow visible and height auto after transition
-                    // height: auto allows content to expand naturally when media loads
-                    const timeoutId = setTimeout(() => {
-                        target.style.overflow = 'visible';
-                        target.style.height = 'auto';
-                        this._overflowTimeouts.delete(container);
-                    }, 300);
-
-                    this._overflowTimeouts.set(container, timeoutId);
-                });
-            });
-        },
-
-        close(target, arrow, container) {
-            if (!target) return;
-
-            // Clear any pending overflow timeout
-            if (this._overflowTimeouts.has(container)) {
-                clearTimeout(this._overflowTimeouts.get(container));
-                this._overflowTimeouts.delete(container);
-            }
-
-            // Use requestAnimationFrame for batched visual update
-            requestAnimationFrame(() => {
-                // If height is auto, we need to set it to current pixel value first
-                // so that the transition to 0 animates smoothly
-                if (target.style.height === 'auto') {
-                    target.style.height = target.scrollHeight + 'px';
-                }
-
-                // Force reflow to ensure the height is applied before transitioning
-                requestAnimationFrame(() => {
-                    if (!target.style.transition) {
-                        target.style.transition = 'height 300ms ease';
-                    }
-
-                    // Batch all style mutations together
-                    target.style.height = '0px';
-                    target.style.overflow = 'hidden';
-                    if (arrow) arrow.style.transform = 'rotateZ(0deg)';
-                });
-            });
-        },
-
-        isClosed(target) {
-            if (!target) return true;
-            const height = target.style.height;
-            // height: auto means open, any pixel value > 0 means open
-            return height === '0px' || height === '0' || !height;
-        },
-
-        adjustHeight(target) {
-            if (!target || this.isClosed(target)) return;
-
-            // Use read/write pattern with requestAnimationFrame
-            requestAnimationFrame(() => {
-                // Read phase: measure current and new heights
-                const currentHeight = target.offsetHeight;
-                const originalTransition = target.style.transition;
-
-                // Temporarily disable transition to measure
-                target.style.transition = 'none';
-                target.style.height = 'auto';
-                const newHeight = target.scrollHeight;
-                target.style.height = currentHeight + 'px';
-
-                // Write phase: apply transition and new height
-                requestAnimationFrame(() => {
-                    target.style.transition = originalTransition || 'height 300ms ease';
-                    target.style.height = newHeight + 'px';
-                });
-            });
-        }
-    };
-
     // ===== POPULATE FUNCTIONS =====
 
     // Populate header thumbnail with main image
@@ -1456,16 +1355,10 @@
             return;
         }
 
-        const galleryId = 'gallery-' + reportData.id;
-        const hasGalleryImages = reportData.reportImages && reportData.reportImages.length > 0;
-
         thumbnailElement.href = reportData.photo.url;
         thumbnailElement.removeAttribute('data-fancybox');
         thumbnailElement.setAttribute('data-caption', reportData.photo?.alt || reportData.name || '');
         thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
-        // Store data attributes for delegated click handler
-        thumbnailElement.setAttribute('data-gallery-id', galleryId);
-        thumbnailElement.setAttribute('data-has-gallery', hasGalleryImages ? 'true' : 'false');
 
         const thumbnailImg = DOM.$('img', thumbnailElement);
         if (thumbnailImg) {
@@ -1493,51 +1386,16 @@
 
                 e.preventDefault();
 
+                if (typeof Fancybox === 'undefined') return;
+
                 const itemElement = thumbnail.closest(SELECTORS.item);
-                if (!itemElement) return;
+                const reportId = itemElement?.getAttribute('data-report-id');
+                const reportData = reportId ? Store.getReportData(reportId) : null;
 
-                const reportId = itemElement.getAttribute('data-report-id');
-                const galleryId = thumbnail.getAttribute('data-gallery-id');
-                const hasGalleryImages = thumbnail.getAttribute('data-has-gallery') === 'true';
-
-                // Get report data from cache for fallback image info
-                const reportData = Store.getReportData(reportId);
-
-                const openGallery = (startIndex = 0) => {
-                    if (typeof Fancybox === 'undefined') return;
-
-                    const galleryElements = document.querySelectorAll(`[data-fancybox="${galleryId}"]`);
-                    const galleryImages = [...galleryElements].map(el => ({
-                        src: el.href,
-                        caption: el.getAttribute('data-caption') || '',
-                        thumb: el.getAttribute('data-thumb') || el.href
-                    }));
-
-                    if (galleryImages.length > 0) {
-                        Fancybox.show(galleryImages, { startIndex, hideScrollbar: false });
-                    } else if (reportData?.photo?.url) {
-                        // Fallback to single image from cached data
-                        Fancybox.show([{
-                            src: reportData.photo.url,
-                            caption: reportData.photo?.alt || reportData.name || '',
-                            thumb: reportData.photo.url
-                        }], { hideScrollbar: false });
-                    } else {
-                        // Last resort: use thumbnail's own href
-                        Fancybox.show([{
-                            src: thumbnail.href,
-                            caption: thumbnail.getAttribute('data-caption') || '',
-                            thumb: thumbnail.getAttribute('data-thumb') || thumbnail.href
-                        }], { hideScrollbar: false });
-                    }
-                };
-
-                if (hasGalleryImages && itemElement.getAttribute('data-content-loaded') !== 'true') {
-                    lazyLoadReportContent(itemElement);
-                    setTimeout(() => openGallery(0), 100);
-                } else {
-                    openGallery(0);
-                }
+                // Show single main photo in lightbox (full gallery on report page)
+                const src = reportData?.photo?.url || thumbnail.href;
+                const caption = reportData?.photo?.alt || reportData?.name || thumbnail.getAttribute('data-caption') || '';
+                Fancybox.show([{ src, caption, thumb: src }], { hideScrollbar: false });
             });
 
             log('ThumbnailHandler delegation initialized');
@@ -2113,299 +1971,12 @@
         DOM.toggle(backerSection, !!reportData.backer);
     }
 
-    // Populate content tabs
-    function populateContent(itemElement, reportData, isLazyLoad = false) {
-        const infoContent = DOM.$(SELECTORS.infoContent, itemElement);
-        const descriptionContent = DOM.$(SELECTORS.descriptionContent, itemElement);
-        if (reportData.description) {
-            DOM.setRichText(infoContent, reportData.description);
-            DOM.setRichText(descriptionContent, reportData.description);
-        }
-
-        populateVideos(itemElement, reportData.videos);
-        populateImagesGallery(itemElement, reportData);
-
-        if (isLazyLoad) return;
-
-        const itemType = itemElement.getAttribute('cms-item-type');
-        const isFullType = itemType === 'full';
-
-        const hasImages = reportData.reportImages?.length > 0;
-        const hasVideos = reportData.videos?.length > 0;
-
-        const infoTab = DOM.$('[data-tab="1"]', itemElement);
-        const imagesTab = DOM.$('[data-tab="2"]', itemElement);
-        const videosTab = DOM.$('[data-tab="3"]', itemElement);
-        const tabsWrap = DOM.$('[data-tab="wrap"]', itemElement);
-
-        if (isFullType) {
-            DOM.toggle(infoTab, true);
-            DOM.toggle(imagesTab, hasImages);
-            DOM.toggle(videosTab, hasVideos);
-            DOM.toggle(tabsWrap, true);
-
-            DOM.$$('[data-tab-content]', itemElement).forEach(content => {
-                content.style.display = 'none';
-            });
-
-            DOM.$$('[data-tab]', itemElement).forEach(tab => {
-                tab.classList.remove('current');
-            });
-
-            const target = DOM.$('[open-target]', itemElement);
-            if (target) {
-                target.style.height = '0px';
-                target.style.overflow = 'hidden';
-            }
-        } else {
-            DOM.toggle(imagesTab, hasImages);
-            DOM.toggle(videosTab, hasVideos);
-            if (tabsWrap) {
-                tabsWrap.style.display = (!hasImages && !hasVideos) ? 'none' : '';
-            }
-        }
-    }
-
-    // Populate videos
-    function populateVideos(itemElement, videos) {
-        const videosWrap = DOM.$(SELECTORS.videosWrap, itemElement);
-        if (!videosWrap || !videos || videos.length === 0) {
-            DOM.toggle(videosWrap, false);
-            return;
-        }
-
-        const templateVideoWrap = DOM.$(SELECTORS.videoWrap, videosWrap);
-        if (!templateVideoWrap) {
-            console.warn('[CMS Client] No [cms-deliver="video-wrap"] template found');
-            return;
-        }
-
-        // Batch remove existing except template
-        const existingWraps = Array.from(DOM.$$(SELECTORS.videoWrap, videosWrap));
-        DOMBatch.removeAll(existingWraps.slice(1));
-
-        // Build all video elements first
-        const videoElements = [];
-        let firstVideoWrap = null;
-
-        videos.forEach((video, index) => {
-            const videoWrap = templateVideoWrap.cloneNode(true);
-
-            const richTextElement = DOM.$('[cms-field="video-rich-text"]', videoWrap);
-            const videoLinkElement = DOM.$('[cms-field="video-link"]', videoWrap);
-            const iframe = videoLinkElement?.querySelector('iframe');
-
-            if (richTextElement && video.text) {
-                DOM.setRichText(richTextElement, video.text);
-            }
-
-            if (iframe && video.url) {
-                let embedUrl = video.url;
-
-                if (embedUrl.includes('youtube.com/watch?v=')) {
-                    const videoId = embedUrl.split('v=')[1].split('&')[0];
-                    embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                } else if (embedUrl.includes('youtu.be/')) {
-                    const videoId = embedUrl.split('youtu.be/')[1].split('?')[0];
-                    embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                }
-
-                iframe.setAttribute('data-src', embedUrl);
-                iframe.src = embedUrl;
-                iframe.loading = 'lazy';
-                iframe.classList.remove('loading', 'exited');
-                if (!iframe.classList.contains('entered')) {
-                    iframe.classList.add('entered');
-                }
-            }
-
-            videoWrap.style.display = '';
-
-            if (index === 0) {
-                firstVideoWrap = videoWrap;
-            } else {
-                videoElements.push(videoWrap);
-            }
-        });
-
-        // Single batch DOM update
-        if (firstVideoWrap) {
-            templateVideoWrap.replaceWith(firstVideoWrap);
-        }
-        if (videoElements.length > 0) {
-            const fragment = DOMBatch.createFragment(videoElements);
-            videosWrap.appendChild(fragment);
-        }
-
-        videosWrap.style.display = '';
-    }
-
-    // Populate images gallery
-    function populateImagesGallery(itemElement, reportData) {
-        const imagesWrap = DOM.$(SELECTORS.imagesWrap, itemElement);
-        const reportImages = reportData.reportImages;
-        const mainImage = reportData.photo?.url;
-
-        if (!imagesWrap || !reportImages || reportImages.length === 0) {
-            DOM.toggle(imagesWrap, false);
-            return;
-        }
-
-        const allImages = [];
-        const mainImageIsFirst = reportImages[0]?.url === mainImage;
-
-        if (mainImage && !mainImageIsFirst && !reportImages.some(img => img.url === mainImage)) {
-            allImages.push({
-                url: mainImage,
-                alt: reportData.name || 'Main image'
-            });
-        }
-
-        allImages.push(...reportImages);
-
-        const templateLightbox = DOM.$('.picturelightbox', imagesWrap);
-        if (!templateLightbox) {
-            console.warn('[CMS Client] No .picturelightbox template found');
-            return;
-        }
-
-        // Batch remove existing lightboxes except template
-        const existingLightboxes = Array.from(DOM.$$('.picturelightbox', imagesWrap));
-        DOMBatch.removeAll(existingLightboxes.slice(1));
-
-        const galleryId = 'gallery-' + reportData.id;
-
-        // Build all lightbox elements first
-        const lightboxElements = [];
-        let firstLightbox = null;
-
-        allImages.forEach((image, index) => {
-            const lightbox = templateLightbox.cloneNode(true);
-
-            const anchor = DOM.$('a[lightbox-image]', lightbox);
-            const img = DOM.$('img', lightbox);
-
-            if (anchor && img && image.url) {
-                anchor.href = image.url;
-                anchor.setAttribute('data-fancybox', galleryId);
-                anchor.setAttribute('data-thumb', image.url);
-                anchor.setAttribute('data-caption', image.alt || '');
-
-                img.src = image.url;
-                img.alt = image.alt || '';
-                img.classList.remove('lazy', 'loading');
-                img.removeAttribute('data-ll-status');
-                img.loading = 'lazy';
-
-                lightbox.style.display = '';
-
-                if (index === 0) {
-                    firstLightbox = lightbox;
-                } else {
-                    lightboxElements.push(lightbox);
-                }
-            }
-        });
-
-        // Single batch DOM update
-        if (firstLightbox) {
-            templateLightbox.replaceWith(firstLightbox);
-        }
-        if (lightboxElements.length > 0) {
-            const fragment = DOMBatch.createFragment(lightboxElements);
-            imagesWrap.appendChild(fragment);
-        }
-
-        imagesWrap.style.display = '';
-
-        if (typeof Fancybox !== 'undefined') {
-            Fancybox.bind(`[data-fancybox="${galleryId}"]`, {
-                Thumbs: { autoStart: true },
-                hideScrollbar: false,
-                Hash: false
-            });
-        }
-    }
-
-    // Setup tab visibility for full type reports
-    function setupFullTypeTabsVisibility(itemElement, reportData) {
-        const itemType = itemElement.getAttribute('cms-item-type');
-        if (itemType !== 'full') return;
-
-        const hasImages = reportData.reportImages?.length > 0;
-        const hasVideos = reportData.videos?.length > 0;
-
-        DOM.toggle(DOM.$('[data-tab="1"]', itemElement), true);
-        DOM.toggle(DOM.$('[data-tab="2"]', itemElement), hasImages);
-        DOM.toggle(DOM.$('[data-tab="3"]', itemElement), hasVideos);
-        DOM.toggle(DOM.$('[data-tab="wrap"]', itemElement), true);
-
-        DOM.$$('[data-tab-content]', itemElement).forEach(content => {
-            content.style.display = 'none';
-        });
-
-        DOM.$$('[data-tab]', itemElement).forEach(tab => {
-            tab.classList.remove('current');
-        });
-
-        const target = DOM.$('[open-target]', itemElement);
-        if (target) {
-            target.style.height = '0px';
-            target.style.overflow = 'hidden';
-        }
-
-        itemElement.setAttribute('data-tabs-initialized', 'true');
-    }
-
-    // Setup tab visibility for mini type reports
-    function setupMiniTypeTabsVisibility(itemElement, reportData) {
-        const itemType = itemElement.getAttribute('cms-item-type');
-        if (itemType === 'full') return;
-
-        const hasImages = reportData.reportImages?.length > 0;
-        const hasVideos = reportData.videos?.length > 0;
-
-        DOM.toggle(DOM.$('[data-tab="2"]', itemElement), hasImages);
-        DOM.toggle(DOM.$('[data-tab="3"]', itemElement), hasVideos);
-
-        const tabsWrap = DOM.$('[data-tab="wrap"]', itemElement);
-        if (tabsWrap) {
-            tabsWrap.style.display = (!hasImages && !hasVideos) ? 'none' : '';
-        }
-
-        itemElement.setAttribute('data-tabs-initialized', 'true');
-    }
-
-    // Lazy load content for a report item
-    function lazyLoadReportContent(itemElement) {
-        if (itemElement.getAttribute('data-content-loaded') === 'true') return;
-
-        const reportId = itemElement.getAttribute('data-report-id');
-        if (!reportId) {
-            console.warn('[CMS Client] No report ID found for lazy loading');
-            return;
-        }
-
-        const reportData = Store.getReportData(reportId);
-        if (!reportData) {
-            console.warn('[CMS Client] No cached report data found for ID:', reportId);
-            return;
-        }
-
-        populateContent(itemElement, reportData, true);
-        itemElement.setAttribute('data-content-loaded', 'true');
-        log('Lazy loaded content for report:', reportData.name);
-    }
-
     // Main function to populate a report item
-    function populateReportItem(itemElement, reportData, lazyLoadContent = true) {
+    function populateReportItem(itemElement, reportData) {
         const successCount = populateBasicFields(itemElement, reportData);
         populateLocationFields(itemElement, reportData);
         populateMultiLocationFields(itemElement, reportData);
         populateReporterInfo(itemElement, reportData.reporters || []);
-
-        const itemType = itemElement.getAttribute('cms-item-type');
-        const isFullType = itemType === 'full';
 
         // Populate perpetrator/settlement/place/backer info (works for both mini and full)
         populatePerpetratorInfo(itemElement, reportData);
@@ -2413,22 +1984,17 @@
         // Apply conditional visibility for cms-extra elements (works for both mini and full)
         ExtraVisibility.apply(itemElement, reportData);
 
-        // Set report ID first (needed for cache lookup)
+        // Set report ID (needed for thumbnail lightbox cache lookup)
         itemElement.setAttribute('data-report-id', reportData.id);
 
-        if (!lazyLoadContent) {
-            populateContent(itemElement, reportData);
-        } else {
-            // Cache report data in Store instead of serializing to attribute
-            Store.cacheReportData(reportData.id, reportData);
-            itemElement.setAttribute('data-content-loaded', 'false');
+        // Cache report data for thumbnail lightbox
+        Store.cacheReportData(reportData.id, reportData);
 
-            if (isFullType) {
-                setupFullTypeTabsVisibility(itemElement, reportData);
-            } else {
-                setupMiniTypeTabsVisibility(itemElement, reportData);
-            }
-        }
+        // Hide expand/tab elements (accordion removed — full content on report page)
+        DOM.toggle(DOM.$('[data-tab="wrap"]', itemElement), false);
+        DOM.toggle(DOM.$('[open-target]', itemElement), false);
+        DOM.toggle(DOM.$('[dropdown-icon]', itemElement), false);
+
         itemElement.setAttribute('data-report-slug', reportData.slug || '');
 
         if (reportData.reporterEventLink) {
@@ -3735,112 +3301,6 @@
 
     // ===== INTERACTION HANDLERS =====
 
-    let interactionsInitialized = false;
-
-    function initializeTabsAndAccordion() {
-        if (interactionsInitialized) return;
-        interactionsInitialized = true;
-
-        // Tab switching - event delegation
-        document.addEventListener('click', function(e) {
-            const tab = e.target.closest('[data-tab]');
-            if (!tab) return;
-
-            e.preventDefault();
-            const tabId = tab.getAttribute('data-tab');
-            if (tabId === 'wrap') return;
-
-            const container = tab.closest(SELECTORS.item);
-            if (!container) return;
-
-            const itemType = container.getAttribute('cms-item-type');
-            const isFullType = itemType === 'full';
-            const target = DOM.$('[open-target]', container);
-            const arrow = DOM.$('[dropdown-icon]', container);
-
-            if (isFullType) {
-                const isCurrentTab = tab.classList.contains('current');
-                const isClosed = AccordionUtils.isClosed(target);
-
-                if (isCurrentTab && !isClosed && target) {
-                    tab.classList.remove('current');
-                    AccordionUtils.close(target, arrow, container);
-                    return;
-                }
-
-                DOM.$$('[data-tab]', container).forEach(t => t.classList.remove('current'));
-                tab.classList.add('current');
-
-                DOM.$$('[data-tab-content]', container).forEach(content => {
-                    content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
-                });
-
-                if (isClosed && target) {
-                    if (container.getAttribute('data-content-loaded') !== 'true') {
-                        lazyLoadReportContent(container);
-                    }
-                    AccordionUtils.open(target, arrow, container);
-                } else if (!AccordionUtils.isClosed(target)) {
-                    AccordionUtils.adjustHeight(target);
-                }
-                return;
-            }
-
-            // Mini type behavior
-            const isCurrentTab = tab.classList.contains('current');
-
-            if (isCurrentTab) {
-                AccordionUtils.close(target, arrow, container);
-                return;
-            }
-
-            DOM.$$('[data-tab]', container).forEach(t => t.classList.remove('current'));
-            tab.classList.add('current');
-
-            DOM.$$('[data-tab-content]', container).forEach(content => {
-                content.style.display = content.getAttribute('data-tab-content') === tabId ? 'block' : 'none';
-            });
-
-            if (!AccordionUtils.isClosed(target)) {
-                AccordionUtils.adjustHeight(target);
-            }
-        });
-
-        // Accordion open/close - event delegation
-        document.addEventListener('click', function(e) {
-            const trigger = e.target.closest('[open-trigger]');
-            if (!trigger) return;
-
-            // Don't trigger accordion for links
-            const clickedLink = e.target.closest('a');
-            if (clickedLink && trigger.contains(clickedLink)) return;
-
-            // Don't trigger accordion for report options dropdown
-            const clickedReportOptions = e.target.closest('[report-options="dropdown"], [report-options="toggle"]');
-            if (clickedReportOptions) return;
-
-            e.preventDefault();
-
-            const container = trigger.closest(SELECTORS.item);
-            const target = DOM.$('[open-target]', container);
-            const arrow = DOM.$('[dropdown-icon]', container);
-
-            if (!target) return;
-
-            const itemType = container?.getAttribute('cms-item-type');
-            if (itemType === 'full') return;
-
-            const isClosed = AccordionUtils.isClosed(target);
-
-            if (isClosed) {
-                lazyLoadReportContent(container);
-                AccordionUtils.open(target, arrow, container);
-            } else {
-                AccordionUtils.close(target, arrow, container);
-            }
-        });
-    }
-
     function initializeScrollToTop() {
         const scrollWrap = DOM.$(SELECTORS.scrollWrap);
         const useWindowScroll = !!DOM.$(SELECTORS.scrollWindow);
@@ -4173,7 +3633,6 @@
         ModalUtils.initDelegation();
         ThumbnailHandler.init();
 
-        initializeTabsAndAccordion();
         initializeSearch();
         initializeScrollToTop();
         initializeShareButtons();
