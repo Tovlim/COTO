@@ -751,8 +751,8 @@
             perpetrator: (data) => !!(data.perpetrators?.length > 0 || data.perpetrator),
             perp: (data) => !!(data.perpetrators?.length > 0 || data.perpetrator),
 
-            // Settlement
-            settlement: (data) => !!(data.settlement?.name || data.settlement?.slug),
+            // Settlement (array of { id, name, slug })
+            settlement: (data) => Array.isArray(data.settlement) ? data.settlement.length > 0 : !!(data.settlement?.name || data.settlement?.slug),
 
             // Place / Location Type
             place: (data) => !!(data.place?.name || data.place?.slug || data.locationType?.name || data.locationType?.slug),
@@ -2047,17 +2047,18 @@
             DOM.toggle(perpetratedByText, false);
         }
 
-        // Settlement
+        // Settlement (API returns an array of { id, name, slug })
         const settlementLink = DOM.$('a[cms-link="Settlement"]', perpInfoWrap);
         const settlementField = DOM.$('div[cms-field="Settlement"]', perpInfoWrap);
-        if (reportData.settlement) {
-            if (settlementLink && reportData.settlement.slug) {
-                settlementLink.href = `/settlement/${reportData.settlement.slug}`;
+        const settlement = Array.isArray(reportData.settlement) ? reportData.settlement[0] : reportData.settlement;
+        if (settlement) {
+            if (settlementLink && settlement.slug) {
+                settlementLink.href = `/settlement/${settlement.slug}`;
                 settlementLink.style.display = '';
             } else {
                 DOM.toggle(settlementLink, false);
             }
-            DOM.setText(settlementField, reportData.settlement.name || reportData.settlement);
+            DOM.setText(settlementField, settlement.name || settlement);
         } else {
             DOM.toggle(settlementLink, false);
             DOM.setText(settlementField, '');
@@ -2102,7 +2103,8 @@
         // Show/hide text elements
         const fromText = Array.from(DOM.$$('.perpetrator-report-text', perpInfoWrap))
             .find(el => el.textContent === 'From');
-        DOM.toggle(fromText, !!reportData.settlement);
+        const hasSettlement = Array.isArray(reportData.settlement) ? reportData.settlement.length > 0 : !!reportData.settlement;
+        DOM.toggle(fromText, hasSettlement);
 
         const atText = DOM.$('[fs-list-field="Place"]', perpInfoWrap);
         DOM.toggle(atText, !!(reportData.place || reportData.locationType));
