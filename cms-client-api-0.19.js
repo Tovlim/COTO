@@ -1546,7 +1546,7 @@
 
         // In-site report link
         DOM.$$('[cms-link="report-link"]', itemElement).forEach(link => {
-            link.href = `https://occupationcrimes.org/report/${reportData.slug}`;
+            link.href = `https://cotoip.org/report/${reportData.slug}`;
         });
 
         // External report link — only shown if reporterEventLink exists
@@ -3395,7 +3395,7 @@
 
             const reporterLink = reportItem.getAttribute('data-reporter-link');
             const reportSlug = reportItem.getAttribute('data-report-slug');
-            const shareUrl = reporterLink || (reportSlug ? `https://occupationcrimes.org/report/${reportSlug}` : null);
+            const shareUrl = reporterLink || (reportSlug ? `https://cotoip.org/report/${reportSlug}` : null);
 
             if (!shareUrl) {
                 console.warn('[CMS Client] No share URL available');
@@ -3553,6 +3553,7 @@
         });
 
         // Close report option dropdowns when clicking outside
+        // Uses capture phase so it fires even when handlers call stopPropagation
         document.addEventListener('click', function(e) {
             if (!e.target.closest('[report-options="dropdown"]')) {
                 document.querySelectorAll('[report-options="dropdown"].w--open').forEach(d => {
@@ -3564,7 +3565,7 @@
                     }
                 });
             }
-        });
+        }, true);
 
         console.log('[CMS Client] Report options dropdown initialized');
     }
