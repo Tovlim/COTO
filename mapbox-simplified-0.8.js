@@ -1365,6 +1365,12 @@
           feedPanel.classList.remove('is--open');
         });
       });
+
+      document.querySelectorAll('[data-map-wrap]').forEach(el => {
+        el.addEventListener('click', () => {
+          feedPanel.classList.remove('is--open');
+        });
+      });
     }
 
     console.log('[MapboxCore] Custom controls bound');
