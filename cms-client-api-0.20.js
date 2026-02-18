@@ -3553,7 +3553,6 @@
         });
 
         // Close report option dropdowns when clicking outside
-        // Uses capture phase so it fires even when handlers call stopPropagation
         document.addEventListener('click', function(e) {
             if (!e.target.closest('[report-options="dropdown"]')) {
                 document.querySelectorAll('[report-options="dropdown"].w--open').forEach(d => {
@@ -3565,7 +3564,7 @@
                     }
                 });
             }
-        }, true);
+        });
 
         console.log('[CMS Client] Report options dropdown initialized');
     }
@@ -3687,6 +3686,17 @@
             } else {
                 // Toggle between modes if no specific target
                 switchView(currentMode === 'mini' ? 'full' : 'mini');
+            }
+
+            // Close the parent Webflow dropdown if toggle is inside one
+            const wDropdown = toggleBtn.closest('.w-dropdown');
+            if (wDropdown) {
+                wDropdown.classList.remove('w--open');
+                const dropdownList = wDropdown.querySelector('.w-dropdown-list');
+                if (dropdownList) {
+                    dropdownList.classList.remove('w--open');
+                    dropdownList.style.display = '';
+                }
             }
         });
 
