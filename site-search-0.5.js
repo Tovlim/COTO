@@ -755,6 +755,11 @@ class SiteSearch {
     window.MapboxCore.filterByMarker(item.type, item.name, item.slug);
 
     console.log('[Site Search] Applied map filter for:', item.type, item.name);
+
+    // Close search sidebar on mobile/tablet after selecting a map result
+    if (window.innerWidth <= 991) {
+      this.closeSidebar();
+    }
   }
 
   /**
