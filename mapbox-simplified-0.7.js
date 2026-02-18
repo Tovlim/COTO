@@ -1351,6 +1351,22 @@
       });
     }
 
+    // Feed panel toggle
+    const feedPanel = document.querySelector('[data-feed-panel]');
+    if (feedPanel) {
+      document.querySelectorAll('[data-feed-toggle]').forEach(el => {
+        el.addEventListener('click', () => {
+          feedPanel.classList.toggle('is--open');
+        });
+      });
+
+      document.querySelectorAll('[data-feed-close]').forEach(el => {
+        el.addEventListener('click', () => {
+          feedPanel.classList.remove('is--open');
+        });
+      });
+    }
+
     console.log('[MapboxCore] Custom controls bound');
   }
 
@@ -1829,6 +1845,10 @@
    */
   function handleMarkerFilter(event) {
     const { type, name, feature } = event.detail;
+
+    // Open feed panel on marker click
+    const feedPanel = document.querySelector('[data-feed-panel]');
+    if (feedPanel) feedPanel.classList.add('is--open');
 
     // Fly/fit to the clicked marker's location
     if (map) {
