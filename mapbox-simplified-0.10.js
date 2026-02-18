@@ -1366,10 +1366,17 @@
         });
       });
 
+      let feedOpenedAt = 0;
+      const feedObserver = new MutationObserver(() => {
+        if (feedPanel.classList.contains('is--open')) feedOpenedAt = Date.now();
+      });
+      feedObserver.observe(feedPanel, { attributes: true, attributeFilter: ['class'] });
+
       document.querySelectorAll('[data-map-wrap]').forEach(el => {
         el.addEventListener('click', (e) => {
           if (!feedPanel.classList.contains('is--open')) return;
           if (e.target.closest('[data-feed-toggle], [data-feed-panel]')) return;
+          if (Date.now() - feedOpenedAt < 200) return;
           feedPanel.classList.remove('is--open');
         });
       });
