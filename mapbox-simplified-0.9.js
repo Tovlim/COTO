@@ -1367,7 +1367,9 @@
       });
 
       document.querySelectorAll('[data-map-wrap]').forEach(el => {
-        el.addEventListener('click', () => {
+        el.addEventListener('click', (e) => {
+          if (!feedPanel.classList.contains('is--open')) return;
+          if (e.target.closest('[data-feed-toggle], [data-feed-panel]')) return;
           feedPanel.classList.remove('is--open');
         });
       });
