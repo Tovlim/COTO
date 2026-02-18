@@ -3688,15 +3688,18 @@
                 switchView(currentMode === 'mini' ? 'full' : 'mini');
             }
 
-            // Close the parent Webflow dropdown if toggle is inside one
+            // Close the parent Webflow dropdown after a tick so Webflow's
+            // own handler finishes first and doesn't re-open it
             const wDropdown = toggleBtn.closest('.w-dropdown');
             if (wDropdown) {
-                wDropdown.classList.remove('w--open');
-                const dropdownList = wDropdown.querySelector('.w-dropdown-list');
-                if (dropdownList) {
-                    dropdownList.classList.remove('w--open');
-                    dropdownList.style.display = '';
-                }
+                setTimeout(() => {
+                    wDropdown.classList.remove('w--open');
+                    const dropdownList = wDropdown.querySelector('.w-dropdown-list');
+                    if (dropdownList) {
+                        dropdownList.classList.remove('w--open');
+                        dropdownList.style.display = '';
+                    }
+                }, 0);
             }
         });
 
