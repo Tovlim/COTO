@@ -1926,7 +1926,10 @@
 
     state.districtData.forEach(feature => {
       if (matches(feature)) {
-        highlightBoundary(feature.properties.name);
+        // Use highlightSingleBoundary to avoid companion logic —
+        // territory matching already controls which districts to include
+        // (e.g., Palestine excludes Golan Heights via matchesTerritory)
+        highlightSingleBoundary(feature.properties.name);
       }
     });
   }
