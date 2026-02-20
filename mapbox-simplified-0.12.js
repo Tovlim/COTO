@@ -1657,13 +1657,10 @@
 
       // Replay any CMS filters that were applied before the map was ready
       // (e.g. URL query params like ?territory=West+Bank parsed by cms-client-api.js)
+      // Also reframes the map to fit the filtered area
       if (window.cmsDebug?.Store) {
         const filters = window.cmsDebug.Store.get('filters');
-        if (filters.territory?.length > 0) {
-          filters.territory.forEach(name => highlightTerritoryBoundaries(name));
-        } else if (filters.region?.length > 0) {
-          filters.region.forEach(name => highlightBoundary(name));
-        }
+        replayAndFrameCmsFilters(filters);
       }
     });
 
@@ -1672,6 +1669,121 @@
     });
 
     return map;
+  }
+
+  // ====================================================================
+  // CMS FILTER REPLAY & REFRAME
+  // ====================================================================
+
+  /**
+   * Replay CMS filters on the map: highlight boundaries and reframe view.
+   * Called once after map load to catch filters set before the map was ready
+   * (e.g. URL query params like ?territory=West+Bank).
+   *
+   * Handles all filter types:
+   *   - territory/region: highlights boundaries and fits to their geometry
+   *   - locality/settlement: fits to matching point features
+   */
+  function replayAndFrameCmsFilters(filters) {
+    if (!filters || !map) return;
+
+    const hasTerritory = filters.territory?.length > 0;
+    const hasRegion = filters.region?.length > 0;
+    const hasLocality = filters.locality?.length > 0;
+    const hasSettlement = filters.settlement?.length > 0;
+
+    if (!hasTerritory && !hasRegion && !hasLocality && !hasSettlement) return;
+
+    // Highlight boundaries
+    if (hasTerritory) {
+      filters.territory.forEach(name => highlightTerritoryBoundaries(name));
+    } else if (hasRegion) {
+      filters.region.forEach(name => highlightBoundary(name));
+    }
+
+    // Build combined bounds for reframing
+    const bounds = new mapboxgl.LngLatBounds();
+    let hasCoords = false;
+
+    const addCoords = (coords) => {
+      if (Array.isArray(coords[0])) {
+        coords.forEach(addCoords);
+      } else {
+        bounds.extend(coords);
+        hasCoords = true;
+      }
+    };
+
+    // Territory: collect all district boundary geometries for each territory
+    if (hasTerritory) {
+      filters.territory.forEach(territoryName => {
+        state.districtData.forEach(feature => {
+          if (feature.properties.territory === territoryName && feature.geometry?.coordinates) {
+            addCoords(feature.geometry.coordinates);
+          }
+        });
+      });
+    }
+
+    // Region: collect boundary geometries for each region name
+    if (hasRegion) {
+      filters.region.forEach(regionName => {
+        const boundary = state.boundaryLayers.get(regionName);
+        if (boundary) {
+          const source = map.getSource(boundary.sourceId);
+          const data = source?._data;
+          if (data?.geometry?.coordinates) {
+            addCoords(data.geometry.coordinates);
+          }
+        }
+      });
+    }
+
+    // Locality: find matching point features in locationData
+    if (hasLocality && state.locationData?.features) {
+      const localityNames = new Set(filters.locality.map(n => n.toLowerCase()));
+      state.locationData.features.forEach(feature => {
+        const name = feature.properties?.name?.toLowerCase();
+        if (name && localityNames.has(name) && feature.geometry?.coordinates) {
+          bounds.extend(feature.geometry.coordinates);
+          hasCoords = true;
+        }
+      });
+    }
+
+    // Settlement: find matching point features in settlementData
+    if (hasSettlement && state.settlementData?.features) {
+      const settlementNames = new Set(filters.settlement.map(n => n.toLowerCase()));
+      state.settlementData.features.forEach(feature => {
+        const name = feature.properties?.name?.toLowerCase();
+        if (name && settlementNames.has(name) && feature.geometry?.coordinates) {
+          bounds.extend(feature.geometry.coordinates);
+          hasCoords = true;
+        }
+      });
+    }
+
+    if (!hasCoords) return;
+
+    // Check if bounds represent a single point (locality/settlement)
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+    const isSinglePoint = ne.lng === sw.lng && ne.lat === sw.lat;
+
+    if (isSinglePoint) {
+      map.flyTo({
+        center: [ne.lng, ne.lat],
+        zoom: 12,
+        duration: 1000
+      });
+    } else {
+      map.fitBounds(bounds, {
+        padding: isMobile() ? 30 : 50,
+        duration: 1000
+      });
+    }
+
+    console.log('[MapboxCore] Replayed CMS filters and reframed map');
   }
 
   // ====================================================================
