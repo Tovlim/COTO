@@ -1801,7 +1801,8 @@
       });
     } else {
       map.fitBounds(bounds, {
-        padding: isMobile() ? 30 : 50,
+        padding: isMobile() ? 60 : 100,
+        maxZoom: 14,
         duration: 1000
       });
     }
