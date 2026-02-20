@@ -96,6 +96,11 @@
   // Extra districts to include when highlighting "Israel" (Golan Heights is tagged as Syria)
   const ISRAEL_EXTRA_DISTRICTS = ['Golan Heights'];
 
+  // Districts that should also highlight companion districts (e.g., North includes Golan Heights)
+  const DISTRICT_COMPANIONS = {
+    'North': ['Golan Heights']
+  };
+
   /**
    * Resolve which districts match a territory name.
    * Returns a predicate function: (feature) => boolean
@@ -884,8 +889,8 @@
       const feature = e.features[0];
       const districtName = feature.properties.name;
 
-      // Frame the map to the district boundary
-      frameBoundary(districtName);
+      // Frame the map to the district boundary (including companions like Golan Heights for North)
+      frameDistrictWithCompanions(districtName);
 
       document.dispatchEvent(new CustomEvent('mapMarkerClick', {
         detail: { type: 'district', name: districtName, feature }
@@ -1239,6 +1244,48 @@
       }
     };
     addCoords(data.geometry.coordinates);
+
+    map.fitBounds(bounds, {
+      padding: isMobile() ? 30 : 50,
+      duration: 1000
+    });
+  }
+
+  /**
+   * Frame map to a district and its companion districts (e.g., North + Golan Heights)
+   */
+  function frameDistrictWithCompanions(districtName) {
+    const companions = DISTRICT_COMPANIONS[districtName];
+    if (!companions || companions.length === 0) {
+      frameBoundary(districtName);
+      return;
+    }
+
+    // Collect bounds from the main district and all companions
+    const bounds = new mapboxgl.LngLatBounds();
+    let hasCoords = false;
+
+    const addCoords = (coords) => {
+      if (Array.isArray(coords[0])) {
+        coords.forEach(addCoords);
+      } else {
+        bounds.extend(coords);
+        hasCoords = true;
+      }
+    };
+
+    [districtName, ...companions].forEach(name => {
+      const boundary = state.boundaryLayers.get(name);
+      if (!boundary) return;
+      const source = map.getSource(boundary.sourceId);
+      if (!source) return;
+      const data = source._data;
+      if (data?.geometry?.coordinates) {
+        addCoords(data.geometry.coordinates);
+      }
+    });
+
+    if (!hasCoords) return;
 
     map.fitBounds(bounds, {
       padding: isMobile() ? 30 : 50,
@@ -1842,9 +1889,9 @@
   // ====================================================================
 
   /**
-   * Highlight a single district boundary on the map
+   * Highlight a single district boundary on the map (internal, no companions)
    */
-  function highlightBoundary(name) {
+  function highlightSingleBoundary(name) {
     const boundary = state.boundaryLayers.get(name);
     if (!boundary || !map) return;
 
@@ -1856,6 +1903,19 @@
     map.setPaintProperty(boundary.borderId, 'line-dasharray', [1, 0]);
 
     state.highlightedBoundaries.add(name);
+  }
+
+  /**
+   * Highlight a district boundary and its companions (e.g., North + Golan Heights)
+   */
+  function highlightBoundary(name) {
+    highlightSingleBoundary(name);
+
+    // Also highlight companion districts
+    const companions = DISTRICT_COMPANIONS[name];
+    if (companions) {
+      companions.forEach(companion => highlightSingleBoundary(companion));
+    }
   }
 
   /**
