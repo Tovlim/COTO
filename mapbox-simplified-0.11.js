@@ -1654,6 +1654,17 @@
       document.dispatchEvent(new CustomEvent('mapLoaded', {
         detail: { map }
       }));
+
+      // Replay any CMS filters that were applied before the map was ready
+      // (e.g. URL query params like ?territory=West+Bank parsed by cms-client-api.js)
+      if (window.cmsDebug?.Store) {
+        const filters = window.cmsDebug.Store.get('filters');
+        if (filters.territory?.length > 0) {
+          filters.territory.forEach(name => highlightTerritoryBoundaries(name));
+        } else if (filters.region?.length > 0) {
+          filters.region.forEach(name => highlightBoundary(name));
+        }
+      }
     });
 
     map.on('error', (e) => {
