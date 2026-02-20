@@ -47,9 +47,6 @@
     // Data URLs
     URLS: {
       combined: 'https://raw.githubusercontent.com/Tovlim/COTO/main/boundaries.geojson',
-      localities: 'https://webflow-geojson.occupation-crimes.workers.dev/',
-      settlements: 'https://webflow-settlements-geojson.occupation-crimes.workers.dev/',
-      // Combined locations worker with filtering support
       locations: 'https://webflow-locations-worker.occupation-crimes.workers.dev/'
     },
 
@@ -150,7 +147,11 @@
     pageFilter: null,  // e.g., { type: 'reporter', slug: 'btselem' }
 
     // Filter context from API (contains entity details like name, photo, etc.)
-    filterContext: null  // e.g., { type: 'reporter', name: 'Btselem', photo: '...', ... }
+    filterContext: null,  // e.g., { type: 'reporter', name: 'Btselem', photo: '...', ... }
+
+    // Active regions from API (only set when page filter is active)
+    // Used to show only relevant territory/district/region/subregion markers
+    activeRegions: null   // e.g., { territories: ['West Bank'], regions: ['Hebron'], subRegions: [] }
   };
 
   // ====================================================================
@@ -379,6 +380,12 @@
           console.log('[MapboxCore] Filtered locations loaded:', localityCount, 'localities,', settlementCount, 'settlements');
           console.log('[MapboxCore] Filter matched', data.metadata?.reportsMatched || 0, 'reports');
 
+          // Store active regions for marker filtering
+          if (data.activeRegions) {
+            state.activeRegions = data.activeRegions;
+            console.log('[MapboxCore] Active regions:', data.activeRegions.territories.length, 'territories,', data.activeRegions.regions.length, 'regions,', data.activeRegions.subRegions.length, 'subRegions');
+          }
+
           // Store and dispatch filter context if available
           if (data.filterContext) {
             state.filterContext = data.filterContext;
@@ -402,39 +409,12 @@
         return true;
       }
 
-      // Fallback: handle old single-collection format
-      console.warn('[MapboxCore] Unexpected response format, falling back to legacy loaders');
-      return await loadLocationsLegacy();
+      // Unexpected response format
+      console.error('[MapboxCore] Unexpected response format from locations worker');
+      return false;
 
     } catch (error) {
       console.error('[MapboxCore] Failed to load locations:', error);
-      // Fallback to legacy loaders on error
-      return await loadLocationsLegacy();
-    }
-  }
-
-  /**
-   * Legacy loader for backwards compatibility
-   * Falls back to separate locality and settlement endpoints
-   */
-  async function loadLocationsLegacy() {
-    console.log('[MapboxCore] Using legacy location loaders');
-    try {
-      const [localitiesRes, settlementsRes] = await Promise.all([
-        fetch(CONFIG.URLS.localities),
-        fetch(CONFIG.URLS.settlements)
-      ]);
-
-      state.locationData = await localitiesRes.json();
-      state.settlementData = await settlementsRes.json();
-      state.dataLoaded.localities = true;
-      state.dataLoaded.settlements = true;
-
-      console.log('[MapboxCore] Legacy load - Localities:', state.locationData.features?.length || 0);
-      console.log('[MapboxCore] Legacy load - Settlements:', state.settlementData.features?.length || 0);
-      return true;
-    } catch (error) {
-      console.error('[MapboxCore] Legacy load failed:', error);
       return false;
     }
   }
@@ -552,6 +532,54 @@
     }));
 
     console.log('[MapboxCore] Created', state.territoryFeatures.length, 'territory markers');
+  }
+
+  /**
+   * Filter marker features to only include regions that have reports
+   * Called when page filter is active and API returned activeRegions
+   */
+  function filterMarkerFeaturesByActiveRegions(activeRegions) {
+    const activeTerritories = new Set(activeRegions.territories);
+    const activeRegionNames = new Set(activeRegions.regions);
+    const activeSubRegions = new Set(activeRegions.subRegions);
+
+    // Filter territories — keep only those present in filtered data
+    // Also keep 'Palestine' if any of its constituent territories are active
+    const beforeTerritories = state.territoryFeatures.length;
+    state.territoryFeatures = state.territoryFeatures.filter(f => {
+      const name = f.properties.name;
+      if (activeTerritories.has(name)) return true;
+      // 'Palestine' is a composite — show if Israel, West Bank, or Gaza is active
+      if (name === 'Palestine') {
+        return PALESTINE_TERRITORIES.some(t => activeTerritories.has(t));
+      }
+      return false;
+    });
+
+    // Filter districts — keep only those whose territory is active
+    const beforeDistricts = state.allDistrictFeatures.length;
+    state.allDistrictFeatures = state.allDistrictFeatures.filter(f =>
+      activeTerritories.has(f.properties.territory)
+    );
+
+    // Filter regions — keep only those with matching names
+    const beforeRegions = state.allRegionFeatures.length;
+    state.allRegionFeatures = state.allRegionFeatures.filter(f =>
+      activeRegionNames.has(f.properties.name)
+    );
+
+    // Filter subregions — keep only those with matching names
+    const beforeSubregions = state.allSubregionFeatures.length;
+    state.allSubregionFeatures = state.allSubregionFeatures.filter(f =>
+      activeSubRegions.has(f.properties.name)
+    );
+
+    console.log('[MapboxCore] Filtered markers by active regions:',
+      `territories ${beforeTerritories}→${state.territoryFeatures.length},`,
+      `districts ${beforeDistricts}→${state.allDistrictFeatures.length},`,
+      `regions ${beforeRegions}→${state.allRegionFeatures.length},`,
+      `subregions ${beforeSubregions}→${state.allSubregionFeatures.length}`
+    );
   }
 
   // ====================================================================
@@ -1704,6 +1732,11 @@
       extractTerritoryFeatures();
       extractDistrictFeatures();
       extractRegionFeatures();
+
+      // When page filter is active, restrict marker tiers to only regions with reports
+      if (state.activeRegions) {
+        filterMarkerFeaturesByActiveRegions(state.activeRegions);
+      }
 
       // Desaturate base map layers to grayscale (before adding colored layers)
       desaturateBaseLayers();
