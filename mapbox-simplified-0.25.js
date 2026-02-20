@@ -556,10 +556,10 @@
       return false;
     });
 
-    // Filter districts — keep only those whose territory is active
+    // Filter districts — keep only those directly referenced by filtered localities
     const beforeDistricts = state.allDistrictFeatures.length;
     state.allDistrictFeatures = state.allDistrictFeatures.filter(f =>
-      activeTerritories.has(f.properties.territory)
+      activeRegionNames.has(f.properties.name)
     );
 
     // Filter regions — keep only those with matching names
