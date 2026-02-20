@@ -93,6 +93,25 @@
   // Composite territory: "Palestine" includes these three territory values
   const PALESTINE_TERRITORIES = ['Israel', 'West Bank', 'Gaza'];
 
+  // Extra districts to include when highlighting "Israel" (Golan Heights is tagged as Syria)
+  const ISRAEL_EXTRA_DISTRICTS = ['Golan Heights'];
+
+  /**
+   * Resolve which districts match a territory name.
+   * Returns a predicate function: (feature) => boolean
+   */
+  function matchesTerritory(territoryName) {
+    if (territoryName === 'Palestine') {
+      // Israel + West Bank + Gaza districts, but NOT the Golan Heights
+      return (f) => PALESTINE_TERRITORIES.includes(f.properties.territory)
+        && !ISRAEL_EXTRA_DISTRICTS.includes(f.properties.name);
+    }
+    if (territoryName === 'Israel') {
+      return (f) => f.properties.territory === 'Israel' || ISRAEL_EXTRA_DISTRICTS.includes(f.properties.name);
+    }
+    return (f) => f.properties.territory === territoryName;
+  }
+
   let map = null;
 
   // ====================================================================
@@ -1243,12 +1262,10 @@
       }
     };
 
-    const matchTerritories = territoryName === 'Palestine'
-      ? PALESTINE_TERRITORIES
-      : [territoryName];
+    const matches = matchesTerritory(territoryName);
 
     state.districtData.forEach(feature => {
-      if (matchTerritories.includes(feature.properties.territory) && feature.geometry?.coordinates) {
+      if (matches(feature) && feature.geometry?.coordinates) {
         addCoords(feature.geometry.coordinates);
       }
     });
@@ -1725,12 +1742,10 @@
     // Territory: collect all district boundary geometries for each territory
     if (hasTerritory) {
       filters.territory.forEach(territoryName => {
-        const matchTerritories = territoryName === 'Palestine'
-          ? PALESTINE_TERRITORIES
-          : [territoryName];
+        const matches = matchesTerritory(territoryName);
 
         state.districtData.forEach(feature => {
-          if (matchTerritories.includes(feature.properties.territory) && feature.geometry?.coordinates) {
+          if (matches(feature) && feature.geometry?.coordinates) {
             addCoords(feature.geometry.coordinates);
           }
         });
@@ -1847,12 +1862,10 @@
    * Highlight all district boundaries belonging to a territory
    */
   function highlightTerritoryBoundaries(territoryName) {
-    const matchTerritories = territoryName === 'Palestine'
-      ? PALESTINE_TERRITORIES
-      : [territoryName];
+    const matches = matchesTerritory(territoryName);
 
     state.districtData.forEach(feature => {
-      if (matchTerritories.includes(feature.properties.territory)) {
+      if (matches(feature)) {
         highlightBoundary(feature.properties.name);
       }
     });
