@@ -98,7 +98,7 @@
 
   // Districts that should also highlight companion districts (e.g., North includes Golan Heights)
   const DISTRICT_COMPANIONS = {
-    'North': ['Golan Heights']
+    'North District': ['Golan Heights']
   };
 
   /**
@@ -2106,7 +2106,7 @@
       if (type === 'territory') {
         frameTerritoryBoundary(name);
       } else if (type === 'district') {
-        frameBoundary(name);
+        frameDistrictWithCompanions(name);
       } else if (feature?.geometry?.coordinates) {
         map.flyTo({
           center: feature.geometry.coordinates,
