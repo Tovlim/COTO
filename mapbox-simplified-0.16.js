@@ -90,6 +90,9 @@
     }
   };
 
+  // Composite territory: "Palestine" includes these three territory values
+  const PALESTINE_TERRITORIES = ['Israel', 'West Bank', 'Gaza'];
+
   let map = null;
 
   // ====================================================================
@@ -514,7 +517,8 @@
       { name: 'Israel', coordinates: [34.8516, 31.0461] },
       { name: 'West Bank', coordinates: [35.2507, 31.9466] },
       { name: 'Gaza', coordinates: [34.4668, 31.4167] },
-      { name: 'Syria', coordinates: [35.7500, 33.0000] }
+      { name: 'Syria', coordinates: [35.7500, 33.0000] },
+      { name: 'Palestine', coordinates: [35.0, 31.5] }
     ];
 
     state.territoryFeatures = territories.map(t => ({
@@ -1239,8 +1243,12 @@
       }
     };
 
+    const matchTerritories = territoryName === 'Palestine'
+      ? PALESTINE_TERRITORIES
+      : [territoryName];
+
     state.districtData.forEach(feature => {
-      if (feature.properties.territory === territoryName && feature.geometry?.coordinates) {
+      if (matchTerritories.includes(feature.properties.territory) && feature.geometry?.coordinates) {
         addCoords(feature.geometry.coordinates);
       }
     });
@@ -1717,8 +1725,12 @@
     // Territory: collect all district boundary geometries for each territory
     if (hasTerritory) {
       filters.territory.forEach(territoryName => {
+        const matchTerritories = territoryName === 'Palestine'
+          ? PALESTINE_TERRITORIES
+          : [territoryName];
+
         state.districtData.forEach(feature => {
-          if (feature.properties.territory === territoryName && feature.geometry?.coordinates) {
+          if (matchTerritories.includes(feature.properties.territory) && feature.geometry?.coordinates) {
             addCoords(feature.geometry.coordinates);
           }
         });
@@ -1835,8 +1847,12 @@
    * Highlight all district boundaries belonging to a territory
    */
   function highlightTerritoryBoundaries(territoryName) {
+    const matchTerritories = territoryName === 'Palestine'
+      ? PALESTINE_TERRITORIES
+      : [territoryName];
+
     state.districtData.forEach(feature => {
-      if (feature.properties.territory === territoryName) {
+      if (matchTerritories.includes(feature.properties.territory)) {
         highlightBoundary(feature.properties.name);
       }
     });
