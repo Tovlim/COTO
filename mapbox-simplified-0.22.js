@@ -1358,14 +1358,18 @@
   }
 
   function bindCustomControls() {
-    // Reset view control
+    // Reset view control - fits to filtered locations when page filter is active
     document.querySelectorAll('[map-controls="reset-view"]').forEach(el => {
       el.addEventListener('click', () => {
         if (!map) return;
-        map.fitBounds(CONFIG.BOUNDS, {
-          padding: isMobile() ? 20 : 50,
-          duration: 1000
-        });
+        if (state.pageFilter) {
+          fitToFilteredLocations();
+        } else {
+          map.fitBounds(CONFIG.BOUNDS, {
+            padding: isMobile() ? 20 : 50,
+            duration: 1000
+          });
+        }
       });
     });
 
@@ -1984,9 +1988,13 @@
 
     resetView: () => {
       if (!map) return;
-      map.fitBounds(CONFIG.BOUNDS, {
-        padding: isMobile() ? 20 : 50
-      });
+      if (state.pageFilter) {
+        fitToFilteredLocations();
+      } else {
+        map.fitBounds(CONFIG.BOUNDS, {
+          padding: isMobile() ? 20 : 50
+        });
+      }
     },
 
     frameBoundary,
