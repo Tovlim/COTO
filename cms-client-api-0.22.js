@@ -2686,6 +2686,28 @@
             const response_data = await response.json();
             const items = response_data.data || [];
 
+            // Resolve filter slugs to display names from API metadata
+            // (e.g., "972-magazine" → "972 Magazine" for tags/UI)
+            const appliedFilters = response_data.metadata?.appliedFilters;
+            if (appliedFilters) {
+                const filters = Store.get('filters');
+                Object.entries(appliedFilters).forEach(([filterKey, resolved]) => {
+                    if (!Array.isArray(filters[filterKey])) return;
+                    const nameMap = new Map();
+                    resolved.forEach(r => {
+                        nameMap.set(r.slug?.toLowerCase(), r.name);
+                        nameMap.set(r.name?.toLowerCase(), r.name);
+                    });
+                    const updated = filters[filterKey].map(val => {
+                        return nameMap.get(val.toLowerCase()) || val;
+                    });
+                    Store.setFilter(filterKey, updated);
+                });
+                // Refresh tags and URL with resolved names
+                TagManager.updateTags();
+                UrlManager.updateUrl(true);
+            }
+
             // Cache reports for view switching
             Store.setState({ cachedReports: items }, true);
 
