@@ -1725,8 +1725,12 @@
       });
     }
 
-    // Region: collect boundary geometries for each region name
+    // Region: collect boundary geometries, or fall back to locality points
+    // for boundaryless regions (e.g., Masafer Yatta) that only exist as
+    // computed centroids from their child localities
     if (hasRegion) {
+      const regionsWithoutBounds = [];
+
       filters.region.forEach(regionName => {
         const boundary = state.boundaryLayers.get(regionName);
         if (boundary) {
@@ -1734,9 +1738,28 @@
           const data = source?._data;
           if (data?.geometry?.coordinates) {
             addCoords(data.geometry.coordinates);
+            return;
           }
         }
+        // No boundary polygon — collect from localities instead
+        regionsWithoutBounds.push(regionName.toLowerCase());
       });
+
+      // For boundaryless regions, fit to all localities in that region/subRegion
+      if (regionsWithoutBounds.length > 0 && state.locationData?.features) {
+        state.locationData.features.forEach(feature => {
+          const props = feature.properties;
+          const region = props?.region?.toLowerCase();
+          const subRegion = props?.subRegion?.toLowerCase();
+          if ((region && regionsWithoutBounds.includes(region)) ||
+              (subRegion && regionsWithoutBounds.includes(subRegion))) {
+            if (feature.geometry?.coordinates) {
+              bounds.extend(feature.geometry.coordinates);
+              hasCoords = true;
+            }
+          }
+        });
+      }
     }
 
     // Locality: find matching point features in locationData
