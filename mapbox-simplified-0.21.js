@@ -1021,21 +1021,23 @@
     });
 
     // Group 3: Settlements - fade in as regions/districts fade out
+    // When page filter is active, show at all zoom levels
     const g3InSet = CONFIG.ZOOM_TIERS.localitiesFadeIn;
+    const filtered = state.pageFilter !== null;
 
-    // Circle layer (black dots)
+    // Circle layer (red dots)
     map.addLayer({
       id: 'settlement-circles',
       type: 'circle',
       source: 'settlements-source',
-      minzoom: g3InSet.start, // Disable layer (and clicks) before fade in starts
+      ...(filtered ? {} : { minzoom: g3InSet.start }),
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 12, 4, 16, 6],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 8, 3, 12, 4, 16, 6],
         'circle-color': '#d94040',
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1.5,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], g3InSet.start, 0, g3InSet.end, 0.8],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], g3InSet.start, 0, g3InSet.end, 0.8]
+        'circle-opacity': filtered ? 0.8 : ['interpolate', ['linear'], ['zoom'], g3InSet.start, 0, g3InSet.end, 0.8],
+        'circle-stroke-opacity': filtered ? 0.8 : ['interpolate', ['linear'], ['zoom'], g3InSet.start, 0, g3InSet.end, 0.8]
       }
     });
 
@@ -1044,11 +1046,11 @@
       id: 'settlement-points',
       type: 'symbol',
       source: 'settlements-source',
-      minzoom: g3InSet.start, // Disable layer (and clicks) before fade in starts
+      ...(filtered ? {} : { minzoom: g3InSet.start }),
       layout: {
         'text-field': ['get', 'name'],
         'text-font': ['Open Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 12, 14, 16, 16],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 8, 8, 10, 12, 14, 16, 16],
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
@@ -1061,7 +1063,7 @@
         'text-color': '#222222',
         'text-halo-color': CONFIG.COLORS.textHalo,
         'text-halo-width': 2,
-        'text-opacity': ['interpolate', ['linear'], ['zoom'], g3InSet.start, 0, g3InSet.end, 1]
+        'text-opacity': filtered ? 1 : ['interpolate', ['linear'], ['zoom'], g3InSet.start, 0, g3InSet.end, 1]
       }
     });
 
@@ -1097,21 +1099,23 @@
     });
 
     // Group 3: Localities - fade in as regions/districts fade out
+    // When page filter is active, show at all zoom levels
     const g3InLoc = CONFIG.ZOOM_TIERS.localitiesFadeIn;
+    const filtered = state.pageFilter !== null;
 
-    // Circle layer (black dots)
+    // Circle layer (dark dots)
     map.addLayer({
       id: 'locality-circles',
       type: 'circle',
       source: 'localities-source',
-      minzoom: g3InLoc.start, // Disable layer (and clicks) before fade in starts
+      ...(filtered ? {} : { minzoom: g3InLoc.start }),
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3, 12, 4, 16, 6],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 8, 3, 12, 4, 16, 6],
         'circle-color': '#555555',
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1.5,
-        'circle-opacity': ['interpolate', ['linear'], ['zoom'], g3InLoc.start, 0, g3InLoc.end, 0.8],
-        'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], g3InLoc.start, 0, g3InLoc.end, 0.8]
+        'circle-opacity': filtered ? 0.8 : ['interpolate', ['linear'], ['zoom'], g3InLoc.start, 0, g3InLoc.end, 0.8],
+        'circle-stroke-opacity': filtered ? 0.8 : ['interpolate', ['linear'], ['zoom'], g3InLoc.start, 0, g3InLoc.end, 0.8]
       }
     });
 
@@ -1120,11 +1124,11 @@
       id: 'locality-points',
       type: 'symbol',
       source: 'localities-source',
-      minzoom: g3InLoc.start, // Disable layer (and clicks) before fade in starts
+      ...(filtered ? {} : { minzoom: g3InLoc.start }),
       layout: {
         'text-field': ['get', 'name'],
         'text-font': ['Open Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 12, 14, 16, 16],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 8, 8, 10, 12, 14, 16, 16],
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-optional': true,
@@ -1137,7 +1141,7 @@
         'text-color': '#222222',
         'text-halo-color': CONFIG.COLORS.textHalo,
         'text-halo-width': 2,
-        'text-opacity': ['interpolate', ['linear'], ['zoom'], g3InLoc.start, 0, g3InLoc.end, 1]
+        'text-opacity': filtered ? 1 : ['interpolate', ['linear'], ['zoom'], g3InLoc.start, 0, g3InLoc.end, 1]
       }
     });
 
