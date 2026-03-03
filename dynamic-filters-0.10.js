@@ -6,7 +6,7 @@
  * Lazy-loads items (sorted by featured order) when a section is first expanded.
  * Supports "Show more" pagination to load additional items.
  *
- * Dependencies: cms-client-api.js (must load first, exposes window.cmsDebug)
+ * Dependencies: cms-unified-sync-worker.js (must load first, exposes window.cmsDebug)
  *
  * Webflow attribute reference:
  *
@@ -204,6 +204,20 @@
         const ct = state.elements.collapseTarget;
         if (!ct) return;
 
+        // If not yet loaded, fetch first, then expand once results arrive
+        if (!state.expanded && !state.loaded && !state.loading) {
+            loadFeaturedItems(filterKey);
+            return;
+        }
+
+        expandOrCollapse(filterKey);
+    }
+
+    function expandOrCollapse(filterKey) {
+        const state = getGroupState(filterKey);
+        const ct = state.elements.collapseTarget;
+        if (!ct) return;
+
         const newExpanded = !state.expanded;
         state.expanded = newExpanded;
 
@@ -226,11 +240,6 @@
         // Arrow rotation
         if (state.elements.arrow) {
             state.elements.arrow.style.transform = newExpanded ? 'rotate(180deg)' : '';
-        }
-
-        // Lazy load on first expand
-        if (newExpanded && !state.loaded && !state.loading) {
-            loadFeaturedItems(filterKey);
         }
     }
 
@@ -259,9 +268,18 @@
             state.hasMore = normalizedItems.length < total;
             state.loaded = true;
             renderItems(filterKey, normalizedItems);
+
+            // Expand the section now that results are ready
+            if (!state.expanded) {
+                expandOrCollapse(filterKey);
+            }
         } catch (error) {
             console.error(`[Dynamic Filters] Failed to load featured items for ${filterKey}:`, error);
             showStateTemplate(filterKey, state.elements.errorTemplate, 'Failed to load. Click to retry.', () => loadFeaturedItems(filterKey));
+            // Still expand on error so user can see the error/retry message
+            if (!state.expanded) {
+                expandOrCollapse(filterKey);
+            }
         } finally {
             state.loading = false;
         }
