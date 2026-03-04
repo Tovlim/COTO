@@ -170,9 +170,9 @@ class SiteSearch {
       resultTemplate: document.querySelector('[site-search="result-wrap"]'),
       // Sidebar elements
       sidebar: document.querySelector('[site-search="sidebar"]'),
-      openSearch: document.querySelector('[site-search="open-search"]'),
-      openMapSearch: document.querySelector('[map-search="open-search"]'),
-      sidebarClose: document.querySelector('[site-search="sidebar-close"]')
+      openSearch: document.querySelectorAll('[site-search="open-search"]'),
+      openMapSearch: document.querySelectorAll('[map-search="open-search"]'),
+      sidebarClose: document.querySelectorAll('[site-search="sidebar-close"]')
     };
 
     console.log('[Site Search] Elements found:', {
@@ -184,9 +184,9 @@ class SiteSearch {
       sortDropdown: !!this.elements.sortDropdown,
       resultTemplate: !!this.elements.resultTemplate,
       sidebar: !!this.elements.sidebar,
-      openSearch: !!this.elements.openSearch,
-      openMapSearch: !!this.elements.openMapSearch,
-      sidebarClose: !!this.elements.sidebarClose
+      openSearch: this.elements.openSearch.length,
+      openMapSearch: this.elements.openMapSearch.length,
+      sidebarClose: this.elements.sidebarClose.length
     });
 
     if (!this.elements.input) {
@@ -269,36 +269,38 @@ class SiteSearch {
     }
 
     // Toggle search sidebar (site mode)
-    if (this.elements.openSearch && this.elements.sidebar) {
-      this.elements.openSearch.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (this.elements.sidebar.classList.contains('is--show') && this.mode === 'site') {
-          console.log('[Site Search] Closing sidebar (toggle)');
-          this.closeSidebar();
-        } else {
-          console.log('[Site Search] Opening sidebar in site mode');
-          this.setMode('site');
+    if (this.elements.sidebar) {
+      this.elements.openSearch.forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (this.elements.sidebar.classList.contains('is--show') && this.mode === 'site') {
+            console.log('[Site Search] Closing sidebar (toggle)');
+            this.closeSidebar();
+          } else {
+            console.log('[Site Search] Opening sidebar in site mode');
+            this.setMode('site');
+            this.openSidebar();
+          }
+        });
+      });
+
+      // Open search sidebar (map mode)
+      this.elements.openMapSearch.forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          console.log('[Site Search] Opening sidebar in map mode');
+          this.setMode('map');
           this.openSidebar();
-        }
+        });
       });
-    }
 
-    // Open search sidebar (map mode)
-    if (this.elements.openMapSearch && this.elements.sidebar) {
-      this.elements.openMapSearch.addEventListener('click', (e) => {
-        e.preventDefault();
-        console.log('[Site Search] Opening sidebar in map mode');
-        this.setMode('map');
-        this.openSidebar();
-      });
-    }
-
-    // Close search sidebar
-    if (this.elements.sidebarClose && this.elements.sidebar) {
-      this.elements.sidebarClose.addEventListener('click', (e) => {
-        e.preventDefault();
-        console.log('[Site Search] Closing sidebar');
-        this.closeSidebar();
+      // Close search sidebar
+      this.elements.sidebarClose.forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          console.log('[Site Search] Closing sidebar');
+          this.closeSidebar();
+        });
       });
     }
 
