@@ -432,14 +432,19 @@
     const regionMap = new Map();
     const subregionMap = new Map();
     const districtNames = new Set(state.districtData.map(d => d.properties.name));
+    // Check if a region name overlaps with any district (exact match or comma-separated parts)
+    const overlapsDistrict = (region) => {
+      if (districtNames.has(region)) return true;
+      return region.split(',').some(part => districtNames.has(part.trim()));
+    };
 
     state.locationData.features.forEach(feature => {
       const props = feature.properties;
       const coords = feature.geometry?.coordinates;
       if (!coords) return;
 
-      // Collect regions
-      if (props.region && !districtNames.has(props.region)) {
+      // Collect regions (skip if all parts match existing district names)
+      if (props.region && !overlapsDistrict(props.region)) {
         if (!regionMap.has(props.region)) {
           regionMap.set(props.region, { coords: [], territory: props.territory });
         }
