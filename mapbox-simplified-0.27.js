@@ -95,7 +95,9 @@
 
   // Districts that should also highlight companion districts (e.g., North includes Golan Heights)
   const DISTRICT_COMPANIONS = {
-    'North District': ['Golan Heights']
+    'North District': ['Golan Heights'],
+    'Jerusalem Governorate': ['East Jerusalem'],
+    'Jerusalem District': ['East Jerusalem']
   };
 
   /**
