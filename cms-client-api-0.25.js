@@ -769,7 +769,7 @@
             videos: (data) => !!(data.videos?.length > 0),
             images: (data) => !!(data.reportImages?.length > 0),
             reportImages: (data) => !!(data.reportImages?.length > 0),
-            photo: (data) => !!(data.photo?.url),
+            photo: (data) => !!(data.thumbnail?.url || data.photo?.url),
 
             // Victims donation link
             victimsDonationLink: (data) => !!(data.victimsDonationLink),
@@ -1345,24 +1345,25 @@
 
     // ===== POPULATE FUNCTIONS =====
 
-    // Populate header thumbnail with main image
+    // Populate header thumbnail with thumbnail image, falling back to main image
     function populateHeaderThumbnail(itemElement, reportData) {
         const thumbnailElement = DOM.$(SELECTORS.headerThumbnail, itemElement);
         if (!thumbnailElement) return;
 
-        if (!reportData.photo?.url) {
+        const imgSource = reportData.thumbnail || reportData.photo;
+        if (!imgSource?.url) {
             thumbnailElement.style.display = 'none';
             return;
         }
 
-        thumbnailElement.href = reportData.photo.url;
+        thumbnailElement.href = imgSource.url;
         thumbnailElement.removeAttribute('data-fancybox');
-        thumbnailElement.setAttribute('data-caption', reportData.photo?.alt || reportData.name || '');
-        thumbnailElement.setAttribute('data-thumb', reportData.photo.url);
+        thumbnailElement.setAttribute('data-caption', imgSource.alt || reportData.name || '');
+        thumbnailElement.setAttribute('data-thumb', imgSource.url);
 
         const thumbnailImg = DOM.$('img', thumbnailElement);
         if (thumbnailImg) {
-            thumbnailImg.src = reportData.photo.url;
+            thumbnailImg.src = imgSource.url;
             thumbnailImg.alt = reportData.name || '';
             thumbnailImg.classList.remove('lazy', 'loading');
             thumbnailImg.removeAttribute('data-ll-status');
@@ -1392,9 +1393,9 @@
                 const reportId = itemElement?.getAttribute('data-report-id');
                 const reportData = reportId ? Store.getReportData(reportId) : null;
 
-                // Show single main photo in lightbox (full gallery on report page)
-                const src = reportData?.photo?.url || thumbnail.href;
-                const caption = reportData?.photo?.alt || reportData?.name || thumbnail.getAttribute('data-caption') || '';
+                // Show full-size photo in lightbox (fall back to thumbnail if no full photo)
+                const src = reportData?.photo?.url || reportData?.thumbnail?.url || thumbnail.href;
+                const caption = reportData?.photo?.alt || reportData?.thumbnail?.alt || reportData?.name || thumbnail.getAttribute('data-caption') || '';
                 Fancybox.show([{ src, caption, thumb: src }], { hideScrollbar: false });
             });
 
@@ -1464,7 +1465,7 @@
         let successCount = 0;
 
         if (DOM.setText(DOM.$('[cms-field="title"]', itemElement), reportData.name)) successCount++;
-        if (DOM.setImage(DOM.$(SELECTORS.mainImage, itemElement), reportData.photo?.url || '', reportData.name)) successCount++;
+        if (DOM.setImage(DOM.$(SELECTORS.mainImage, itemElement), reportData.thumbnail?.url || reportData.photo?.url || '', reportData.name)) successCount++;
 
         const dateValue = reportData.date || reportData.createdOn;
         if (DOM.setText(DOM.$('[cms-field="date"]', itemElement), DateUtils.format(dateValue))) successCount++;
@@ -1546,7 +1547,7 @@
 
         // In-site report link
         DOM.$$('[cms-link="report-link"]', itemElement).forEach(link => {
-            link.href = `https://cotoip.org/report/${reportData.slug}`;
+            link.href = `/report/${reportData.slug}`;
         });
 
         // External report link — only shown if reporterEventLink exists
@@ -3417,7 +3418,7 @@
 
             const reporterLink = reportItem.getAttribute('data-reporter-link');
             const reportSlug = reportItem.getAttribute('data-report-slug');
-            const shareUrl = reporterLink || (reportSlug ? `https://cotoip.org/report/${reportSlug}` : null);
+            const shareUrl = reporterLink || (reportSlug ? `/report/${reportSlug}` : null);
 
             if (!shareUrl) {
                 console.warn('[CMS Client] No share URL available');
